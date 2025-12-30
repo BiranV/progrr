@@ -5,7 +5,15 @@ import { db } from "@/lib/db";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Mail, Phone, Trash2, Edit } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Mail,
+  Phone,
+  Trash2,
+  Edit,
+  ArrowUpDown,
+} from "lucide-react";
 import ClientDialog from "@/components/ClientDialog";
 import { Client } from "@/types";
 
@@ -13,6 +21,10 @@ export default function ClientsPage() {
   const [search, setSearch] = React.useState("");
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editingClient, setEditingClient] = React.useState<Client | null>(null);
+  const [sortConfig, setSortConfig] = React.useState<{
+    key: keyof Client;
+    direction: "asc" | "desc";
+  } | null>(null);
   const queryClient = useQueryClient();
 
   const { data: clients = [], isLoading } = useQuery({
@@ -31,6 +43,35 @@ export default function ClientsPage() {
       c.email?.toLowerCase().includes(search.toLowerCase()) ||
       c.phone?.toLowerCase().includes(search.toLowerCase())
   );
+
+  const sortedClients = React.useMemo(() => {
+    if (!sortConfig) return filteredClients;
+
+    return [...filteredClients].sort((a, b) => {
+      const aValue = a[sortConfig.key] || "";
+      const bValue = b[sortConfig.key] || "";
+
+      if (aValue < bValue) {
+        return sortConfig.direction === "asc" ? -1 : 1;
+      }
+      if (aValue > bValue) {
+        return sortConfig.direction === "asc" ? 1 : -1;
+      }
+      return 0;
+    });
+  }, [filteredClients, sortConfig]);
+
+  const handleSort = (key: keyof Client) => {
+    setSortConfig((current) => {
+      if (current?.key === key) {
+        return {
+          key,
+          direction: current.direction === "asc" ? "desc" : "asc",
+        };
+      }
+      return { key, direction: "asc" };
+    });
+  };
 
   const handleEdit = (client: Client) => {
     setEditingClient(client);
@@ -97,17 +138,65 @@ export default function ClientsPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
-                <th className="px-4 py-3 text-left">Client</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-left">Goal</th>
-                <th className="px-4 py-3 text-left">Activity</th>
-                <th className="px-4 py-3 text-left">Plan</th>
-                <th className="px-4 py-3 text-left">Gender</th>
+                <th
+                  className="px-4 py-3 text-left cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                  onClick={() => handleSort("name")}
+                >
+                  <div className="flex items-center gap-2">
+                    Client
+                    <ArrowUpDown className="w-4 h-4" />
+                  </div>
+                </th>
+                <th
+                  className="px-4 py-3 text-left cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                  onClick={() => handleSort("status")}
+                >
+                  <div className="flex items-center gap-2">
+                    Status
+                    <ArrowUpDown className="w-4 h-4" />
+                  </div>
+                </th>
+                <th
+                  className="px-4 py-3 text-left cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                  onClick={() => handleSort("goal")}
+                >
+                  <div className="flex items-center gap-2">
+                    Goal
+                    <ArrowUpDown className="w-4 h-4" />
+                  </div>
+                </th>
+                <th
+                  className="px-4 py-3 text-left cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                  onClick={() => handleSort("activityLevel")}
+                >
+                  <div className="flex items-center gap-2">
+                    Activity
+                    <ArrowUpDown className="w-4 h-4" />
+                  </div>
+                </th>
+                <th
+                  className="px-4 py-3 text-left cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                  onClick={() => handleSort("subscription")}
+                >
+                  <div className="flex items-center gap-2">
+                    Plan
+                    <ArrowUpDown className="w-4 h-4" />
+                  </div>
+                </th>
+                <th
+                  className="px-4 py-3 text-left cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                  onClick={() => handleSort("gender")}
+                >
+                  <div className="flex items-center gap-2">
+                    Gender
+                    <ArrowUpDown className="w-4 h-4" />
+                  </div>
+                </th>
                 {/* <th className="px-4 py-3 text-left">Actions</th> */}
               </tr>
             </thead>
             <tbody>
-              {filteredClients.map((client: Client) => (
+              {sortedClients.map((client: Client) => (
                 <tr
                   key={client.id}
                   className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40"
