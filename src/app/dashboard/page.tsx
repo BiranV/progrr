@@ -90,6 +90,13 @@ function AdminDashboard({ user }: { user: any }) {
     },
   ];
 
+  const statusConfig: Record<string, string> = {
+    active: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
+    pending:
+      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
+    inactive: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400",
+  };
+
   return (
     <div className="p-8">
       <div className="mb-8">
@@ -156,10 +163,8 @@ function AdminDashboard({ user }: { user: any }) {
                       </p>
                     </div>
                     <span
-                      className={`px-2 py-1 text-xs rounded-full ${
-                        client.status === "active"
-                          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                          : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+                      className={`inline-flex items-center justify-center w-20 h-7 px-3 rounded-md text-xs font-medium capitalize ${
+                        statusConfig[client.status || "active"]
                       }`}
                     >
                       {client.status || "active"}
