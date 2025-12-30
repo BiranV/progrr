@@ -55,16 +55,16 @@ export interface Column {
 export interface Client {
   id: string;
   name: string;
-  email?: string;
-  phone?: string;
-  birthDate?: string;
-  gender?: string;
-  height?: string;
-  weight?: string;
-  goal?: string;
-  activityLevel?: string;
-  subscription?: string;
-  status?: string;
+  email: string;
+  phone: string;
+  birthDate: string;
+  gender: string;
+  height: string;
+  weight: string;
+  goal: string;
+  activityLevel: string;
+  subscription: string;
+  status: string;
   notes?: string;
   [key: string]: any;
 }
