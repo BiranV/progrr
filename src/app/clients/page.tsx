@@ -139,7 +139,7 @@ export default function ClientsPage() {
             <thead className="bg-gray-50 dark:bg-gray-700">
               <tr>
                 <th
-                  className="px-4 py-3 text-left cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                  className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
                   onClick={() => handleSort("name")}
                 >
                   <div className="flex items-center gap-2">
@@ -148,7 +148,7 @@ export default function ClientsPage() {
                   </div>
                 </th>
                 <th
-                  className="px-4 py-3 text-left cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                  className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
                   onClick={() => handleSort("status")}
                 >
                   <div className="flex items-center gap-2">
@@ -157,7 +157,7 @@ export default function ClientsPage() {
                   </div>
                 </th>
                 <th
-                  className="px-4 py-3 text-left cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                  className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
                   onClick={() => handleSort("goal")}
                 >
                   <div className="flex items-center gap-2">
@@ -166,7 +166,7 @@ export default function ClientsPage() {
                   </div>
                 </th>
                 <th
-                  className="px-4 py-3 text-left cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                  className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
                   onClick={() => handleSort("activityLevel")}
                 >
                   <div className="flex items-center gap-2">
@@ -175,7 +175,7 @@ export default function ClientsPage() {
                   </div>
                 </th>
                 <th
-                  className="px-4 py-3 text-left cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                  className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
                   onClick={() => handleSort("subscription")}
                 >
                   <div className="flex items-center gap-2">
@@ -184,7 +184,7 @@ export default function ClientsPage() {
                   </div>
                 </th>
                 <th
-                  className="px-4 py-3 text-left cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                  className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
                   onClick={() => handleSort("gender")}
                 >
                   <div className="flex items-center gap-2">
@@ -192,7 +192,7 @@ export default function ClientsPage() {
                     <ArrowUpDown className="w-4 h-4" />
                   </div>
                 </th>
-                {/* <th className="px-4 py-3 text-left">Actions</th> */}
+                <th className="px-4 py-3 text-left font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -228,12 +228,18 @@ export default function ClientsPage() {
                     </span>
                   </td>
 
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 capitalize">
                     {client.goal?.replace("_", " ") || "-"}
                   </td>
-                  <td className="px-4 py-3">{client.activityLevel || "-"}</td>
-                  <td className="px-4 py-3">{client.subscription || "-"}</td>
-                  <td className="px-4 py-3">{client.gender || "-"}</td>
+                  <td className="px-4 py-3 capitalize">
+                    {client.activityLevel || "-"}
+                  </td>
+                  <td className="px-4 py-3 capitalize">
+                    {client.subscription || "-"}
+                  </td>
+                  <td className="px-4 py-3 capitalize">
+                    {client.gender || "-"}
+                  </td>
 
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-2">
