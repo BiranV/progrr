@@ -5,7 +5,14 @@ import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/db";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Dumbbell, Calendar, MessageSquare } from "lucide-react";
+import {
+  Users,
+  Dumbbell,
+  Calendar,
+  MessageSquare,
+  Mail,
+  Phone,
+} from "lucide-react";
 
 export default function DashboardPage() {
   const { user, isLoadingAuth } = useAuth();
@@ -154,13 +161,18 @@ function AdminDashboard({ user }: { user: any }) {
                     key={client.id}
                     className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
                   >
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-medium truncate text-gray-900 dark:text-white">
                         {client.name}
-                      </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                      </span>
+                      <div className="flex items-center gap-2 text-xs text-gray-500 truncate">
+                        <Mail className="w-3 h-3" />
                         {client.email}
-                      </p>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-500 truncate">
+                        <Phone className="w-3 h-3" />
+                        {client.phone}
+                      </div>
                     </div>
                     <span
                       className={`inline-flex items-center justify-center w-20 h-7 px-3 rounded-md text-xs font-medium capitalize ${
