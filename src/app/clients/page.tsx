@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Plus,
   Search,
@@ -13,6 +14,7 @@ import {
   Trash2,
   Edit,
   ArrowUpDown,
+  Users,
 } from "lucide-react";
 import ClientDialog from "@/components/ClientDialog";
 import { Client } from "@/types";
@@ -102,7 +104,7 @@ export default function ClientsPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold">Clients</h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
             Manage your client roster
           </p>
         </div>
@@ -132,6 +134,17 @@ export default function ClientsPage() {
       {/* Content */}
       {isLoading ? (
         <div className="py-12 text-center text-gray-500">Loading…</div>
+      ) : sortedClients.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500 dark:text-gray-400">
+              {search
+                ? "No clients found"
+                : "No clients yet. Create your first one!"}
+            </p>
+          </CardContent>
+        </Card>
       ) : (
         /* ================= TABLE VIEW ================= */
         <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg border">
@@ -192,7 +205,7 @@ export default function ClientsPage() {
                     <ArrowUpDown className="w-4 h-4" />
                   </div>
                 </th>
-                <th className="px-4 py-3 text-left font-medium">Actions</th>
+                <th className="px-4 py-3 text-left font-medium"></th>
               </tr>
             </thead>
             <tbody>

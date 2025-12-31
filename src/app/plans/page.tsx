@@ -101,6 +101,17 @@ export default function PlansPage() {
         <div className="text-center py-12 text-gray-600 dark:text-gray-400">
           Loading workout plans...
         </div>
+      ) : filteredPlans.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Dumbbell className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500 dark:text-gray-400">
+              {search
+                ? "No workout plans found"
+                : "No workout plans yet. Create your first one!"}
+            </p>
+          </CardContent>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredPlans.map((plan: WorkoutPlan) => (
