@@ -184,7 +184,12 @@ export default function ClientDialog({
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Email {isRequired("email") && "*"}
               </label>
-              <Input type="email" {...getInputProps("email")} />
+              <Input
+                type="email"
+                pattern="[^@\s]+@[^@\s]+\.[^@\s]+"
+                title="Please enter a valid email address (e.g., user@example.com)"
+                {...getInputProps("email")}
+              />
             </div>
 
             {/* PHONE */}
