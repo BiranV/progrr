@@ -173,7 +173,7 @@ export default function ClientDialog({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* NAME */}
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Full Name {isRequired("name") && "*"}
               </label>
               <Input {...getInputProps("name")} />
@@ -181,7 +181,7 @@ export default function ClientDialog({
 
             {/* EMAIL */}
             <div>
-              <label className="block text-sm font-medium mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Email {isRequired("email") && "*"}
               </label>
               <Input type="email" {...getInputProps("email")} />
@@ -189,7 +189,7 @@ export default function ClientDialog({
 
             {/* PHONE */}
             <div>
-              <label className="block text-sm font-medium mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Phone {isRequired("phone") && "*"}
               </label>
               <Input {...getInputProps("phone")} />
@@ -197,7 +197,7 @@ export default function ClientDialog({
 
             {/* BIRTH DATE */}
             <div>
-              <label className="block text-sm font-medium mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Birth Date {isRequired("birthDate") && "*"}
               </label>
               <Input
@@ -209,7 +209,7 @@ export default function ClientDialog({
 
             {/* GENDER */}
             <div>
-              <label className="block text-sm font-medium mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Gender {isRequired("gender") && "*"}
               </label>
               <Select
@@ -232,7 +232,7 @@ export default function ClientDialog({
 
             {/* HEIGHT */}
             <div>
-              <label className="block text-sm font-medium mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Height (cm) {isRequired("height") && "*"}
               </label>
               <Input {...getInputProps("height")} />
@@ -240,7 +240,7 @@ export default function ClientDialog({
 
             {/* WEIGHT */}
             <div>
-              <label className="block text-sm font-medium mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Weight (kg) {isRequired("weight") && "*"}
               </label>
               <Input {...getInputProps("weight")} />
@@ -248,7 +248,7 @@ export default function ClientDialog({
 
             {/* GOAL */}
             <div>
-              <label className="block text-sm font-medium mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Goal {isRequired("goal") && "*"}
               </label>
               <Select
@@ -273,7 +273,7 @@ export default function ClientDialog({
 
             {/* ACTIVITY */}
             <div>
-              <label className="block text-sm font-medium mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Activity Level {isRequired("activityLevel") && "*"}
               </label>
               <Select
@@ -298,7 +298,7 @@ export default function ClientDialog({
 
             {/* SUBSCRIPTION */}
             <div>
-              <label className="block text-sm font-medium mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Subscription {isRequired("subscription") && "*"}
               </label>
               <Select
@@ -321,7 +321,7 @@ export default function ClientDialog({
 
             {/* STATUS */}
             <div>
-              <label className="block text-sm font-medium mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Status {isRequired("status") && "*"}
               </label>
               <Select
@@ -344,13 +344,15 @@ export default function ClientDialog({
 
             {/* NOTES (NOT REQUIRED) */}
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium mb-1">Notes</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Notes
+              </label>
               <Textarea {...getInputProps("notes")} rows={3} />
             </div>
 
             {/* ASSIGNED WORKOUT PLAN */}
             <div>
-              <label className="block text-sm font-medium mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Assigned Workout Plan
               </label>
               <Select
@@ -375,7 +377,7 @@ export default function ClientDialog({
 
             {/* ASSIGNED MEAL PLAN */}
             <div>
-              <label className="block text-sm font-medium mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Assigned Meal Plan
               </label>
               <Select

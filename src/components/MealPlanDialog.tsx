@@ -256,7 +256,7 @@ export default function MealPlanDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-gray-800">
         <DialogHeader>
           <DialogTitle>
             {plan ? "Edit Meal Plan" : "Create Meal Plan"}
@@ -266,7 +266,7 @@ export default function MealPlanDialog({
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <label className="block text-sm font-medium mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Plan Name *
               </label>
               <Input
@@ -277,41 +277,66 @@ export default function MealPlanDialog({
                 required
               />
             </div>
-            <Input
-              placeholder="Goal"
-              value={formData.goal}
-              onChange={(e) =>
-                setFormData({ ...formData, goal: e.target.value })
-              }
-            />
-            <Input
-              placeholder="Daily Calories"
-              value={formData.dailyCalories}
-              onChange={(e) =>
-                setFormData({ ...formData, dailyCalories: e.target.value })
-              }
-            />
-            <Input
-              placeholder="Daily Protein (g)"
-              value={formData.dailyProtein}
-              onChange={(e) =>
-                setFormData({ ...formData, dailyProtein: e.target.value })
-              }
-            />
-            <Input
-              placeholder="Daily Carbs (g)"
-              value={formData.dailyCarbs}
-              onChange={(e) =>
-                setFormData({ ...formData, dailyCarbs: e.target.value })
-              }
-            />
-            <Input
-              placeholder="Daily Fat (g)"
-              value={formData.dailyFat}
-              onChange={(e) =>
-                setFormData({ ...formData, dailyFat: e.target.value })
-              }
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Goal
+              </label>
+              <Input
+                placeholder="e.g., Weight Loss"
+                value={formData.goal}
+                onChange={(e) =>
+                  setFormData({ ...formData, goal: e.target.value })
+                }
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Daily Calories
+              </label>
+              <Input
+                placeholder="e.g., 2000"
+                value={formData.dailyCalories}
+                onChange={(e) =>
+                  setFormData({ ...formData, dailyCalories: e.target.value })
+                }
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Daily Protein (g)
+              </label>
+              <Input
+                placeholder="e.g., 150"
+                value={formData.dailyProtein}
+                onChange={(e) =>
+                  setFormData({ ...formData, dailyProtein: e.target.value })
+                }
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Daily Carbs (g)
+              </label>
+              <Input
+                placeholder="e.g., 200"
+                value={formData.dailyCarbs}
+                onChange={(e) =>
+                  setFormData({ ...formData, dailyCarbs: e.target.value })
+                }
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Daily Fat (g)
+              </label>
+              <Input
+                placeholder="e.g., 60"
+                value={formData.dailyFat}
+                onChange={(e) =>
+                  setFormData({ ...formData, dailyFat: e.target.value })
+                }
+              />
+            </div>
           </div>
 
           <div className="border-t pt-6">

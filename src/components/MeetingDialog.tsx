@@ -100,7 +100,7 @@ export default function MeetingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl dark:bg-gray-800">
         <DialogHeader>
           <DialogTitle>
             {meeting ? "Edit Meeting" : "Schedule Meeting"}
@@ -109,7 +109,9 @@ export default function MeetingDialog({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Title *</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Title *
+            </label>
             <Input
               value={formData.title}
               onChange={(e) =>
@@ -121,7 +123,9 @@ export default function MeetingDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Type</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Type
+              </label>
               <Select
                 value={formData.type}
                 onValueChange={(v) => setFormData({ ...formData, type: v })}
@@ -139,7 +143,9 @@ export default function MeetingDialog({
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Status</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Status
+              </label>
               <Select
                 value={formData.status}
                 onValueChange={(v) => setFormData({ ...formData, status: v })}
@@ -159,11 +165,12 @@ export default function MeetingDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Date & Time *
               </label>
               <Input
                 type="datetime-local"
+                max="9999-12-31T23:59"
                 value={formData.scheduledAt}
                 onChange={(e) =>
                   setFormData({ ...formData, scheduledAt: e.target.value })
@@ -173,7 +180,7 @@ export default function MeetingDialog({
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Duration (min)
               </label>
               <Input
@@ -190,7 +197,9 @@ export default function MeetingDialog({
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Client</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Client
+            </label>
             <Select
               value={formData.clientId}
               onValueChange={(v) => setFormData({ ...formData, clientId: v })}
@@ -209,7 +218,7 @@ export default function MeetingDialog({
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Location/Link
             </label>
             <Input
@@ -222,7 +231,9 @@ export default function MeetingDialog({
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Notes</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Notes
+            </label>
             <Textarea
               value={formData.notes}
               onChange={(e) =>
