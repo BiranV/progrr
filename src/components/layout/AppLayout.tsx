@@ -113,15 +113,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <VisualEditAgent />
       {/* Mobile header */}
       <div className="lg:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           {logoUrl && (
-            <img src={logoUrl} alt="Logo" className="h-8 object-contain" />
+            <img
+              src={logoUrl}
+              alt="Logo"
+              className="h-8 object-contain shrink-0"
+            />
           )}
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-            {"Proggrr"}
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white truncate">
+            {settings[0]?.businessName || "Progrr"}
           </h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setDarkMode(!darkMode)}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
@@ -167,17 +171,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <img
                     src={logoUrl}
                     alt="Logo"
-                    className="h-8 object-contain"
+                    className="h-8 object-contain shrink-0"
                   />
                 )}
-                <h1 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-                  Progrr
+                <h1 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 truncate">
+                  {settings[0]?.businessName || "Progrr"}
                 </h1>
               </div>
-              <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+              <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 truncate">
                 {user.full_name}
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                 {user.email}
               </p>
             </div>
