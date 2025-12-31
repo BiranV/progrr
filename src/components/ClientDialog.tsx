@@ -226,7 +226,11 @@ export default function ClientDialog({
               <label className="block text-sm font-medium mb-1">
                 Birth Date {isRequired("birthDate") && "*"}
               </label>
-              <Input type="date" {...getInputProps("birthDate")} />
+              <Input
+                type="date"
+                max="9999-12-31"
+                {...getInputProps("birthDate")}
+              />
               {errors.birthDate && (
                 <p className="mt-1 text-xs text-red-600">{errors.birthDate}</p>
               )}
