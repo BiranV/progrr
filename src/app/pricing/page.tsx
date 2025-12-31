@@ -161,7 +161,9 @@ export default function PricingPage() {
 
                   <Button
                     className={`w-full ${
-                      plan.popular ? "bg-indigo-600 hover:bg-indigo-700" : ""
+                      plan.popular
+                        ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                        : ""
                     }`}
                     variant={plan.popular ? "default" : "outline"}
                     onClick={() => {

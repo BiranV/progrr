@@ -454,7 +454,7 @@ export default function SettingsPage() {
           <Button
             type="submit"
             disabled={saveMutation.isPending}
-            className="bg-indigo-600 hover:bg-indigo-700"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white"
           >
             <Save className="w-5 h-5 mr-2" />
             {saveMutation.isPending ? "Saving..." : "Save Settings"}
