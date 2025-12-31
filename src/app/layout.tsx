@@ -18,6 +18,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Progrr",
   description: "Professional Growth & Resource Repository",
+  icons: {
+    icon: "/logo.png",
+  },
 };
 
 export default function RootLayout({
