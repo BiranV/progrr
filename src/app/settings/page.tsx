@@ -48,8 +48,6 @@ export default function SettingsPage() {
     businessDescription: "",
     webAddress: "",
     logoUrl: "",
-    clientLabel: "Client",
-    planLabel: "Plan",
     weekStartDay: "monday",
     facebookUrl: "",
     instagramUrl: "",
@@ -137,22 +135,42 @@ export default function SettingsPage() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const data = JSON.parse(event.target?.result as string);
-        Object.keys(data).forEach((key) => {
-          if (key.startsWith("progrr_")) {
-            setCookie(
-              key,
-              typeof data[key] === "string"
-                ? data[key]
-                : JSON.stringify(data[key]),
-              { maxAgeSeconds: 60 * 60 * 24 * 365 }
-            );
+        let importCount = 0;
+        const promises: Promise<any>[] = [];
+
+        // Iterate over keys like "progrr_entity_Client", "progrr_entity_MealPlan"
+        for (const key of Object.keys(data)) {
+          if (key.startsWith("progrr_entity_")) {
+            const entityName = key.replace("progrr_entity_", "");
+            const items = data[key];
+
+            if (Array.isArray(items)) {
+              for (const item of items) {
+                // Create via API (Prisma)
+                // This preserves the existing 'id' inside the JSON blob,
+                // while generating a new primary key UUID for the table.
+                promises.push(db.entities[entityName].create(item));
+                importCount++;
+              }
+            }
           }
-        });
-        toast.success("Data imported successfully. Please refresh the page.");
-        setTimeout(() => window.location.reload(), 1500);
+        }
+
+        if (importCount > 0) {
+          toast.promise(Promise.all(promises), {
+            loading: `Importing ${importCount} items...`,
+            success: () => {
+              setTimeout(() => window.location.reload(), 1500);
+              return "Data imported successfully!";
+            },
+            error: "Failed to import data",
+          });
+        } else {
+          toast.info("No importable data found in file.");
+        }
       } catch (error) {
         console.error("Import failed:", error);
         toast.error("Failed to import data. Invalid file format.");
@@ -360,65 +378,7 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Terminology */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Terminology</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Client Label
-              </label>
-              <Input
-                value={formData.clientLabel}
-                onChange={(e) =>
-                  setFormData({ ...formData, clientLabel: e.target.value })
-                }
-                placeholder="Client, Member, Athlete, etc."
-              />
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                How you refer to people you coach
-              </p>
-            </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Plan Label
-              </label>
-              <Input
-                value={formData.planLabel}
-                onChange={(e) =>
-                  setFormData({ ...formData, planLabel: e.target.value })
-                }
-                placeholder="Plan, Program, Routine, etc."
-              />
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                How you refer to workout plans
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Week Start Day
-              </label>
-              <Select
-                value={formData.weekStartDay}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, weekStartDay: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sunday">Sunday</SelectItem>
-                  <SelectItem value="monday">Monday</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Social Links */}
         <Card>
