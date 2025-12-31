@@ -114,13 +114,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Mobile header */}
       <div className="lg:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="h-12 w-12 flex items-center justify-center overflow-hidden">
-            <img
-              src={logoUrl || "/logo.png"}
-              alt="Logo"
-              className="h-[180%] w-[180%] max-w-none object-contain"
-            />
-          </div>
+          {logoUrl && (
+            <img src={logoUrl} alt="Logo" className="h-8 object-contain" />
+          )}
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">
             {"Proggrr"}
           </h1>

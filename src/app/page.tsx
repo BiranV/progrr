@@ -205,6 +205,37 @@ function LoginForm({
     | { type: "message"; text: string }
     | null;
 }) {
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>(
+    {}
+  );
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+    const newErrors: { email?: string; password?: string } = {};
+
+    // Email regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!email || !email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!emailRegex.test(email)) {
+      newErrors.email = "Please enter a valid email address";
+    }
+
+    if (!password || !password.trim()) {
+      newErrors.password = "Password is required";
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      e.preventDefault();
+      setErrors(newErrors);
+    } else {
+      setErrors({});
+    }
+  };
+
   return (
     <div className="space-y-5 flex-1 flex flex-col">
       {banner ? (
@@ -221,6 +252,8 @@ function LoginForm({
 
       <form
         action={signInWithPassword}
+        onSubmit={handleSubmit}
+        noValidate
         className="space-y-4 flex-1 flex flex-col"
       >
         <div className="space-y-4">
@@ -234,8 +267,13 @@ function LoginForm({
               type="email"
               placeholder="coach@example.com"
               autoComplete="email"
-              required
+              className={
+                errors.email ? "border-red-500 focus-visible:ring-red-500" : ""
+              }
             />
+            {errors.email && (
+              <p className="text-xs text-red-500 !mb-2">{errors.email}</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="login_password" className="text-gray-700">
@@ -245,10 +283,17 @@ function LoginForm({
               id="login_password"
               name="password"
               type="password"
-              placeholder="••••••••"
+              placeholder=""
               autoComplete="current-password"
-              required
+              className={
+                errors.password
+                  ? "border-red-500 focus-visible:ring-red-500"
+                  : ""
+              }
             />
+            {errors.password && (
+              <p className="text-xs text-red-500 !mb-2">{errors.password}</p>
+            )}
           </div>
         </div>
 
@@ -316,6 +361,54 @@ function RegisterForm({
     | { type: "message"; text: string }
     | null;
 }) {
+  const [errors, setErrors] = useState<{
+    full_name?: string;
+    email?: string;
+    password?: string;
+  }>({});
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    const formData = new FormData(e.currentTarget);
+    const fullName = formData.get("full_name") as string;
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+    const newErrors: {
+      full_name?: string;
+      email?: string;
+      password?: string;
+    } = {};
+
+    // Email regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // Password regex: At least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
+    const passwordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,20}$/;
+
+    if (!fullName || !fullName.trim()) {
+      newErrors.full_name = "Full name is required";
+    }
+
+    if (!email || !email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!emailRegex.test(email)) {
+      newErrors.email = "Please enter a valid email address";
+    }
+
+    if (!password || !password.trim()) {
+      newErrors.password = "Password is required";
+    } else if (!passwordRegex.test(password)) {
+      newErrors.password =
+        "Password must be 8-20 characters and include uppercase, lowercase, number, and symbol";
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      e.preventDefault();
+      setErrors(newErrors);
+    } else {
+      setErrors({});
+    }
+  };
+
   return (
     <div className="space-y-5 flex-1 flex flex-col">
       {banner ? (
@@ -332,6 +425,8 @@ function RegisterForm({
 
       <form
         action={signUpWithPassword}
+        onSubmit={handleSubmit}
+        noValidate
         className="space-y-4 flex-1 flex flex-col"
       >
         <div className="space-y-4">
@@ -345,8 +440,15 @@ function RegisterForm({
               type="text"
               placeholder="John Doe"
               autoComplete="name"
-              required
+              className={
+                errors.full_name
+                  ? "border-red-500 focus-visible:ring-red-500"
+                  : ""
+              }
             />
+            {errors.full_name && (
+              <p className="text-xs text-red-500 !mb-2">{errors.full_name}</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="register_email" className="text-gray-700">
@@ -358,8 +460,13 @@ function RegisterForm({
               type="email"
               placeholder="coach@example.com"
               autoComplete="email"
-              required
+              className={
+                errors.email ? "border-red-500 focus-visible:ring-red-500" : ""
+              }
             />
+            {errors.email && (
+              <p className="text-xs text-red-500 !mb-2">{errors.email}</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="register_password" className="text-gray-700">
@@ -369,10 +476,17 @@ function RegisterForm({
               id="register_password"
               name="password"
               type="password"
-              placeholder="••••••••"
+              placeholder=""
               autoComplete="new-password"
-              required
+              className={
+                errors.password
+                  ? "border-red-500 focus-visible:ring-red-500"
+                  : ""
+              }
             />
+            {errors.password && (
+              <p className="text-xs text-red-500 !mb-2">{errors.password}</p>
+            )}
           </div>
         </div>
 
