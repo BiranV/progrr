@@ -201,7 +201,7 @@ export default function MealsPage() {
                     </div>
                     <Button
                       size="sm"
-                      className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700 border-0 font-medium"
+                      className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/50 dark:text-indigo-300 dark:hover:bg-indigo-900 border-0 font-medium"
                       onClick={() => handleEdit(plan)}
                     >
                       Details
