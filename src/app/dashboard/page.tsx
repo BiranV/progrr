@@ -159,7 +159,10 @@ function AdminDashboard({ user }: { user: any }) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
         <Card>
           <CardHeader>
-            <CardTitle>Recent Clients</CardTitle>
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              <CardTitle>Recent Clients</CardTitle>
+            </div>
           </CardHeader>
           <CardContent>
             {clients.length === 0 ? (
@@ -205,7 +208,10 @@ function AdminDashboard({ user }: { user: any }) {
 
         <Card>
           <CardHeader>
-            <CardTitle>Upcoming Meetings</CardTitle>
+            <div className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              <CardTitle>Upcoming Meetings</CardTitle>
+            </div>
           </CardHeader>
           <CardContent>
             {meetings.filter((m: any) => new Date(m.scheduledAt) > new Date())
