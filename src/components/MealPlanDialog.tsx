@@ -305,6 +305,13 @@ export default function MealPlanDialog({
                 setFormData({ ...formData, dailyCarbs: e.target.value })
               }
             />
+            <Input
+              placeholder="Daily Fat (g)"
+              value={formData.dailyFat}
+              onChange={(e) =>
+                setFormData({ ...formData, dailyFat: e.target.value })
+              }
+            />
           </div>
 
           <div className="border-t pt-6">
@@ -342,14 +349,6 @@ export default function MealPlanDialog({
                         <SelectItem value="snack">Snack</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Input
-                      value={meal.name}
-                      onChange={(e) =>
-                        updateMeal(mealIndex, "name", e.target.value)
-                      }
-                      placeholder="Meal name"
-                      className="flex-1"
-                    />
                     <button
                       type="button"
                       onClick={() => removeMeal(mealIndex)}
