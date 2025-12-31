@@ -2,7 +2,7 @@
 
 import React from "react";
 import { db } from "@/lib/db";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -52,6 +52,16 @@ export default function ClientDialog({
 }: ClientDialogProps) {
   const queryClient = useQueryClient();
 
+  const { data: workoutPlans = [] } = useQuery({
+    queryKey: ["workoutPlans"],
+    queryFn: () => db.entities.WorkoutPlan.list(),
+  });
+
+  const { data: mealPlans = [] } = useQuery({
+    queryKey: ["mealPlans"],
+    queryFn: () => db.entities.MealPlan.list(),
+  });
+
   const [formData, setFormData] = React.useState<Partial<Client>>({
     name: "",
     email: "",
@@ -65,6 +75,8 @@ export default function ClientDialog({
     subscription: "",
     status: "active",
     notes: "",
+    assignedPlanId: "",
+    assignedMealPlanId: "",
   });
 
   const [errors, setErrors] = React.useState<Record<string, string>>({});
@@ -87,6 +99,8 @@ export default function ClientDialog({
         subscription: client.subscription || "",
         status: client.status || "active",
         notes: client.notes || "",
+        assignedPlanId: client.assignedPlanId || "",
+        assignedMealPlanId: client.assignedMealPlanId || "",
       });
     } else {
       setFormData({
@@ -102,6 +116,8 @@ export default function ClientDialog({
         subscription: "",
         status: "active",
         notes: "",
+        assignedPlanId: "",
+        assignedMealPlanId: "",
       });
     }
 
@@ -410,6 +426,56 @@ export default function ClientDialog({
             <div className="md:col-span-2">
               <label className="block text-sm font-medium mb-1">Notes</label>
               <Textarea {...getInputProps("notes")} rows={3} />
+            </div>
+
+            {/* ASSIGNED WORKOUT PLAN */}
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Assigned Workout Plan
+              </label>
+              <Select
+                value={formData.assignedPlanId}
+                onValueChange={(v) => {
+                  setFormData({ ...formData, assignedPlanId: v });
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select workout plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {workoutPlans.map((plan: any) => (
+                    <SelectItem key={plan.id} value={plan.id}>
+                      {plan.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* ASSIGNED MEAL PLAN */}
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Assigned Meal Plan
+              </label>
+              <Select
+                value={formData.assignedMealPlanId}
+                onValueChange={(v) => {
+                  setFormData({ ...formData, assignedMealPlanId: v });
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select meal plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {mealPlans.map((plan: any) => (
+                    <SelectItem key={plan.id} value={plan.id}>
+                      {plan.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
