@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { getCookie, setCookie } from "@/lib/client-cookies";
+import { useTheme } from "@/context/ThemeContext";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/db";
 import NavigationTracker from "@/lib/NavigationTracker";
@@ -26,15 +26,9 @@ import {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoadingAuth: loading, logout } = useAuth();
+  const { darkMode, toggleDarkMode } = useTheme();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = getCookie("progrr_dark_mode");
-      return saved === "true";
-    }
-    return false;
-  });
 
   const { data: settings = [] } = useQuery({
     queryKey: ["appSettings"],
@@ -46,17 +40,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const rawLogoUrl = settings.length > 0 ? settings[0].logoUrl : null;
   const logoUrl =
     rawLogoUrl && rawLogoUrl.startsWith("blob:") ? null : rawLogoUrl;
-
-  useEffect(() => {
-    setCookie("progrr_dark_mode", darkMode ? "true" : "false", {
-      maxAgeSeconds: 60 * 60 * 24 * 365,
-    });
-    if (darkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [darkMode]);
 
   const handleLogout = async () => {
     logout();
@@ -127,7 +110,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <button
-            onClick={() => setDarkMode(!darkMode)}
+            onClick={toggleDarkMode}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
           >
             {darkMode ? (
@@ -215,7 +198,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {/* Theme Toggle & Logout */}
             <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
               <button
-                onClick={() => setDarkMode(!darkMode)}
+                onClick={toggleDarkMode}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
                 {darkMode ? (
