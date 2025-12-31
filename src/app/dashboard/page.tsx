@@ -129,7 +129,7 @@ function AdminDashboard({ user }: { user: any }) {
         {stats.map((stat, index) => {
           const Icon = stat.icon;
           return (
-            <Card key={index}>
+            <Card key={index} className="dark:bg-gray-800 dark:border-gray-700">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -157,7 +157,7 @@ function AdminDashboard({ user }: { user: any }) {
 
       {/* Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-        <Card>
+        <Card className="dark:bg-gray-800 dark:border-gray-700">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
@@ -206,7 +206,7 @@ function AdminDashboard({ user }: { user: any }) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="dark:bg-gray-800 dark:border-gray-700">
           <CardHeader>
             <div className="flex items-center gap-2">
               <Calendar className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
@@ -290,7 +290,7 @@ function ClientDashboard({ user }: { user: any }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
+        <Card className="dark:bg-gray-800 dark:border-gray-700">
           <CardHeader>
             <CardTitle>My Workout Plan</CardTitle>
           </CardHeader>
@@ -324,7 +324,7 @@ function ClientDashboard({ user }: { user: any }) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="dark:bg-gray-800 dark:border-gray-700">
           <CardHeader>
             <CardTitle>My Meal Plan</CardTitle>
           </CardHeader>

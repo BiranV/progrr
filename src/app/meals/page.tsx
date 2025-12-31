@@ -126,7 +126,7 @@ export default function MealsPage() {
           {filteredPlans.map((plan: MealPlan) => (
             <Card
               key={plan.id}
-              className="hover:shadow-lg transition-shadow duration-200 flex flex-col h-full"
+              className="hover:shadow-lg transition-shadow duration-200 flex flex-col h-full dark:bg-gray-800 dark:border-gray-700"
             >
               <CardHeader className="flex flex-row items-start justify-between pb-2">
                 <div className="space-y-1">

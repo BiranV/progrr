@@ -213,7 +213,7 @@ export default function SettingsPage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Business Information */}
-        <Card>
+        <Card className="dark:bg-gray-800 dark:border-gray-700">
           <CardHeader>
             <CardTitle>Business Information</CardTitle>
           </CardHeader>
@@ -378,10 +378,8 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-
-
         {/* Social Links */}
-        <Card>
+        <Card className="dark:bg-gray-800 dark:border-gray-700">
           <CardHeader>
             <CardTitle>Social Media</CardTitle>
           </CardHeader>
@@ -415,7 +413,7 @@ export default function SettingsPage() {
         </Card>
 
         {/* Data Management */}
-        <Card>
+        <Card className="dark:bg-gray-800 dark:border-gray-700">
           <CardHeader>
             <CardTitle>Data Management</CardTitle>
           </CardHeader>
