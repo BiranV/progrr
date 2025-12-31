@@ -178,14 +178,16 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Settings
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">
-          Configure your coaching portal
-        </p>
+    <div className="p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Settings
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            Configure your coaching portal
+          </p>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
