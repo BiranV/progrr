@@ -149,7 +149,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Sidebar */}
         <aside
           className={`
-            fixed lg:static inset-y-0 left-0 z-50
+            fixed lg:sticky lg:top-0 lg:h-screen inset-y-0 left-0 z-50
             w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
             transform transition-transform duration-200 ease-in-out
             ${
