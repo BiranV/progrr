@@ -47,13 +47,13 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  let isAuthed = false;
-  try {
-    const { data } = await supabase.auth.getClaims();
-    isAuthed = Boolean(data?.claims);
-  } catch {
-    isAuthed = false;
-  }
+  // IMPORTANT: DO NOT REMOVE.
+  // This refreshes the session if needed and validates the user.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const isAuthed = !!user;
 
   const pathname = request.nextUrl.pathname;
   if (!isPublicPath(pathname) && !isAuthed) {

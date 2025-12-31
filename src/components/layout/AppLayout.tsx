@@ -72,6 +72,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Public pages (no layout)
   if (!user || pathname === "/") {
+    // SECURITY: If user is not logged in, ONLY render content for known public paths.
+    // This prevents "flash of unauthenticated content" if middleware fails or during client-side redirects.
+    const isPublic =
+      pathname === "/" ||
+      pathname.startsWith("/pricing") ||
+      pathname.startsWith("/public") ||
+      pathname.startsWith("/auth"); // Add other public paths if needed
+
+    if (!user && !isPublic) {
+      return null; // Render nothing while redirecting
+    }
+
     return <div className="min-h-screen bg-gray-50">{children}</div>;
   }
 
