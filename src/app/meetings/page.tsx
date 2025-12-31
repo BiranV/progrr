@@ -13,6 +13,8 @@ import {
   MapPin,
   Edit,
   Trash2,
+  Clock,
+  History,
 } from "lucide-react";
 import MeetingDialog from "@/components/MeetingDialog";
 import { format } from "date-fns";
@@ -121,9 +123,12 @@ export default function MeetingsPage() {
         <div className="space-y-10">
           {/* UPCOMING – CARDS */}
           <div>
-            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
-              Upcoming
-            </h2>
+            <div className="flex items-center gap-2 mb-4">
+              <Clock className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                Upcoming
+              </h2>
+            </div>
 
             {upcoming.length === 0 ? (
               <Card>
@@ -200,9 +205,12 @@ export default function MeetingsPage() {
 
           {/* PAST – ROWS */}
           <div>
-            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
-              Past
-            </h2>
+            <div className="flex items-center gap-2 mb-4">
+              <History className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                Past
+              </h2>
+            </div>
 
             {past.length === 0 ? (
               <p className="text-gray-500 dark:text-gray-400">
