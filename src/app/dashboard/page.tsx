@@ -14,6 +14,7 @@ import {
   Mail,
   Phone,
 } from "lucide-react";
+import { format } from "date-fns";
 
 export default function DashboardPage() {
   const { user, isLoadingAuth } = useAuth();
@@ -240,7 +241,7 @@ function AdminDashboard({ user }: { user: any }) {
                         {meeting.title}
                       </p>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {new Date(meeting.scheduledAt).toLocaleString()}
+                        {format(new Date(meeting.scheduledAt), "PPP p")}
                       </p>
                     </div>
                   ))}
