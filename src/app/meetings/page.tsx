@@ -88,6 +88,7 @@ export default function MeetingsPage() {
       case "cancelled":
         return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100";
       case "no_show":
+      case "no-show":
         return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100";
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
@@ -217,7 +218,7 @@ export default function MeetingsPage() {
                 No past meetings
               </p>
             ) : (
-              <div className="grid gap-4 opacity-75">
+              <div className="grid gap-4">
                 {past.map((meeting: Meeting) => (
                   <Card
                     key={meeting.id}
@@ -238,12 +239,34 @@ export default function MeetingsPage() {
                             </p>
                           </div>
                         </div>
-                        <span
-                          className={`inline-flex items-center h-7 px-3 rounded-md text-xs font-medium capitalize
+                        <div className="flex items-center gap-4">
+                          <span
+                            className={`inline-flex items-center h-7 px-3 rounded-md text-xs font-medium capitalize
               ${statusChipClasses(meeting.status)}`}
-                        >
-                          {meeting.status?.replace("_", " ") || "unknown"}
-                        </span>
+                          >
+                            {meeting.status?.replace(/[-_]/g, " ") || "unknown"}
+                          </span>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleEdit(meeting)}
+                              className="p-2 text-gray-600 dark:text-gray-400
+                                       hover:text-indigo-600
+                                       hover:bg-indigo-50 dark:hover:bg-indigo-900
+                                       rounded-lg"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(meeting.id)}
+                              className="p-2 text-gray-600 dark:text-gray-400
+                                       hover:text-red-600
+                                       hover:bg-red-50 dark:hover:bg-red-900
+                                       rounded-lg"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
