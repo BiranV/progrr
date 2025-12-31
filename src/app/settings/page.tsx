@@ -74,7 +74,6 @@ export default function SettingsPage() {
     try {
       const { file_url } = await uploadFile(file);
       setFormData((prev) => ({ ...prev, logoUrl: file_url }));
-      toast.success("Logo uploaded successfully");
     } catch (error) {
       console.error(error);
       toast.error("Failed to upload logo");
