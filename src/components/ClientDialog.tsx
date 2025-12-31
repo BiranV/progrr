@@ -79,8 +79,6 @@ export default function ClientDialog({
     assignedMealPlanId: "",
   });
 
-  const [errors, setErrors] = React.useState<Record<string, string>>({});
-
   /* ======================================================
      Init / Reset
      ====================================================== */
@@ -120,8 +118,6 @@ export default function ClientDialog({
         assignedMealPlanId: "",
       });
     }
-
-    setErrors({});
   }, [client, open]);
 
   /* ======================================================
@@ -145,20 +141,6 @@ export default function ClientDialog({
      ====================================================== */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    const newErrors: Record<string, string> = {};
-
-    REQUIRED_FIELDS.forEach((field) => {
-      const value = formData[field];
-      if (!value || String(value).trim() === "") {
-        newErrors[field] = "This field is required";
-      }
-    });
-
-    setErrors(newErrors);
-
-    if (Object.keys(newErrors).length > 0) return;
-
     saveMutation.mutate(formData);
   };
 
@@ -167,42 +149,27 @@ export default function ClientDialog({
      ====================================================== */
   const isRequired = (field: keyof Client) => REQUIRED_FIELDS.includes(field);
 
-  const clearError = (field: keyof Client) => {
-    if (errors[field]) {
-      setErrors((prev) => {
-        const copy = { ...prev };
-        delete copy[field];
-        return copy;
-      });
-    }
-  };
-
   const getInputProps = (field: keyof Client) => ({
     value: formData[field] || "",
-    className: errors[field] ? "border-red-500 focus-visible:ring-red-500" : "",
+    required: isRequired(field),
     onChange: (
       e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
     ) => {
       setFormData({ ...formData, [field]: e.target.value });
-      clearError(field);
     },
   });
-
-  const getSelectTriggerClass = (field: keyof Client) =>
-    errors[field] ? "border-red-500 focus:ring-red-500" : "";
 
   /* ======================================================
      Render
      ====================================================== */
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-gray-800">
         <DialogHeader>
           <DialogTitle>{client ? "Edit Client" : "Add New Client"}</DialogTitle>
         </DialogHeader>
 
-        {/* Disable native HTML validation */}
-        <form onSubmit={handleSubmit} noValidate className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* NAME */}
             <div className="md:col-span-2">
@@ -210,9 +177,6 @@ export default function ClientDialog({
                 Full Name {isRequired("name") && "*"}
               </label>
               <Input {...getInputProps("name")} />
-              {errors.name && (
-                <p className="mt-1 text-xs text-red-600">{errors.name}</p>
-              )}
             </div>
 
             {/* EMAIL */}
@@ -221,9 +185,6 @@ export default function ClientDialog({
                 Email {isRequired("email") && "*"}
               </label>
               <Input type="email" {...getInputProps("email")} />
-              {errors.email && (
-                <p className="mt-1 text-xs text-red-600">{errors.email}</p>
-              )}
             </div>
 
             {/* PHONE */}
@@ -232,9 +193,6 @@ export default function ClientDialog({
                 Phone {isRequired("phone") && "*"}
               </label>
               <Input {...getInputProps("phone")} />
-              {errors.phone && (
-                <p className="mt-1 text-xs text-red-600">{errors.phone}</p>
-              )}
             </div>
 
             {/* BIRTH DATE */}
@@ -247,9 +205,6 @@ export default function ClientDialog({
                 max="9999-12-31"
                 {...getInputProps("birthDate")}
               />
-              {errors.birthDate && (
-                <p className="mt-1 text-xs text-red-600">{errors.birthDate}</p>
-              )}
             </div>
 
             {/* GENDER */}
@@ -259,14 +214,12 @@ export default function ClientDialog({
               </label>
               <Select
                 value={formData.gender}
+                required={isRequired("gender")}
                 onValueChange={(v) => {
                   setFormData({ ...formData, gender: v });
-                  clearError("gender");
                 }}
               >
-                <SelectTrigger
-                  className={`w-full ${getSelectTriggerClass("gender")}`}
-                >
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select gender" />
                 </SelectTrigger>
                 <SelectContent>
@@ -275,9 +228,6 @@ export default function ClientDialog({
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
-              {errors.gender && (
-                <p className="mt-1 text-xs text-red-600">{errors.gender}</p>
-              )}
             </div>
 
             {/* HEIGHT */}
@@ -286,9 +236,6 @@ export default function ClientDialog({
                 Height (cm) {isRequired("height") && "*"}
               </label>
               <Input {...getInputProps("height")} />
-              {errors.height && (
-                <p className="mt-1 text-xs text-red-600">{errors.height}</p>
-              )}
             </div>
 
             {/* WEIGHT */}
@@ -297,9 +244,6 @@ export default function ClientDialog({
                 Weight (kg) {isRequired("weight") && "*"}
               </label>
               <Input {...getInputProps("weight")} />
-              {errors.weight && (
-                <p className="mt-1 text-xs text-red-600">{errors.weight}</p>
-              )}
             </div>
 
             {/* GOAL */}
@@ -309,14 +253,12 @@ export default function ClientDialog({
               </label>
               <Select
                 value={formData.goal}
+                required={isRequired("goal")}
                 onValueChange={(v) => {
                   setFormData({ ...formData, goal: v });
-                  clearError("goal");
                 }}
               >
-                <SelectTrigger
-                  className={`w-full ${getSelectTriggerClass("goal")}`}
-                >
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select goal" />
                 </SelectTrigger>
                 <SelectContent>
@@ -327,9 +269,6 @@ export default function ClientDialog({
                   <SelectItem value="endurance">Endurance</SelectItem>
                 </SelectContent>
               </Select>
-              {errors.goal && (
-                <p className="mt-1 text-xs text-red-600">{errors.goal}</p>
-              )}
             </div>
 
             {/* ACTIVITY */}
@@ -339,14 +278,12 @@ export default function ClientDialog({
               </label>
               <Select
                 value={formData.activityLevel}
+                required={isRequired("activityLevel")}
                 onValueChange={(v) => {
                   setFormData({ ...formData, activityLevel: v });
-                  clearError("activityLevel");
                 }}
               >
-                <SelectTrigger
-                  className={`w-full ${getSelectTriggerClass("activityLevel")}`}
-                >
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select activity level" />
                 </SelectTrigger>
                 <SelectContent>
@@ -357,11 +294,6 @@ export default function ClientDialog({
                   <SelectItem value="extra">Extra Active</SelectItem>
                 </SelectContent>
               </Select>
-              {errors.activityLevel && (
-                <p className="mt-1 text-xs text-red-600">
-                  {errors.activityLevel}
-                </p>
-              )}
             </div>
 
             {/* SUBSCRIPTION */}
@@ -371,14 +303,12 @@ export default function ClientDialog({
               </label>
               <Select
                 value={formData.subscription}
+                required={isRequired("subscription")}
                 onValueChange={(v) => {
                   setFormData({ ...formData, subscription: v });
-                  clearError("subscription");
                 }}
               >
-                <SelectTrigger
-                  className={`w-full ${getSelectTriggerClass("subscription")}`}
-                >
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select plan" />
                 </SelectTrigger>
                 <SelectContent>
@@ -387,11 +317,6 @@ export default function ClientDialog({
                   <SelectItem value="vip">VIP</SelectItem>
                 </SelectContent>
               </Select>
-              {errors.subscription && (
-                <p className="mt-1 text-xs text-red-600">
-                  {errors.subscription}
-                </p>
-              )}
             </div>
 
             {/* STATUS */}
@@ -401,14 +326,12 @@ export default function ClientDialog({
               </label>
               <Select
                 value={formData.status}
+                required={isRequired("status")}
                 onValueChange={(v) => {
                   setFormData({ ...formData, status: v });
-                  clearError("status");
                 }}
               >
-                <SelectTrigger
-                  className={`w-full ${getSelectTriggerClass("status")}`}
-                >
+                <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -417,9 +340,6 @@ export default function ClientDialog({
                   <SelectItem value="inactive">Inactive</SelectItem>
                 </SelectContent>
               </Select>
-              {errors.status && (
-                <p className="mt-1 text-xs text-red-600">{errors.status}</p>
-              )}
             </div>
 
             {/* NOTES (NOT REQUIRED) */}
