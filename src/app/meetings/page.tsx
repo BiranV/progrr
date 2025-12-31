@@ -128,9 +128,9 @@ export default function MeetingsPage() {
             {upcoming.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">
-                  <CalendarIcon className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+                  <CalendarIcon className="w-12 h-12 mx-auto text-gray-400 mb-4" />
                   <p className="text-gray-500 dark:text-gray-400">
-                    No upcoming meetings
+                    No upcoming meetings. Schedule your first one!
                   </p>
                 </CardContent>
               </Card>

@@ -380,9 +380,8 @@ function RegisterForm({
 
     // Email regex
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    // Password regex: At least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
-    const passwordRegex =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,20}$/;
+    // Password regex: At least 8 chars, 1 uppercase, 1 lowercase, 1 number
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,20}$/;
 
     if (!fullName || !fullName.trim()) {
       newErrors.full_name = "Full name is required";
@@ -398,7 +397,7 @@ function RegisterForm({
       newErrors.password = "Password is required";
     } else if (!passwordRegex.test(password)) {
       newErrors.password =
-        "Password must be 8-20 characters and include uppercase, lowercase, number, and symbol";
+        "Password must be 8-20 characters and include uppercase, lowercase, and a number";
     }
 
     if (Object.keys(newErrors).length > 0) {
