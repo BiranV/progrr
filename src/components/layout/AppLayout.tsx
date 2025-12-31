@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { getCookie, setCookie } from "@/lib/client-cookies";
 import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/db";
 import NavigationTracker from "@/lib/NavigationTracker";
@@ -29,8 +30,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("darkMode");
-      return saved ? JSON.parse(saved) : false;
+      const saved = getCookie("progrr_dark_mode");
+      return saved === "true";
     }
     return false;
   });
@@ -38,6 +39,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { data: settings = [] } = useQuery({
     queryKey: ["appSettings"],
     queryFn: () => db.entities.AppSettings.list(),
+    enabled: Boolean(user),
   });
 
   // Filter out blob URLs that might cause errors
@@ -46,7 +48,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     rawLogoUrl && rawLogoUrl.startsWith("blob:") ? null : rawLogoUrl;
 
   useEffect(() => {
-    localStorage.setItem("darkMode", JSON.stringify(darkMode));
+    setCookie("progrr_dark_mode", darkMode ? "true" : "false", {
+      maxAgeSeconds: 60 * 60 * 24 * 365,
+    });
     if (darkMode) {
       document.documentElement.classList.add("dark");
     } else {

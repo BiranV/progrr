@@ -1,144 +1,124 @@
-// Mock Database Logic
-class LocalAuth {
-  storageKey: string;
-  usersKey: string;
+async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, {
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers || {}),
+    },
+    ...init,
+  });
 
-  constructor() {
-    this.storageKey = "progrr_session";
-    this.usersKey = "progrr_users";
-  }
-
-  async me() {
-    if (typeof window === "undefined") return null;
-    const session = localStorage.getItem(this.storageKey);
-    if (!session) throw new Error("Not authenticated");
-    return JSON.parse(session);
-  }
-
-  async login(email: string, password: string) {
-    if (typeof window === "undefined") throw new Error("Client side only");
-    const users = JSON.parse(localStorage.getItem(this.usersKey) || "[]");
-    const user = users.find(
-      (u: any) => u.email === email && u.password === password
-    );
-    if (!user) throw new Error("Invalid credentials");
-
-    const { password: _, ...userWithoutPassword } = user;
-    localStorage.setItem(this.storageKey, JSON.stringify(userWithoutPassword));
-    return userWithoutPassword;
-  }
-
-  async register(userData: any) {
-    if (typeof window === "undefined") throw new Error("Client side only");
-    const users = JSON.parse(localStorage.getItem(this.usersKey) || "[]");
-    if (users.find((u: any) => u.email === userData.email)) {
-      throw new Error("User already exists");
+  if (!res.ok) {
+    // Interceptor: If the server says "Unauthorized", force logout immediately.
+    // BUT: Don't do this if we are just checking "am I logged in?" (/api/me)
+    // because that endpoint is EXPECTED to return 401 for guests.
+    if (res.status === 401 && !path.includes("/api/me")) {
+      if (typeof window !== "undefined") {
+        // Also avoid redirect loops if we are already on the home page
+        if (window.location.pathname !== "/") {
+          window.location.href =
+            "/?authError=Session expired. Please log in again.";
+        }
+      }
     }
 
-    const newUser = { id: Date.now().toString(), ...userData, role: "admin" }; // Default to admin for now
-    users.push(newUser);
-    localStorage.setItem(this.usersKey, JSON.stringify(users));
-
-    const { password: _, ...userWithoutPassword } = newUser;
-    localStorage.setItem(this.storageKey, JSON.stringify(userWithoutPassword));
-    return userWithoutPassword;
+    let message = `Request failed (${res.status})`;
+    try {
+      const body = await res.json();
+      if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
   }
 
-  async logout() {
-    if (typeof window === "undefined") return;
-    localStorage.removeItem(this.storageKey);
-  }
-
-  async isAuthenticated() {
-    if (typeof window === "undefined") return false;
-    return !!localStorage.getItem(this.storageKey);
-  }
+  return (await res.json()) as T;
 }
 
-class LocalEntity {
-  entityName: string;
-  storageKey: string;
+class ApiEntity {
+  private entityName: string;
 
   constructor(entityName: string) {
     this.entityName = entityName;
-    this.storageKey = `progrr_entity_${entityName}`;
   }
 
-  _getData() {
-    if (typeof window === "undefined") return [];
-    return JSON.parse(localStorage.getItem(this.storageKey) || "[]");
-  }
-
-  _saveData(data: any[]) {
-    if (typeof window === "undefined") return;
-    localStorage.setItem(this.storageKey, JSON.stringify(data));
-  }
-
-  async list() {
-    return this._getData();
+  async list(sort?: string) {
+    const params = new URLSearchParams();
+    if (sort) {
+      // existing code passes "-created_date" etc.
+      params.set("sort", sort);
+    }
+    const qs = params.toString();
+    return apiFetch<any[]>(
+      `/api/entities/${this.entityName}${qs ? `?${qs}` : ""}`
+    );
   }
 
   async get(id: string) {
-    const item = this._getData().find((i: any) => i.id === id);
-    if (!item) throw new Error("Not found");
-    return item;
+    return apiFetch<any>(`/api/entities/${this.entityName}/${id}`);
   }
 
   async create(data: any) {
-    const items = this._getData();
-    const newItem = {
-      id: Date.now().toString(),
-      created_date: new Date().toISOString(),
-      ...data,
-    };
-    items.push(newItem);
-    this._saveData(items);
-    return newItem;
+    return apiFetch<any>(`/api/entities/${this.entityName}`, {
+      method: "POST",
+      body: JSON.stringify(data ?? {}),
+    });
   }
 
   async update(id: string, data: any) {
-    const items = this._getData();
-    const index = items.findIndex((i: any) => i.id === id);
-    if (index === -1) throw new Error("Not found");
-
-    items[index] = { ...items[index], ...data };
-    this._saveData(items);
-    return items[index];
+    return apiFetch<any>(`/api/entities/${this.entityName}/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data ?? {}),
+    });
   }
 
   async delete(id: string) {
-    const items = this._getData();
-    const newItems = items.filter((i: any) => i.id !== id);
-    this._saveData(newItems);
+    await apiFetch<{ ok: true }>(`/api/entities/${this.entityName}/${id}`, {
+      method: "DELETE",
+    });
   }
 
   async filter(criteria: any) {
-    const items = this._getData();
-    return items.filter((item: any) => {
-      for (const key in criteria) {
-        if (item[key] !== criteria[key]) return false;
-      }
-      return true;
+    return apiFetch<any[]>(`/api/entities/${this.entityName}/filter`, {
+      method: "POST",
+      body: JSON.stringify(criteria ?? {}),
     });
   }
 }
 
 const entitiesHandler = {
-  get: function (target: any, prop: string, receiver: any) {
+  get: function (target: any, prop: string) {
     if (!target[prop]) {
-      target[prop] = new LocalEntity(prop);
+      target[prop] = new ApiEntity(prop);
     }
     return target[prop];
   },
 };
 
 export const db = {
-  auth: new LocalAuth(),
-  entities: new Proxy({}, entitiesHandler) as any, // Use any to allow dynamic entity access
-  appLogs: {
-    logUserInApp: async (pageName: string) => {
-      // console.log(`[Mock] Logged user visit to: ${pageName}`);
-      return true;
+  // Auth is handled via Supabase + /api/me; keep stub so existing imports compile.
+  auth: {
+    me: async () => apiFetch<any>("/api/me"),
+    login: async () => {
+      window.location.href = "/";
     },
+    register: async () => {
+      window.location.href = "/";
+    },
+    logout: async () => {
+      window.location.href = "/api/auth/logout";
+    },
+    isAuthenticated: async () => {
+      try {
+        await apiFetch<any>("/api/me");
+        return true;
+      } catch {
+        return false;
+      }
+    },
+  },
+  entities: new Proxy({}, entitiesHandler) as any,
+  appLogs: {
+    logUserInApp: async (_pageName: string) => true,
   },
 };

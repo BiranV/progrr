@@ -1,8 +1,14 @@
 "use client";
 
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { db } from '@/lib/db';
-import { useRouter } from 'next/navigation';
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useEffect,
+  ReactNode,
+} from "react";
+import { db } from "@/lib/db";
+import { usePathname, useRouter } from "next/navigation";
 
 interface User {
   id: string;
@@ -18,24 +24,13 @@ interface AuthContextType {
   isLoadingAuth: boolean;
   isLoadingPublicSettings: boolean;
   authError: any;
-  login: (email: string, password: string) => Promise<User>;
-  register: (userData: any) => Promise<User>;
+  login: () => Promise<void>;
+  register: () => Promise<void>;
   logout: (shouldRedirect?: boolean) => void;
   navigateToLogin: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// Helper to get initial state synchronously
-const getStoredSession = (): User | null => {
-  if (typeof window === 'undefined') return null;
-  try {
-    const session = localStorage.getItem('progrr_session');
-    return session ? JSON.parse(session) : null;
-  } catch (e) {
-    return null;
-  }
-};
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -44,32 +39,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
   const [authError, setAuthError] = useState<any>(null);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
-    // Initialize from local storage on mount (client-side only)
-    const storedUser = getStoredSession();
-    if (storedUser) {
-      setUser(storedUser);
-      setIsAuthenticated(true);
-      setIsLoadingAuth(false);
-    }
-    checkAppState();
-  }, []);
+    // Check auth on mount AND on navigation.
+    // This ensures that if we redirect from login -> dashboard, we pick up the new session.
+    checkUserAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   const checkAppState = async () => {
     try {
       setIsLoadingPublicSettings(true);
       setAuthError(null);
-      
+
       // Mock public settings
       setIsLoadingPublicSettings(false);
 
       await checkUserAuth();
     } catch (error: any) {
-      console.error('Unexpected error:', error);
+      console.error("Unexpected error:", error);
       setAuthError({
-        type: 'unknown',
-        message: error.message || 'An unexpected error occurred'
+        type: "unknown",
+        message: error.message || "An unexpected error occurred",
       });
       setIsLoadingPublicSettings(false);
       setIsLoadingAuth(false);
@@ -78,112 +70,71 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const checkUserAuth = async () => {
     try {
-      // Check for dev_role parameter or session storage
-      const params = new URLSearchParams(window.location.search);
-      let devRole = params.get('dev_role');
-      
-      if (devRole) {
-        sessionStorage.setItem('dev_role', devRole);
-      } else {
-        devRole = sessionStorage.getItem('dev_role');
+      // Only show loading spinner if we don't have a user yet.
+      // This prevents "flicker" when navigating between protected pages.
+      if (!user) {
+        setIsLoadingAuth(true);
       }
 
-      if (devRole) {
-        const mockUser = devRole === 'admin' ? {
-          id: 'dev-admin',
-          email: 'admin@progrr.local',
-          full_name: 'Dev Admin',
-          role: 'admin'
-        } : {
-          id: 'dev-client',
-          email: 'client@progrr.local',
-          full_name: 'Dev Client',
-          role: 'client'
-        };
-        
-        setUser(mockUser);
-        setIsAuthenticated(true);
-        setIsLoadingAuth(false);
-        return;
-      }
-
-      // Now check if the user is authenticated
-      // We already initialized from localStorage, but let's verify with the "backend" (mock db)
-      if (!user) setIsLoadingAuth(true);
-      
       const currentUser = await db.auth.me();
       setUser(currentUser);
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
     } catch (error: any) {
-      // Only log unexpected errors
-      if (error.message !== 'Not authenticated') {
-        console.error('User auth check failed:', error);
-      }
-
       setIsLoadingAuth(false);
-      if (!getStoredSession()) {
-          setIsAuthenticated(false);
-          setUser(null);
-      }
-      
-      // If user auth fails, it might be an expired token or just not logged in
-      if (error.status === 401 || error.status === 403 || error.message === 'Not authenticated') {
+      setIsAuthenticated(false);
+      setUser(null);
+
+      if (error?.message === "Unauthorized" || error?.status === 401) {
         setAuthError({
-          type: 'auth_required',
-          message: 'Authentication required'
+          type: "auth_required",
+          message: "Authentication required",
         });
+
+        if (pathname !== "/") {
+          router.replace("/");
+        }
       }
     }
   };
 
-  const login = async (email: string, password: string) => {
-    const user = await db.auth.login(email, password);
-    setUser(user);
-    setIsAuthenticated(true);
-    return user;
+  const login = async () => {
+    await db.auth.login();
   };
 
-  const register = async (userData: any) => {
-    const user = await db.auth.register(userData);
-    setUser(user);
-    setIsAuthenticated(true);
-    return user;
+  const register = async () => {
+    await db.auth.register();
   };
 
   const logout = (shouldRedirect = true) => {
-    sessionStorage.removeItem('dev_role');
     setUser(null);
     setIsAuthenticated(false);
-    
+
     if (shouldRedirect) {
-      if (sessionStorage.getItem('dev_role')) {
-         window.location.href = '/';
-      } else {
-         db.auth.logout();
-         router.push('/');
-      }
+      db.auth.logout();
     } else {
       db.auth.logout();
     }
   };
 
   const navigateToLogin = () => {
-    router.push('/');
+    router.push("/");
   };
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      isAuthenticated,
-      isLoadingAuth,
-      isLoadingPublicSettings,
-      authError,
-      login,
-      register,
-      logout,
-      navigateToLogin
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated,
+        isLoadingAuth,
+        isLoadingPublicSettings,
+        authError,
+        login,
+        register,
+        logout,
+        navigateToLogin,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -192,7 +143,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };

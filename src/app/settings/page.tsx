@@ -17,6 +17,7 @@ import {
 import { Save, Upload, Link2, Download } from "lucide-react";
 import { AppSettings } from "@/types";
 import { toast } from "sonner";
+import { getAllCookies, setCookie } from "@/lib/client-cookies";
 
 // Mock upload function
 const uploadFile = async (file: File): Promise<{ file_url: string }> => {
@@ -104,17 +105,18 @@ export default function SettingsPage() {
   };
 
   const handleExportData = () => {
+    const all = getAllCookies();
     const data: Record<string, any> = {};
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith("progrr_")) {
+    Object.keys(all).forEach((key) => {
+      if (key.startsWith("progrr_")) {
+        const value = all[key];
         try {
-          data[key] = JSON.parse(localStorage.getItem(key) || "");
-        } catch (e) {
-          data[key] = localStorage.getItem(key);
+          data[key] = JSON.parse(value);
+        } catch {
+          data[key] = value;
         }
       }
-    }
+    });
 
     const blob = new Blob([JSON.stringify(data, null, 2)], {
       type: "application/json",
@@ -140,11 +142,12 @@ export default function SettingsPage() {
         const data = JSON.parse(event.target?.result as string);
         Object.keys(data).forEach((key) => {
           if (key.startsWith("progrr_")) {
-            localStorage.setItem(
+            setCookie(
               key,
               typeof data[key] === "string"
                 ? data[key]
-                : JSON.stringify(data[key])
+                : JSON.stringify(data[key]),
+              { maxAgeSeconds: 60 * 60 * 24 * 365 }
             );
           }
         });

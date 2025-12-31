@@ -19,8 +19,6 @@ const getAppParamValue = (
   if (isNode) {
     return defaultValue;
   }
-  const storage = window.localStorage;
-  const storageKey = `progrr_${toSnakeCase(paramName)}`;
   const urlParams = new URLSearchParams(window.location.search);
   const searchParam = urlParams.get(paramName);
   if (removeFromUrl) {
@@ -31,27 +29,12 @@ const getAppParamValue = (
     window.history.replaceState({}, document.title, newUrl);
   }
   if (searchParam) {
-    storage.setItem(storageKey, searchParam);
     return searchParam;
   }
-  if (defaultValue) {
-    storage.setItem(storageKey, defaultValue);
-    return defaultValue;
-  }
-  const storedValue = storage.getItem(storageKey);
-  if (storedValue) {
-    return storedValue;
-  }
-  return null;
+  return defaultValue ?? null;
 };
 
 const getAppParams = () => {
-  if (typeof window !== "undefined") {
-    if (getAppParamValue("clear_access_token") === "true") {
-      window.localStorage.removeItem("progrr_access_token");
-      window.localStorage.removeItem("token");
-    }
-  }
   return {
     appId: getAppParamValue("app_id", {
       defaultValue: process.env.NEXT_PUBLIC_PROGRR_APP_ID,

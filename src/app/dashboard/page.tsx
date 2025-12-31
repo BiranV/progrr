@@ -1,10 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/db";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useRouter } from "next/navigation";
 import {
   Users,
   Dumbbell,
@@ -16,6 +17,15 @@ import {
 
 export default function DashboardPage() {
   const { user, isLoadingAuth } = useAuth();
+  const router = useRouter();
+
+  const shouldRedirect = !isLoadingAuth && !user;
+
+  useEffect(() => {
+    if (shouldRedirect) {
+      router.replace("/");
+    }
+  }, [router, shouldRedirect]);
 
   if (isLoadingAuth) {
     return (
@@ -26,14 +36,14 @@ export default function DashboardPage() {
   }
 
   if (!user) {
-    return null; // Or redirect to login
+    return (
+      <div className="p-8 flex justify-center">
+        <div className="text-center text-gray-600">Redirecting...</div>
+      </div>
+    );
   }
 
-  if (user.role === "admin") {
-    return <AdminDashboard user={user} />;
-  }
-
-  return <ClientDashboard user={user} />;
+  return <AdminDashboard user={user} />;
 }
 
 function AdminDashboard({ user }: { user: any }) {

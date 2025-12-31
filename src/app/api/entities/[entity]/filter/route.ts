@@ -1,0 +1,62 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { prisma } from "@/server/prisma";
+import { requireAppUser } from "@/server/auth";
+
+export const runtime = "nodejs";
+
+const filterBodySchema = z.record(z.string(), z.any());
+
+function toPublicRecord(row: {
+  id: string;
+  data: any;
+  createdAt: Date;
+  updatedAt: Date;
+}): Record<string, unknown> {
+  const data = (row.data ?? {}) as Record<string, unknown>;
+  return {
+    id: row.id,
+    created_date: row.createdAt.toISOString(),
+    updated_date: row.updatedAt.toISOString(),
+    ...data,
+  };
+}
+
+export async function POST(
+  req: Request,
+  ctx: { params: Promise<{ entity: string }> }
+) {
+  try {
+    await requireAppUser();
+
+    const { entity } = await ctx.params;
+    const criteria = filterBodySchema.parse(await req.json());
+
+    const rows = await prisma.entity.findMany({
+      where: { entity },
+      orderBy: { updatedAt: "desc" },
+    });
+
+    const records = rows.map(toPublicRecord);
+
+    const filtered = records.filter((record: Record<string, unknown>) => {
+      for (const key of Object.keys(criteria)) {
+        if (record?.[key] !== criteria[key]) return false;
+      }
+      return true;
+    });
+
+    return NextResponse.json(filtered);
+  } catch (error: any) {
+    const status = typeof error?.status === "number" ? error.status : 500;
+    const message =
+      error?.name === "ZodError" ? "Invalid request body" : undefined;
+    return NextResponse.json(
+      {
+        error:
+          status === 401 ? "Unauthorized" : message || "Internal Server Error",
+      },
+      { status }
+    );
+  }
+}
