@@ -38,7 +38,7 @@ const uploadFile = async (file: File): Promise<{ file_url: string }> => {
 export default function SettingsPage() {
   const queryClient = useQueryClient();
   const [uploadMethod, setUploadMethod] = React.useState<"url" | "upload">(
-    "url"
+    "upload"
   );
   const [uploading, setUploading] = React.useState(false);
   const [dragActive, setDragActive] = React.useState(false);
