@@ -14,7 +14,7 @@ function withQueryParams(url: string, params: Record<string, string>): string {
   return `${url}${prefix}${query}`;
 }
 
-const baseUrl = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
+const baseUrl = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
 const datasourceUrl = baseUrl
   ? withQueryParams(baseUrl, {
       connection_limit: "1",

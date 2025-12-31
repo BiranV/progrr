@@ -17,8 +17,10 @@ export async function GET() {
     return NextResponse.json(
       {
         error: status === 401 ? "Unauthorized" : "Internal Server Error",
-        detail:
-          process.env.NODE_ENV === "production" ? undefined : error?.message,
+        detail: error?.message || String(error),
+        code: error?.code,
+        stack:
+          process.env.NODE_ENV === "development" ? error?.stack : undefined,
       },
       { status }
     );
