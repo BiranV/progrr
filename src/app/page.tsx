@@ -73,10 +73,11 @@ export default function Home() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-blue-50">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-          <div className="text-lg text-gray-600 font-medium animate-pulse">
-            Loading Progrr...
-          </div>
+          <img
+            src="/logo.png"
+            alt="Loading..."
+            className="h-20 w-20 animate-zoom-in-out object-contain"
+          />
         </div>
       </div>
     );
@@ -97,7 +98,7 @@ export default function Home() {
           <div className="hidden lg:flex flex-col items-center justify-center text-center space-y-0">
             <div className="relative">
               <img
-                src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/69538c86530afecdd4f04cee/9d28c112f_ChatGPTImageDec30202506_28_18PM-Photoroom.png"
+                src="/logo.png"
                 alt="Progrr Logo"
                 className="relative w-64 h-64 object-contain drop-shadow-2xl"
               />
