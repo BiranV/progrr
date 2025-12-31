@@ -157,7 +157,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     className="h-8 object-contain shrink-0"
                   />
                 )}
-                <h1 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 truncate min-w-0">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white truncate min-w-0">
                   {settings[0]?.businessName || "Progrr"}
                 </h1>
               </div>
