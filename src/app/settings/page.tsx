@@ -366,9 +366,12 @@ export default function SettingsPage() {
                     id="logo-upload"
                     type="file"
                     accept="image/*"
-                    onChange={(e) =>
-                      e.target.files?.[0] && handleFileUpload(e.target.files[0])
-                    }
+                    onChange={(e) => {
+                      if (e.target.files?.[0]) {
+                        handleFileUpload(e.target.files[0]);
+                        e.target.value = "";
+                      }
+                    }}
                     className="hidden"
                   />
                 </div>
