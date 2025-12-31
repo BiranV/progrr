@@ -12,13 +12,17 @@ export async function requireAppUser(): Promise<AppUser> {
   const supabase: Awaited<ReturnType<typeof createClient>> =
     await createClient();
 
-  const { data, error } = await supabase.auth.getClaims();
-  if (error || !data?.claims) {
+  const {
+    data: { user: authUser },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !authUser) {
     throw Object.assign(new Error("Not authenticated"), { status: 401 });
   }
 
-  const subject = (data.claims.sub as string | undefined) ?? undefined;
-  const email = (data.claims.email as string | undefined) ?? undefined;
+  const subject = authUser.id;
+  const email = authUser.email;
 
   if (!subject || !email) {
     throw Object.assign(new Error("Supabase session missing sub/email"), {
@@ -28,8 +32,7 @@ export async function requireAppUser(): Promise<AppUser> {
 
   let fullNameFromAuth: string | null = null;
   try {
-    const { data: userData } = await supabase.auth.getUser();
-    const metadata = userData.user?.user_metadata as
+    const metadata = authUser.user_metadata as
       | { full_name?: unknown; fullName?: unknown }
       | undefined;
     const candidate =

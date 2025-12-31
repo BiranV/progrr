@@ -37,7 +37,7 @@ export async function updateSession(request: NextRequest) {
   });
 
   // Refresh and validate the JWT (safe to trust for authz).
-  await supabase.auth.getClaims();
+  await supabase.auth.getUser();
 
   return response;
 }

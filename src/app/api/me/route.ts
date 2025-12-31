@@ -6,6 +6,7 @@ export async function GET() {
     const user = await requireAppUser();
     return NextResponse.json(user);
   } catch (error: any) {
+    console.error("API /me error:", error);
     if (error?.code === "SUPABASE_ENV_MISSING") {
       return NextResponse.json(
         { error: "Supabase is not configured" },
