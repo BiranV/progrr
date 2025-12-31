@@ -16,7 +16,7 @@ export default function MessagesPage() {
 
   if (isLoadingAuth) {
     return (
-      <div className="p-8 flex justify-center">
+      <div className="p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen flex justify-center">
         <div className="text-center text-gray-600 dark:text-gray-400">
           Loading...
         </div>
@@ -77,72 +77,74 @@ function AdminMessages({ user }: { user: any }) {
     : null;
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col bg-white dark:bg-gray-900">
-      <div className="p-6 border-b border-gray-200 dark:border-gray-800">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Messages
-        </h1>
-      </div>
-
-      <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar - Client List */}
-        <div className="w-80 border-r border-gray-200 dark:border-gray-800 overflow-y-auto">
-          {clients.length === 0 ? (
-            <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-              No clients yet
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-200 dark:divide-gray-800">
-              {clients.map((client: Client) => {
-                const threadData = messagesByClient[client.id];
-                return (
-                  <button
-                    key={client.id}
-                    onClick={() => setSelectedClientId(client.id)}
-                    className={`w-full p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
-                      selectedClientId === client.id
-                        ? "bg-indigo-50 dark:bg-indigo-900/20"
-                        : ""
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 dark:text-white truncate">
-                          {client.name}
-                        </h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                          {client.email}
-                        </p>
-                      </div>
-                      {threadData?.unread > 0 && (
-                        <span className="ml-2 px-2 py-1 bg-indigo-600 text-white text-xs rounded-full">
-                          {threadData.unread}
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+    <div className="p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
+      <div className="h-[calc(100vh-8rem)] flex flex-col bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-800">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Messages
+          </h1>
         </div>
 
-        {/* Message Thread */}
-        <div className="flex-1 flex flex-col">
-          {selectedThread ? (
-            <MessageThread
-              client={selectedThread.client}
-              messages={selectedThread.messages}
-              currentUserRole="admin"
-            />
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
-              <div className="text-center">
-                <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-400 dark:text-gray-600" />
-                <p>Select a client to view messages</p>
+        <div className="flex-1 flex overflow-hidden">
+          {/* Sidebar - Client List */}
+          <div className="w-80 border-r border-gray-200 dark:border-gray-800 overflow-y-auto">
+            {clients.length === 0 ? (
+              <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                No clients yet
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="divide-y divide-gray-200 dark:divide-gray-800">
+                {clients.map((client: Client) => {
+                  const threadData = messagesByClient[client.id];
+                  return (
+                    <button
+                      key={client.id}
+                      onClick={() => setSelectedClientId(client.id)}
+                      className={`w-full p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
+                        selectedClientId === client.id
+                          ? "bg-indigo-50 dark:bg-indigo-900/20"
+                          : ""
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-gray-900 dark:text-white truncate">
+                            {client.name}
+                          </h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                            {client.email}
+                          </p>
+                        </div>
+                        {threadData?.unread > 0 && (
+                          <span className="ml-2 px-2 py-1 bg-indigo-600 text-white text-xs rounded-full">
+                            {threadData.unread}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Message Thread */}
+          <div className="flex-1 flex flex-col">
+            {selectedThread ? (
+              <MessageThread
+                client={selectedThread.client}
+                messages={selectedThread.messages}
+                currentUserRole="admin"
+              />
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
+                <div className="text-center">
+                  <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-400 dark:text-gray-600" />
+                  <p>Select a client to view messages</p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -168,7 +170,7 @@ function ClientMessages({ user }: { user: any }) {
 
   if (!myClient) {
     return (
-      <div className="p-8">
+      <div className="p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
         <Card>
           <CardContent className="py-12 text-center text-gray-500 dark:text-gray-400">
             No client profile found
@@ -179,20 +181,24 @@ function ClientMessages({ user }: { user: any }) {
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col bg-white dark:bg-gray-900">
-      <div className="p-6 border-b border-gray-200 dark:border-gray-800">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Messages
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400">Chat with your coach</p>
-      </div>
+    <div className="p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
+      <div className="h-[calc(100vh-8rem)] flex flex-col bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-800">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Messages
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Chat with your coach
+          </p>
+        </div>
 
-      <div className="flex-1 overflow-hidden">
-        <MessageThread
-          client={myClient}
-          messages={messages}
-          currentUserRole="client"
-        />
+        <div className="flex-1 overflow-hidden">
+          <MessageThread
+            client={myClient}
+            messages={messages}
+            currentUserRole="client"
+          />
+        </div>
       </div>
     </div>
   );

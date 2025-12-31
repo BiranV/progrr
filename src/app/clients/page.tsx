@@ -112,10 +112,10 @@ export default function ClientsPage() {
         <div className="flex items-center gap-3">
           <Button
             onClick={() => setDialogOpen(true)}
-            className="min-w-[180px] bg-indigo-600 hover:bg-indigo-700"
+            className="min-w-[120px] bg-indigo-600 hover:bg-indigo-700"
           >
             <Plus className="w-5 h-5 mr-2" />
-            Add Client
+            Client
           </Button>
         </div>
       </div>
