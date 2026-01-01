@@ -42,9 +42,7 @@ export async function createClientAction(data: ClientFormData) {
   // Let's assume we try to invite.
   const { data: inviteData, error: inviteError } =
     await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${
-        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-      }/invite`,
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/invite`,
     });
 
   let authUser = inviteData.user;
@@ -183,9 +181,7 @@ export async function updateClientAction(id: string, data: ClientFormData) {
     // Create Auth user.
     const { data: inviteData, error: inviteError } =
       await supabaseAdmin.auth.admin.inviteUserByEmail(newEmail, {
-        redirectTo: `${
-          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-        }/invite`,
+        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/invite`,
       });
     if (inviteError)
       throw new Error("Failed to invite user: " + inviteError.message);
