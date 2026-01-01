@@ -8,6 +8,7 @@ function isPublicPath(pathname: string) {
   if (pathname === "/favicon.ico") return true;
   if (pathname.startsWith("/pricing")) return true;
   if (pathname.startsWith("/public")) return true;
+  if (pathname.startsWith("/invite")) return true;
   return false;
 }
 
@@ -56,6 +57,31 @@ export async function middleware(request: NextRequest) {
   const isAuthed = !!user;
 
   const pathname = request.nextUrl.pathname;
+
+  // Role-Based Routing (Optimization)
+  if (isAuthed) {
+    const userRole = user.user_metadata.role;
+
+    // Owner Protection: Block access to Client/Admin routes
+    // We assume anything NOT /owner and NOT public is an App route
+    if (
+      userRole === "OWNER" &&
+      !pathname.startsWith("/owner") &&
+      !isPublicPath(pathname)
+    ) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/owner/dashboard";
+      return NextResponse.redirect(url);
+    }
+
+    // Admin/Client Protection: Block access to Owner routes
+    if (userRole !== "OWNER" && pathname.startsWith("/owner")) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard"; // Redirect to main dashboard
+      return NextResponse.redirect(url);
+    }
+  }
+
   if (!isPublicPath(pathname) && !isAuthed) {
     const url = request.nextUrl.clone();
     url.pathname = "/";

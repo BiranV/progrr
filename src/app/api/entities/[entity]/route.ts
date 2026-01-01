@@ -53,14 +53,24 @@ export async function GET(
   ctx: { params: Promise<{ entity: string }> }
 ) {
   try {
-    await requireAppUser();
+    const user = await requireAppUser();
+
+    // Privacy: Owner sees nothing
+    if (user.role === "owner") {
+      return NextResponse.json([]);
+    }
 
     const { entity } = await ctx.params;
     const url = new URL(req.url);
     const sort = url.searchParams.get("sort");
 
+    const where: any = { entity };
+    if (user.role === "admin") {
+      where.ownerId = user.id;
+    }
+
     const rows = await prisma.entity.findMany({
-      where: { entity },
+      where,
       orderBy: { updatedAt: "desc" },
     });
 
@@ -81,6 +91,13 @@ export async function POST(
 ) {
   try {
     const user = await requireAppUser();
+
+    if (user.role === "owner") {
+      return NextResponse.json(
+        { error: "Owner cannot create entities" },
+        { status: 403 }
+      );
+    }
 
     const { entity } = await ctx.params;
     const body = createBodySchema.parse(await req.json());

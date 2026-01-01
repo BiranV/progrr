@@ -27,6 +27,7 @@ export interface User {
   email: string;
   full_name: string;
   role: "admin" | "client";
+  status?: "ACTIVE" | "PENDING";
   [key: string]: any;
 }
 

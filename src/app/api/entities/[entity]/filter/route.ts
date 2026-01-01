@@ -27,13 +27,18 @@ export async function POST(
   ctx: { params: Promise<{ entity: string }> }
 ) {
   try {
-    await requireAppUser();
+    const user = await requireAppUser();
 
     const { entity } = await ctx.params;
     const criteria = filterBodySchema.parse(await req.json());
 
+    const where: any = { entity };
+    if (user.role === "admin") {
+      where.ownerId = user.id;
+    }
+
     const rows = await prisma.entity.findMany({
-      where: { entity },
+      where,
       orderBy: { updatedAt: "desc" },
     });
 

@@ -56,6 +56,38 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // OWNER LAYOUT
+  if (user?.role === "owner") {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+        <header className="bg-white dark:bg-gray-800 shadow border-b dark:border-gray-700">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">
+                O
+              </div>
+              <span className="font-bold text-xl text-gray-900 dark:text-white">
+                Owner Console
+              </span>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-500">{user.email}</span>
+              <button
+                onClick={handleLogout}
+                className="text-sm text-red-600 hover:text-red-700 font-medium"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </header>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {children}
+        </main>
+      </div>
+    );
+  }
+
   // Public pages (no layout)
   if (!user || pathname === "/") {
     // SECURITY: If user is not logged in, ONLY render content for known public paths.

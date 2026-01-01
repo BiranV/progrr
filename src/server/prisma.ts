@@ -19,6 +19,7 @@ const datasourceUrl = baseUrl
   ? withQueryParams(baseUrl, {
       connection_limit: "1",
       pool_timeout: "0",
+      pgbouncer: "true",
     })
   : undefined;
 

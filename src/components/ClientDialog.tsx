@@ -6,6 +6,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import {
+  createClientAction,
+  updateClientAction,
+  ClientFormData,
+} from "@/app/actions/client-management";
 import {
   Select,
   SelectContent,
@@ -73,7 +79,7 @@ export default function ClientDialog({
     goal: "",
     activityLevel: "",
     subscription: "",
-    status: "active",
+    status: "PENDING",
     notes: "",
     assignedPlanId: "",
     assignedMealPlanId: "",
@@ -95,7 +101,7 @@ export default function ClientDialog({
         goal: client.goal || "",
         activityLevel: client.activityLevel || "",
         subscription: client.subscription || "",
-        status: client.status || "active",
+        status: client.status || "ACTIVE",
         notes: client.notes || "",
         assignedPlanId: client.assignedPlanId || "",
         assignedMealPlanId: client.assignedMealPlanId || "",
@@ -112,7 +118,7 @@ export default function ClientDialog({
         goal: "",
         activityLevel: "",
         subscription: "",
-        status: "active",
+        status: "PENDING",
         notes: "",
         assignedPlanId: "",
         assignedMealPlanId: "",
@@ -125,14 +131,23 @@ export default function ClientDialog({
      ====================================================== */
   const saveMutation = useMutation({
     mutationFn: async (data: Partial<Client>) => {
+      const payload = data as ClientFormData;
       if (client) {
-        return db.entities.Client.update(client.id, data);
+        return updateClientAction(client.id, payload);
       }
-      return db.entities.Client.create(data);
+      return createClientAction(payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
+      toast.success(
+        client
+          ? "Client updated successfully"
+          : "Client invited successfully. Email sent."
+      );
       onOpenChange(false);
+    },
+    onError: (error) => {
+      toast.error("Failed to save client: " + error.message);
     },
   });
 
@@ -335,13 +350,14 @@ export default function ClientDialog({
                 onValueChange={(v) => {
                   setFormData({ ...formData, status: v });
                 }}
+                disabled={!client} // Disable status change for new clients (always PENDING)
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue />
+                  <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
                   <SelectItem value="inactive">Inactive</SelectItem>
                 </SelectContent>
               </Select>

@@ -23,11 +23,15 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+import { checkSubscriptionAndRedirect } from "@/lib/auth-guards";
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  await checkSubscriptionAndRedirect();
+
   return (
     <html lang="en">
       <body

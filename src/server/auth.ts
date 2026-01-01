@@ -5,10 +5,12 @@ export type AppUser = {
   id: string;
   email: string;
   full_name: string | null;
-  role: "admin" | "client";
+  role: "admin" | "client" | "owner";
 };
 
-export async function requireAppUser(): Promise<AppUser> {
+export async function requireAppUser(options?: {
+  skipSubscriptionCheck?: boolean;
+}): Promise<AppUser> {
   const supabase: Awaited<ReturnType<typeof createClient>> =
     await createClient();
 
@@ -45,9 +47,6 @@ export async function requireAppUser(): Promise<AppUser> {
     // Ignore metadata failures; we can still authenticate.
   }
 
-  // Admin-only app for now: every authenticated user is an admin.
-  const role = "ADMIN" as const;
-
   // 1. Try to find user by their Auth ID (subject)
   let user = await prisma.user.findUnique({
     where: { auth0Sub: subject },
@@ -55,48 +54,59 @@ export async function requireAppUser(): Promise<AppUser> {
 
   if (!user) {
     // 2. If not found by ID, check if a user with this email already exists
-    // This handles cases where the user exists but has a different ID (or no ID yet)
     user = await prisma.user.findUnique({
       where: { email },
     });
 
     if (user) {
-      // 3a. User exists by email -> Update their ID to match the current login
+      // 3a. User exists by email -> Update their ID
       user = await prisma.user.update({
         where: { email },
         data: {
           auth0Sub: subject,
-          role,
+          // Do NOT overwrite role
           ...(fullNameFromAuth ? { fullName: fullNameFromAuth } : {}),
         },
       });
     } else {
-      // 3b. No user by ID or Email -> Create a brand new user
+      // 3b. Create new user. Default to ADMIN (Coach).
       user = await prisma.user.create({
         data: {
           auth0Sub: subject,
           email,
           fullName: fullNameFromAuth,
-          role,
+          role: "ADMIN",
         },
       });
     }
   } else {
-    // 4. User found by ID -> Just update their details
+    // 4. User found -> Update details, preserve role
     user = await prisma.user.update({
       where: { auth0Sub: subject },
       data: {
         email,
-        role,
         ...(fullNameFromAuth ? { fullName: fullNameFromAuth } : {}),
       },
     });
+  }
+
+  // Enforce Subscription for ADMINs
+  if (!options?.skipSubscriptionCheck && user.role === "ADMIN") {
+    const validStatuses = ["ACTIVE", "TRIALING"];
+    if (!validStatuses.includes(user.subscriptionStatus)) {
+      throw Object.assign(new Error("Subscription inactive"), { status: 403 });
+    }
   }
 
   return {
     id: user.id,
     email: user.email,
     full_name: user.fullName ?? null,
-    role: "admin",
+    role:
+      user.role === "OWNER"
+        ? "owner"
+        : user.role === "CLIENT"
+        ? "client"
+        : "admin",
   };
 }

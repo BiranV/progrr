@@ -3,7 +3,7 @@ import { requireAppUser } from "@/server/auth";
 
 export async function GET() {
   try {
-    const user = await requireAppUser();
+    const user = await requireAppUser({ skipSubscriptionCheck: true });
     return NextResponse.json(user);
   } catch (error: any) {
     console.error("API /me error:", error);

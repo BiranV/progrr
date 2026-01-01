@@ -11,8 +11,17 @@ datasource db {
 }
 
 enum Role {
+  OWNER
   ADMIN
   CLIENT
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+  UNPAID
 }
 
 model User {
@@ -21,8 +30,21 @@ model User {
   email     String   @unique
   fullName  String?
   role      Role     @default(ADMIN)
+  status    String   @default("ACTIVE") // ACTIVE, PENDING
+  
+  // Billing Fields
+  stripeCustomerId       String?
+  stripeSubscriptionId   String?
+  subscriptionStatus     SubscriptionStatus @default(TRIALING)
+  subscriptionEndDate    DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Coach/Client Relation
+  coachId   String?
+  coach     User?    @relation("CoachClients", fields: [coachId], references: [id])
+  clients   User[]   @relation("CoachClients")
 
   entities Entity[]
 }

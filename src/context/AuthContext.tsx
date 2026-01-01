@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import { db } from "@/lib/db";
 import { usePathname, useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 interface User {
   id: string;
@@ -40,6 +41,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [authError, setAuthError] = useState<any>(null);
   const router = useRouter();
   const pathname = usePathname();
+  const supabase = createClient();
+
+  useEffect(() => {
+    // Listen for Supabase auth changes (handles implicit flow, PKCE, etc.)
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+        // Session established client-side, now sync with server/app state
+        checkUserAuth();
+      } else if (event === "SIGNED_OUT") {
+        setUser(null);
+        setIsAuthenticated(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     // Check auth on mount AND on navigation.

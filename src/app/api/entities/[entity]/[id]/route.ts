@@ -27,10 +27,15 @@ export async function GET(
   ctx: { params: Promise<{ entity: string; id: string }> }
 ) {
   try {
-    await requireAppUser();
+    const user = await requireAppUser();
     const { entity, id } = await ctx.params;
 
-    const row = await prisma.entity.findFirst({ where: { id, entity } });
+    const where: any = { id, entity };
+    if (user.role === "admin") {
+      where.ownerId = user.id;
+    }
+
+    const row = await prisma.entity.findFirst({ where });
     if (!row) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
@@ -50,12 +55,17 @@ export async function PATCH(
   ctx: { params: Promise<{ entity: string; id: string }> }
 ) {
   try {
-    await requireAppUser();
+    const user = await requireAppUser();
     const { entity, id } = await ctx.params;
 
     const patch = patchBodySchema.parse(await req.json());
 
-    const existing = await prisma.entity.findFirst({ where: { id, entity } });
+    const where: any = { id, entity };
+    if (user.role === "admin") {
+      where.ownerId = user.id;
+    }
+
+    const existing = await prisma.entity.findFirst({ where });
     if (!existing) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
@@ -90,10 +100,15 @@ export async function DELETE(
   ctx: { params: Promise<{ entity: string; id: string }> }
 ) {
   try {
-    await requireAppUser();
+    const user = await requireAppUser();
     const { entity, id } = await ctx.params;
 
-    const existing = await prisma.entity.findFirst({ where: { id, entity } });
+    const where: any = { id, entity };
+    if (user.role === "admin") {
+      where.ownerId = user.id;
+    }
+
+    const existing = await prisma.entity.findFirst({ where });
     if (!existing) {
       return NextResponse.json({ ok: true });
     }
