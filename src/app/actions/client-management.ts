@@ -250,26 +250,48 @@ export async function updateClientAction(id: string, data: ClientFormData) {
 }
 
 export async function resendInviteAction(email: string) {
-  console.log("Resending invite to:", email);
-  const supabaseAdmin = createAdminClient();
-  if (!supabaseAdmin) {
-    console.error("Supabase Admin client not configured");
-    throw new Error("Supabase Admin client not configured");
+  try {
+    console.log("Resending invite to:", email);
+    const supabaseAdmin = createAdminClient();
+    if (!supabaseAdmin) {
+      console.error("Supabase Admin client not configured");
+      throw new Error("Supabase Admin client not configured");
+    }
+
+    // Ensure we use the correct base URL
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (!baseUrl) {
+      throw new Error("NEXT_PUBLIC_APP_URL is not defined");
+    }
+    const redirectUrl = `${baseUrl}/invite`;
+    console.log("Redirect URL:", redirectUrl);
+
+    const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+      redirectTo: redirectUrl,
+    });
+
+    if (error) {
+      console.error("Supabase invite error:", error);
+      // If user is already registered, send a password reset email instead
+      if (error.message.includes("already been registered")) {
+        console.log("User already registered, sending password reset email...");
+        const { error: resetError } =
+          await supabaseAdmin.auth.resetPasswordForEmail(email, {
+            redirectTo: redirectUrl,
+          });
+        if (resetError) {
+          throw new Error(
+            "Failed to send password reset email: " + resetError.message
+          );
+        }
+        return { success: true };
+      }
+      throw new Error("Failed to resend invite: " + error.message);
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error("Resend invite action failed:", error);
+    throw new Error(error.message || "Failed to resend invite");
   }
-
-  // Ensure we use the correct base URL
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
-  const redirectUrl = `${baseUrl}/invite`;
-  console.log("Redirect URL:", redirectUrl);
-
-  const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-    redirectTo: redirectUrl,
-  });
-
-  if (error) {
-    console.error("Supabase invite error:", error);
-    throw new Error("Failed to resend invite: " + error.message);
-  }
-
-  return { success: true };
 }
