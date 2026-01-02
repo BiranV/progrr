@@ -67,9 +67,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // This ensures that if we redirect from login -> dashboard, we pick up the new session.
     // Important: do not force /api/me during invite link processing.
     // The invite page establishes a Supabase session client-side first.
-    if (!pathname.startsWith("/invite")) {
-      checkUserAuth();
+    if (pathname.startsWith("/invite")) {
+      // IMPORTANT: /invite must render immediately for unauthenticated visitors.
+      // We intentionally skip /api/me here to avoid timing issues while the page
+      // consumes the Supabase email-link tokens. But we still need to end the
+      // global loading state, otherwise the layout blocks the page forever.
+      setIsLoadingAuth(false);
+      return;
     }
+
+    checkUserAuth();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
