@@ -10,7 +10,6 @@ import React, {
 } from "react";
 import { db } from "@/lib/db";
 import { usePathname, useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 
 interface User {
   id: string;
@@ -42,7 +41,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [authError, setAuthError] = useState<any>(null);
   const router = useRouter();
   const pathname = usePathname();
-  const supabase = createClient();
 
   const lastMeFetchAtRef = useRef<number>(0);
   const meFetchInFlightRef = useRef<Promise<void> | null>(null);
@@ -50,30 +48,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     (options?: { force?: boolean }) => Promise<void>
   >(async () => {});
 
-  useEffect(() => {
-    // Listen for Supabase auth changes (handles implicit flow, PKCE, etc.)
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      // IMPORTANT: this callback runs in a long-lived subscription.
-      // Use refs (not closures) to avoid stale state causing repeated /api/me calls.
-      if (event === "SIGNED_IN" || event === "USER_UPDATED") {
-        // Session established client-side, now sync with server/app state
-        checkUserAuthRef.current({ force: true });
-      } else if (event === "SIGNED_OUT") {
-        setUser(null);
-        setIsAuthenticated(false);
-      } else if (event === "TOKEN_REFRESHED") {
-        // Avoid refetching /api/me on every focus/visibility change.
-        // The server cookie/session will still be valid; we only need /api/me on real transitions.
-        return;
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+  // Custom auth uses httpOnly JWT cookies. There is no client-side auth provider
+  // subscription; we only sync state by calling /api/me after login/logout.
 
   useEffect(() => {
     // Check auth on mount AND on navigation.

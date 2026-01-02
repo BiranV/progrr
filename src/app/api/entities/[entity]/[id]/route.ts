@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { ObjectId } from "mongodb";
 import { z } from "zod";
-import { prisma } from "@/server/prisma";
+import { collections } from "@/server/collections";
 import { requireAppUser } from "@/server/auth";
 
 export const runtime = "nodejs";
@@ -22,6 +23,20 @@ function toPublicRecord(row: {
   };
 }
 
+function toPublicEntityDoc(doc: {
+  _id: ObjectId;
+  data: any;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return toPublicRecord({
+    id: doc._id.toHexString(),
+    data: doc.data,
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+  });
+}
+
 export async function GET(
   _req: Request,
   ctx: { params: Promise<{ entity: string; id: string }> }
@@ -30,35 +45,46 @@ export async function GET(
     const user = await requireAppUser();
     const { entity, id } = await ctx.params;
 
+    const c = await collections();
+
     // CLIENT ACCESS CONTROL
     if (user.role === "client") {
-      const clientRows = await prisma.entity.findMany({
-        where: { entity: "Client" },
-        orderBy: { updatedAt: "desc" },
+      const adminId = new ObjectId(user.adminId);
+      const myClient = await c.entities.findOne({
+        entity: "Client",
+        adminId,
+        $or: [{ "data.userId": user.id }, { "data.clientAuthId": user.id }],
       });
-      const myClient = clientRows.find(
-        (r) => ((r.data ?? {}) as any).userId === user.id
-      );
 
       if (entity === "Client") {
-        if (!myClient || myClient.id !== id) {
+        if (!myClient || myClient._id.toHexString() !== id) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
-        return NextResponse.json(toPublicRecord(myClient));
+        return NextResponse.json(toPublicEntityDoc(myClient));
       }
 
       if (entity === "Message") {
         if (!myClient) {
           return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
-        const row = await prisma.entity.findFirst({ where: { id, entity } });
+
+        if (!ObjectId.isValid(id)) {
+          return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
+
+        const row = await c.entities.findOne({
+          _id: new ObjectId(id),
+          entity: "Message",
+          adminId,
+        });
         if (!row) {
           return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
-        if (((row.data ?? {}) as any).clientId !== myClient.id) {
+
+        if (((row.data ?? {}) as any).clientId !== myClient._id.toHexString()) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
-        return NextResponse.json(toPublicRecord(row));
+        return NextResponse.json(toPublicEntityDoc(row));
       }
 
       if (entity === "WorkoutPlan" || entity === "MealPlan") {
@@ -71,27 +97,44 @@ export async function GET(
         if (!allowedId || allowedId !== id) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
-        const row = await prisma.entity.findFirst({ where: { id, entity } });
+
+        if (!ObjectId.isValid(id)) {
+          return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
+
+        const row = await c.entities.findOne({
+          _id: new ObjectId(id),
+          entity,
+          adminId,
+        });
         if (!row) {
           return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
-        return NextResponse.json(toPublicRecord(row));
+        return NextResponse.json(toPublicEntityDoc(row));
       }
 
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const where: any = { id, entity };
-    if (user.role === "admin") {
-      where.ownerId = user.id;
+    if (user.role !== "admin") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const row = await prisma.entity.findFirst({ where });
+    if (!ObjectId.isValid(id)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const adminId = new ObjectId(user.id);
+    const row = await c.entities.findOne({
+      _id: new ObjectId(id),
+      entity,
+      adminId,
+    });
     if (!row) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    return NextResponse.json(toPublicRecord(row));
+    return NextResponse.json(toPublicEntityDoc(row));
   } catch (error: any) {
     const status = typeof error?.status === "number" ? error.status : 500;
     return NextResponse.json(
@@ -109,68 +152,100 @@ export async function PATCH(
     const user = await requireAppUser();
     const { entity, id } = await ctx.params;
 
+    const c = await collections();
+
+    if (!ObjectId.isValid(id)) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
     // CLIENT ACCESS CONTROL
     if (user.role === "client") {
       if (entity !== "Message") {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
 
-      const clientRows = await prisma.entity.findMany({
-        where: { entity: "Client" },
-        orderBy: { updatedAt: "desc" },
+      const adminId = new ObjectId(user.adminId);
+      const myClient = await c.entities.findOne({
+        entity: "Client",
+        adminId,
+        $or: [{ "data.userId": user.id }, { "data.clientAuthId": user.id }],
       });
-      const myClient = clientRows.find(
-        (r) => ((r.data ?? {}) as any).userId === user.id
-      );
       if (!myClient) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
 
-      const existing = await prisma.entity.findFirst({ where: { id, entity } });
+      const existing = await c.entities.findOne({
+        _id: new ObjectId(id),
+        entity: "Message",
+        adminId,
+      });
       if (!existing) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
       }
-      if (((existing.data ?? {}) as any).clientId !== myClient.id) {
+      if (
+        ((existing.data ?? {}) as any).clientId !== myClient._id.toHexString()
+      ) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
 
       const patch = patchBodySchema.parse(await req.json());
-      const row = await prisma.entity.update({
-        where: { id },
-        data: {
-          data: {
-            ...(existing.data as any),
-            ...patch,
+
+      await c.entities.updateOne(
+        { _id: new ObjectId(id) },
+        {
+          $set: {
+            data: {
+              ...(existing.data as any),
+              ...patch,
+            },
+            updatedAt: new Date(),
           },
-        },
-      });
+        }
+      );
 
-      return NextResponse.json(toPublicRecord(row));
+      const row = await c.entities.findOne({ _id: new ObjectId(id) });
+      if (!row) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+
+      return NextResponse.json(toPublicEntityDoc(row));
     }
 
-    const patch = patchBodySchema.parse(await req.json());
-
-    const where: any = { id, entity };
-    if (user.role === "admin") {
-      where.ownerId = user.id;
+    if (user.role !== "admin") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const existing = await prisma.entity.findFirst({ where });
+    const adminId = new ObjectId(user.id);
+
+    const existing = await c.entities.findOne({
+      _id: new ObjectId(id),
+      entity,
+      adminId,
+    });
     if (!existing) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const row = await prisma.entity.update({
-      where: { id },
-      data: {
-        data: {
-          ...(existing.data as any),
-          ...patch,
+    const patch = patchBodySchema.parse(await req.json());
+    await c.entities.updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          data: {
+            ...(existing.data as any),
+            ...patch,
+          },
+          updatedAt: new Date(),
         },
-      },
-    });
+      }
+    );
 
-    return NextResponse.json(toPublicRecord(row));
+    const row = await c.entities.findOne({ _id: new ObjectId(id) });
+    if (!row) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(toPublicEntityDoc(row));
   } catch (error: any) {
     const status = typeof error?.status === "number" ? error.status : 500;
     const message =
@@ -193,21 +268,40 @@ export async function DELETE(
     const user = await requireAppUser();
     const { entity, id } = await ctx.params;
 
+    const c = await collections();
+
+    if (!ObjectId.isValid(id)) {
+      return NextResponse.json({ ok: true });
+    }
+
     if (user.role === "client") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const where: any = { id, entity };
-    if (user.role === "admin") {
-      where.ownerId = user.id;
+    if (user.role !== "admin") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const existing = await prisma.entity.findFirst({ where });
-    if (!existing) {
-      return NextResponse.json({ ok: true });
+    const adminId = new ObjectId(user.id);
+    const existing = await c.entities.findOne({
+      _id: new ObjectId(id),
+      entity,
+      adminId,
+    });
+    if (!existing) return NextResponse.json({ ok: true });
+
+    await c.entities.deleteOne({ _id: new ObjectId(id) });
+
+    // If a coach deletes a Client entity, also delete the login record so the
+    // client can no longer authenticate by phone.
+    if (entity === "Client") {
+      const d = (existing.data ?? {}) as any;
+      const authId = String(d.clientAuthId ?? d.userId ?? "");
+      if (ObjectId.isValid(authId)) {
+        await c.clients.deleteOne({ _id: new ObjectId(authId), adminId });
+      }
     }
 
-    await prisma.entity.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (error: any) {
     const status = typeof error?.status === "number" ? error.status : 500;

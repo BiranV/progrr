@@ -1,67 +1,13 @@
-import { createClient } from "@/lib/supabase/server";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { prisma } from "@/server/prisma";
+import { requireAppUser } from "@/server/auth";
 
 /**
  * Enforces subscription policy for Page Loads.
- * - OWNER/CLIENT: Pass.
- * - ADMIN: Must be ACTIVE/TRIALING. If not, redirects to billing.
+ * Legacy stub: subscription gating was removed during Mongo migration.
  */
 export async function checkSubscriptionAndRedirect() {
-  const supabase = await createClient();
-  // Use getUser() instead of getSession() in Server Components to avoid cookie write errors
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-
-  if (!authUser) {
-    // If called in a protected context without session, redirect.
-    // But usually middleware catches this.
-    return false;
-  }
-
-  // Avoid redirect loops
-  const headersList = await headers();
-  const pathname = headersList.get("x-invoke-path") || "";
-  if (pathname.includes("/billing/reactivate")) {
-    return true;
-  }
-
-  // 1. Fetch Truth from Database
-  // Verifying subscription status
-  const user = await prisma.user.findUnique({
-    where: { auth0Sub: authUser.id },
-    select: {
-      role: true,
-      subscriptionStatus: true,
-    },
-  });
-
-  if (!user) {
-    // User might not be synced yet
-    return true;
-  }
-
-  // 2. Bypass Logic
-  if (user.role === "CLIENT") {
-    return true; // Pass
-  }
-
-  if (user.role === "OWNER") {
-    // Privacy Guard: Owners should not be in the App
-    redirect("/owner/dashboard");
-  }
-
-  // 3. Admin Subscription Check
-  const validStatuses = ["ACTIVE", "TRIALING"];
-
-  if (!validStatuses.includes(user.subscriptionStatus)) {
-    // Redirect immediately if not valid
-    redirect("/billing/reactivate");
-  }
-
-  return true; // Pass
+  // Ensure the user is authenticated in contexts that rely on this guard.
+  await requireAppUser();
+  return true;
 }
 
 /**
@@ -69,44 +15,6 @@ export async function checkSubscriptionAndRedirect() {
  * Throws error if invalid.
  */
 export async function requireActiveSubscription() {
-  const supabase = await createClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-
-  if (!authUser) {
-    throw new Error("Unauthorized");
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { auth0Sub: authUser.id },
-    select: {
-      role: true,
-      subscriptionStatus: true,
-    },
-  });
-
-  if (!user) {
-    throw new Error("User not found");
-  }
-
-  if (user.role === "CLIENT") {
-    return true;
-  }
-
-  if (user.role === "OWNER") {
-    // Owners are allowed to perform actions, but usually they have their own actions.
-    // If an owner calls a generic app action, we might allow it or block it.
-    // For now, allow it to avoid breaking things if they share logic.
-    return true;
-  }
-
-  const validStatuses = ["ACTIVE", "TRIALING"];
-  if (!validStatuses.includes(user.subscriptionStatus)) {
-    throw new Error(
-      "Subscription inactive. Please renew to perform this action."
-    );
-  }
-
+  await requireAppUser();
   return true;
 }

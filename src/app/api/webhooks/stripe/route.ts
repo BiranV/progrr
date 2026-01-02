@@ -1,7 +1,8 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
-import { prisma } from "@/server/prisma";
+import { collections } from "@/server/collections";
+import { ObjectId } from "mongodb";
 import Stripe from "stripe";
 
 export async function POST(req: Request) {
@@ -32,13 +33,18 @@ export async function POST(req: Request) {
       const subscriptionId = session.subscription as string;
 
       if (userId) {
-        await prisma.user.update({
-          where: { id: userId },
-          data: {
-            stripeCustomerId: session.customer as string,
-            stripeSubscriptionId: subscriptionId,
-          },
-        });
+        const c = await collections();
+        if (ObjectId.isValid(userId)) {
+          await c.admins.updateOne(
+            { _id: new ObjectId(userId) },
+            {
+              $set: {
+                stripeCustomerId: session.customer as string,
+                stripeSubscriptionId: subscriptionId,
+              },
+            }
+          );
+        }
       }
     }
 
@@ -70,21 +76,20 @@ export async function POST(req: Request) {
 
       // Find user by Stripe Customer ID
       // We might need to find by email if customer ID isn't linked yet (race condition with checkout)
-      const user = await prisma.user.findFirst({
-        where: {
-          stripeCustomerId: customerId,
-        },
-      });
+      const c = await collections();
+      const admin = await c.admins.findOne({ stripeCustomerId: customerId });
 
-      if (user) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            subscriptionStatus: userStatus,
-            subscriptionEndDate: endDate,
-            stripeSubscriptionId: subscription.id,
-          },
-        });
+      if (admin) {
+        await c.admins.updateOne(
+          { _id: admin._id },
+          {
+            $set: {
+              subscriptionStatus: userStatus,
+              subscriptionEndDate: endDate,
+              stripeSubscriptionId: subscription.id,
+            },
+          }
+        );
       } else {
         console.warn(
           `Webhook: No user found for Stripe Customer ${customerId}`

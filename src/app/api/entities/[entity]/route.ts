@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { ObjectId } from "mongodb";
 import { z } from "zod";
-import { prisma } from "@/server/prisma";
+import { collections } from "@/server/collections";
 import { requireAppUser } from "@/server/auth";
 
 export const runtime = "nodejs";
@@ -20,6 +21,20 @@ function toPublicRecord(row: {
     updated_date: row.updatedAt.toISOString(),
     ...data,
   };
+}
+
+function toPublicEntityDoc(doc: {
+  _id: ObjectId;
+  data: any;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return toPublicRecord({
+    id: doc._id.toHexString(),
+    data: doc.data,
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+  });
 }
 
 function sortRecords(records: any[], sort?: string | null) {
@@ -55,10 +70,7 @@ export async function GET(
   try {
     const user = await requireAppUser();
 
-    // Privacy: Owner sees nothing
-    if (user.role === "owner") {
-      return NextResponse.json([]);
-    }
+    const c = await collections();
 
     const { entity } = await ctx.params;
     const url = new URL(req.url);
@@ -66,38 +78,37 @@ export async function GET(
 
     // CLIENT ACCESS CONTROL
     if (user.role === "client") {
+      const adminId = new ObjectId(user.adminId);
+
       // 1) Client profile: only their own record
       if (entity === "Client") {
-        const rows = await prisma.entity.findMany({
-          where: { entity: "Client" },
-          orderBy: { updatedAt: "desc" },
+        const myClient = await c.entities.findOne({
+          entity: "Client",
+          adminId,
+          $or: [{ "data.userId": user.id }, { "data.clientAuthId": user.id }],
         });
-        const mine = rows
-          .filter((r) => ((r.data ?? {}) as any).userId === user.id)
-          .map(toPublicRecord);
+
+        if (!myClient) return NextResponse.json([]);
+        const mine = [toPublicEntityDoc(myClient)];
         return NextResponse.json(sortRecords(mine, sort));
       }
 
       // 2) Messages: only messages for their own clientId
       if (entity === "Message") {
-        const clientRows = await prisma.entity.findMany({
-          where: { entity: "Client" },
-          orderBy: { updatedAt: "desc" },
+        const myClient = await c.entities.findOne({
+          entity: "Client",
+          adminId,
+          $or: [{ "data.userId": user.id }, { "data.clientAuthId": user.id }],
         });
-        const myClient = clientRows.find(
-          (r) => ((r.data ?? {}) as any).userId === user.id
-        );
         if (!myClient) return NextResponse.json([]);
 
-        const messageRows = await prisma.entity.findMany({
-          where: { entity: "Message" },
-          orderBy: { updatedAt: "desc" },
-        });
+        const clientEntityId = myClient._id.toHexString();
+        const messageDocs = await c.entities
+          .find({ entity: "Message", adminId, "data.clientId": clientEntityId })
+          .sort({ updatedAt: -1 })
+          .toArray();
 
-        const mine = messageRows
-          .filter((r) => ((r.data ?? {}) as any).clientId === myClient.id)
-          .map(toPublicRecord);
-
+        const mine = messageDocs.map(toPublicEntityDoc);
         return NextResponse.json(sortRecords(mine, sort));
       }
 
@@ -105,17 +116,17 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const where: any = { entity };
-    if (user.role === "admin") {
-      where.ownerId = user.id;
+    if (user.role !== "admin") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const rows = await prisma.entity.findMany({
-      where,
-      orderBy: { updatedAt: "desc" },
-    });
+    const adminId = new ObjectId(user.id);
+    const docs = await c.entities
+      .find({ entity, adminId })
+      .sort({ updatedAt: -1 })
+      .toArray();
 
-    const records = rows.map(toPublicRecord);
+    const records = docs.map(toPublicEntityDoc);
     return NextResponse.json(sortRecords(records, sort));
   } catch (error: any) {
     const status = typeof error?.status === "number" ? error.status : 500;
@@ -133,12 +144,7 @@ export async function POST(
   try {
     const user = await requireAppUser();
 
-    if (user.role === "owner") {
-      return NextResponse.json(
-        { error: "Owner cannot create entities" },
-        { status: 403 }
-      );
-    }
+    const c = await collections();
 
     const { entity } = await ctx.params;
     const body = createBodySchema.parse(await req.json());
@@ -149,39 +155,67 @@ export async function POST(
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
 
-      // Ensure the message is stored under the coach (admin) ownerId so the coach can read it.
-      const dbUser = await prisma.user.findUnique({
-        where: { id: user.id },
-        select: { coachId: true },
+      const adminId = new ObjectId(user.adminId);
+      const myClient = await c.entities.findOne({
+        entity: "Client",
+        adminId,
+        $or: [{ "data.userId": user.id }, { "data.clientAuthId": user.id }],
       });
-      const ownerId = dbUser?.coachId ?? null;
-      if (!ownerId) {
+      if (!myClient) {
         return NextResponse.json(
-          { error: "Client is not assigned to a coach" },
+          { error: "Client profile not found" },
           { status: 403 }
         );
       }
 
-      const row = await prisma.entity.create({
-        data: {
-          entity,
-          ownerId,
-          data: body,
-        },
+      const clientEntityId = myClient._id.toHexString();
+      if (body?.clientId && body.clientId !== clientEntityId) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
+      const now = new Date();
+      const insert = await c.entities.insertOne({
+        entity,
+        adminId,
+        data: { ...body, clientId: clientEntityId },
+        createdAt: now,
+        updatedAt: now,
       });
 
-      return NextResponse.json(toPublicRecord(row));
+      const created = await c.entities.findOne({ _id: insert.insertedId });
+      if (!created) {
+        return NextResponse.json(
+          { error: "Internal Server Error" },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(toPublicEntityDoc(created));
     }
 
-    const row = await prisma.entity.create({
-      data: {
-        entity,
-        ownerId: user.id,
-        data: body,
-      },
+    if (user.role !== "admin") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const adminId = new ObjectId(user.id);
+    const now = new Date();
+    const insert = await c.entities.insertOne({
+      entity,
+      adminId,
+      data: body,
+      createdAt: now,
+      updatedAt: now,
     });
 
-    return NextResponse.json(toPublicRecord(row));
+    const created = await c.entities.findOne({ _id: insert.insertedId });
+    if (!created) {
+      return NextResponse.json(
+        { error: "Internal Server Error" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(toPublicEntityDoc(created));
   } catch (error: any) {
     const status = typeof error?.status === "number" ? error.status : 500;
     const message =

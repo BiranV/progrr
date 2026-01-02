@@ -136,9 +136,7 @@ export default function ClientDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       toast.success(
-        client
-          ? "Client updated successfully"
-          : "Client invited successfully. Email sent."
+        client ? "Client updated successfully" : "Client created successfully"
       );
       onOpenChange(false);
     },

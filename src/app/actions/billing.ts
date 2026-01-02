@@ -2,25 +2,27 @@
 
 import { stripe } from "@/lib/stripe";
 import { requireAppUser } from "@/server/auth";
-import { prisma } from "@/server/prisma";
+import { collections } from "@/server/collections";
+import { ObjectId } from "mongodb";
 import { redirect } from "next/navigation";
 
 export async function createPortalSession() {
-  const user = await requireAppUser({ skipSubscriptionCheck: true });
+  const user = await requireAppUser();
 
-  const dbUser = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: {
-      stripeCustomerId: true,
-    },
-  });
+  if (user.role !== "admin") {
+    throw new Error("Only admins can manage billing");
+  }
 
-  if (!dbUser?.stripeCustomerId) {
+  const c = await collections();
+
+  const admin = await c.admins.findOne({ _id: new ObjectId(user.id) });
+
+  if (!admin?.stripeCustomerId) {
     throw new Error("No billing account found");
   }
 
   const session = await stripe.billingPortal.sessions.create({
-    customer: dbUser.stripeCustomerId,
+    customer: admin.stripeCustomerId,
     return_url: `${
       process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
     }/dashboard`,

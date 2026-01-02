@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { ObjectId } from "mongodb";
 import { z } from "zod";
-import { prisma } from "@/server/prisma";
+import { collections } from "@/server/collections";
 import { requireAppUser } from "@/server/auth";
 
 export const runtime = "nodejs";
@@ -22,12 +23,28 @@ function toPublicRecord(row: {
   };
 }
 
+function toPublicEntityDoc(doc: {
+  _id: ObjectId;
+  data: any;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  return toPublicRecord({
+    id: doc._id.toHexString(),
+    data: doc.data,
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+  });
+}
+
 export async function POST(
   req: Request,
   ctx: { params: Promise<{ entity: string }> }
 ) {
   try {
     const user = await requireAppUser();
+
+    const c = await collections();
 
     const { entity } = await ctx.params;
     const criteria = filterBodySchema.parse(await req.json());
@@ -38,42 +55,39 @@ export async function POST(
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
 
-      const clientRows = await prisma.entity.findMany({
-        where: { entity: "Client" },
-        orderBy: { updatedAt: "desc" },
+      const adminId = new ObjectId(user.adminId);
+      const myClient = await c.entities.findOne({
+        entity: "Client",
+        adminId,
+        $or: [{ "data.userId": user.id }, { "data.clientAuthId": user.id }],
       });
-      const myClient = clientRows.find(
-        (r) => ((r.data ?? {}) as any).userId === user.id
-      );
       if (!myClient) return NextResponse.json([]);
+      const myClientId = myClient._id.toHexString();
 
       // Must match the caller's own clientId
-      if (criteria.clientId !== myClient.id) {
+      if (criteria.clientId !== myClientId) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
 
-      const rows = await prisma.entity.findMany({
-        where: { entity: "Message" },
-        orderBy: { updatedAt: "desc" },
-      });
+      const docs = await c.entities
+        .find({ entity: "Message", adminId, "data.clientId": myClientId })
+        .sort({ updatedAt: -1 })
+        .toArray();
 
-      const records = rows.map(toPublicRecord);
-      const mine = records.filter((r: any) => r.clientId === myClient.id);
-
-      return NextResponse.json(mine);
+      return NextResponse.json(docs.map(toPublicEntityDoc));
     }
 
-    const where: any = { entity };
-    if (user.role === "admin") {
-      where.ownerId = user.id;
+    if (user.role !== "admin") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const rows = await prisma.entity.findMany({
-      where,
-      orderBy: { updatedAt: "desc" },
-    });
+    const adminId = new ObjectId(user.id);
+    const docs = await c.entities
+      .find({ entity, adminId })
+      .sort({ updatedAt: -1 })
+      .toArray();
 
-    const records = rows.map(toPublicRecord);
+    const records = docs.map(toPublicEntityDoc);
 
     const filtered = records.filter((record: Record<string, unknown>) => {
       for (const key of Object.keys(criteria)) {

@@ -15,12 +15,9 @@ import {
   Edit,
   ArrowUpDown,
   Users,
-  Send,
 } from "lucide-react";
 import ClientDialog from "@/components/ClientDialog";
 import { Client } from "@/types";
-import { resendInviteAction } from "@/app/actions/client-management";
-import { toast } from "sonner";
 
 export default function ClientsPage() {
   const [search, setSearch] = React.useState("");
@@ -86,18 +83,6 @@ export default function ClientsPage() {
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this client?")) {
       await deleteClientMutation.mutateAsync(id);
-    }
-  };
-
-  const handleResendInvite = async (email: string) => {
-    try {
-      toast.loading("Resending invite...");
-      await resendInviteAction(email);
-      toast.dismiss();
-      toast.success("Invite resent successfully");
-    } catch (error: any) {
-      toast.dismiss();
-      toast.error(error.message);
     }
   };
 
@@ -269,17 +254,6 @@ export default function ClientsPage() {
                       >
                         <Edit className="w-4 h-4" />
                       </button>
-                      {(client.status === "PENDING" ||
-                        client.status === "pending") &&
-                        client.email && (
-                          <button
-                            onClick={() => handleResendInvite(client.email!)}
-                            className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900 rounded-lg"
-                            title="Resend Invite"
-                          >
-                            <Send className="w-4 h-4" />
-                          </button>
-                        )}
                       <button
                         onClick={() => handleDelete(client.id)}
                         className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg"

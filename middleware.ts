@@ -1,5 +1,6 @@
-import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { verifyAuthToken } from "@/server/jwt";
+import { AUTH_COOKIE_NAME } from "@/server/auth-cookie";
 
 function isPublicPath(pathname: string) {
   if (pathname === "/") return true;
@@ -34,57 +35,29 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  // If Supabase isn't configured yet, don't block local dev boot.
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.next();
-  }
-
-  let response = NextResponse.next({
+  const response = NextResponse.next({
     request: {
       headers: request.headers,
     },
   });
 
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookieOptions: {
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-    },
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
-      },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) => {
-          request.cookies.set(name, value);
-          response.cookies.set(name, value, options);
-        });
-      },
-    },
-  });
+  const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
+  let claims: { role: "admin" | "client"; adminId?: string } | null = null;
+  if (token) {
+    try {
+      const parsed = await verifyAuthToken(token);
+      claims = { role: parsed.role, adminId: parsed.adminId };
+    } catch {
+      claims = null;
+    }
+  }
 
-  // IMPORTANT: DO NOT REMOVE.
-  // This refreshes the session if needed and validates the user.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const isAuthed = !!claims;
 
-  const isAuthed = !!user;
-
-  // Role-Based Routing (Optimization)
-  if (isAuthed) {
-    const rawRole = (user.user_metadata as any)?.role;
-    const userRole =
-      typeof rawRole === "string" ? rawRole.toUpperCase() : undefined;
-
+  // Role-Based Routing
+  if (isAuthed && claims) {
     // Client Protection: Block access to Admin routes
-    if (userRole === "CLIENT") {
+    if (claims.role === "client") {
       const adminOnlyPrefixes = [
         "/clients",
         "/plans",
@@ -104,20 +77,8 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // Owner Protection: Block access to Client/Admin routes
-    // We assume anything NOT /owner and NOT public is an App route
-    if (
-      userRole === "OWNER" &&
-      !pathname.startsWith("/owner") &&
-      !isPublicPath(pathname)
-    ) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/owner/dashboard";
-      return NextResponse.redirect(url);
-    }
-
-    // Admin/Client Protection: Block access to Owner routes
-    if (userRole !== "OWNER" && pathname.startsWith("/owner")) {
+    // Admin/Client Protection: Block access to Owner routes (Owner routes are no longer used)
+    if (pathname.startsWith("/owner")) {
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard"; // Redirect to main dashboard
       return NextResponse.redirect(url);

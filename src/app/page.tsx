@@ -11,10 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sun, Moon } from "lucide-react";
-import {
-  signInWithPassword,
-  signUpWithPassword,
-} from "@/app/actions/supabase-auth";
+import { signInWithPassword, signUpWithPassword } from "@/app/actions/auth";
 import { useFormStatus } from "react-dom";
 
 export default function Home() {
@@ -236,9 +233,29 @@ function LoginForm({
     | { type: "message"; text: string }
     | null;
 }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const nextPath = searchParams.get("next");
+  const [loginAs, setLoginAs] = useState<"admin" | "client">("admin");
+  const [clientStep, setClientStep] = useState<"phone" | "code">("phone");
+  const [clientPhone, setClientPhone] = useState("");
+  const [clientCode, setClientCode] = useState("");
+  const [clientError, setClientError] = useState<string | null>(null);
+  const [clientInfo, setClientInfo] = useState<string | null>(null);
+  const [clientLoading, setClientLoading] = useState(false);
+
   const [errors, setErrors] = useState<{ email?: string; password?: string }>(
     {}
   );
+
+  useEffect(() => {
+    // Keep client step predictable when toggling roles.
+    setClientError(null);
+    setClientInfo(null);
+    setClientCode("");
+    setClientStep("phone");
+  }, [loginAs]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     const formData = new FormData(e.currentTarget);
@@ -267,6 +284,81 @@ function LoginForm({
     }
   };
 
+  const handleClientSendCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setClientError(null);
+    setClientInfo(null);
+
+    const phone = clientPhone.trim();
+    if (!phone) {
+      setClientError("Phone number is required");
+      return;
+    }
+
+    setClientLoading(true);
+    try {
+      const res = await fetch("/api/auth/client/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setClientError(data?.error || `Failed to send code (${res.status})`);
+        return;
+      }
+
+      setClientInfo("Verification code sent.");
+      setClientStep("code");
+    } catch (err: any) {
+      setClientError(err?.message || "Failed to send verification code");
+    } finally {
+      setClientLoading(false);
+    }
+  };
+
+  const handleClientVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setClientError(null);
+    setClientInfo(null);
+
+    const phone = clientPhone.trim();
+    const token = clientCode.trim();
+
+    if (!phone) {
+      setClientError("Phone number is required");
+      return;
+    }
+
+    if (!token) {
+      setClientError("Verification code is required");
+      return;
+    }
+
+    setClientLoading(true);
+    try {
+      const res = await fetch("/api/auth/client/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, code: token }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setClientError(data?.error || `Failed to verify code (${res.status})`);
+        return;
+      }
+
+      router.replace(nextPath || "/dashboard");
+      router.refresh();
+    } catch (err: any) {
+      setClientError(err?.message || "Failed to verify code");
+    } finally {
+      setClientLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-5 flex-1 flex flex-col">
       {banner ? (
@@ -281,86 +373,218 @@ function LoginForm({
         </div>
       ) : null}
 
-      <form
-        action={signInWithPassword}
-        onSubmit={handleSubmit}
-        noValidate
-        className="space-y-4 flex-1 flex flex-col"
-      >
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label
-              htmlFor="login_email"
-              className="text-gray-700 dark:text-gray-200"
-            >
-              Email Address
-            </Label>
-            <Input
-              id="login_email"
-              name="email"
-              type="email"
-              placeholder="coach@example.com"
-              autoComplete="email"
-              className={
-                errors.email ? "border-red-500 focus-visible:ring-red-500" : ""
-              }
-            />
-            {errors.email && (
-              <p className="text-xs text-red-500 !mb-2">{errors.email}</p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <Label
-              htmlFor="login_password"
-              className="text-gray-700 dark:text-gray-200"
-            >
-              Password
-            </Label>
-            <Input
-              id="login_password"
-              name="password"
-              type="password"
-              placeholder=""
-              autoComplete="current-password"
-              className={
-                errors.password
-                  ? "border-red-500 focus-visible:ring-red-500"
-                  : ""
-              }
-            />
-            {errors.password && (
-              <p className="text-xs text-red-500 !mb-2">{errors.password}</p>
-            )}
-          </div>
+      {clientError ? (
+        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+          {clientError}
         </div>
+      ) : null}
 
-        <SubmitButton
-          pendingText="Signing in..."
-          text="Login to your account"
-        />
+      {clientInfo ? (
+        <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-3">
+          {clientInfo}
+        </div>
+      ) : null}
 
-        <div className="pt-2">
-          <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
-            <div className="text-xs text-gray-500 dark:text-gray-400">
-              OR CONTINUE WITH
+      <div className="space-y-2">
+        <Label className="text-gray-700 dark:text-gray-200">Login as</Label>
+        <Tabs
+          value={loginAs}
+          onValueChange={(v) => setLoginAs(v === "client" ? "client" : "admin")}
+          className="w-full"
+        >
+          <TabsList className="grid w-full grid-cols-2 bg-gray-100 dark:bg-gray-700 p-1 rounded-xl h-12">
+            <TabsTrigger
+              value="admin"
+              className="rounded-lg h-10 cursor-pointer data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all dark:text-gray-300 dark:data-[state=active]:text-white"
+            >
+              Admin
+            </TabsTrigger>
+            <TabsTrigger
+              value="client"
+              className="rounded-lg h-10 cursor-pointer data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all dark:text-gray-300 dark:data-[state=active]:text-white"
+            >
+              Client
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
+
+      {loginAs === "admin" ? (
+        <form
+          action={signInWithPassword}
+          onSubmit={handleSubmit}
+          noValidate
+          className="space-y-4 flex-1 flex flex-col"
+        >
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label
+                htmlFor="login_email"
+                className="text-gray-700 dark:text-gray-200"
+              >
+                Email Address
+              </Label>
+              <Input
+                id="login_email"
+                name="email"
+                type="email"
+                placeholder="coach@example.com"
+                autoComplete="email"
+                className={
+                  errors.email
+                    ? "border-red-500 focus-visible:ring-red-500"
+                    : ""
+                }
+              />
+              {errors.email && (
+                <p className="text-xs text-red-500 !mb-2">{errors.email}</p>
+              )}
             </div>
-            <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
+            <div className="space-y-2">
+              <Label
+                htmlFor="login_password"
+                className="text-gray-700 dark:text-gray-200"
+              >
+                Password
+              </Label>
+              <Input
+                id="login_password"
+                name="password"
+                type="password"
+                placeholder=""
+                autoComplete="current-password"
+                className={
+                  errors.password
+                    ? "border-red-500 focus-visible:ring-red-500"
+                    : ""
+                }
+              />
+              {errors.password && (
+                <p className="text-xs text-red-500 !mb-2">{errors.password}</p>
+              )}
+            </div>
           </div>
+
+          <SubmitButton
+            pendingText="Signing in..."
+            text="Login to your account"
+          />
+
+          <div className="pt-2">
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
+              <div className="text-xs text-gray-500 dark:text-gray-400">
+                OR CONTINUE WITH
+              </div>
+              <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-12 rounded-xl mt-4 dark:bg-transparent dark:text-white dark:border-gray-600 dark:hover:bg-gray-800"
+              disabled
+            >
+              <span className="flex items-center justify-center gap-2">
+                <GoogleBadge />
+                <span>Google</span>
+              </span>
+            </Button>
+          </div>
+        </form>
+      ) : clientStep === "phone" ? (
+        <form
+          onSubmit={handleClientSendCode}
+          className="space-y-4 flex-1 flex flex-col"
+        >
+          <div className="space-y-2">
+            <Label
+              htmlFor="client_phone"
+              className="text-gray-700 dark:text-gray-200"
+            >
+              Phone Number
+            </Label>
+            <Input
+              id="client_phone"
+              name="phone"
+              type="tel"
+              placeholder="+1 555 555 5555"
+              autoComplete="tel"
+              value={clientPhone}
+              onChange={(e) => setClientPhone(e.target.value)}
+            />
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full h-12 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] mt-auto disabled:opacity-70 disabled:cursor-not-allowed"
+            disabled={clientLoading}
+          >
+            {clientLoading ? "Sending..." : "Send verification code"}
+          </Button>
+        </form>
+      ) : (
+        <form
+          onSubmit={handleClientVerifyCode}
+          className="space-y-4 flex-1 flex flex-col"
+        >
+          <div className="space-y-2">
+            <Label
+              htmlFor="client_phone_confirm"
+              className="text-gray-700 dark:text-gray-200"
+            >
+              Phone Number
+            </Label>
+            <Input
+              id="client_phone_confirm"
+              name="phone"
+              type="tel"
+              value={clientPhone}
+              onChange={(e) => setClientPhone(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label
+              htmlFor="client_code"
+              className="text-gray-700 dark:text-gray-200"
+            >
+              Verification Code
+            </Label>
+            <Input
+              id="client_code"
+              name="code"
+              inputMode="numeric"
+              placeholder="123456"
+              value={clientCode}
+              onChange={(e) => setClientCode(e.target.value)}
+            />
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full h-12 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] mt-auto disabled:opacity-70 disabled:cursor-not-allowed"
+            disabled={clientLoading}
+          >
+            {clientLoading ? "Verifying..." : "Verify & login"}
+          </Button>
 
           <Button
             type="button"
             variant="outline"
-            className="w-full h-12 rounded-xl mt-4 dark:bg-transparent dark:text-white dark:border-gray-600 dark:hover:bg-gray-800"
-            disabled
+            className="w-full h-12 rounded-xl dark:bg-transparent dark:text-white dark:border-gray-600 dark:hover:bg-gray-800"
+            onClick={() => {
+              setClientStep("phone");
+              setClientCode("");
+              setClientError(null);
+              setClientInfo(null);
+            }}
+            disabled={clientLoading}
           >
-            <span className="flex items-center justify-center gap-2">
-              <GoogleBadge />
-              <span>Google</span>
-            </span>
+            Back
           </Button>
-        </div>
-      </form>
+        </form>
+      )}
     </div>
   );
 }

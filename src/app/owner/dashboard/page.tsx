@@ -1,26 +1,34 @@
-import { prisma } from "@/server/prisma";
+import { collections } from "@/server/collections";
 import { redirect } from "next/navigation";
 import { requireAppUser } from "@/server/auth";
 
 export default async function OwnerDashboard() {
-  const user = await requireAppUser({ skipSubscriptionCheck: true });
-  if (user.role !== "owner") redirect("/app");
+  const user = await requireAppUser();
+  const ownerEmail = String(process.env.OWNER_EMAIL ?? "")
+    .trim()
+    .toLowerCase();
 
-  const admins = await prisma.user.findMany({
-    where: { role: "ADMIN" },
-    select: {
-      id: true,
-      email: true,
-      createdAt: true,
-      subscriptionStatus: true,
-      _count: {
-        select: {
-          entities: true,
-        },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  if (
+    user.role !== "admin" ||
+    !ownerEmail ||
+    user.email.toLowerCase() !== ownerEmail
+  ) {
+    redirect("/dashboard");
+  }
+
+  const c = await collections();
+  const admins = await c.admins
+    .find({}, { projection: { email: 1, createdAt: 1, subscriptionStatus: 1 } })
+    .sort({ createdAt: -1 })
+    .toArray();
+
+  const entitiesCountByAdmin = await c.entities
+    .aggregate([{ $group: { _id: "$adminId", count: { $sum: 1 } } }])
+    .toArray();
+
+  const entitiesCountMap = new Map(
+    entitiesCountByAdmin.map((x: any) => [String(x._id), Number(x.count) || 0])
+  );
 
   const totalAdmins = admins.length;
   const activeSubs = admins.filter(
@@ -44,7 +52,11 @@ export default async function OwnerDashboard() {
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
           <h3 className="text-gray-500 text-sm font-medium">Total Entities</h3>
           <p className="text-3xl font-bold mt-2">
-            {admins.reduce((acc, curr) => acc + curr._count.entities, 0)}
+            {admins.reduce(
+              (acc, curr) =>
+                acc + (entitiesCountMap.get(String(curr._id)) ?? 0),
+              0
+            )}
           </p>
         </div>
       </div>
@@ -73,12 +85,14 @@ export default async function OwnerDashboard() {
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {admins.map((admin) => (
-                <tr key={admin.id}>
+                <tr key={admin._id.toHexString()}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                     {admin.email}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(admin.createdAt).toLocaleDateString()}
+                    {new Date(
+                      admin.createdAt ?? admin._id.getTimestamp()
+                    ).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
@@ -91,11 +105,11 @@ export default async function OwnerDashboard() {
                           : "bg-red-100 text-red-800"
                       }`}
                     >
-                      {admin.subscriptionStatus}
+                      {admin.subscriptionStatus ?? "CANCELED"}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {admin._count.entities}
+                    {entitiesCountMap.get(String(admin._id)) ?? 0}
                   </td>
                 </tr>
               ))}
