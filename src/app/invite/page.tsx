@@ -37,6 +37,29 @@ export default function InvitePage() {
         const tokenHash = url.searchParams.get("token_hash");
         const type = url.searchParams.get("type");
 
+        // If Supabase redirected with an auth error, surface it immediately.
+        const hashParams = new URLSearchParams(
+          typeof window !== "undefined" && window.location.hash
+            ? window.location.hash.replace(/^#/, "")
+            : ""
+        );
+        const hashError = hashParams.get("error");
+        const hashErrorDescription =
+          hashParams.get("error_description") ||
+          hashParams.get("error_description");
+        const queryError = url.searchParams.get("error");
+        const queryErrorDescription = url.searchParams.get("error_description");
+
+        if (hashError || queryError) {
+          const message =
+            hashErrorDescription ||
+            queryErrorDescription ||
+            hashError ||
+            queryError ||
+            "Invalid or expired link";
+          toast.error(decodeURIComponent(message));
+        }
+
         // 1) PKCE auth-code flow (rare for invite links, but handle it)
         if (code) {
           const { data, error } = await supabase.auth.exchangeCodeForSession(
@@ -71,9 +94,31 @@ export default function InvitePage() {
           return;
         }
 
-        // 3) Fallback: handle access_token/refresh_token in URL hash
-        // (Supabase verify endpoint commonly redirects with tokens in the hash)
-        // @ts-expect-error - available in supabase-js v2
+        // 3) Supabase verify endpoint commonly redirects with tokens in the hash
+        // e.g. /invite#access_token=...&refresh_token=...&type=recovery
+        // Some clients/environments don't expose getSessionFromUrl(), so we parse
+        // and set the session explicitly.
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+        if (accessToken && refreshToken) {
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (error) {
+            console.error("Error setting session from hash:", error);
+            toast.error("Invalid or expired invite link: " + error.message);
+          } else if (data.session) {
+            setSession(data.session);
+            window.history.replaceState({}, "", "/invite");
+            setCheckingSession(false);
+            return;
+          }
+        }
+
+        // 3b) Optional helper when available (supabase-js v2)
+        // @ts-expect-error - may exist depending on auth client
         if (typeof supabase.auth.getSessionFromUrl === "function") {
           // @ts-expect-error - available in supabase-js v2
           const { data, error } = await supabase.auth.getSessionFromUrl({
