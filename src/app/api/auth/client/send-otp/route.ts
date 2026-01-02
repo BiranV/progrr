@@ -2,12 +2,15 @@ import { NextResponse } from "next/server";
 import { collections, ensureIndexes } from "@/server/collections";
 import { generateOtp } from "@/server/otp";
 
-async function sendSms(to: string, body: string) {
+type SmsDelivery = "twilio" | "dev_log";
+
+async function sendSms(to: string, body: string): Promise<SmsDelivery> {
   const sid = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;
   const from = process.env.TWILIO_FROM_PHONE;
+  const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
 
-  if (!sid || !token || !from) {
+  if (!sid || !token || (!from && !messagingServiceSid)) {
     if (process.env.NODE_ENV === "production") {
       throw Object.assign(new Error("SMS provider not configured"), {
         status: 500,
@@ -15,7 +18,7 @@ async function sendSms(to: string, body: string) {
     }
     // Dev fallback: log OTP.
     console.log(`[DEV OTP] ${to}: ${body}`);
-    return;
+    return "dev_log";
   }
 
   // Lightweight Twilio REST call without adding extra dependencies.
@@ -24,7 +27,11 @@ async function sendSms(to: string, body: string) {
 
   const form = new URLSearchParams();
   form.set("To", to);
-  form.set("From", from);
+  if (messagingServiceSid) {
+    form.set("MessagingServiceSid", messagingServiceSid);
+  } else if (from) {
+    form.set("From", from);
+  }
   form.set("Body", body);
 
   const res = await fetch(url, {
@@ -45,6 +52,8 @@ async function sendSms(to: string, body: string) {
       }
     );
   }
+
+  return "twilio";
 }
 
 export async function POST(req: Request) {
@@ -52,11 +61,23 @@ export async function POST(req: Request) {
     await ensureIndexes();
 
     const body = await req.json().catch(() => ({}));
-    const phone = String(body?.phone ?? "").trim();
+    const phone = String(body?.phone ?? "")
+      .replace(/\s+/g, "")
+      .trim();
 
     if (!phone) {
       return NextResponse.json(
         { error: "Phone number is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!phone.startsWith("+") || !/^\+\d{6,15}$/.test(phone)) {
+      return NextResponse.json(
+        {
+          error:
+            "Phone must be in international format (E.164), e.g. +972501234567",
+        },
         { status: 400 }
       );
     }
@@ -86,9 +107,12 @@ export async function POST(req: Request) {
       { upsert: true }
     );
 
-    await sendSms(phone, `Your Progrr verification code is: ${code}`);
+    const delivery = await sendSms(
+      phone,
+      `Your Progrr verification code is: ${code}`
+    );
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, delivery });
   } catch (error: any) {
     const status = typeof error?.status === "number" ? error.status : 500;
     return NextResponse.json(

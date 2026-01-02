@@ -309,7 +309,14 @@ function LoginForm({
         return;
       }
 
-      setClientInfo("Verification code sent.");
+      const data = await res.json().catch(() => ({} as { delivery?: string }));
+      if (data?.delivery === "dev_log") {
+        setClientInfo(
+          "Verification code generated (check server logs in your dev terminal)."
+        );
+      } else {
+        setClientInfo("Verification code sent.");
+      }
       setClientStep("code");
     } catch (err: any) {
       setClientError(err?.message || "Failed to send verification code");
