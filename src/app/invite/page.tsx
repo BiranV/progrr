@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -24,11 +24,15 @@ export default function InvitePage() {
   const [checkingSession, setCheckingSession] = useState(true);
   const router = useRouter();
   const supabase = createClient();
+  const codeProcessed = useRef(false);
 
   useEffect(() => {
     // Check for code in URL (PKCE flow)
     const code = new URLSearchParams(window.location.search).get("code");
     if (code) {
+      if (codeProcessed.current) return; // Prevent double execution
+      codeProcessed.current = true;
+
       supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
         if (error) {
           console.error("Error exchanging code:", error);
