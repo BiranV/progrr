@@ -281,7 +281,9 @@ export default function ClientsPage() {
                       >
                         <Edit className="w-4 h-4" />
                       </button>
-                      {client.status === "PENDING" && client.email && (
+                      {(client.status === "PENDING" ||
+                        client.status === "pending") &&
+                        client.email && (
                         <button
                           onClick={() => handleResendInvite(client.email!)}
                           className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900 rounded-lg"

@@ -34,7 +34,9 @@ export default function InvitePage() {
       try {
         const url = new URL(window.location.href);
         const code = url.searchParams.get("code");
-        const tokenHash = url.searchParams.get("token_hash");
+        // Supabase email links can arrive as token_hash (newer) or token (older /auth/v1/verify).
+        const tokenHash =
+          url.searchParams.get("token_hash") ?? url.searchParams.get("token");
         const type = url.searchParams.get("type");
 
         // If Supabase redirected with an auth error, surface it immediately.
@@ -108,6 +110,26 @@ export default function InvitePage() {
 
           if (error) {
             console.error("Error setting session from hash:", error);
+            toast.error("Invalid or expired invite link: " + error.message);
+          } else if (data.session) {
+            setSession(data.session);
+            window.history.replaceState({}, "", "/invite");
+            setCheckingSession(false);
+            return;
+          }
+        }
+
+        // 3a) Some environments place tokens in the query (rare, but handle it)
+        const queryAccessToken = url.searchParams.get("access_token");
+        const queryRefreshToken = url.searchParams.get("refresh_token");
+        if (queryAccessToken && queryRefreshToken) {
+          const { data, error } = await supabase.auth.setSession({
+            access_token: queryAccessToken,
+            refresh_token: queryRefreshToken,
+          });
+
+          if (error) {
+            console.error("Error setting session from query:", error);
             toast.error("Invalid or expired invite link: " + error.message);
           } else if (data.session) {
             setSession(data.session);
