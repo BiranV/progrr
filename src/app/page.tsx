@@ -16,27 +16,12 @@ import {
   signUpWithPassword,
 } from "@/app/actions/supabase-auth";
 import { useFormStatus } from "react-dom";
-import { createClient } from "@/lib/supabase/client";
 
 export default function Home() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated, isLoadingAuth, user } = useAuth();
   const { darkMode, toggleDarkMode } = useTheme();
-  const [supabase] = useState(() => createClient());
-
-  useEffect(() => {
-    const code = new URLSearchParams(window.location.search).get("code");
-    if (code) {
-      supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
-        if (!error && data.session) {
-          const url = new URL(window.location.href);
-          url.searchParams.delete("code");
-          window.history.replaceState({}, "", url.toString());
-        }
-      });
-    }
-  }, [supabase.auth]);
 
   const authErrorFromUrl = searchParams.get("authError");
   const authMessageFromUrl = searchParams.get("authMessage");
