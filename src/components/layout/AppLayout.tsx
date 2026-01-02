@@ -96,6 +96,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       pathname === "/" ||
       pathname.startsWith("/pricing") ||
       pathname.startsWith("/public") ||
+      pathname.startsWith("/invite") ||
       pathname.startsWith("/auth"); // Add other public paths if needed
 
     if (!user && !isPublic) {

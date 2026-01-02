@@ -113,38 +113,44 @@ export async function createClientAction(data: ClientFormData) {
   }
 
   // 3. Create Entity record
-  // Check if entity exists for this user to avoid duplicates?
-  // The current system seems to allow multiple entities, but for "Client" entity, maybe 1 per user?
-  // Let's assume we create a new one if we are in "createClient" flow.
-  // But if the user was just found (already existed), maybe they already have a Client entity?
-  // If they have a Client entity, we might be duplicating it.
-  // But the UI is "Create Client".
-
-  // Let's check if a Client entity exists for this owner.
-  const existingEntity = await prisma.entity.findFirst({
+  // The Entity should be owned by the ADMIN (Coach) so they can see it in their dashboard.
+  // We store the client's User ID in the data for reference.
+  
+  // Check if a Client entity exists for this admin with this email.
+  // Note: Prisma JSON filtering syntax depends on version, but we can fetch and filter or use raw.
+  // For simplicity and safety, let's fetch all clients for this admin and find the one.
+  // (Assuming a coach doesn't have thousands of clients, this is fine for now).
+  const adminClients = await prisma.entity.findMany({
     where: {
       entity: "Client",
-      ownerId: authUser.id,
+      ownerId: adminUser.id,
     },
   });
 
+  const existingEntity = adminClients.find((e: any) => {
+    const d = e.data as any;
+    return d.email?.toLowerCase() === email;
+  });
+
+  const clientData = {
+    ...data,
+    userId: authUser.id, // Link to the actual User record
+    status: "PENDING", // Ensure status is set
+  };
+
   if (existingEntity) {
-    // Update existing entity? Or throw?
-    // If I am an admin adding an existing user as a client, maybe I just want to link them?
-    // But the form has data.
-    // Let's update the existing entity with new data.
     await prisma.entity.update({
       where: { id: existingEntity.id },
       data: {
-        data: data,
+        data: clientData,
       },
     });
   } else {
     await prisma.entity.create({
       data: {
         entity: "Client",
-        ownerId: authUser.id,
-        data: data,
+        ownerId: adminUser.id, // Owned by Admin
+        data: clientData,
       },
     });
   }

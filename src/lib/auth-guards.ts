@@ -10,11 +10,12 @@ import { prisma } from "@/server/prisma";
  */
 export async function checkSubscriptionAndRedirect() {
   const supabase = await createClient();
+  // Use getUser() instead of getSession() in Server Components to avoid cookie write errors
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!authUser) {
     // If called in a protected context without session, redirect.
     // But usually middleware catches this.
     return false;
@@ -30,7 +31,7 @@ export async function checkSubscriptionAndRedirect() {
   // 1. Fetch Truth from Database
   // Verifying subscription status
   const user = await prisma.user.findUnique({
-    where: { auth0Sub: session.user.id },
+    where: { auth0Sub: authUser.id },
     select: {
       role: true,
       subscriptionStatus: true,
