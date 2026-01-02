@@ -49,12 +49,20 @@ export async function POST(
     const { entity } = await ctx.params;
     const criteria = filterBodySchema.parse(await req.json());
 
+    const filterRecords = (
+      records: Record<string, unknown>[],
+      crit: Record<string, any>
+    ) => {
+      return records.filter((record) => {
+        for (const key of Object.keys(crit)) {
+          if (record?.[key] !== crit[key]) return false;
+        }
+        return true;
+      });
+    };
+
     // CLIENT ACCESS CONTROL
     if (user.role === "client") {
-      if (entity !== "Message") {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
-
       const adminId = new ObjectId(user.adminId);
       const myClient = await c.entities.findOne({
         entity: "Client",
@@ -62,19 +70,92 @@ export async function POST(
         $or: [{ "data.userId": user.id }, { "data.clientAuthId": user.id }],
       });
       if (!myClient) return NextResponse.json([]);
-      const myClientId = myClient._id.toHexString();
 
-      // Must match the caller's own clientId
-      if (criteria.clientId !== myClientId) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      const myClientId = myClient._id.toHexString();
+      const myClientData = (myClient.data ?? {}) as any;
+
+      // Messages: only messages for their own clientId
+      if (entity === "Message") {
+        if (criteria.clientId !== myClientId) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        const docs = await c.entities
+          .find({ entity: "Message", adminId, "data.clientId": myClientId })
+          .sort({ updatedAt: -1 })
+          .toArray();
+
+        return NextResponse.json(docs.map(toPublicEntityDoc));
       }
 
-      const docs = await c.entities
-        .find({ entity: "Message", adminId, "data.clientId": myClientId })
-        .sort({ updatedAt: -1 })
-        .toArray();
+      // Exercises: only those belonging to the client's assigned workout plan
+      if (entity === "Exercise") {
+        const workoutPlanId = String(criteria.workoutPlanId ?? "").trim();
+        if (!workoutPlanId || myClientData.assignedPlanId !== workoutPlanId) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
 
-      return NextResponse.json(docs.map(toPublicEntityDoc));
+        const docs = await c.entities
+          .find({
+            entity: "Exercise",
+            adminId,
+            "data.workoutPlanId": workoutPlanId,
+          })
+          .sort({ "data.order": 1, updatedAt: -1 })
+          .toArray();
+
+        const records = docs.map(toPublicEntityDoc);
+        return NextResponse.json(filterRecords(records, criteria));
+      }
+
+      // Meals: only those belonging to the client's assigned meal plan
+      if (entity === "Meal") {
+        const mealPlanId = String(criteria.mealPlanId ?? "").trim();
+        if (!mealPlanId || myClientData.assignedMealPlanId !== mealPlanId) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        const docs = await c.entities
+          .find({ entity: "Meal", adminId, "data.mealPlanId": mealPlanId })
+          .sort({ "data.order": 1, updatedAt: -1 })
+          .toArray();
+
+        const records = docs.map(toPublicEntityDoc);
+        return NextResponse.json(filterRecords(records, criteria));
+      }
+
+      // Foods: only those belonging to meals inside the client's assigned meal plan
+      if (entity === "Food") {
+        const mealId = String(criteria.mealId ?? "").trim();
+        if (!mealId || !ObjectId.isValid(mealId)) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        const mealDoc = await c.entities.findOne({
+          _id: new ObjectId(mealId),
+          entity: "Meal",
+          adminId,
+        });
+
+        const mealData = (mealDoc?.data ?? {}) as any;
+        if (!mealDoc) return NextResponse.json([]);
+        if (!myClientData.assignedMealPlanId) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        if (mealData.mealPlanId !== myClientData.assignedMealPlanId) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        const docs = await c.entities
+          .find({ entity: "Food", adminId, "data.mealId": mealId })
+          .sort({ "data.order": 1, updatedAt: -1 })
+          .toArray();
+
+        const records = docs.map(toPublicEntityDoc);
+        return NextResponse.json(filterRecords(records, criteria));
+      }
+
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     if (user.role !== "admin") {
@@ -89,14 +170,7 @@ export async function POST(
 
     const records = docs.map(toPublicEntityDoc);
 
-    const filtered = records.filter((record: Record<string, unknown>) => {
-      for (const key of Object.keys(criteria)) {
-        if (record?.[key] !== criteria[key]) return false;
-      }
-      return true;
-    });
-
-    return NextResponse.json(filtered);
+    return NextResponse.json(filterRecords(records, criteria));
   } catch (error: any) {
     const status = typeof error?.status === "number" ? error.status : 500;
     const message =
