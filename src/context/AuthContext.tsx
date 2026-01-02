@@ -5,6 +5,7 @@ import React, {
   useState,
   useContext,
   useEffect,
+  useRef,
   ReactNode,
 } from "react";
 import { db } from "@/lib/db";
@@ -43,17 +44,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
   const supabase = createClient();
 
+  const lastMeFetchAtRef = useRef<number>(0);
+  const meFetchInFlightRef = useRef<Promise<void> | null>(null);
+  const checkUserAuthRef = useRef<
+    (options?: { force?: boolean }) => Promise<void>
+  >(async () => {});
+
   useEffect(() => {
     // Listen for Supabase auth changes (handles implicit flow, PKCE, etc.)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+      // IMPORTANT: this callback runs in a long-lived subscription.
+      // Use refs (not closures) to avoid stale state causing repeated /api/me calls.
+      if (event === "SIGNED_IN" || event === "USER_UPDATED") {
         // Session established client-side, now sync with server/app state
-        checkUserAuth();
+        checkUserAuthRef.current({ force: true });
       } else if (event === "SIGNED_OUT") {
         setUser(null);
         setIsAuthenticated(false);
+      } else if (event === "TOKEN_REFRESHED") {
+        // Avoid refetching /api/me on every focus/visibility change.
+        // The server cookie/session will still be valid; we only need /api/me on real transitions.
+        return;
       }
     });
 
@@ -100,19 +113,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const checkUserAuth = async () => {
+  const checkUserAuth = async (options?: { force?: boolean }) => {
     try {
+      const force = options?.force ?? false;
+      const now = Date.now();
+      const staleMs = 5 * 60 * 1000;
+
+      if (!force && user && now - lastMeFetchAtRef.current < staleMs) {
+        setIsLoadingAuth(false);
+        return;
+      }
+
+      if (meFetchInFlightRef.current) {
+        await meFetchInFlightRef.current;
+        return;
+      }
+
       // Only show loading spinner if we don't have a user yet.
       // This prevents "flicker" when navigating between protected pages.
       if (!user) {
         setIsLoadingAuth(true);
       }
 
-      const currentUser = await db.auth.me();
-      setUser(currentUser);
-      setIsAuthenticated(true);
-      setIsLoadingAuth(false);
+      meFetchInFlightRef.current = (async () => {
+        const currentUser = await db.auth.me();
+        lastMeFetchAtRef.current = Date.now();
+        setUser(currentUser);
+        setIsAuthenticated(true);
+        setIsLoadingAuth(false);
+      })();
+
+      await meFetchInFlightRef.current;
+      meFetchInFlightRef.current = null;
     } catch (error: any) {
+      meFetchInFlightRef.current = null;
       setIsLoadingAuth(false);
       setIsAuthenticated(false);
       setUser(null);
@@ -135,6 +169,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
   };
+
+  // Keep a fresh reference for the Supabase auth subscription callback.
+  useEffect(() => {
+    checkUserAuthRef.current = checkUserAuth;
+  });
 
   const login = async () => {
     await db.auth.login();

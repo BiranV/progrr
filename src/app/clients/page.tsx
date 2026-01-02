@@ -207,15 +207,6 @@ export default function ClientsPage() {
                 </th>
                 <th
                   className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                  onClick={() => handleSort("subscription")}
-                >
-                  <div className="flex items-center gap-2">
-                    Plan
-                    <ArrowUpDown className="w-4 h-4" />
-                  </div>
-                </th>
-                <th
-                  className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
                   onClick={() => handleSort("gender")}
                 >
                   <div className="flex items-center gap-2">
@@ -266,9 +257,6 @@ export default function ClientsPage() {
                     {client.activityLevel || "-"}
                   </td>
                   <td className="px-4 py-3 capitalize">
-                    {client.subscription || "-"}
-                  </td>
-                  <td className="px-4 py-3 capitalize">
                     {client.gender || "-"}
                   </td>
 
@@ -284,14 +272,14 @@ export default function ClientsPage() {
                       {(client.status === "PENDING" ||
                         client.status === "pending") &&
                         client.email && (
-                        <button
-                          onClick={() => handleResendInvite(client.email!)}
-                          className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900 rounded-lg"
-                          title="Resend Invite"
-                        >
-                          <Send className="w-4 h-4" />
-                        </button>
-                      )}
+                          <button
+                            onClick={() => handleResendInvite(client.email!)}
+                            className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900 rounded-lg"
+                            title="Resend Invite"
+                          >
+                            <Send className="w-4 h-4" />
+                          </button>
+                        )}
                       <button
                         onClick={() => handleDelete(client.id)}
                         className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg"

@@ -64,7 +64,7 @@ export interface Client {
   weight: string;
   goal: string;
   activityLevel: string;
-  subscription: string;
+  subscription?: string;
   status: string;
   notes?: string;
   [key: string]: any;

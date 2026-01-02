@@ -41,7 +41,6 @@ const REQUIRED_FIELDS: Array<keyof Client> = [
   "weight",
   "goal",
   "activityLevel",
-  "subscription",
   "status",
 ];
 
@@ -78,7 +77,6 @@ export default function ClientDialog({
     weight: "",
     goal: "",
     activityLevel: "",
-    subscription: "",
     status: "PENDING",
     notes: "",
     assignedPlanId: "",
@@ -100,7 +98,6 @@ export default function ClientDialog({
         weight: client.weight || "",
         goal: client.goal || "",
         activityLevel: client.activityLevel || "",
-        subscription: client.subscription || "",
         status: client.status || "ACTIVE",
         notes: client.notes || "",
         assignedPlanId: client.assignedPlanId || "",
@@ -117,7 +114,6 @@ export default function ClientDialog({
         weight: "",
         goal: "",
         activityLevel: "",
-        subscription: "",
         status: "PENDING",
         notes: "",
         assignedPlanId: "",
@@ -312,29 +308,6 @@ export default function ClientDialog({
                   <SelectItem value="moderate">Moderate</SelectItem>
                   <SelectItem value="very">Very Active</SelectItem>
                   <SelectItem value="extra">Extra Active</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* SUBSCRIPTION */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Subscription {isRequired("subscription") && "*"}
-              </label>
-              <Select
-                value={formData.subscription}
-                required={isRequired("subscription")}
-                onValueChange={(v) => {
-                  setFormData({ ...formData, subscription: v });
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select plan" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="basic">Basic</SelectItem>
-                  <SelectItem value="premium">Premium</SelectItem>
-                  <SelectItem value="vip">VIP</SelectItem>
                 </SelectContent>
               </Select>
             </div>
