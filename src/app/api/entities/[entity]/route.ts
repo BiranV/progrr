@@ -112,6 +112,25 @@ export async function GET(
         return NextResponse.json(sortRecords(mine, sort));
       }
 
+      // 3) Meetings: only meetings for their own clientId
+      if (entity === "Meeting") {
+        const myClient = await c.entities.findOne({
+          entity: "Client",
+          adminId,
+          $or: [{ "data.userId": user.id }, { "data.clientAuthId": user.id }],
+        });
+        if (!myClient) return NextResponse.json([]);
+
+        const clientEntityId = myClient._id.toHexString();
+        const meetingDocs = await c.entities
+          .find({ entity: "Meeting", adminId, "data.clientId": clientEntityId })
+          .sort({ "data.scheduledAt": -1, updatedAt: -1 })
+          .toArray();
+
+        const mine = meetingDocs.map(toPublicEntityDoc);
+        return NextResponse.json(sortRecords(mine, sort));
+      }
+
       // Everything else is admin-only
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

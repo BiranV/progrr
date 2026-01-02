@@ -88,6 +88,21 @@ export async function POST(
         return NextResponse.json(docs.map(toPublicEntityDoc));
       }
 
+      // Meetings: only meetings for their own clientId
+      if (entity === "Meeting") {
+        if (criteria.clientId !== myClientId) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        const docs = await c.entities
+          .find({ entity: "Meeting", adminId, "data.clientId": myClientId })
+          .sort({ "data.scheduledAt": -1, updatedAt: -1 })
+          .toArray();
+
+        const records = docs.map(toPublicEntityDoc);
+        return NextResponse.json(filterRecords(records, criteria));
+      }
+
       // Exercises: only those belonging to the client's assigned workout plan
       if (entity === "Exercise") {
         const workoutPlanId = String(criteria.workoutPlanId ?? "").trim();

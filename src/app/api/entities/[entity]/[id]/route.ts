@@ -87,6 +87,31 @@ export async function GET(
         return NextResponse.json(toPublicEntityDoc(row));
       }
 
+      if (entity === "Meeting") {
+        if (!myClient) {
+          return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
+
+        if (!ObjectId.isValid(id)) {
+          return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
+
+        const row = await c.entities.findOne({
+          _id: new ObjectId(id),
+          entity: "Meeting",
+          adminId,
+        });
+        if (!row) {
+          return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
+
+        if (((row.data ?? {}) as any).clientId !== myClient._id.toHexString()) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        return NextResponse.json(toPublicEntityDoc(row));
+      }
+
       if (entity === "WorkoutPlan" || entity === "MealPlan") {
         if (!myClient) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });

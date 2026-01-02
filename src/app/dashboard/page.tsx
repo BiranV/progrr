@@ -393,6 +393,29 @@ function ClientDashboard({ user }: { user: any }) {
     enabled: !!myClient,
   });
 
+  const { data: meetings = [] } = useQuery({
+    queryKey: ["myMeetings", myClient?.id],
+    queryFn: () => db.entities.Meeting.filter({ clientId: myClient.id }),
+    enabled: !!myClient,
+  });
+
+  const now = new Date();
+  const sortedMeetings = [...meetings].sort((a: any, b: any) => {
+    const at = new Date(a.scheduledAt || 0).getTime();
+    const bt = new Date(b.scheduledAt || 0).getTime();
+    return at - bt;
+  });
+  const upcomingMeetings = sortedMeetings.filter((m: any) => {
+    const d = new Date(m.scheduledAt || 0);
+    return d.getTime() >= now.getTime();
+  });
+  const pastMeetings = sortedMeetings
+    .filter((m: any) => {
+      const d = new Date(m.scheduledAt || 0);
+      return d.getTime() < now.getTime();
+    })
+    .reverse();
+
   const unreadCount = messages.filter(
     (m: any) => m.senderRole === "admin" && !m.readByClient
   ).length;
@@ -570,6 +593,170 @@ function ClientDashboard({ user }: { user: any }) {
           </button>
         </div>
       </div>
+
+      <Card className="dark:bg-gray-800 dark:border-gray-700 mb-6">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            <CardTitle>Meetings</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {meetings.length === 0 ? (
+            <div className="py-8 text-center text-gray-500 dark:text-gray-400">
+              No meetings yet
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div>
+                <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                  Upcoming
+                </div>
+                {upcomingMeetings.length === 0 ? (
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    No upcoming meetings
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {upcomingMeetings.map((m: any) => (
+                      <div
+                        key={m.id}
+                        className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                              {toTitleCase(m.title)}
+                            </div>
+                            <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                              {m.scheduledAt
+                                ? format(new Date(m.scheduledAt), "PPP p")
+                                : ""}
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2 text-xs">
+                            {m.type ? (
+                              <span className="px-2 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 rounded-full">
+                                {toTitleCase(m.type)}
+                              </span>
+                            ) : null}
+                            {m.status ? (
+                              <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full">
+                                {toTitleCase(m.status)}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                          {m.durationMinutes ? (
+                            <div className="text-gray-700 dark:text-gray-300">
+                              <span className="text-gray-500 dark:text-gray-400">
+                                Duration:{" "}
+                              </span>
+                              {m.durationMinutes} minutes
+                            </div>
+                          ) : null}
+                          {m.location ? (
+                            <div className="text-gray-700 dark:text-gray-300">
+                              <span className="text-gray-500 dark:text-gray-400">
+                                Location:{" "}
+                              </span>
+                              {toTitleCase(m.location)}
+                            </div>
+                          ) : null}
+                        </div>
+
+                        {m.notes ? (
+                          <div className="mt-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                            <span className="text-gray-500 dark:text-gray-400">
+                              Notes:{" "}
+                            </span>
+                            {m.notes}
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                  Past
+                </div>
+                {pastMeetings.length === 0 ? (
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    No past meetings
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {pastMeetings.map((m: any) => (
+                      <div
+                        key={m.id}
+                        className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                              {toTitleCase(m.title)}
+                            </div>
+                            <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                              {m.scheduledAt
+                                ? format(new Date(m.scheduledAt), "PPP p")
+                                : ""}
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2 text-xs">
+                            {m.type ? (
+                              <span className="px-2 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 rounded-full">
+                                {toTitleCase(m.type)}
+                              </span>
+                            ) : null}
+                            {m.status ? (
+                              <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full">
+                                {toTitleCase(m.status)}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                          {m.durationMinutes ? (
+                            <div className="text-gray-700 dark:text-gray-300">
+                              <span className="text-gray-500 dark:text-gray-400">
+                                Duration:{" "}
+                              </span>
+                              {m.durationMinutes} minutes
+                            </div>
+                          ) : null}
+                          {m.location ? (
+                            <div className="text-gray-700 dark:text-gray-300">
+                              <span className="text-gray-500 dark:text-gray-400">
+                                Location:{" "}
+                              </span>
+                              {toTitleCase(m.location)}
+                            </div>
+                          ) : null}
+                        </div>
+
+                        {m.notes ? (
+                          <div className="mt-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                            <span className="text-gray-500 dark:text-gray-400">
+                              Notes:{" "}
+                            </span>
+                            {m.notes}
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="dark:bg-gray-800 dark:border-gray-700">
