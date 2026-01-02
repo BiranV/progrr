@@ -781,16 +781,68 @@ function ClientDashboard({ user }: { user: any }) {
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
                     {assignedMealPlan.name}
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-400 mt-2">
-                    {assignedMealPlan.notes}
-                  </p>
-                  {assignedMealPlan.dailyCalories && (
-                    <div className="mt-4">
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Daily Target: {assignedMealPlan.dailyCalories} calories
-                      </p>
+                  {assignedMealPlan.goal ? (
+                    <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                      Goal: {toTitleCase(assignedMealPlan.goal)}
+                    </div>
+                  ) : null}
+
+                  {(assignedMealPlan.dailyCalories ||
+                    assignedMealPlan.dailyProtein ||
+                    assignedMealPlan.dailyCarbs ||
+                    assignedMealPlan.dailyFat) && (
+                    <div className="mt-4 grid grid-cols-2 gap-3">
+                      {assignedMealPlan.dailyCalories ? (
+                        <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            Daily Calories
+                          </div>
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
+                            {assignedMealPlan.dailyCalories}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {assignedMealPlan.dailyProtein ? (
+                        <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            Daily Protein
+                          </div>
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
+                            {assignedMealPlan.dailyProtein}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {assignedMealPlan.dailyCarbs ? (
+                        <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            Daily Carbs
+                          </div>
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
+                            {assignedMealPlan.dailyCarbs}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {assignedMealPlan.dailyFat ? (
+                        <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            Daily Fat
+                          </div>
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">
+                            {assignedMealPlan.dailyFat}
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   )}
+
+                  {assignedMealPlan.notes ? (
+                    <p className="text-gray-600 dark:text-gray-400 mt-3">
+                      {assignedMealPlan.notes}
+                    </p>
+                  ) : null}
 
                   <div className="mt-5">
                     <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
