@@ -30,7 +30,11 @@ export default function InvitePage() {
     const code = new URLSearchParams(window.location.search).get("code");
     if (code) {
       supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
-        if (!error && data.session) {
+        if (error) {
+          console.error("Error exchanging code:", error);
+          toast.error("Invalid or expired invite link: " + error.message);
+          setCheckingSession(false); // Stop loading so user sees the error
+        } else if (data.session) {
           setSession(data.session);
           setCheckingSession(false);
           // Clean URL

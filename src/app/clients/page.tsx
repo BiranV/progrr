@@ -15,9 +15,12 @@ import {
   Edit,
   ArrowUpDown,
   Users,
+  Send,
 } from "lucide-react";
 import ClientDialog from "@/components/ClientDialog";
 import { Client } from "@/types";
+import { resendInviteAction } from "@/app/actions/client-management";
+import { toast } from "sonner";
 
 export default function ClientsPage() {
   const [search, setSearch] = React.useState("");
@@ -86,6 +89,18 @@ export default function ClientsPage() {
     }
   };
 
+  const handleResendInvite = async (email: string) => {
+    try {
+      toast.loading("Resending invite...");
+      await resendInviteAction(email);
+      toast.dismiss();
+      toast.success("Invite resent successfully");
+    } catch (error: any) {
+      toast.dismiss();
+      toast.error(error.message);
+    }
+  };
+
   const handleCloseDialog = (open: boolean) => {
     setDialogOpen(open);
     if (!open) setEditingClient(null);
@@ -93,7 +108,10 @@ export default function ClientsPage() {
 
   const statusConfig: Record<string, string> = {
     ACTIVE: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
+    active: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
     PENDING:
+      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
+    pending:
       "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
     inactive: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400",
   };
@@ -259,12 +277,23 @@ export default function ClientsPage() {
                       <button
                         onClick={() => handleEdit(client)}
                         className="p-2 text-gray-600 dark:text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900 rounded-lg"
+                        title="Edit Client"
                       >
                         <Edit className="w-4 h-4" />
                       </button>
+                      {client.status === "PENDING" && client.email && (
+                        <button
+                          onClick={() => handleResendInvite(client.email!)}
+                          className="p-2 text-gray-600 dark:text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900 rounded-lg"
+                          title="Resend Invite"
+                        >
+                          <Send className="w-4 h-4" />
+                        </button>
+                      )}
                       <button
                         onClick={() => handleDelete(client.id)}
                         className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg"
+                        title="Delete Client"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

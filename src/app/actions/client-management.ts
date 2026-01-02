@@ -242,3 +242,18 @@ export async function updateClientAction(id: string, data: ClientFormData) {
   revalidatePath("/clients");
   return { success: true };
 }
+
+export async function resendInviteAction(email: string) {
+  const supabaseAdmin = createAdminClient();
+  if (!supabaseAdmin) throw new Error("Supabase Admin client not configured");
+
+  const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/invite`,
+  });
+
+  if (error) {
+    throw new Error("Failed to resend invite: " + error.message);
+  }
+
+  return { success: true };
+}
