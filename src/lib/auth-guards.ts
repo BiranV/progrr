@@ -71,15 +71,15 @@ export async function checkSubscriptionAndRedirect() {
 export async function requireActiveSubscription() {
   const supabase = await createClient();
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!authUser) {
     throw new Error("Unauthorized");
   }
 
   const user = await prisma.user.findUnique({
-    where: { auth0Sub: session.user.id },
+    where: { auth0Sub: authUser.id },
     select: {
       role: true,
       subscriptionStatus: true,

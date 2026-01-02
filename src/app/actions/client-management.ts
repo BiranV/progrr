@@ -115,7 +115,7 @@ export async function createClientAction(data: ClientFormData) {
   // 3. Create Entity record
   // The Entity should be owned by the ADMIN (Coach) so they can see it in their dashboard.
   // We store the client's User ID in the data for reference.
-  
+
   // Check if a Client entity exists for this admin with this email.
   // Note: Prisma JSON filtering syntax depends on version, but we can fetch and filter or use raw.
   // For simplicity and safety, let's fetch all clients for this admin and find the one.
@@ -250,14 +250,24 @@ export async function updateClientAction(id: string, data: ClientFormData) {
 }
 
 export async function resendInviteAction(email: string) {
+  console.log("Resending invite to:", email);
   const supabaseAdmin = createAdminClient();
-  if (!supabaseAdmin) throw new Error("Supabase Admin client not configured");
+  if (!supabaseAdmin) {
+    console.error("Supabase Admin client not configured");
+    throw new Error("Supabase Admin client not configured");
+  }
+
+  // Ensure we use the correct base URL
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const redirectUrl = `${baseUrl}/invite`;
+  console.log("Redirect URL:", redirectUrl);
 
   const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/invite`,
+    redirectTo: redirectUrl,
   });
 
   if (error) {
+    console.error("Supabase invite error:", error);
     throw new Error("Failed to resend invite: " + error.message);
   }
 
