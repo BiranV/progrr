@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -27,53 +27,94 @@ export default function InvitePage() {
   const codeProcessed = useRef(false);
 
   useEffect(() => {
-    // Check for code in URL (PKCE flow)
-    const code = new URLSearchParams(window.location.search).get("code");
-    if (code) {
-      if (codeProcessed.current) return; // Prevent double execution
-      codeProcessed.current = true;
+    if (codeProcessed.current) return;
+    codeProcessed.current = true;
 
-      supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
-        if (error) {
-          console.error("Error exchanging code:", error);
-          toast.error("Invalid or expired invite link: " + error.message);
-          setCheckingSession(false); // Stop loading so user sees the error
-        } else if (data.session) {
-          setSession(data.session);
+    const run = async () => {
+      try {
+        const url = new URL(window.location.href);
+        const code = url.searchParams.get("code");
+        const tokenHash = url.searchParams.get("token_hash");
+        const type = url.searchParams.get("type");
+
+        // 1) PKCE auth-code flow (rare for invite links, but handle it)
+        if (code) {
+          const { data, error } = await supabase.auth.exchangeCodeForSession(
+            code
+          );
+          if (error) {
+            console.error("Error exchanging code:", error);
+            toast.error("Invalid or expired invite link: " + error.message);
+          } else if (data.session) {
+            setSession(data.session);
+            window.history.replaceState({}, "", "/invite");
+          }
           setCheckingSession(false);
-          // Clean URL
-          window.history.replaceState({}, "", "/invite");
+          return;
         }
-      });
-    }
 
-    // Check for initial session (handled by Supabase from URL hash)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      // If no session yet, wait for onAuthStateChange which fires when hash is processed
-      if (session) setCheckingSession(false);
-    });
+        // 2) Email links (invite/recovery) often arrive as token_hash + type
+        if (tokenHash && type) {
+          const { data, error } = await supabase.auth.verifyOtp({
+            type: type as any,
+            token_hash: tokenHash,
+          });
 
+          if (error) {
+            console.error("Error verifying OTP:", error);
+            toast.error("Invalid or expired invite link: " + error.message);
+          } else if (data.session) {
+            setSession(data.session);
+            window.history.replaceState({}, "", "/invite");
+          }
+          setCheckingSession(false);
+          return;
+        }
+
+        // 3) Fallback: handle access_token/refresh_token in URL hash
+        // (Supabase verify endpoint commonly redirects with tokens in the hash)
+        // @ts-expect-error - available in supabase-js v2
+        if (typeof supabase.auth.getSessionFromUrl === "function") {
+          // @ts-expect-error - available in supabase-js v2
+          const { data, error } = await supabase.auth.getSessionFromUrl({
+            storeSession: true,
+          });
+          if (error) {
+            console.error("Error getting session from URL:", error);
+          } else if (data?.session) {
+            setSession(data.session);
+            window.history.replaceState({}, "", "/invite");
+            setCheckingSession(false);
+            return;
+          }
+        }
+
+        // 4) Finally, check any existing session
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        setSession(session);
+      } catch (error: any) {
+        console.error("Invite init failed:", error);
+        toast.error(error?.message || "Failed to open invite link");
+      } finally {
+        setCheckingSession(false);
+      }
+    };
+
+    void run();
+
+    // Keep session updated after initial processing
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || session) {
         setSession(session);
-        setCheckingSession(false);
-      } else if (event === "SIGNED_OUT") {
-        setSession(null);
-        setCheckingSession(false);
       }
     });
 
-    // Fallback: if after 2 seconds we still don't have a session and no hash, stop loading
-    const timer = setTimeout(() => {
-      setCheckingSession(false);
-    }, 2000);
-
     return () => {
       subscription.unsubscribe();
-      clearTimeout(timer);
     };
   }, [supabase.auth]);
 

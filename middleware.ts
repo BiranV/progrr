@@ -13,6 +13,21 @@ function isPublicPath(pathname: string) {
 }
 
 export async function middleware(request: NextRequest) {
+  // Canonical host redirect: prevents auth cookie/session loss caused by mixing
+  // `*.vercel.app` deployment URLs with the production alias domain.
+  const canonicalBase = process.env.NEXT_PUBLIC_APP_URL;
+  if (canonicalBase) {
+    const canonical = new URL(canonicalBase);
+    const host = request.headers.get("host");
+    if (host && host !== canonical.host) {
+      const dest = new URL(
+        request.nextUrl.pathname + request.nextUrl.search,
+        canonical.origin
+      );
+      return NextResponse.redirect(dest, 308);
+    }
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey =
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??

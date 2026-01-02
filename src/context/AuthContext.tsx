@@ -65,7 +65,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // Check auth on mount AND on navigation.
     // This ensures that if we redirect from login -> dashboard, we pick up the new session.
-    checkUserAuth();
+    // Important: do not force /api/me during invite link processing.
+    // The invite page establishes a Supabase session client-side first.
+    if (!pathname.startsWith("/invite")) {
+      checkUserAuth();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 

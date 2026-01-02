@@ -24,6 +24,22 @@ export async function createClientAction(data: ClientFormData) {
 
   const email = data.email.trim().toLowerCase();
 
+  // Hard rule: prevent creating a Client using an email that already belongs to
+  // a non-client (ADMIN/OWNER) or another coach's client.
+  const dbUserWithEmail = await prisma.user.findUnique({ where: { email } });
+  if (dbUserWithEmail) {
+    if (dbUserWithEmail.role !== "CLIENT") {
+      throw new Error(
+        "A user with this email already exists (not a client). You cannot create a client with this email."
+      );
+    }
+    if (dbUserWithEmail.coachId && dbUserWithEmail.coachId !== adminUser.id) {
+      throw new Error(
+        "A client with this email already belongs to another coach."
+      );
+    }
+  }
+
   // 1. Check if user exists in Auth
   // We use listUsers to find by email because getUserById requires ID
   // Ideally we would use getUserByEmail but admin api doesn't have it directly exposed in all versions,
@@ -86,9 +102,7 @@ export async function createClientAction(data: ClientFormData) {
   // If the user exists with a different ID but same email, upsert will fail on unique constraint of email.
 
   // So first, let's check if a user with this email exists.
-  const existingUser = await prisma.user.findUnique({
-    where: { email },
-  });
+  const existingUser = dbUserWithEmail;
 
   if (existingUser) {
     // Update existing user
@@ -191,9 +205,15 @@ export async function updateClientAction(id: string, data: ClientFormData) {
   if (!targetUserId) {
     // Handle legacy case: Entity exists but no User/Auth.
     // Create Auth user.
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (!baseUrl) {
+      throw new Error("NEXT_PUBLIC_APP_URL is not defined");
+    }
+    const redirectUrl = `${baseUrl}/invite`;
+
     const { data: inviteData, error: inviteError } =
       await supabaseAdmin.auth.admin.inviteUserByEmail(newEmail, {
-        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/invite`,
+        redirectTo: redirectUrl,
       });
     if (inviteError)
       throw new Error("Failed to invite user: " + inviteError.message);
@@ -283,20 +303,6 @@ export async function resendInviteAction(email: string) {
       const msg = error.message.toLowerCase();
       if (msg.includes("already") && msg.includes("registered")) {
         console.log("User already registered, sending password reset email...");
-        const { error: resetError } =
-          await supabaseAdmin.auth.admin.generateLink({
-            type: "recovery",
-            email: email,
-            options: {
-              redirectTo: redirectUrl,
-            },
-          });
-
-        // Note: generateLink returns a link, but we want to SEND it.
-        // Actually, resetPasswordForEmail sends it.
-        // Let's use resetPasswordForEmail but with the admin client?
-        // supabaseAdmin.auth.resetPasswordForEmail sends it.
-
         const { error: sendError } =
           await supabaseAdmin.auth.resetPasswordForEmail(email, {
             redirectTo: redirectUrl,
