@@ -2,6 +2,7 @@
 
 import React, { useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 import { db } from "@/lib/db";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,12 +10,16 @@ import { useRouter } from "next/navigation";
 import {
   Users,
   Dumbbell,
+  UtensilsCrossed,
   Calendar,
   MessageSquare,
   Mail,
   Phone,
   Bell,
   Send,
+  Sun,
+  Moon,
+  LogOut,
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -271,15 +276,58 @@ function AdminDashboard({ user }: { user: any }) {
 }
 
 function ClientDashboard({ user }: { user: any }) {
+  const { logout } = useAuth();
+  const { darkMode, toggleDarkMode } = useTheme();
   const queryClient = useQueryClient();
   const [messagesOpen, setMessagesOpen] = React.useState(false);
   const [newMessage, setNewMessage] = React.useState("");
+
+  const toTitleCase = (value: any) => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return "";
+    const cleaned = raw.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+    return cleaned
+      .split(" ")
+      .map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w))
+      .join(" ");
+  };
+
+  const formatDuration = (duration: any) => {
+    const raw = String(duration ?? "").trim();
+    if (!raw) return "";
+    const numericOnly = raw.match(/^\d+$/);
+    if (numericOnly) {
+      const weeks = Number(raw);
+      return `${weeks} week${weeks === 1 ? "" : "s"}`;
+    }
+
+    const weekMatch = raw.match(/^(\d+)\s*weeks?$/i);
+    if (weekMatch) {
+      const weeks = Number(weekMatch[1]);
+      return `${weeks} week${weeks === 1 ? "" : "s"}`;
+    }
+
+    return toTitleCase(raw);
+  };
 
   const { data: clients = [] } = useQuery({
     queryKey: ["myClient"],
     queryFn: async () => {
       const allClients = await db.entities.Client.list();
-      return allClients.filter((c: any) => c.userId === user.id);
+
+      const normalizePhone = (phone: any) =>
+        String(phone ?? "")
+          .trim()
+          .replace(/\s+/g, "");
+
+      const userPhone = normalizePhone(user.phone);
+      return allClients.filter((c: any) => {
+        if (c.userId && c.userId === user.id) return true;
+        if (c.clientAuthId && c.clientAuthId === user.id) return true;
+        const clientPhone = normalizePhone(c.phone);
+        if (clientPhone && userPhone && clientPhone === userPhone) return true;
+        return false;
+      });
     },
   });
 
@@ -291,10 +339,52 @@ function ClientDashboard({ user }: { user: any }) {
     enabled: !!myClient?.assignedPlanId,
   });
 
+  const { data: planExercises = [] } = useQuery({
+    queryKey: ["planExercises", assignedPlan?.id],
+    queryFn: async () => {
+      if (!assignedPlan?.id) return [];
+      const exercises = await db.entities.Exercise.filter({
+        workoutPlanId: assignedPlan.id,
+      });
+      return [...exercises].sort(
+        (a: any, b: any) => (a.order || 0) - (b.order || 0)
+      );
+    },
+    enabled: !!assignedPlan?.id,
+  });
+
   const { data: assignedMealPlan } = useQuery({
     queryKey: ["assignedMealPlan", myClient?.assignedMealPlanId],
     queryFn: () => db.entities.MealPlan.get(myClient.assignedMealPlanId),
     enabled: !!myClient?.assignedMealPlanId,
+  });
+
+  const { data: mealPlanMeals = [] } = useQuery({
+    queryKey: ["mealPlanMeals", assignedMealPlan?.id],
+    queryFn: async () => {
+      if (!assignedMealPlan?.id) return [];
+
+      const meals = await db.entities.Meal.filter({
+        mealPlanId: assignedMealPlan.id,
+      });
+
+      const mealsWithFoods = await Promise.all(
+        meals.map(async (meal: any) => {
+          const foods = await db.entities.Food.filter({ mealId: meal.id });
+          return {
+            ...meal,
+            foods: [...foods].sort(
+              (a: any, b: any) => (a.order || 0) - (b.order || 0)
+            ),
+          };
+        })
+      );
+
+      return [...mealsWithFoods].sort(
+        (a: any, b: any) => (a.order || 0) - (b.order || 0)
+      );
+    },
+    enabled: !!assignedMealPlan?.id,
   });
 
   const { data: messages = [] } = useQuery({
@@ -364,7 +454,7 @@ function ClientDashboard({ user }: { user: any }) {
           </p>
         </div>
 
-        <div className="flex items-center justify-start">
+        <div className="flex items-center gap-2">
           <Dialog open={messagesOpen} onOpenChange={setMessagesOpen}>
             <DialogTrigger asChild>
               <button
@@ -456,74 +546,347 @@ function ClientDashboard({ user }: { user: any }) {
               )}
             </DialogContent>
           </Dialog>
+
+          <button
+            onClick={toggleDarkMode}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+            aria-label={
+              darkMode ? "Switch to light mode" : "Switch to dark mode"
+            }
+          >
+            {darkMode ? (
+              <Sun className="w-6 h-6 text-gray-700 dark:text-gray-200" />
+            ) : (
+              <Moon className="w-6 h-6 text-gray-700 dark:text-gray-200" />
+            )}
+          </button>
+
+          <button
+            onClick={() => logout(true)}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+            aria-label="Logout"
+          >
+            <LogOut className="w-6 h-6 text-gray-700 dark:text-gray-200" />
+          </button>
         </div>
       </div>
-
-      <div className="mb-8">{/* Intentionally minimal client view */}</div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="dark:bg-gray-800 dark:border-gray-700">
           <CardHeader>
-            <CardTitle>My Workout Plan</CardTitle>
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              <CardTitle>My Details</CardTitle>
+            </div>
           </CardHeader>
           <CardContent>
-            {assignedPlan ? (
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  {assignedPlan.name}
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400 mt-2">
-                  {assignedPlan.notes}
-                </p>
-                <div className="mt-4 flex gap-4 text-sm">
-                  {assignedPlan.difficulty && (
-                    <span className="px-3 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-full">
-                      {assignedPlan.difficulty}
-                    </span>
-                  )}
-                  {assignedPlan.duration && (
-                    <span className="px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 rounded-full">
-                      {assignedPlan.duration}
-                    </span>
-                  )}
-                </div>
+            {!myClient ? (
+              <div className="py-10 text-center text-gray-500 dark:text-gray-400">
+                No client profile found
               </div>
             ) : (
-              <p className="text-gray-500 dark:text-gray-400">
-                No workout plan assigned yet
-              </p>
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Full name
+                    </div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {toTitleCase(myClient.name || user.full_name || "")}
+                    </div>
+                  </div>
+                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Phone
+                    </div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {myClient.phone || user.phone || ""}
+                    </div>
+                  </div>
+                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Email
+                    </div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {myClient.email || user.email || ""}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Birth date
+                    </div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {myClient.birthDate || ""}
+                    </div>
+                  </div>
+                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Gender
+                    </div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {toTitleCase(myClient.gender || "")}
+                    </div>
+                  </div>
+                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Height
+                    </div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {myClient.height || ""}
+                    </div>
+                  </div>
+                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Weight
+                    </div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                      {myClient.weight || ""}
+                    </div>
+                  </div>
+                </div>
+
+                {myClient.goal || myClient.activityLevel || myClient.notes ? (
+                  <div className="space-y-2">
+                    {myClient.goal ? (
+                      <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Goal
+                        </div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                          {toTitleCase(myClient.goal)}
+                        </div>
+                      </div>
+                    ) : null}
+                    {myClient.activityLevel ? (
+                      <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Activity level
+                        </div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                          {toTitleCase(myClient.activityLevel)}
+                        </div>
+                      </div>
+                    ) : null}
+                    {myClient.notes ? (
+                      <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Notes
+                        </div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white whitespace-pre-wrap">
+                          {myClient.notes}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="dark:bg-gray-800 dark:border-gray-700">
-          <CardHeader>
-            <CardTitle>My Meal Plan</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {assignedMealPlan ? (
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  {assignedMealPlan.name}
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400 mt-2">
-                  {assignedMealPlan.notes}
-                </p>
-                {assignedMealPlan.dailyCalories && (
-                  <div className="mt-4">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Daily Target: {assignedMealPlan.dailyCalories} calories
-                    </p>
-                  </div>
-                )}
+        <div className="grid grid-cols-1 gap-6">
+          <Card className="dark:bg-gray-800 dark:border-gray-700">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Dumbbell className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <CardTitle>My Workout Plan</CardTitle>
               </div>
-            ) : (
-              <p className="text-gray-500 dark:text-gray-400">
-                No meal plan assigned yet
-              </p>
-            )}
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent>
+              {assignedPlan ? (
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    {assignedPlan.name}
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400 mt-2">
+                    {assignedPlan.notes}
+                  </p>
+                  <div className="mt-4 flex gap-4 text-sm">
+                    {assignedPlan.difficulty && (
+                      <span className="px-3 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-full">
+                        {toTitleCase(assignedPlan.difficulty)}
+                      </span>
+                    )}
+                    {assignedPlan.duration && (
+                      <span className="px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 rounded-full">
+                        {formatDuration(assignedPlan.duration)}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-5">
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                      Exercises
+                    </div>
+                    {planExercises.length === 0 ? (
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        No exercises added to this plan yet
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {planExercises.map((ex: any, idx: number) => {
+                          const sets = String(ex.sets ?? "").trim();
+                          const reps = String(ex.reps ?? "").trim();
+                          const detail =
+                            sets || reps
+                              ? `${sets ? `${sets} sets` : ""}${
+                                  sets && reps ? " × " : ""
+                                }${reps ? `${reps} reps` : ""}`
+                              : "";
+                          return (
+                            <div
+                              key={ex.id || `${idx}`}
+                              className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                    {idx + 1}. {toTitleCase(ex.name)}
+                                  </div>
+                                  {detail ? (
+                                    <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                      {detail}
+                                    </div>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-500 dark:text-gray-400">
+                  No workout plan assigned yet
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="dark:bg-gray-800 dark:border-gray-700">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <UtensilsCrossed className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <CardTitle>My Meal Plan</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {assignedMealPlan ? (
+                <div>
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    {assignedMealPlan.name}
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400 mt-2">
+                    {assignedMealPlan.notes}
+                  </p>
+                  {assignedMealPlan.dailyCalories && (
+                    <div className="mt-4">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Daily Target: {assignedMealPlan.dailyCalories} calories
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="mt-5">
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                      Meals
+                    </div>
+                    {mealPlanMeals.length === 0 ? (
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        No meals added to this plan yet
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {mealPlanMeals.map((meal: any, mealIdx: number) => (
+                          <div
+                            key={meal.id || `${mealIdx}`}
+                            className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                                  {toTitleCase(meal.type || "Meal")}
+                                  {meal.name
+                                    ? `: ${toTitleCase(meal.name)}`
+                                    : ""}
+                                </div>
+                              </div>
+                            </div>
+
+                            {Array.isArray(meal.foods) &&
+                            meal.foods.length > 0 ? (
+                              <div className="mt-2 space-y-2">
+                                {meal.foods.map(
+                                  (food: any, foodIdx: number) => {
+                                    const amount = String(
+                                      food.amount ?? ""
+                                    ).trim();
+                                    const macros = [
+                                      food.protein
+                                        ? `Protein ${String(
+                                            food.protein
+                                          ).trim()}`
+                                        : "",
+                                      food.carbs
+                                        ? `Carbs ${String(food.carbs).trim()}`
+                                        : "",
+                                      food.fat
+                                        ? `Fat ${String(food.fat).trim()}`
+                                        : "",
+                                      food.calories
+                                        ? `Calories ${String(
+                                            food.calories
+                                          ).trim()}`
+                                        : "",
+                                    ].filter(Boolean);
+                                    return (
+                                      <div
+                                        key={food.id || `${foodIdx}`}
+                                        className="flex items-start justify-between gap-3"
+                                      >
+                                        <div className="text-sm text-gray-900 dark:text-gray-100 min-w-0">
+                                          {foodIdx + 1}.{" "}
+                                          {toTitleCase(food.name)}
+                                          {amount ? (
+                                            <span className="text-gray-600 dark:text-gray-400">
+                                              {` — ${amount}`}
+                                            </span>
+                                          ) : null}
+                                          {macros.length > 0 ? (
+                                            <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                              {macros.join(" • ")}
+                                            </div>
+                                          ) : null}
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                )}
+                              </div>
+                            ) : (
+                              <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                No foods added
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-500 dark:text-gray-400">
+                  No meal plan assigned yet
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
