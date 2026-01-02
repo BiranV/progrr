@@ -112,7 +112,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           message: "Authentication required",
         });
 
-        if (pathname !== "/") {
+        // Do NOT redirect if we are on the invite page or other public pages
+        if (
+          pathname !== "/" &&
+          !pathname.startsWith("/invite") &&
+          !pathname.startsWith("/public") &&
+          !pathname.startsWith("/auth")
+        ) {
           router.replace("/");
         }
       }
