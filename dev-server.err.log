@@ -1,0 +1,12 @@
+API /me error: Error: Not authenticated
+    at requireAppUser (src\server\auth.ts:26:25)
+    at async GET (src\app\api\me\route.ts:6:18)
+  24 |   const token = await readAuthCookie();
+  25 |   if (!token) {
+> 26 |     throw Object.assign(new Error("Not authenticated"), { status: 401 });
+     |                         ^
+  27 |   }
+  28 |
+  29 |   const claims = await verifyAuthToken(token); {
+  status: 401
+}

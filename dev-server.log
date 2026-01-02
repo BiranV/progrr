@@ -1,0 +1,68 @@
+
+> progrr@0.1.0 dev
+> next dev
+
+▲ Next.js 16.1.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://172.16.0.2:3000
+- Environments: .env.local, .env
+
+✓ Starting...
+✓ Ready in 2.6s
+ GET / 200 in 607ms (compile: 474ms, render: 134ms)
+ GET / 200 in 612ms (compile: 418ms, render: 194ms)
+ GET /api/me 401 in 346ms (compile: 217ms, render: 129ms)
+ POST /api/auth/admin/login 401 in 8.7s (compile: 127ms, render: 8.6s)
+ GET /?authError=Invalid+credentials 200 in 39ms (compile: 5ms, render: 34ms)
+ POST / 303 in 16.1s (compile: 9ms, render: 16.1s)
+ POST /api/auth/admin/signup 400 in 2.0s (compile: 33ms, render: 1976ms)
+ POST /api/auth/admin/signup 400 in 1966ms (compile: 2ms, render: 1964ms)
+ POST /api/auth/admin/signup 200 in 3.6s (compile: 3ms, render: 3.6s)
+ POST /api/auth/admin/signup 200 in 2.9s (compile: 3ms, render: 2.9s)
+ POST /api/auth/admin/signup 200 in 3.0s (compile: 2ms, render: 3.0s)
+ GET /api/me 200 in 248ms (compile: 1440µs, render: 247ms)
+ POST /api/auth/admin/signup 200 in 2.9s (compile: 3ms, render: 2.9s)
+ GET /api/me 200 in 241ms (compile: 1839µs, render: 240ms)
+ POST /api/auth/admin/signup 200 in 2.8s (compile: 4ms, render: 2.8s)
+ GET /api/me 200 in 348ms (compile: 1960µs, render: 347ms)
+ POST /api/auth/admin/signup 200 in 3.0s (compile: 3ms, render: 3.0s)
+ GET /api/me 200 in 344ms (compile: 3ms, render: 342ms)
+ POST /api/auth/admin/signup 200 in 2.9s (compile: 1514µs, render: 2.9s)
+ GET /api/me 200 in 269ms (compile: 1886µs, render: 268ms)
+ POST /api/auth/admin/signup 200 in 2.9s (compile: 1566µs, render: 2.9s)
+ GET /api/me 200 in 246ms (compile: 1387µs, render: 245ms)
+[DEV OTP] +15555550123: Your Progrr verification code is: 676989
+ POST /api/auth/client/send-otp 200 in 2.6s (compile: 185ms, render: 2.4s)
+ POST /api/auth/client/verify-otp 200 in 2.7s (compile: 109ms, render: 2.6s)
+ GET /api/me 200 in 263ms (compile: 3ms, render: 260ms)
+[DEV OTP] +15555550123: Your Progrr verification code is: 836052
+ POST /api/auth/client/send-otp 200 in 2.4s (compile: 1666µs, render: 2.4s)
+ POST /api/auth/client/verify-otp 400 in 2.1s (compile: 2ms, render: 2.1s)
+ GET /api/entities/Message 401 in 942ms (compile: 935ms, render: 7ms)
+ POST /api/entities/Client 401 in 19ms (compile: 9ms, render: 10ms)
+[DEV OTP] +15555550123: Your Progrr verification code is: 048189
+ POST /api/auth/client/send-otp 200 in 2.4s (compile: 1700µs, render: 2.4s)
+ POST /api/auth/client/verify-otp 200 in 2.7s (compile: 1761µs, render: 2.7s)
+ GET /api/entities/Message 200 in 683ms (compile: 8ms, render: 676ms)
+ POST /api/entities/Client 403 in 254ms (compile: 7ms, render: 247ms)
+[DEV OTP] +15555550123: Your Progrr verification code is: 176927
+ POST /api/auth/client/send-otp 200 in 2.5s (compile: 5ms, render: 2.5s)
+ POST /api/auth/client/verify-otp 200 in 2.7s (compile: 5ms, render: 2.7s)
+ GET /api/entities/Message 200 in 722ms (compile: 24ms, render: 698ms)
+[DEV OTP] +15555550123: Your Progrr verification code is: 876964
+ POST /api/auth/client/send-otp 200 in 2.5s (compile: 2ms, render: 2.5s)
+ POST /api/auth/client/verify-otp 200 in 2.6s (compile: 2ms, render: 2.6s)
+ POST /api/auth/client/verify-otp 400 in 2.5s (compile: 1710µs, render: 2.5s)
+ GET /api/entities/Message 401 in 11ms (compile: 7ms, render: 4ms)
+[DEV OTP] +15555550123: Your Progrr verification code is: 329758
+ POST /api/auth/client/send-otp 200 in 2.4s (compile: 1912µs, render: 2.4s)
+ POST /api/auth/client/verify-otp 200 in 2.7s (compile: 1681µs, render: 2.7s)
+ GET /api/entities/Message 200 in 755ms (compile: 12ms, render: 743ms)
+[DEV OTP] +15555550123: Your Progrr verification code is: 732973
+ POST /api/auth/client/send-otp 200 in 2.6s (compile: 2ms, render: 2.6s)
+ POST /api/auth/client/verify-otp 200 in 2.7s (compile: 3ms, render: 2.7s)
+ GET /api/entities/Client 200 in 488ms (compile: 7ms, render: 481ms)
+ GET /api/entities/Message 200 in 722ms (compile: 2ms, render: 720ms)
+  Reload env: .env.local
+ GET / 200 in 80ms (compile: 46ms, render: 34ms)
+[?25h

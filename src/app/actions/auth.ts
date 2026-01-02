@@ -1,6 +1,13 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { ObjectId } from "mongodb";
+
+import { collections, ensureIndexes } from "@/server/collections";
+import { requireOwner } from "@/server/owner";
+import { hashPassword, verifyPassword } from "@/server/password";
+import { signAuthToken } from "@/server/jwt";
+import { setAuthCookieInAction } from "@/server/auth-cookie";
 
 function getString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -14,35 +21,27 @@ function normalizeEmail(input: string) {
     .toLowerCase();
 }
 
-async function postJson(path: string, body: any) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  const res = await fetch(`${baseUrl}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body ?? {}),
-    // Important: include cookies set by route handlers
-    credentials: "include",
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    let msg = `Request failed (${res.status})`;
-    try {
-      const data = await res.json();
-      if (data?.error) msg = data.error;
-    } catch {
-      // ignore
-    }
-    throw new Error(msg);
-  }
-}
-
 export async function signInWithPassword(formData: FormData) {
   const email = normalizeEmail(getString(formData, "email"));
   const password = getString(formData, "password");
 
   try {
-    await postJson("/api/auth/admin/login", { email, password });
+    await ensureIndexes();
+    const c = await collections();
+
+    const admin = await c.admins.findOne({ email });
+    if (!admin) {
+      throw new Error("Invalid credentials");
+    }
+
+    const ok = await verifyPassword(password, admin.passwordHash);
+    if (!ok) {
+      throw new Error("Invalid credentials");
+    }
+
+    const adminId = admin._id.toHexString();
+    const token = await signAuthToken({ sub: adminId, role: "admin", adminId });
+    await setAuthCookieInAction(token);
   } catch (e: any) {
     redirect(`/?authError=${encodeURIComponent(e?.message || "Login failed")}`);
   }
@@ -60,11 +59,31 @@ export async function signUpWithPassword(formData: FormData) {
   }
 
   try {
-    await postJson("/api/auth/admin/signup", {
+    await ensureIndexes();
+    const owner = await requireOwner();
+    const c = await collections();
+
+    const existing = await c.admins.findOne({ email });
+    if (existing) {
+      throw new Error(
+        "This email is already registered. Please log in instead."
+      );
+    }
+
+    const passwordHash = await hashPassword(password);
+
+    const insert = await c.admins.insertOne({
+      ownerId: new ObjectId(owner._id),
       email,
-      password,
-      full_name: fullName,
-    });
+      passwordHash,
+      createdAt: new Date(),
+      fullName: fullName || undefined,
+      role: "admin",
+    } as any);
+
+    const adminId = insert.insertedId.toHexString();
+    const token = await signAuthToken({ sub: adminId, role: "admin", adminId });
+    await setAuthCookieInAction(token);
   } catch (e: any) {
     redirect(
       `/?authError=${encodeURIComponent(e?.message || "Signup failed")}`
