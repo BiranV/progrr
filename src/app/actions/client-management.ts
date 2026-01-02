@@ -40,9 +40,15 @@ export async function createClientAction(data: ClientFormData) {
   // But if they exist, they might not have a password set?
 
   // Let's assume we try to invite.
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (!baseUrl) {
+    throw new Error("NEXT_PUBLIC_APP_URL is not defined");
+  }
+  const redirectUrl = `${baseUrl}/invite`;
+
   const { data: inviteData, error: inviteError } =
     await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/invite`,
+      redirectTo: redirectUrl,
     });
 
   let authUser = inviteData.user;
@@ -273,15 +279,32 @@ export async function resendInviteAction(email: string) {
     if (error) {
       console.error("Supabase invite error:", error);
       // If user is already registered, send a password reset email instead
-      if (error.message.includes("already been registered")) {
+      // Check for various "already registered" messages to be safe
+      const msg = error.message.toLowerCase();
+      if (msg.includes("already") && msg.includes("registered")) {
         console.log("User already registered, sending password reset email...");
         const { error: resetError } =
+          await supabaseAdmin.auth.admin.generateLink({
+            type: "recovery",
+            email: email,
+            options: {
+              redirectTo: redirectUrl,
+            },
+          });
+
+        // Note: generateLink returns a link, but we want to SEND it.
+        // Actually, resetPasswordForEmail sends it.
+        // Let's use resetPasswordForEmail but with the admin client?
+        // supabaseAdmin.auth.resetPasswordForEmail sends it.
+
+        const { error: sendError } =
           await supabaseAdmin.auth.resetPasswordForEmail(email, {
             redirectTo: redirectUrl,
           });
-        if (resetError) {
+
+        if (sendError) {
           throw new Error(
-            "Failed to send password reset email: " + resetError.message
+            "Failed to send password reset email: " + sendError.message
           );
         }
         return { success: true };
