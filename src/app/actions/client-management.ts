@@ -94,6 +94,14 @@ export async function createClientAction(data: ClientFormData) {
 
   if (!authUser) throw new Error("Failed to create/find auth user");
 
+  // Ensure auth metadata role exists for middleware gating.
+  await supabaseAdmin.auth.admin.updateUserById(authUser.id, {
+    user_metadata: {
+      ...(authUser.user_metadata ?? {}),
+      role: "CLIENT",
+    },
+  });
+
   // 2. Create/Update User record
   // We use upsert to handle case where Auth exists but DB record missing
   // Note: We use email as the unique key for finding the user if ID doesn't match (rare but possible if auth0Sub mismatch)
@@ -155,7 +163,7 @@ export async function createClientAction(data: ClientFormData) {
   const clientData = {
     ...data,
     userId: authUser.id, // Link to the actual User record
-    status: "PENDING", // Ensure status is set
+    status: "pending", // Ensure status is set (UI expects lowercase)
   };
 
   if (existingEntity) {

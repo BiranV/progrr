@@ -32,6 +32,37 @@ export async function POST(
     const { entity } = await ctx.params;
     const criteria = filterBodySchema.parse(await req.json());
 
+    // CLIENT ACCESS CONTROL
+    if (user.role === "client") {
+      if (entity !== "Message") {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
+      const clientRows = await prisma.entity.findMany({
+        where: { entity: "Client" },
+        orderBy: { updatedAt: "desc" },
+      });
+      const myClient = clientRows.find(
+        (r) => ((r.data ?? {}) as any).userId === user.id
+      );
+      if (!myClient) return NextResponse.json([]);
+
+      // Must match the caller's own clientId
+      if (criteria.clientId !== myClient.id) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
+      const rows = await prisma.entity.findMany({
+        where: { entity: "Message" },
+        orderBy: { updatedAt: "desc" },
+      });
+
+      const records = rows.map(toPublicRecord);
+      const mine = records.filter((r: any) => r.clientId === myClient.id);
+
+      return NextResponse.json(mine);
+    }
+
     const where: any = { entity };
     if (user.role === "admin") {
       where.ownerId = user.id;

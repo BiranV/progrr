@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useQuery } from "@tanstack/react-query";
@@ -28,6 +28,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoadingAuth: loading, logout } = useAuth();
   const { darkMode, toggleDarkMode } = useTheme();
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const { data: settings = [] } = useQuery({
@@ -104,6 +105,33 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
 
     return <div className="min-h-screen bg-gray-50">{children}</div>;
+  }
+
+  // CLIENT LAYOUT: No sidebar, no admin navigation.
+  if (user.role === "client") {
+    // Hard client-side guard: prevent clients from entering admin-only routes
+    // even if they type the URL manually.
+    const adminOnlyPrefixes = [
+      "/clients",
+      "/plans",
+      "/meals",
+      "/meetings",
+      "/settings",
+      "/boards",
+      "/board",
+      "/analytics",
+    ];
+
+    if (adminOnlyPrefixes.some((p) => pathname.startsWith(p))) {
+      router.replace("/dashboard");
+      return null;
+    }
+
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+        {children}
+      </div>
+    );
   }
 
   const isAdmin = user.role === "admin";
