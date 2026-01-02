@@ -13,10 +13,16 @@ function isPublicPath(pathname: string) {
 }
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
   // Canonical host redirect: prevents auth cookie/session loss caused by mixing
   // `*.vercel.app` deployment URLs with the production alias domain.
+  // IMPORTANT: Do NOT redirect /invite here. Supabase returns tokens in the URL hash
+  // (e.g. /invite#access_token=...), and hash fragments are NOT sent to the server.
+  // Any redirect would drop the hash and make the link look "expired".
+  const isInvitePath = pathname.startsWith("/invite");
   const canonicalBase = process.env.NEXT_PUBLIC_APP_URL;
-  if (canonicalBase) {
+  if (canonicalBase && !isInvitePath) {
     const canonical = new URL(canonicalBase);
     const host = request.headers.get("host");
     if (host && host !== canonical.host) {
@@ -70,8 +76,6 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const isAuthed = !!user;
-
-  const pathname = request.nextUrl.pathname;
 
   // Role-Based Routing (Optimization)
   if (isAuthed) {

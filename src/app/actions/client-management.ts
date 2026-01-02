@@ -300,33 +300,33 @@ export async function resendInviteAction(email: string) {
     const redirectUrl = `${baseUrl}/invite`;
     console.log("Redirect URL:", redirectUrl);
 
-    const { error } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: redirectUrl,
-    });
+    // Prefer recovery emails for resends: they're consistently supported and generate
+    // a fresh link even if the user already exists / has been invited before.
+    const { error: resetError } =
+      await supabaseAdmin.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl,
+      });
 
-    if (error) {
-      console.error("Supabase invite error:", error);
-      // If user is already registered, send a password reset email instead
-      // Check for various "already registered" messages to be safe
-      const msg = error.message.toLowerCase();
-      if (msg.includes("already") && msg.includes("registered")) {
-        console.log("User already registered, sending password reset email...");
-        const { error: sendError } =
-          await supabaseAdmin.auth.resetPasswordForEmail(email, {
-            redirectTo: redirectUrl,
-          });
-
-        if (sendError) {
-          throw new Error(
-            "Failed to send password reset email: " + sendError.message
-          );
-        }
-        return { success: true };
-      }
-      throw new Error("Failed to resend invite: " + error.message);
+    if (!resetError) {
+      return { success: true };
     }
 
-    return { success: true };
+    console.error("Supabase reset password error:", resetError);
+
+    // Fallback: if Supabase says the user doesn't exist, invite them.
+    const msg = resetError.message.toLowerCase();
+    if (msg.includes("user") && msg.includes("not") && msg.includes("found")) {
+      const { error: inviteError } =
+        await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+          redirectTo: redirectUrl,
+        });
+      if (inviteError) {
+        throw new Error("Failed to resend invite: " + inviteError.message);
+      }
+      return { success: true };
+    }
+
+    throw new Error("Failed to resend invite: " + resetError.message);
   } catch (error: any) {
     console.error("Resend invite action failed:", error);
     throw new Error(error.message || "Failed to resend invite");
