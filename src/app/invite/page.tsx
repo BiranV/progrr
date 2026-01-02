@@ -174,6 +174,9 @@ export default function InvitePage() {
     try {
       const { error } = await supabase.auth.updateUser({
         password: password,
+        data: {
+          role: "CLIENT",
+        },
       });
 
       if (error) throw error;
@@ -183,8 +186,8 @@ export default function InvitePage() {
 
       toast.success("Password set successfully! Redirecting...");
 
-      // Force a refresh/redirect to dashboard
-      router.push("/dashboard");
+      // Redirect into the app
+      router.replace("/dashboard");
       router.refresh();
     } catch (error: any) {
       toast.error(error.message || "Failed to set password");

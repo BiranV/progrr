@@ -75,7 +75,30 @@ export async function middleware(request: NextRequest) {
 
   // Role-Based Routing (Optimization)
   if (isAuthed) {
-    const userRole = user.user_metadata.role;
+    const rawRole = (user.user_metadata as any)?.role;
+    const userRole =
+      typeof rawRole === "string" ? rawRole.toUpperCase() : undefined;
+
+    // Client Protection: Block access to Admin routes
+    if (userRole === "CLIENT") {
+      const adminOnlyPrefixes = [
+        "/clients",
+        "/plans",
+        "/meals",
+        "/meetings",
+        "/settings",
+        "/boards",
+        "/board",
+        "/analytics",
+      ];
+
+      if (adminOnlyPrefixes.some((p) => pathname.startsWith(p))) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/dashboard";
+        url.search = "";
+        return NextResponse.redirect(url);
+      }
+    }
 
     // Owner Protection: Block access to Client/Admin routes
     // We assume anything NOT /owner and NOT public is an App route

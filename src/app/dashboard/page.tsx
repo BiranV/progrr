@@ -13,8 +13,20 @@ import {
   MessageSquare,
   Mail,
   Phone,
+  Bell,
+  Send,
 } from "lucide-react";
 import { format } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 export default function DashboardPage() {
   const { user, isLoadingAuth } = useAuth();
@@ -44,7 +56,11 @@ export default function DashboardPage() {
     );
   }
 
-  return <AdminDashboard user={user} />;
+  return user.role === "admin" ? (
+    <AdminDashboard user={user} />
+  ) : (
+    <ClientDashboard user={user} />
+  );
 }
 
 function AdminDashboard({ user }: { user: any }) {
@@ -255,6 +271,10 @@ function AdminDashboard({ user }: { user: any }) {
 }
 
 function ClientDashboard({ user }: { user: any }) {
+  const queryClient = useQueryClient();
+  const [messagesOpen, setMessagesOpen] = React.useState(false);
+  const [newMessage, setNewMessage] = React.useState("");
+
   const { data: clients = [] } = useQuery({
     queryKey: ["myClient"],
     queryFn: async () => {
@@ -267,28 +287,179 @@ function ClientDashboard({ user }: { user: any }) {
 
   const { data: assignedPlan } = useQuery({
     queryKey: ["assignedPlan", myClient?.assignedPlanId],
-    queryFn: () =>
-      db.entities.WorkoutPlan.filter({ id: myClient.assignedPlanId }),
+    queryFn: () => db.entities.WorkoutPlan.get(myClient.assignedPlanId),
     enabled: !!myClient?.assignedPlanId,
   });
 
   const { data: assignedMealPlan } = useQuery({
     queryKey: ["assignedMealPlan", myClient?.assignedMealPlanId],
-    queryFn: () =>
-      db.entities.MealPlan.filter({ id: myClient.assignedMealPlanId }),
+    queryFn: () => db.entities.MealPlan.get(myClient.assignedMealPlanId),
     enabled: !!myClient?.assignedMealPlanId,
   });
 
+  const { data: messages = [] } = useQuery({
+    queryKey: ["myMessages", myClient?.id],
+    queryFn: () => db.entities.Message.filter({ clientId: myClient.id }),
+    enabled: !!myClient,
+  });
+
+  const unreadCount = messages.filter(
+    (m: any) => m.senderRole === "admin" && !m.readByClient
+  ).length;
+
+  const sendMutation = useMutation({
+    mutationFn: (text: string) =>
+      db.entities.Message.create({
+        clientId: myClient.id,
+        text,
+        senderRole: "client",
+        readByAdmin: false,
+        readByClient: true,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["myMessages", myClient?.id] });
+      setNewMessage("");
+    },
+  });
+
+  React.useEffect(() => {
+    if (!messagesOpen || !myClient) return;
+    const markRead = async () => {
+      const unread = messages.filter(
+        (m: any) => m.senderRole === "admin" && !m.readByClient
+      );
+      for (const msg of unread) {
+        await db.entities.Message.update(msg.id, { readByClient: true });
+      }
+      if (unread.length > 0) {
+        queryClient.invalidateQueries({
+          queryKey: ["myMessages", myClient.id],
+        });
+      }
+    };
+    void markRead();
+  }, [messagesOpen, myClient, messages, queryClient]);
+
+  const sortedMessages = [...messages].sort(
+    (a: any, b: any) =>
+      new Date(a.created_date || 0).getTime() -
+      new Date(b.created_date || 0).getTime()
+  );
+
+  const handleSend = async () => {
+    const text = newMessage.trim();
+    if (!text || !myClient) return;
+    await sendMutation.mutateAsync(text);
+  };
+
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Welcome back, {user.full_name}!
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-2">
-          Track your progress and stay connected with your coach
-        </p>
+      <div className="flex items-center justify-between mb-6">
+        <div className="min-w-0">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Welcome back, {user.full_name}!
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">
+            Track your progress and stay connected with your coach
+          </p>
+        </div>
+
+        <div className="flex items-center justify-start">
+          <Dialog open={messagesOpen} onOpenChange={setMessagesOpen}>
+            <DialogTrigger asChild>
+              <button
+                className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                aria-label="Messages"
+              >
+                <Bell className="w-6 h-6 text-gray-700 dark:text-gray-200" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-5 min-w-5 px-1 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+            </DialogTrigger>
+
+            <DialogContent className="max-w-xl">
+              <DialogHeader>
+                <DialogTitle>Messages</DialogTitle>
+              </DialogHeader>
+
+              {!myClient ? (
+                <div className="py-10 text-center text-gray-500">
+                  No client profile found
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <div className="h-80 overflow-y-auto border rounded-lg p-3 bg-white dark:bg-gray-900">
+                    {sortedMessages.length === 0 ? (
+                      <div className="h-full flex items-center justify-center text-gray-500">
+                        No messages yet
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {sortedMessages.map((m: any) => {
+                          const fromMe = m.senderRole === "client";
+                          return (
+                            <div
+                              key={m.id}
+                              className={`flex ${
+                                fromMe ? "justify-end" : "justify-start"
+                              }`}
+                            >
+                              <div
+                                className={`max-w-[75%] rounded-lg px-3 py-2 text-sm border ${
+                                  fromMe
+                                    ? "bg-indigo-600 text-white border-indigo-600"
+                                    : "bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-200 dark:border-gray-700"
+                                }`}
+                              >
+                                <div>{m.text}</div>
+                                <div
+                                  className={`mt-1 text-[11px] ${
+                                    fromMe ? "text-indigo-100" : "text-gray-500"
+                                  }`}
+                                >
+                                  {m.created_date
+                                    ? format(new Date(m.created_date), "PPP p")
+                                    : ""}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Input
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      placeholder="Type a message"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void handleSend();
+                        }
+                      }}
+                    />
+                    <Button
+                      onClick={() => void handleSend()}
+                      disabled={sendMutation.isPending || !newMessage.trim()}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                    >
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
+
+      <div className="mb-8">{/* Intentionally minimal client view */}</div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="dark:bg-gray-800 dark:border-gray-700">
@@ -296,23 +467,23 @@ function ClientDashboard({ user }: { user: any }) {
             <CardTitle>My Workout Plan</CardTitle>
           </CardHeader>
           <CardContent>
-            {assignedPlan && assignedPlan[0] ? (
+            {assignedPlan ? (
               <div>
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  {assignedPlan[0].name}
+                  {assignedPlan.name}
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 mt-2">
-                  {assignedPlan[0].notes}
+                  {assignedPlan.notes}
                 </p>
                 <div className="mt-4 flex gap-4 text-sm">
-                  {assignedPlan[0].difficulty && (
+                  {assignedPlan.difficulty && (
                     <span className="px-3 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-full">
-                      {assignedPlan[0].difficulty}
+                      {assignedPlan.difficulty}
                     </span>
                   )}
-                  {assignedPlan[0].duration && (
+                  {assignedPlan.duration && (
                     <span className="px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 rounded-full">
-                      {assignedPlan[0].duration}
+                      {assignedPlan.duration}
                     </span>
                   )}
                 </div>
@@ -330,18 +501,18 @@ function ClientDashboard({ user }: { user: any }) {
             <CardTitle>My Meal Plan</CardTitle>
           </CardHeader>
           <CardContent>
-            {assignedMealPlan && assignedMealPlan[0] ? (
+            {assignedMealPlan ? (
               <div>
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  {assignedMealPlan[0].name}
+                  {assignedMealPlan.name}
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 mt-2">
-                  {assignedMealPlan[0].notes}
+                  {assignedMealPlan.notes}
                 </p>
-                {assignedMealPlan[0].dailyCalories && (
+                {assignedMealPlan.dailyCalories && (
                   <div className="mt-4">
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Daily Target: {assignedMealPlan[0].dailyCalories} calories
+                      Daily Target: {assignedMealPlan.dailyCalories} calories
                     </p>
                   </div>
                 )}

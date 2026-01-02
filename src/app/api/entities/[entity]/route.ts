@@ -64,6 +64,47 @@ export async function GET(
     const url = new URL(req.url);
     const sort = url.searchParams.get("sort");
 
+    // CLIENT ACCESS CONTROL
+    if (user.role === "client") {
+      // 1) Client profile: only their own record
+      if (entity === "Client") {
+        const rows = await prisma.entity.findMany({
+          where: { entity: "Client" },
+          orderBy: { updatedAt: "desc" },
+        });
+        const mine = rows
+          .filter((r) => ((r.data ?? {}) as any).userId === user.id)
+          .map(toPublicRecord);
+        return NextResponse.json(sortRecords(mine, sort));
+      }
+
+      // 2) Messages: only messages for their own clientId
+      if (entity === "Message") {
+        const clientRows = await prisma.entity.findMany({
+          where: { entity: "Client" },
+          orderBy: { updatedAt: "desc" },
+        });
+        const myClient = clientRows.find(
+          (r) => ((r.data ?? {}) as any).userId === user.id
+        );
+        if (!myClient) return NextResponse.json([]);
+
+        const messageRows = await prisma.entity.findMany({
+          where: { entity: "Message" },
+          orderBy: { updatedAt: "desc" },
+        });
+
+        const mine = messageRows
+          .filter((r) => ((r.data ?? {}) as any).clientId === myClient.id)
+          .map(toPublicRecord);
+
+        return NextResponse.json(sortRecords(mine, sort));
+      }
+
+      // Everything else is admin-only
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const where: any = { entity };
     if (user.role === "admin") {
       where.ownerId = user.id;
@@ -101,6 +142,36 @@ export async function POST(
 
     const { entity } = await ctx.params;
     const body = createBodySchema.parse(await req.json());
+
+    // CLIENT ACCESS CONTROL
+    if (user.role === "client") {
+      if (entity !== "Message") {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
+      // Ensure the message is stored under the coach (admin) ownerId so the coach can read it.
+      const dbUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { coachId: true },
+      });
+      const ownerId = dbUser?.coachId ?? null;
+      if (!ownerId) {
+        return NextResponse.json(
+          { error: "Client is not assigned to a coach" },
+          { status: 403 }
+        );
+      }
+
+      const row = await prisma.entity.create({
+        data: {
+          entity,
+          ownerId,
+          data: body,
+        },
+      });
+
+      return NextResponse.json(toPublicRecord(row));
+    }
 
     const row = await prisma.entity.create({
       data: {
