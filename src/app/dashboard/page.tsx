@@ -45,7 +45,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import ClientAvatar from "@/components/ClientAvatar";
-import { toYouTubeEmbedUrl } from "@/lib/youtube";
+import { extractYouTubeVideoId, toYouTubeEmbedUrl } from "@/lib/youtube";
 import {
   copyTextToClipboard,
   downloadPdfFile,
@@ -421,6 +421,18 @@ function ClientDashboard({ user }: { user: any }) {
     }
 
     return toTitleCase(raw);
+  };
+
+  const formatRest = (restSeconds: any) => {
+    const raw = Number(restSeconds);
+    if (!Number.isFinite(raw)) return "";
+    const seconds = Math.max(0, Math.floor(raw));
+    if (!seconds) return "";
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    if (m && s) return `${m}m ${s}s`;
+    if (m) return `${m}m`;
+    return `${s}s`;
   };
 
   const { data: clients = [] } = useQuery({
@@ -1528,27 +1540,38 @@ function ClientDashboard({ user }: { user: any }) {
                               </Button>
                             </div>
 
-                            {plan.notes ? (
-                              <p className="text-gray-600 dark:text-gray-400">
-                                {plan.notes}
-                              </p>
-                            ) : null}
-
-                            <div className="flex flex-wrap gap-3 text-sm">
+                            <div className="text-sm text-gray-600 dark:text-gray-300">
                               {plan.difficulty ? (
-                                <span className="px-3 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-full">
-                                  {toTitleCase(plan.difficulty)}
+                                <span className="capitalize">
+                                  {String(plan.difficulty).replace(
+                                    /[_-]/g,
+                                    " "
+                                  )}
                                 </span>
-                              ) : null}
+                              ) : (
+                                <span className="text-gray-500 dark:text-gray-400">
+                                  Difficulty: -
+                                </span>
+                              )}
                               {plan.duration ? (
-                                <span className="px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 rounded-full">
-                                  {formatDuration(plan.duration)}
-                                </span>
+                                <span> · {formatDuration(plan.duration)}</span>
                               ) : null}
+                              {plan.goal ? <span> · {plan.goal}</span> : null}
                             </div>
 
+                            {plan.notes ? (
+                              <div>
+                                <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                                  Notes
+                                </div>
+                                <div className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
+                                  {plan.notes}
+                                </div>
+                              </div>
+                            ) : null}
+
                             <div>
-                              <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                              <div className="text-sm font-medium text-gray-900 dark:text-white mb-2">
                                 Exercises
                               </div>
                               {planExercisesByPlanIdLoading ? (
@@ -1557,99 +1580,114 @@ function ClientDashboard({ user }: { user: any }) {
                                 </div>
                               ) : planExercises.length === 0 ? (
                                 <div className="text-sm text-gray-500 dark:text-gray-400">
-                                  No exercises added to this plan yet
+                                  No exercises
                                 </div>
                               ) : (
                                 <div className="space-y-2">
                                   {planExercises.map((ex: any, idx: number) => {
-                                    const sets = String(ex.sets ?? "").trim();
-                                    const reps = String(ex.reps ?? "").trim();
-                                    const restSecondsRaw = Number(
-                                      ex.restSeconds
-                                    );
-                                    const restSeconds = Number.isFinite(
-                                      restSecondsRaw
-                                    )
-                                      ? Math.max(0, Math.floor(restSecondsRaw))
-                                      : 0;
                                     const videoKind = String(
                                       ex.videoKind ?? ""
                                     ).trim();
                                     const videoUrlRaw = String(
                                       ex.videoUrl ?? ""
                                     ).trim();
-                                    const youtubeEmbed =
-                                      videoKind === "youtube" && videoUrlRaw
-                                        ? toYouTubeEmbedUrl(videoUrlRaw)
-                                        : null;
-                                    const detail =
-                                      sets || reps
-                                        ? `${sets ? `${sets} sets` : ""}${
-                                            sets && reps ? " × " : ""
-                                          }${reps ? `${reps} reps` : ""}`
-                                        : "";
-                                    const restText = restSeconds
-                                      ? `${Math.floor(restSeconds / 60)}m ${
-                                          restSeconds % 60
-                                        }s`
-                                      : "";
+                                    const restText = formatRest(ex.restSeconds);
 
                                     return (
                                       <div
                                         key={ex.id || `${planId}-${idx}`}
-                                        className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                                        className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2"
                                       >
-                                        <div className="min-w-0">
-                                          <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                                            {idx + 1}. {toTitleCase(ex.name)}
-                                          </div>
-                                          {detail ? (
-                                            <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                              {detail}
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div className="min-w-0">
+                                            <div className="font-medium text-gray-900 dark:text-white truncate">
+                                              {ex.name || "-"}
                                             </div>
-                                          ) : null}
-                                          {restText ? (
-                                            <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                              Rest: {restText}
-                                            </div>
-                                          ) : null}
 
-                                          {String(
-                                            ex.guidelines ?? ""
-                                          ).trim() ? (
-                                            <div className="text-xs text-gray-600 dark:text-gray-300 mt-2 whitespace-pre-wrap">
-                                              {String(ex.guidelines)}
-                                            </div>
-                                          ) : null}
+                                            {String(
+                                              ex.guidelines ?? ""
+                                            ).trim() ? (
+                                              <div className="mt-1 text-xs text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
+                                                {String(ex.guidelines)}
+                                              </div>
+                                            ) : null}
 
-                                          {youtubeEmbed ? (
-                                            <div className="mt-2">
-                                              <div
-                                                className="relative w-full overflow-hidden rounded-lg bg-black"
-                                                style={{
-                                                  paddingTop: "56.25%",
-                                                }}
-                                              >
-                                                <iframe
-                                                  src={youtubeEmbed}
-                                                  title="Exercise video"
-                                                  className="absolute inset-0 h-full w-full"
-                                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                  allowFullScreen
+                                            {String(videoKind) === "youtube" &&
+                                            String(videoUrlRaw).trim() ? (
+                                              (() => {
+                                                const embed = toYouTubeEmbedUrl(
+                                                  String(videoUrlRaw)
+                                                );
+                                                if (!embed) return null;
+
+                                                const id =
+                                                  extractYouTubeVideoId(
+                                                    String(videoUrlRaw)
+                                                  );
+                                                const watchUrl = id
+                                                  ? `https://www.youtube.com/watch?v=${id}`
+                                                  : null;
+
+                                                return (
+                                                  <div className="mt-2">
+                                                    <div
+                                                      className="relative w-full overflow-hidden rounded-lg bg-black"
+                                                      style={{
+                                                        paddingTop: "56.25%",
+                                                      }}
+                                                    >
+                                                      {watchUrl ? (
+                                                        <a
+                                                          href={watchUrl}
+                                                          target="_blank"
+                                                          rel="noopener noreferrer"
+                                                          className="absolute inset-0 z-10 cursor-pointer"
+                                                          title="Open video"
+                                                          aria-label="Open video"
+                                                        />
+                                                      ) : null}
+                                                      <iframe
+                                                        src={embed}
+                                                        title="Exercise video"
+                                                        className="absolute inset-0 h-full w-full"
+                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                        allowFullScreen
+                                                      />
+                                                    </div>
+                                                  </div>
+                                                );
+                                              })()
+                                            ) : String(videoKind) ===
+                                                "upload" &&
+                                              String(videoUrlRaw).trim() ? (
+                                              <div className="mt-2">
+                                                <video
+                                                  className="w-full rounded-lg"
+                                                  controls
+                                                  preload="metadata"
+                                                  src={String(
+                                                    videoUrlRaw
+                                                  ).trim()}
                                                 />
                                               </div>
-                                            </div>
-                                          ) : videoKind === "upload" &&
-                                            videoUrlRaw ? (
-                                            <div className="mt-2">
-                                              <video
-                                                className="w-full rounded-lg"
-                                                controls
-                                                preload="metadata"
-                                                src={videoUrlRaw}
-                                              />
-                                            </div>
-                                          ) : null}
+                                            ) : null}
+                                          </div>
+
+                                          <div className="shrink-0 text-sm text-gray-700 dark:text-gray-200 text-right leading-5">
+                                            {String(ex.sets ?? "").trim() ? (
+                                              <div>
+                                                {String(ex.sets).trim()} Sets
+                                              </div>
+                                            ) : null}
+                                            {String(ex.reps ?? "").trim() ? (
+                                              <div>
+                                                {String(ex.reps).trim()} Reps
+                                              </div>
+                                            ) : null}
+                                            {restText ? (
+                                              <div>{restText} Rest</div>
+                                            ) : null}
+                                          </div>
                                         </div>
                                       </div>
                                     );
