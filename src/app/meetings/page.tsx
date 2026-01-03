@@ -20,6 +20,9 @@ import MeetingDialog from "@/components/MeetingDialog";
 import { format } from "date-fns";
 import { Meeting, Client } from "@/types";
 
+const PROSPECT_CLIENT_ID = "__PROSPECT__";
+const PROSPECT_CLIENT_LABEL = "Prospect (Process / Payment questions)";
+
 export default function MeetingsPage() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editingMeeting, setEditingMeeting] = React.useState<Meeting | null>(
@@ -43,6 +46,7 @@ export default function MeetingsPage() {
   });
 
   const getClientName = (clientId: string) => {
+    if (clientId === PROSPECT_CLIENT_ID) return PROSPECT_CLIENT_LABEL;
     const client = clients.find((c: Client) => c.id === clientId);
     return client?.name || "Unknown";
   };

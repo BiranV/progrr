@@ -3,7 +3,7 @@
 import React from "react";
 import { db } from "@/lib/db";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,6 +21,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Meeting, Client } from "@/types";
+
+const PROSPECT_CLIENT_ID = "__PROSPECT__";
+const PROSPECT_CLIENT_LABEL = "Prospect (Process / Payment questions)";
 
 interface MeetingDialogProps {
   meeting: Meeting | null;
@@ -60,6 +63,9 @@ export default function MeetingDialog({
   onOpenChange,
 }: MeetingDialogProps) {
   const queryClient = useQueryClient();
+  const [validationError, setValidationError] = React.useState<string | null>(
+    null
+  );
   const [formData, setFormData] = React.useState<Partial<Meeting>>({
     title: "",
     type: "zoom",
@@ -72,6 +78,7 @@ export default function MeetingDialog({
   });
 
   React.useEffect(() => {
+    setValidationError(null);
     if (meeting) {
       setFormData({
         title: meeting.title || "",
@@ -130,22 +137,28 @@ export default function MeetingDialog({
       onOpenChange(false);
     },
     onError: (error: any) => {
-      toast.error(error?.message || "Failed to save meeting");
+      setValidationError(error?.message || "Failed to save meeting");
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    const title = String(formData.title ?? "").trim();
+    if (!title) {
+      setValidationError("Title is required");
+      return;
+    }
+
     if (shouldEnforceMinDateTime) {
       const scheduledAt = String(formData.scheduledAt ?? "").trim();
       const d = scheduledAt ? new Date(scheduledAt) : null;
       if (!d || Number.isNaN(d.getTime())) {
-        toast.error("Please select a valid meeting date & time");
+        setValidationError("Please select a valid meeting date & time");
         return;
       }
       if (d.getTime() < Date.now()) {
-        toast.error("Meeting date & time cannot be in the past");
+        setValidationError("Meeting date & time cannot be in the past");
         return;
       }
     }
@@ -162,17 +175,30 @@ export default function MeetingDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
+          {validationError ? (
+            <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-4 min-h-12 py-2">
+              <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
+                <XCircle className="h-3.5 w-3.5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
+                  {validationError}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Title *
             </label>
             <Input
               value={formData.title}
-              onChange={(e) =>
-                setFormData({ ...formData, title: e.target.value })
-              }
-              required
+              onChange={(e) => {
+                if (validationError) setValidationError(null);
+                setFormData({ ...formData, title: e.target.value });
+              }}
             />
           </div>
 
@@ -228,10 +254,10 @@ export default function MeetingDialog({
                 min={shouldEnforceMinDateTime ? minDateTimeLocal : undefined}
                 max="9999-12-31T23:59"
                 value={formData.scheduledAt}
-                onChange={(e) =>
-                  setFormData({ ...formData, scheduledAt: e.target.value })
-                }
-                required
+                onChange={(e) => {
+                  if (validationError) setValidationError(null);
+                  setFormData({ ...formData, scheduledAt: e.target.value });
+                }}
               />
             </div>
 
@@ -258,12 +284,18 @@ export default function MeetingDialog({
             </label>
             <Select
               value={formData.clientId}
-              onValueChange={(v) => setFormData({ ...formData, clientId: v })}
+              onValueChange={(v) => {
+                if (validationError) setValidationError(null);
+                setFormData({ ...formData, clientId: v });
+              }}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select client" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value={PROSPECT_CLIENT_ID}>
+                  {PROSPECT_CLIENT_LABEL}
+                </SelectItem>
                 {clients.map((client) => (
                   <SelectItem key={client.id} value={client.id}>
                     {client.name}
