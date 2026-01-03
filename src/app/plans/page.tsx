@@ -180,7 +180,7 @@ export default function PlansPage() {
       ) : filteredPlans.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <ClipboardList className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <ClipboardList className="w-12 h-12 text-indigo-500 dark:text-indigo-400 mx-auto mb-4" />
             <p className="text-gray-500 dark:text-gray-400">
               {search
                 ? "No workout plans found"
@@ -247,23 +247,23 @@ export default function PlansPage() {
                 <div className="space-y-3 text-sm text-gray-600 dark:text-gray-300">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 shrink-0" />
+                      <Clock className="w-4 h-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
                       <span>
                         Duration: {formatDurationWeeks(plan.duration) || "-"}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 truncate">
-                      <BarChart className="w-4 h-4 shrink-0" />
+                      <BarChart className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                       <span className="truncate capitalize">
                         Difficulty: {plan.difficulty || "-"}
                       </span>
                     </div>
                     <div className="flex items-center gap-2 truncate">
-                      <Target className="w-4 h-4 shrink-0" />
+                      <Target className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
                       <span className="truncate">Goal: {plan.goal || "-"}</span>
                     </div>
                     <div className="flex items-center gap-2 truncate">
-                      <Dumbbell className="w-4 h-4 shrink-0" />
+                      <Dumbbell className="w-4 h-4 shrink-0 text-violet-600 dark:text-violet-400" />
                       <span className="truncate">
                         Exercises: {exerciseCountByPlanId[String(plan.id)] ?? 0}
                       </span>
