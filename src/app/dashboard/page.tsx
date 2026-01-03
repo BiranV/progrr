@@ -89,8 +89,15 @@ function AdminDashboard({ user }: { user: any }) {
     queryFn: () => db.entities.Message.list(),
   });
 
+  const normalizeStatus = (value: unknown) => {
+    const v = String(value ?? "")
+      .trim()
+      .toUpperCase();
+    return v === "ACTIVE" || v === "PENDING" || v === "INACTIVE" ? v : "";
+  };
+
   const activeClients = clients.filter(
-    (c: any) => c.status === "active"
+    (c: any) => normalizeStatus(c.status) === "ACTIVE"
   ).length;
   const unreadMessages = messages.filter(
     (m: any) => m.senderRole === "client" && !m.readByAdmin
@@ -130,10 +137,10 @@ function AdminDashboard({ user }: { user: any }) {
   ];
 
   const statusConfig: Record<string, string> = {
-    active: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
-    pending:
+    ACTIVE: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
+    PENDING:
       "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
-    inactive: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400",
+    INACTIVE: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400",
   };
 
   return (
@@ -196,33 +203,36 @@ function AdminDashboard({ user }: { user: any }) {
               </div>
             ) : (
               <div className="space-y-3">
-                {clients.slice(0, 5).map((client: any) => (
-                  <div
-                    key={client.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
-                  >
-                    <div className="flex flex-col min-w-0">
-                      <span className="font-medium truncate text-gray-900 dark:text-white">
-                        {client.name}
-                      </span>
-                      <div className="flex items-center gap-2 text-xs text-gray-500 truncate">
-                        <Mail className="w-3 h-3" />
-                        {client.email}
+                {clients.slice(0, 5).map((client: any) =>
+                  (() => {
+                    const status = normalizeStatus(client.status) || "ACTIVE";
+                    return (
+                      <div
+                        key={client.id}
+                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                      >
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-medium truncate text-gray-900 dark:text-white">
+                            {client.name}
+                          </span>
+                          <div className="flex items-center gap-2 text-xs text-gray-500 truncate">
+                            <Mail className="w-3 h-3" />
+                            {client.email}
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-gray-500 truncate">
+                            <Phone className="w-3 h-3" />
+                            {client.phone}
+                          </div>
+                        </div>
+                        <span
+                          className={`inline-flex items-center justify-center w-20 h-7 px-3 rounded-md text-xs font-medium ${statusConfig[status]}`}
+                        >
+                          {status}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-500 truncate">
-                        <Phone className="w-3 h-3" />
-                        {client.phone}
-                      </div>
-                    </div>
-                    <span
-                      className={`inline-flex items-center justify-center w-20 h-7 px-3 rounded-md text-xs font-medium capitalize ${
-                        statusConfig[client.status || "active"]
-                      }`}
-                    >
-                      {client.status || "active"}
-                    </span>
-                  </div>
-                ))}
+                    );
+                  })()
+                )}
               </div>
             )}
           </CardContent>

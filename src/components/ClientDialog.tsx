@@ -67,6 +67,13 @@ export default function ClientDialog({
     queryFn: () => db.entities.MealPlan.list(),
   });
 
+  const normalizeStatus = (value: unknown) => {
+    const v = String(value ?? "")
+      .trim()
+      .toUpperCase();
+    return v === "ACTIVE" || v === "PENDING" || v === "INACTIVE" ? v : "";
+  };
+
   const [formData, setFormData] = React.useState<Partial<Client>>({
     name: "",
     email: "",
@@ -77,7 +84,7 @@ export default function ClientDialog({
     weight: "",
     goal: "",
     activityLevel: "",
-    status: "PENDING",
+    status: "",
     notes: "",
     assignedPlanId: "",
     assignedMealPlanId: "",
@@ -98,7 +105,7 @@ export default function ClientDialog({
         weight: client.weight || "",
         goal: client.goal || "",
         activityLevel: client.activityLevel || "",
-        status: client.status || "ACTIVE",
+        status: normalizeStatus(client.status) || "ACTIVE",
         notes: client.notes || "",
         assignedPlanId: client.assignedPlanId || "",
         assignedMealPlanId: client.assignedMealPlanId || "",
@@ -114,7 +121,7 @@ export default function ClientDialog({
         weight: "",
         goal: "",
         activityLevel: "",
-        status: "PENDING",
+        status: "",
         notes: "",
         assignedPlanId: "",
         assignedMealPlanId: "",
@@ -150,7 +157,15 @@ export default function ClientDialog({
      ====================================================== */
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    saveMutation.mutate(formData);
+
+    const normalized = normalizeStatus(formData.status);
+    if (!normalized) {
+      toast.error("Please select a client status");
+      return;
+    }
+
+    const next = { ...formData, status: normalized };
+    saveMutation.mutate(next);
   };
 
   /* ======================================================
@@ -321,15 +336,14 @@ export default function ClientDialog({
                 onValueChange={(v) => {
                   setFormData({ ...formData, status: v });
                 }}
-                disabled={!client} // Disable status change for new clients (always PENDING)
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ACTIVE">Active</SelectItem>
-                  <SelectItem value="PENDING">Pending</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="ACTIVE">ACTIVE</SelectItem>
+                  <SelectItem value="PENDING">PENDING</SelectItem>
+                  <SelectItem value="INACTIVE">INACTIVE</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -91,15 +91,144 @@ export default function ClientsPage() {
     if (!open) setEditingClient(null);
   };
 
+  const normalizeStatus = (value: unknown) => {
+    const v = String(value ?? "")
+      .trim()
+      .toUpperCase();
+    return v === "ACTIVE" || v === "PENDING" || v === "INACTIVE" ? v : "";
+  };
+
   const statusConfig: Record<string, string> = {
     ACTIVE: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
-    active: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
     PENDING:
       "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
-    pending:
-      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
-    inactive: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400",
+    INACTIVE: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400",
   };
+
+  const inactiveClients = sortedClients.filter(
+    (c: Client) => normalizeStatus(c.status) === "INACTIVE"
+  );
+  const primaryClients = sortedClients.filter(
+    (c: Client) => normalizeStatus(c.status) !== "INACTIVE"
+  );
+
+  const renderClientsTable = (rows: Client[]) => (
+    <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg border">
+      <table className="w-full text-sm">
+        <thead className="bg-gray-50 dark:bg-gray-700">
+          <tr>
+            <th
+              className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+              onClick={() => handleSort("name")}
+            >
+              <div className="flex items-center gap-2">
+                Client
+                <ArrowUpDown className="w-4 h-4" />
+              </div>
+            </th>
+            <th
+              className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+              onClick={() => handleSort("status")}
+            >
+              <div className="flex items-center gap-2">
+                Status
+                <ArrowUpDown className="w-4 h-4" />
+              </div>
+            </th>
+            <th
+              className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+              onClick={() => handleSort("goal")}
+            >
+              <div className="flex items-center gap-2">
+                Goal
+                <ArrowUpDown className="w-4 h-4" />
+              </div>
+            </th>
+            <th
+              className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+              onClick={() => handleSort("activityLevel")}
+            >
+              <div className="flex items-center gap-2">
+                Activity
+                <ArrowUpDown className="w-4 h-4" />
+              </div>
+            </th>
+            <th
+              className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+              onClick={() => handleSort("gender")}
+            >
+              <div className="flex items-center gap-2">
+                Gender
+                <ArrowUpDown className="w-4 h-4" />
+              </div>
+            </th>
+            <th className="px-4 py-3 text-left font-medium"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((client: Client) => {
+            const status = normalizeStatus(client.status) || "ACTIVE";
+            return (
+              <tr
+                key={client.id}
+                className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40"
+              >
+                {/* CLIENT COLUMN */}
+                <td className="px-4 py-3">
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-medium truncate">{client.name}</span>
+                    <div className="flex items-center gap-2 text-xs text-gray-500 truncate">
+                      <Mail className="w-3 h-3" />
+                      {client.email}
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-gray-500 truncate">
+                      <Phone className="w-3 h-3" />
+                      {client.phone}
+                    </div>
+                  </div>
+                </td>
+
+                <td className="px-4 py-3">
+                  <span
+                    className={`inline-flex items-center justify-center w-20 h-7 px-3 rounded-md text-xs font-medium ${statusConfig[status]}`}
+                  >
+                    {status}
+                  </span>
+                </td>
+
+                <td className="px-4 py-3 capitalize">
+                  {client.goal?.replace("_", " ") || "-"}
+                </td>
+                <td className="px-4 py-3 capitalize">
+                  {client.activityLevel || "-"}
+                </td>
+                <td className="px-4 py-3 capitalize">{client.gender || "-"}</td>
+
+                <td className="px-4 py-3 text-right">
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => handleEdit(client)}
+                      className="p-2 text-gray-600 dark:text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900 rounded-lg"
+                      title="Edit Client"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(client.id)}
+                      className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg"
+                      title="Delete Client"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 
   return (
     <div className="p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
@@ -149,124 +278,19 @@ export default function ClientsPage() {
           </CardContent>
         </Card>
       ) : (
-        /* ================= TABLE VIEW ================= */
-        <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg border">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                <th
-                  className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                  onClick={() => handleSort("name")}
-                >
-                  <div className="flex items-center gap-2">
-                    Client
-                    <ArrowUpDown className="w-4 h-4" />
-                  </div>
-                </th>
-                <th
-                  className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                  onClick={() => handleSort("status")}
-                >
-                  <div className="flex items-center gap-2">
-                    Status
-                    <ArrowUpDown className="w-4 h-4" />
-                  </div>
-                </th>
-                <th
-                  className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                  onClick={() => handleSort("goal")}
-                >
-                  <div className="flex items-center gap-2">
-                    Goal
-                    <ArrowUpDown className="w-4 h-4" />
-                  </div>
-                </th>
-                <th
-                  className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                  onClick={() => handleSort("activityLevel")}
-                >
-                  <div className="flex items-center gap-2">
-                    Activity
-                    <ArrowUpDown className="w-4 h-4" />
-                  </div>
-                </th>
-                <th
-                  className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                  onClick={() => handleSort("gender")}
-                >
-                  <div className="flex items-center gap-2">
-                    Gender
-                    <ArrowUpDown className="w-4 h-4" />
-                  </div>
-                </th>
-                <th className="px-4 py-3 text-left font-medium"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedClients.map((client: Client) => (
-                <tr
-                  key={client.id}
-                  className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40"
-                >
-                  {/* CLIENT COLUMN */}
-                  <td className="px-4 py-3">
-                    <div className="flex flex-col min-w-0">
-                      <span className="font-medium truncate">
-                        {client.name}
-                      </span>
-                      <div className="flex items-center gap-2 text-xs text-gray-500 truncate">
-                        <Mail className="w-3 h-3" />
-                        {client.email}
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-500 truncate">
-                        <Phone className="w-3 h-3" />
-                        {client.phone}
-                      </div>
-                    </div>
-                  </td>
+        <div className="space-y-6">
+          {primaryClients.length > 0
+            ? renderClientsTable(primaryClients)
+            : null}
 
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex items-center justify-center w-20 h-7 px-3 rounded-md text-xs font-medium capitalize ${
-                        statusConfig[client.status || "active"]
-                      }`}
-                    >
-                      {client.status || "active"}
-                    </span>
-                  </td>
-
-                  <td className="px-4 py-3 capitalize">
-                    {client.goal?.replace("_", " ") || "-"}
-                  </td>
-                  <td className="px-4 py-3 capitalize">
-                    {client.activityLevel || "-"}
-                  </td>
-                  <td className="px-4 py-3 capitalize">
-                    {client.gender || "-"}
-                  </td>
-
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => handleEdit(client)}
-                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900 rounded-lg"
-                        title="Edit Client"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(client.id)}
-                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg"
-                        title="Delete Client"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {inactiveClients.length > 0 ? (
+            <div className="space-y-3">
+              <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                Inactive Clients
+              </div>
+              {renderClientsTable(inactiveClients)}
+            </div>
+          ) : null}
         </div>
       )}
 

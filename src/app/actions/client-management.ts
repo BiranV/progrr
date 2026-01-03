@@ -24,6 +24,16 @@ function normalizePhone(phone: unknown): string {
   return String(phone ?? "").trim();
 }
 
+function normalizeClientStatus(
+  status: unknown
+): "ACTIVE" | "PENDING" | "INACTIVE" | undefined {
+  const v = String(status ?? "")
+    .trim()
+    .toUpperCase();
+  if (v === "ACTIVE" || v === "PENDING" || v === "INACTIVE") return v;
+  return undefined;
+}
+
 export async function createClientAction(data: ClientFormData) {
   const adminUser = await requireAppUser();
   if (adminUser.role !== "admin") {
@@ -37,9 +47,11 @@ export async function createClientAction(data: ClientFormData) {
   const phone = normalizePhone(data.phone);
   const name = String(data.name ?? "").trim();
   const email = normalizeEmail(data.email);
+  const status = normalizeClientStatus(data.status);
 
   if (!name) throw new Error("Client name is required");
   if (!phone) throw new Error("Client phone is required");
+  if (!status) throw new Error("Client status is required");
 
   // Create or re-use the login record. Hard rule: phone is the login key.
   const existingAuthClient = await c.clients.findOne({ phone });
@@ -83,6 +95,7 @@ export async function createClientAction(data: ClientFormData) {
     email: email ?? "",
     phone,
     name,
+    status,
     userId: clientAuthIdStr,
     clientAuthId: clientAuthIdStr,
   };
@@ -153,6 +166,10 @@ export async function updateClientAction(id: string, data: ClientFormData) {
   if (!phone) throw new Error("Client phone is required");
 
   const oldData = (existing.data ?? {}) as any;
+  const normalizedStatus =
+    normalizeClientStatus(data.status) ??
+    normalizeClientStatus(oldData.status) ??
+    "ACTIVE";
   const authIdStr = String(oldData.clientAuthId ?? oldData.userId ?? "");
 
   let clientAuthId: ObjectId;
@@ -196,6 +213,7 @@ export async function updateClientAction(id: string, data: ClientFormData) {
     email: email ?? "",
     phone,
     name,
+    status: normalizedStatus,
     userId: clientAuthIdStr,
     clientAuthId: clientAuthIdStr,
   };
