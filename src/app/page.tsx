@@ -245,9 +245,9 @@ function LoginForm({
   const [clientInfo, setClientInfo] = useState<string | null>(null);
   const [clientLoading, setClientLoading] = useState(false);
 
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>(
-    {}
-  );
+  const [adminValidationError, setAdminValidationError] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     // Keep client step predictable when toggling roles.
@@ -255,6 +255,7 @@ function LoginForm({
     setClientInfo(null);
     setClientCode("");
     setClientStep("phone");
+    setAdminValidationError(null);
   }, [loginAs]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -278,9 +279,11 @@ function LoginForm({
 
     if (Object.keys(newErrors).length > 0) {
       e.preventDefault();
-      setErrors(newErrors);
+      // Show a top-level banner message for consistency with client OTP flow
+      const firstError = newErrors.email || newErrors.password;
+      setAdminValidationError(firstError || "Please check your details");
     } else {
-      setErrors({});
+      setAdminValidationError(null);
     }
   };
 
@@ -380,6 +383,12 @@ function LoginForm({
         </div>
       ) : null}
 
+      {adminValidationError ? (
+        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+          {adminValidationError}
+        </div>
+      ) : null}
+
       {clientError ? (
         <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
           {clientError}
@@ -399,16 +408,16 @@ function LoginForm({
           onValueChange={(v) => setLoginAs(v === "client" ? "client" : "admin")}
           className="w-full"
         >
-          <TabsList className="grid w-full grid-cols-2 bg-gray-100 dark:bg-gray-700 p-1 rounded-xl h-12">
+          <TabsList className="grid w-full grid-cols-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-0 rounded-lg h-10">
             <TabsTrigger
               value="admin"
-              className="rounded-lg h-10 cursor-pointer data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all dark:text-gray-300 dark:data-[state=active]:text-white"
+              className="rounded-lg h-10 text-sm cursor-pointer text-gray-600 dark:text-gray-300 data-[state=active]:bg-gray-200 data-[state=active]:text-gray-900 dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white transition-all"
             >
               Admin
             </TabsTrigger>
             <TabsTrigger
               value="client"
-              className="rounded-lg h-10 cursor-pointer data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all dark:text-gray-300 dark:data-[state=active]:text-white"
+              className="rounded-lg h-10 text-sm cursor-pointer text-gray-600 dark:text-gray-300 data-[state=active]:bg-gray-200 data-[state=active]:text-gray-900 dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white transition-all"
             >
               Client
             </TabsTrigger>
@@ -437,15 +446,7 @@ function LoginForm({
                 type="email"
                 placeholder="coach@example.com"
                 autoComplete="email"
-                className={
-                  errors.email
-                    ? "border-red-500 focus-visible:ring-red-500"
-                    : ""
-                }
               />
-              {errors.email && (
-                <p className="text-xs text-red-500 !mb-2">{errors.email}</p>
-              )}
             </div>
             <div className="space-y-2">
               <Label
@@ -460,15 +461,7 @@ function LoginForm({
                 type="password"
                 placeholder=""
                 autoComplete="current-password"
-                className={
-                  errors.password
-                    ? "border-red-500 focus-visible:ring-red-500"
-                    : ""
-                }
               />
-              {errors.password && (
-                <p className="text-xs text-red-500 !mb-2">{errors.password}</p>
-              )}
             </div>
           </div>
 
@@ -476,28 +469,6 @@ function LoginForm({
             pendingText="Signing in..."
             text="Login to your account"
           />
-
-          <div className="pt-2">
-            <div className="flex items-center gap-3">
-              <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                OR CONTINUE WITH
-              </div>
-              <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
-            </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full h-12 rounded-xl mt-4 dark:bg-transparent dark:text-white dark:border-gray-600 dark:hover:bg-gray-800"
-              disabled
-            >
-              <span className="flex items-center justify-center gap-2">
-                <GoogleBadge />
-                <span>Google</span>
-              </span>
-            </Button>
-          </div>
         </form>
       ) : clientStep === "phone" ? (
         <form
