@@ -54,6 +54,33 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
 }) {
+  const handleOpenAutoFocus = React.useCallback(
+    (event: Event) => {
+      props.onOpenAutoFocus?.(event);
+
+      // If consumer intentionally prevented auto focus, respect it.
+      if ((event as any).defaultPrevented) return;
+
+      // Radix will focus the first tabbable element. Some browsers end up selecting
+      // the full value of the first input; collapse selection to a caret instead.
+      requestAnimationFrame(() => {
+        const activeElement = document.activeElement;
+        if (
+          activeElement instanceof HTMLInputElement ||
+          activeElement instanceof HTMLTextAreaElement
+        ) {
+          const end = (activeElement.value ?? "").length;
+          try {
+            activeElement.setSelectionRange(end, end);
+          } catch {
+            // Some input types (e.g. number) don't support text selection APIs.
+          }
+        }
+      });
+    },
+    [props]
+  );
+
   return (
     <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
@@ -63,6 +90,7 @@ function DialogContent({
           "bg-background dark:bg-gray-800 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 outline-none sm:max-w-lg",
           className
         )}
+        onOpenAutoFocus={handleOpenAutoFocus}
         {...props}
       >
         {children}
