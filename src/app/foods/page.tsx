@@ -137,13 +137,13 @@ export default function FoodsPage() {
               className="h-[220px] cursor-pointer hover:shadow-lg transition-shadow dark:bg-gray-800 dark:border-gray-700"
             >
               <CardContent className="px-5 flex flex-col h-full">
-                <div className="flex items-start justify-between mb-3">
+                <div className="flex items-start justify-between mb-6">
                   <div className="min-w-0">
                     <h3 className="text-lg font-semibold truncate">
                       {String(f.name ?? "-")}
                     </h3>
                     <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      per 100g
+                      Values per 100g
                     </div>
                   </div>
 
@@ -202,8 +202,6 @@ export default function FoodsPage() {
                     </div>
                   </div>
                 </div>
-
-                <div className="flex-1" />
               </CardContent>
             </Card>
           ))}
