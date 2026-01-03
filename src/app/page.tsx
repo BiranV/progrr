@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -10,7 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Sun, Moon } from "lucide-react";
+import { Sun, Moon, XCircle, CheckCircle2 } from "lucide-react";
 import { signInWithPassword, signUpWithPassword } from "@/app/actions/auth";
 import { useFormStatus } from "react-dom";
 
@@ -205,11 +211,11 @@ export default function Home() {
                   </TabsList>
 
                   <TabsContent value="login" className="flex-1 flex flex-col">
-                    <LoginForm banner={banner} />
+                    <LoginForm key={`login-${tab}`} banner={banner} />
                   </TabsContent>
 
                   <TabsContent value="signup" className="flex-1 flex flex-col">
-                    <RegisterForm banner={banner} />
+                    <RegisterForm key={`signup-${tab}`} banner={banner} />
                   </TabsContent>
                 </Tabs>
               </CardContent>
@@ -238,6 +244,8 @@ function LoginForm({
 
   const nextPath = searchParams.get("next");
   const [loginAs, setLoginAs] = useState<"admin" | "client">("admin");
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
   const [clientStep, setClientStep] = useState<"phone" | "code">("phone");
   const [clientPhone, setClientPhone] = useState("");
   const [clientCode, setClientCode] = useState("");
@@ -250,11 +258,17 @@ function LoginForm({
   >(null);
 
   useEffect(() => {
-    // Keep client step predictable when toggling roles.
+    // Clear the form completely when switching roles.
+    setAdminEmail("");
+    setAdminPassword("");
+
     setClientError(null);
     setClientInfo(null);
+    setClientPhone("");
     setClientCode("");
     setClientStep("phone");
+    setClientLoading(false);
+
     setAdminValidationError(null);
   }, [loginAs]);
 
@@ -372,32 +386,67 @@ function LoginForm({
   return (
     <div className="space-y-5 flex-1 flex flex-col">
       {banner ? (
-        <div
-          className={
-            banner.type === "error"
-              ? "text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3"
-              : "text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-3"
-          }
-        >
-          {banner.text}
-        </div>
+        banner.type === "error" ? (
+          <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-4 h-14">
+            <div className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
+              <XCircle className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
+                {banner.text}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-50 dark:bg-slate-900/60 px-4 h-14">
+            <div className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+              <CheckCircle2 className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
+                {banner.text}
+              </div>
+            </div>
+          </div>
+        )
       ) : null}
 
       {adminValidationError ? (
-        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
-          {adminValidationError}
+        <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-4 h-14">
+          <div className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
+            <XCircle className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
+              {adminValidationError}
+            </div>
+          </div>
         </div>
       ) : null}
 
       {clientError ? (
-        <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
-          {clientError}
+        <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-4 h-14">
+          <div className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
+            <XCircle className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
+              {clientError}
+            </div>
+          </div>
         </div>
       ) : null}
 
       {clientInfo ? (
-        <div className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-3">
-          {clientInfo}
+        <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-50 dark:bg-slate-900/60 px-4 h-14">
+          <div className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+            <CheckCircle2 className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
+              {clientInfo}
+            </div>
+          </div>
         </div>
       ) : null}
 
@@ -446,6 +495,8 @@ function LoginForm({
                 type="email"
                 placeholder="coach@example.com"
                 autoComplete="email"
+                value={adminEmail}
+                onChange={(e) => setAdminEmail(e.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -461,6 +512,8 @@ function LoginForm({
                 type="password"
                 placeholder=""
                 autoComplete="current-password"
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
               />
             </div>
           </div>
@@ -529,13 +582,13 @@ function LoginForm({
             >
               Verification Code
             </Label>
-            <Input
+            <OtpInput
               id="client_code"
               name="code"
-              inputMode="numeric"
-              placeholder="123456"
               value={clientCode}
-              onChange={(e) => setClientCode(e.target.value)}
+              onChange={setClientCode}
+              length={6}
+              disabled={clientLoading}
             />
           </div>
 
@@ -594,6 +647,117 @@ function SubmitButton({
   );
 }
 
+function OtpInput({
+  id,
+  name,
+  value,
+  onChange,
+  length,
+  disabled,
+}: {
+  id: string;
+  name: string;
+  value: string;
+  onChange: (nextValue: string) => void;
+  length: number;
+  disabled?: boolean;
+}) {
+  const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
+
+  const digits = useMemo(() => {
+    const sanitized = (value || "").replace(/\D/g, "").slice(0, length);
+    return Array.from({ length }, (_, i) => sanitized[i] ?? "");
+  }, [value, length]);
+
+  const setAtIndex = useCallback(
+    (index: number, digit: string) => {
+      const sanitized = (value || "").replace(/\D/g, "").slice(0, length);
+      const next = sanitized.padEnd(length, " ").split("");
+      next[index] = digit;
+      const joined = next.join("").replace(/\s/g, "").slice(0, length);
+      onChange(joined);
+    },
+    [length, onChange, value]
+  );
+
+  return (
+    <div className="flex gap-2">
+      {/* Hidden input so FormData('code') works normally */}
+      <input type="hidden" id={id} name={name} value={digits.join("")} />
+
+      {digits.map((digit, index) => (
+        <Input
+          key={index}
+          aria-label={`Digit ${index + 1}`}
+          inputMode="numeric"
+          autoComplete={index === 0 ? "one-time-code" : "off"}
+          disabled={disabled}
+          value={digit}
+          onChange={(e) => {
+            const nextDigit = (e.target.value || "").replace(/\D/g, "");
+            if (!nextDigit) {
+              setAtIndex(index, "");
+              return;
+            }
+            const single = nextDigit.slice(-1);
+            setAtIndex(index, single);
+            const nextEl = inputsRef.current[index + 1];
+            if (nextEl) nextEl.focus();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Backspace") {
+              if (digit) {
+                setAtIndex(index, "");
+                return;
+              }
+              const prevEl = inputsRef.current[index - 1];
+              if (prevEl) {
+                prevEl.focus();
+                // Clear previous digit too
+                setAtIndex(index - 1, "");
+              }
+            }
+
+            if (e.key === "ArrowLeft") {
+              const prevEl = inputsRef.current[index - 1];
+              if (prevEl) prevEl.focus();
+            }
+
+            if (e.key === "ArrowRight") {
+              const nextEl = inputsRef.current[index + 1];
+              if (nextEl) nextEl.focus();
+            }
+          }}
+          onPaste={(e) => {
+            const text = e.clipboardData.getData("text");
+            const pasted = (text || "").replace(/\D/g, "");
+            if (!pasted) return;
+
+            e.preventDefault();
+            const chars = pasted.slice(0, length - index).split("");
+
+            const sanitized = (value || "").replace(/\D/g, "").slice(0, length);
+            const next = sanitized.padEnd(length, " ").split("");
+            chars.forEach((ch, i) => {
+              next[index + i] = ch;
+            });
+            const joined = next.join("").replace(/\s/g, "").slice(0, length);
+            onChange(joined);
+
+            const focusIndex = Math.min(index + chars.length, length - 1);
+            const focusEl = inputsRef.current[focusIndex];
+            if (focusEl) focusEl.focus();
+          }}
+          ref={(el) => {
+            inputsRef.current[index] = el;
+          }}
+          className="h-12 w-12 p-0 text-center text-base font-medium"
+        />
+      ))}
+    </div>
+  );
+}
+
 function RegisterForm({
   banner,
 }: {
@@ -602,17 +766,17 @@ function RegisterForm({
     | { type: "message"; text: string }
     | null;
 }) {
-  const [errors, setErrors] = useState<{
-    full_name?: string;
-    email?: string;
-    password?: string;
-  }>({});
+  const [registerFullName, setRegisterFullName] = useState("");
+  const [registerEmail, setRegisterEmail] = useState("");
+  const [registerPassword, setRegisterPassword] = useState("");
+  const [registerValidationError, setRegisterValidationError] = useState<
+    string | null
+  >(null);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    const formData = new FormData(e.currentTarget);
-    const fullName = formData.get("full_name") as string;
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
+    const fullName = registerFullName;
+    const email = registerEmail;
+    const password = registerPassword;
     const newErrors: {
       full_name?: string;
       email?: string;
@@ -643,23 +807,52 @@ function RegisterForm({
 
     if (Object.keys(newErrors).length > 0) {
       e.preventDefault();
-      setErrors(newErrors);
+      const firstError =
+        newErrors.full_name || newErrors.email || newErrors.password;
+      setRegisterValidationError(firstError || "Please check your details");
     } else {
-      setErrors({});
+      setRegisterValidationError(null);
     }
   };
 
   return (
     <div className="space-y-5 flex-1 flex flex-col">
       {banner ? (
-        <div
-          className={
-            banner.type === "error"
-              ? "text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3"
-              : "text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-3"
-          }
-        >
-          {banner.text}
+        banner.type === "error" ? (
+          <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-4 h-14">
+            <div className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
+              <XCircle className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
+                {banner.text}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-50 dark:bg-slate-900/60 px-4 h-14">
+            <div className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+              <CheckCircle2 className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
+                {banner.text}
+              </div>
+            </div>
+          </div>
+        )
+      ) : null}
+
+      {registerValidationError ? (
+        <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-4 h-14">
+          <div className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
+            <XCircle className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
+              {registerValidationError}
+            </div>
+          </div>
         </div>
       ) : null}
 
@@ -683,15 +876,12 @@ function RegisterForm({
               type="text"
               placeholder="John Doe"
               autoComplete="name"
-              className={
-                errors.full_name
-                  ? "border-red-500 focus-visible:ring-red-500"
-                  : ""
-              }
+              value={registerFullName}
+              onChange={(e) => {
+                setRegisterFullName(e.target.value);
+                if (registerValidationError) setRegisterValidationError(null);
+              }}
             />
-            {errors.full_name && (
-              <p className="text-xs text-red-500 !mb-2">{errors.full_name}</p>
-            )}
           </div>
           <div className="space-y-2">
             <Label
@@ -706,13 +896,12 @@ function RegisterForm({
               type="email"
               placeholder="coach@example.com"
               autoComplete="email"
-              className={
-                errors.email ? "border-red-500 focus-visible:ring-red-500" : ""
-              }
+              value={registerEmail}
+              onChange={(e) => {
+                setRegisterEmail(e.target.value);
+                if (registerValidationError) setRegisterValidationError(null);
+              }}
             />
-            {errors.email && (
-              <p className="text-xs text-red-500 !mb-2">{errors.email}</p>
-            )}
           </div>
           <div className="space-y-2">
             <Label
@@ -727,15 +916,12 @@ function RegisterForm({
               type="password"
               placeholder=""
               autoComplete="new-password"
-              className={
-                errors.password
-                  ? "border-red-500 focus-visible:ring-red-500"
-                  : ""
-              }
+              value={registerPassword}
+              onChange={(e) => {
+                setRegisterPassword(e.target.value);
+                if (registerValidationError) setRegisterValidationError(null);
+              }}
             />
-            {errors.password && (
-              <p className="text-xs text-red-500 !mb-2">{errors.password}</p>
-            )}
           </div>
         </div>
 
@@ -745,13 +931,4 @@ function RegisterForm({
   );
 }
 
-function GoogleBadge() {
-  return (
-    <span
-      aria-hidden="true"
-      className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-200 bg-white text-[11px] font-semibold text-gray-600"
-    >
-      G
-    </span>
-  );
-}
+// Google login removed
