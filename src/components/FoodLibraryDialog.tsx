@@ -85,43 +85,47 @@ export default function FoodLibraryDialog({
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </div>
 
+          <div className="text-xs text-gray-600 dark:text-gray-400">
+            All values below are per 100g.
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Calories
+                Calories (per 100g)
               </label>
               <Input
-                placeholder="e.g., 200"
+                placeholder="e.g., 200 (kcal)"
                 value={calories}
                 onChange={(e) => setCalories(e.target.value)}
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Protein
+                Protein (per 100g)
               </label>
               <Input
-                placeholder="e.g., 20"
+                placeholder="e.g., 20 (g)"
                 value={protein}
                 onChange={(e) => setProtein(e.target.value)}
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Carbs
+                Carbs (per 100g)
               </label>
               <Input
-                placeholder="e.g., 30"
+                placeholder="e.g., 30 (g)"
                 value={carbs}
                 onChange={(e) => setCarbs(e.target.value)}
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Fat
+                Fat (per 100g)
               </label>
               <Input
-                placeholder="e.g., 10"
+                placeholder="e.g., 10 (g)"
                 value={fat}
                 onChange={(e) => setFat(e.target.value)}
               />

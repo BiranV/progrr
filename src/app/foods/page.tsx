@@ -6,9 +6,27 @@ import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Search, Edit, Trash2, Apple } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Apple,
+  Flame,
+  Dumbbell,
+  Wheat,
+  Droplet,
+  FileDown,
+  FileText,
+  Copy,
+} from "lucide-react";
 import FoodLibraryDialog from "@/components/FoodLibraryDialog";
 import { toast } from "sonner";
+import {
+  copyTextToClipboard,
+  downloadPdfFile,
+  downloadTextFile,
+} from "@/lib/plan-export";
 
 export default function FoodsPage() {
   const queryClient = useQueryClient();
@@ -52,6 +70,38 @@ export default function FoodsPage() {
   const handleDelete = (id: string) => {
     if (confirm("Delete this food from the library?")) {
       deleteMutation.mutate(id);
+    }
+  };
+
+  const exportFood = async (food: any, kind: "pdf" | "txt" | "copy") => {
+    const name = String(food?.name ?? "").trim() || "Food";
+    const calories = String(food?.calories ?? "").trim();
+    const protein = String(food?.protein ?? "").trim();
+    const carbs = String(food?.carbs ?? "").trim();
+    const fat = String(food?.fat ?? "").trim();
+
+    const lines: string[] = [];
+    lines.push(`Food: ${name}`);
+    lines.push("Values per 100g:");
+    lines.push(`- Calories: ${calories || "-"} kcal`);
+    lines.push(`- Protein: ${protein || "-"} g`);
+    lines.push(`- Carbs: ${carbs || "-"} g`);
+    lines.push(`- Fat: ${fat || "-"} g`);
+    const text = lines.join("\n");
+
+    const filenameBase = `Food - ${name}`;
+
+    try {
+      if (kind === "pdf") {
+        downloadPdfFile(filenameBase, `Food: ${name}`, text);
+      } else if (kind === "txt") {
+        downloadTextFile(filenameBase, text);
+      } else {
+        await copyTextToClipboard(text);
+        toast.success("Copied to clipboard");
+      }
+    } catch (err: any) {
+      toast.error(String(err?.message ?? "Failed to export"));
     }
   };
 
@@ -115,21 +165,8 @@ export default function FoodsPage() {
                     <h3 className="text-lg font-semibold truncate">
                       {String(f.name ?? "-")}
                     </h3>
-                    <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      {String(f.calories ?? "").trim() ? (
-                        <div className="flex items-center gap-2 truncate">
-                          <span className="truncate">
-                            {String(f.calories).trim()} kcal
-                          </span>
-                        </div>
-                      ) : null}
-                      {String(f.protein ?? "").trim() ? (
-                        <div className="flex items-center gap-2 truncate">
-                          <span className="truncate">
-                            {String(f.protein).trim()}g Protein
-                          </span>
-                        </div>
-                      ) : null}
+                    <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      per 100g
                     </div>
                   </div>
 
@@ -156,16 +193,72 @@ export default function FoodsPage() {
                   </div>
                 </div>
 
+                <div className="space-y-3 text-sm text-gray-600 dark:text-gray-300">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex items-center gap-2">
+                      <Flame className="w-4 h-4 text-orange-500" />
+                      <span>{String(f.calories ?? "").trim() || "-"} kcal</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Dumbbell className="w-4 h-4 text-blue-500" />
+                      <span>{String(f.protein ?? "").trim() || "-"} g</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Wheat className="w-4 h-4 text-yellow-500" />
+                      <span>{String(f.carbs ?? "").trim() || "-"} g</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Droplet className="w-4 h-4 text-purple-500" />
+                      <span>{String(f.fat ?? "").trim() || "-"} g</span>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="flex-1" />
 
-                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end">
-                  <Button
-                    size="sm"
-                    className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-200 dark:hover:bg-indigo-900/45"
-                    onClick={() => handleEdit(f)}
-                  >
-                    Details
-                  </Button>
+                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
+                      title="Download PDF"
+                      aria-label="Download PDF"
+                      onClick={() => exportFood(f, "pdf")}
+                    >
+                      <FileDown className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
+                      title="Download Text"
+                      aria-label="Download Text"
+                      onClick={() => exportFood(f, "txt")}
+                    >
+                      <FileText className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-300 dark:hover:text-emerald-200"
+                      title="Copy to clipboard"
+                      aria-label="Copy to clipboard"
+                      onClick={() => exportFood(f, "copy")}
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-200 dark:hover:bg-indigo-900/45"
+                      onClick={() => handleEdit(f)}
+                    >
+                      Details
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

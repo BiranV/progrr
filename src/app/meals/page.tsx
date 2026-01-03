@@ -52,7 +52,9 @@ export default function MealsPage() {
     mutationFn: async (id: string) => {
       const meals = await db.entities.Meal.filter({ mealPlanId: id });
       for (const meal of meals) {
-        const planFoods = await db.entities.PlanFood.filter({ mealId: meal.id });
+        const planFoods = await db.entities.PlanFood.filter({
+          mealId: meal.id,
+        });
         await Promise.all(
           planFoods.map((pf: PlanFood) => db.entities.PlanFood.delete(pf.id))
         );
