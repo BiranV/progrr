@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import ClientAvatar from "@/components/ClientAvatar";
+import { Mars, Venus, VenusAndMars } from "lucide-react";
 import { Client } from "@/types";
 
 interface ClientDetailsDialogProps {
@@ -50,6 +51,9 @@ export default function ClientDetailsDialog({
   workoutPlanNameById,
   mealPlanNameById,
 }: ClientDetailsDialogProps) {
+  const gender = String((client as any)?.gender ?? "")
+    .trim()
+    .toLowerCase();
   const workoutIds = normalizeIdList(
     (client as any)?.assignedPlanIds,
     (client as any)?.assignedPlanId
@@ -65,8 +69,6 @@ export default function ClientDetailsDialog({
   const mealNames = mealIds.map((id) =>
     mealPlanNameById?.get(id) ? String(mealPlanNameById.get(id)) : id
   );
-
-  const gender = toTitleCase((client as any)?.gender);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -89,8 +91,15 @@ export default function ClientDetailsDialog({
                   size={44}
                 />
                 <div className="min-w-0">
-                  <div className="text-xl font-semibold text-gray-900 dark:text-white truncate">
-                    {client.name || "-"}
+                  <div className="flex items-center gap-2 text-xl font-semibold text-gray-900 dark:text-white min-w-0">
+                    {gender === "female" ? (
+                      <Venus className="w-5 h-5 text-pink-500 shrink-0" />
+                    ) : gender === "male" ? (
+                      <Mars className="w-5 h-5 text-blue-500 shrink-0" />
+                    ) : gender === "other" ? (
+                      <VenusAndMars className="w-5 h-5 text-purple-500 shrink-0" />
+                    ) : null}
+                    <span className="truncate">{client.name || "-"}</span>
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-300 truncate">
                     {client.email ? (
@@ -112,14 +121,6 @@ export default function ClientDetailsDialog({
                 </div>
               </div>
               <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-                <div className="text-gray-500 dark:text-gray-400">
-                  Subscription
-                </div>
-                <div className="font-medium text-gray-900 dark:text-white">
-                  {String((client as any)?.subscription ?? "").trim() || "-"}
-                </div>
-              </div>
-              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
                 <div className="text-gray-500 dark:text-gray-400">Goal</div>
                 <div className="font-medium text-gray-900 dark:text-white">
                   {toTitleCase((client as any)?.goal) || "-"}
@@ -133,9 +134,6 @@ export default function ClientDetailsDialog({
                   {toTitleCase((client as any)?.activityLevel) || "-"}
                 </div>
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
                 <div className="text-gray-500 dark:text-gray-400">
                   Birth Date
@@ -144,12 +142,9 @@ export default function ClientDetailsDialog({
                   {String((client as any)?.birthDate ?? "").trim() || "-"}
                 </div>
               </div>
-              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-                <div className="text-gray-500 dark:text-gray-400">Gender</div>
-                <div className="font-medium text-gray-900 dark:text-white">
-                  {gender || "-"}
-                </div>
-              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
                 <div className="text-gray-500 dark:text-gray-400">Height</div>
                 <div className="font-medium text-gray-900 dark:text-white">
