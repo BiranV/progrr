@@ -539,14 +539,6 @@ export default function ClientDialog({
               </Select>
             </div>
 
-            {/* NOTES (NOT REQUIRED) */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Notes
-              </label>
-              <Textarea {...getInputProps("notes")} rows={3} />
-            </div>
-
             {/* ASSIGNED WORKOUT PLAN */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -595,6 +587,14 @@ export default function ClientDialog({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* NOTES (NOT REQUIRED) */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Notes
+              </label>
+              <Textarea {...getInputProps("notes")} rows={3} />
             </div>
           </div>
 
