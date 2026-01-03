@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently -n admin,client -c blue,green \"npm:dev:admin\" \"npm:dev:client\"",
+    "dev:admin": "cross-env AUTH_COOKIE_NAME=progrr_admin_token NEXT_DIST_DIR=.next-admin next dev -p 3000",
+    "dev:client": "cross-env AUTH_COOKIE_NAME=progrr_client_token NEXT_DIST_DIR=.next-client next dev -p 3001",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -48,6 +50,8 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^9.2.1",
+    "cross-env": "^7.0.3",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "tailwindcss": "^4",

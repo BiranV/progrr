@@ -34,6 +34,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import ClientAvatar from "@/components/ClientAvatar";
 
 export default function DashboardPage() {
   const { user, isLoadingAuth } = useAuth();
@@ -363,6 +364,8 @@ function ClientDashboard({ user }: { user: any }) {
   const queryClient = useQueryClient();
   const [messagesOpen, setMessagesOpen] = React.useState(false);
   const [newMessage, setNewMessage] = React.useState("");
+  const avatarInputRef = React.useRef<HTMLInputElement | null>(null);
+  const [avatarError, setAvatarError] = React.useState<string | null>(null);
 
   const toTitleCase = (value: any) => {
     const raw = String(value ?? "").trim();
@@ -414,6 +417,91 @@ function ClientDashboard({ user }: { user: any }) {
   });
 
   const myClient = clients[0];
+
+  const uploadAvatarMutation = useMutation({
+    mutationFn: async (dataUrl: string | null) => {
+      const res = await fetch("/api/me/avatar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ dataUrl }),
+      });
+
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg =
+          typeof payload?.error === "string" && payload.error
+            ? payload.error
+            : "Failed to update avatar";
+        throw new Error(msg);
+      }
+
+      return payload;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["myClient"] });
+      setAvatarError(null);
+    },
+  });
+
+  const fileToSquareDataUrl = async (file: File, size = 256) => {
+    if (!file.type.startsWith("image/")) {
+      throw new Error("Please select an image file");
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      throw new Error("Image is too large (max 5MB)");
+    }
+
+    const dataUrl: string = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(new Error("Failed to read image"));
+      reader.readAsDataURL(file);
+    });
+
+    const img: HTMLImageElement = await new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error("Failed to load image"));
+      image.src = dataUrl;
+    });
+
+    const width = img.naturalWidth || img.width;
+    const height = img.naturalHeight || img.height;
+    if (!width || !height) {
+      throw new Error("Invalid image");
+    }
+
+    const cropSize = Math.min(width, height);
+    const sx = Math.floor((width - cropSize) / 2);
+    const sy = Math.floor((height - cropSize) / 2);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas is not supported");
+
+    ctx.drawImage(img, sx, sy, cropSize, cropSize, 0, 0, size, size);
+
+    // Prefer webp when available; fallback to jpeg
+    const webp = canvas.toDataURL("image/webp", 0.9);
+    if (webp.startsWith("data:image/webp")) return webp;
+    return canvas.toDataURL("image/jpeg", 0.9);
+  };
+
+  const handleAvatarFile = async (file: File | null | undefined) => {
+    if (!file) return;
+    try {
+      setAvatarError(null);
+      const square = await fileToSquareDataUrl(file, 256);
+      await uploadAvatarMutation.mutateAsync(square);
+    } catch (err: any) {
+      setAvatarError(String(err?.message ?? "Failed to update avatar"));
+    } finally {
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  };
 
   const firstAssignedPlanId = React.useMemo(() => {
     const ids = Array.isArray((myClient as any)?.assignedPlanIds)
@@ -875,6 +963,70 @@ function ClientDashboard({ user }: { user: any }) {
               </div>
             ) : (
               <div className="space-y-3">
+                {avatarError ? (
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-200">
+                    {avatarError}
+                  </div>
+                ) : null}
+
+                <div className="flex items-center justify-start gap-3">
+                  <ClientAvatar
+                    name={String(myClient.name || user.full_name || "").trim()}
+                    src={(myClient as any).avatarDataUrl}
+                    size={56}
+                  />
+                  <div className="flex flex-col gap-2">
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) =>
+                        handleAvatarFile(e.target.files?.[0] ?? null)
+                      }
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-9"
+                      disabled={uploadAvatarMutation.isPending}
+                      onClick={() => avatarInputRef.current?.click()}
+                    >
+                      {uploadAvatarMutation.isPending
+                        ? "Uploading..."
+                        : "Upload photo"}
+                    </Button>
+
+                    {(myClient as any).avatarDataUrl ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-9"
+                        disabled={uploadAvatarMutation.isPending}
+                        onClick={async () => {
+                          if (confirm("Remove your photo?")) {
+                            try {
+                              setAvatarError(null);
+                              await uploadAvatarMutation.mutateAsync(null);
+                            } catch (err: any) {
+                              setAvatarError(
+                                String(
+                                  err?.message ?? "Failed to remove avatar"
+                                )
+                              );
+                            }
+                          }
+                        }}
+                      >
+                        Remove photo
+                      </Button>
+                    ) : null}
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Auto-cropped to a square avatar
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                     <div className="text-xs text-gray-500 dark:text-gray-400">

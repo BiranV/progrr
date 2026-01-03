@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import ClientDialog from "@/components/ClientDialog";
 import ClientDetailsDialog from "@/components/ClientDetailsDialog";
+import ClientAvatar from "@/components/ClientAvatar";
 import { Client } from "@/types";
 
 export default function ClientsPage() {
@@ -279,26 +280,35 @@ export default function ClientsPage() {
               >
                 {/* CLIENT COLUMN */}
                 <td className="px-4 py-3">
-                  <div className="flex flex-col min-w-0">
-                    <div className="flex items-center gap-2 min-w-0">
-                      {gender === "female" ? (
-                        <Venus className="w-4 h-4 text-pink-500 shrink-0" />
-                      ) : gender === "male" ? (
-                        <Mars className="w-4 h-4 text-blue-500 shrink-0" />
-                      ) : gender === "other" ? (
-                        <VenusAndMars className="w-4 h-4 text-purple-500 shrink-0" />
-                      ) : null}
-                      <span className="font-medium truncate">
-                        {client.name}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-500 truncate">
-                      <Mail className="w-3 h-3" />
-                      {client.email}
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-500 truncate">
-                      <Phone className="w-3 h-3" />
-                      {client.phone}
+                  <div className="flex items-start justify-start gap-3 min-w-0">
+                    <ClientAvatar
+                      name={client.name}
+                      src={(client as any).avatarDataUrl}
+                      size={36}
+                      className="mt-0.5"
+                    />
+
+                    <div className="flex flex-col min-w-0">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {gender === "female" ? (
+                          <Venus className="w-4 h-4 text-pink-500 shrink-0" />
+                        ) : gender === "male" ? (
+                          <Mars className="w-4 h-4 text-blue-500 shrink-0" />
+                        ) : gender === "other" ? (
+                          <VenusAndMars className="w-4 h-4 text-purple-500 shrink-0" />
+                        ) : null}
+                        <span className="font-medium truncate">
+                          {client.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-500 truncate">
+                        <Mail className="w-3 h-3" />
+                        {client.email}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-500 truncate">
+                        <Phone className="w-3 h-3" />
+                        {client.phone}
+                      </div>
                     </div>
                   </div>
                 </td>

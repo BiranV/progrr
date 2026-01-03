@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import ClientAvatar from "@/components/ClientAvatar";
 import { Client } from "@/types";
 
 interface ClientDetailsDialogProps {
@@ -81,12 +82,25 @@ export default function ClientDetailsDialog({
         ) : (
           <div className="space-y-6">
             <div className="space-y-1">
-              <div className="text-xl font-semibold text-gray-900 dark:text-white">
-                {client.name || "-"}
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-300">
-                {client.email ? <span>{client.email}</span> : <span>-</span>}
-                {client.phone ? <span> · {client.phone}</span> : null}
+              <div className="flex items-center gap-3">
+                <ClientAvatar
+                  name={client.name || ""}
+                  src={(client as any).avatarDataUrl}
+                  size={44}
+                />
+                <div className="min-w-0">
+                  <div className="text-xl font-semibold text-gray-900 dark:text-white truncate">
+                    {client.name || "-"}
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-300 truncate">
+                    {client.email ? (
+                      <span>{client.email}</span>
+                    ) : (
+                      <span>-</span>
+                    )}
+                    {client.phone ? <span> · {client.phone}</span> : null}
+                  </div>
+                </div>
               </div>
             </div>
 

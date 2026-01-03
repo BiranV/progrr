@@ -32,6 +32,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Client } from "@/types";
+import ClientAvatar from "@/components/ClientAvatar";
 import {
   Popover,
   PopoverContent,
@@ -199,6 +200,10 @@ interface ClientDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+type ClientFormState = Partial<Client> & {
+  avatarDataUrl?: string | null;
+};
+
 export default function ClientDialog({
   client,
   open,
@@ -234,10 +239,11 @@ export default function ClientDialog({
     return `${yyyy}-${mm}-${dd}`;
   }, []);
 
-  const [formData, setFormData] = React.useState<Partial<Client>>({
+  const [formData, setFormData] = React.useState<ClientFormState>({
     name: "",
     email: "",
     phone: "",
+    avatarDataUrl: null,
     birthDate: "",
     gender: "",
     height: "",
@@ -291,6 +297,7 @@ export default function ClientDialog({
         name: client.name || "",
         email: client.email || "",
         phone: buildPhoneValue(split.country, split.national) || "",
+        avatarDataUrl: (client as any).avatarDataUrl ?? null,
         birthDate: client.birthDate || "",
         gender: client.gender || "",
         height: client.height || "",
@@ -329,6 +336,7 @@ export default function ClientDialog({
         name: "",
         email: "",
         phone: "",
+        avatarDataUrl: null,
         birthDate: "",
         gender: "",
         height: "",
@@ -391,6 +399,23 @@ export default function ClientDialog({
     },
     onError: (error) => {
       setValidationError(error?.message || "Failed to save client");
+    },
+  });
+
+  const removeAvatarMutation = useMutation({
+    mutationFn: async () => {
+      if (!client) return;
+      await db.entities.Client.update(client.id, {
+        avatarDataUrl: null,
+      } as any);
+    },
+    onSuccess: () => {
+      setFormData((prev) => ({ ...prev, avatarDataUrl: null }));
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+      toast.success("Client image removed");
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to remove image");
     },
   });
 
@@ -505,7 +530,47 @@ export default function ClientDialog({
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Full Name {isRequired("name") && "*"}
               </label>
-              <Input {...getInputProps("name")} />
+
+              <div className="flex items-center justify-start gap-3">
+                <ClientAvatar
+                  name={String(formData.name ?? client?.name ?? "").trim()}
+                  src={
+                    (formData as any).avatarDataUrl ??
+                    (client as any)?.avatarDataUrl
+                  }
+                  size={44}
+                />
+
+                <div className="flex-1 min-w-0">
+                  <Input {...getInputProps("name")} />
+
+                  {client &&
+                  ((formData as any).avatarDataUrl ||
+                    (client as any)?.avatarDataUrl) ? (
+                    <div className="mt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-8"
+                        disabled={removeAvatarMutation.isPending}
+                        onClick={() => {
+                          if (
+                            confirm(
+                              "Remove this client's image? This cannot be undone."
+                            )
+                          ) {
+                            removeAvatarMutation.mutate();
+                          }
+                        }}
+                      >
+                        {removeAvatarMutation.isPending
+                          ? "Removing..."
+                          : "Remove image"}
+                      </Button>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
             </div>
 
             {/* PHONE */}
