@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 type VideoKind = "upload" | "youtube" | null;
@@ -33,6 +34,7 @@ export default function ExerciseLibraryDialog({
   const [guidelines, setGuidelines] = React.useState("");
   const [youtubeUrl, setYoutubeUrl] = React.useState("");
   const [uploadFile, setUploadFile] = React.useState<File | null>(null);
+  const [isRemovingVideo, setIsRemovingVideo] = React.useState(false);
 
   React.useEffect(() => {
     if (!open) return;
@@ -148,6 +150,7 @@ export default function ExerciseLibraryDialog({
       return;
     }
 
+    setIsRemovingVideo(true);
     try {
       await removeVideo(exercise.id);
       await db.entities.ExerciseLibrary.update(exercise.id, {
@@ -160,6 +163,8 @@ export default function ExerciseLibraryDialog({
       toast.success("Video removed");
     } catch (err: any) {
       toast.error(String(err?.message ?? "Failed to remove video"));
+    } finally {
+      setIsRemovingVideo(false);
     }
   };
 
@@ -234,8 +239,16 @@ export default function ExerciseLibraryDialog({
                   type="button"
                   variant="outline"
                   onClick={handleRemoveVideo}
+                  disabled={isRemovingVideo}
                 >
-                  Remove Video
+                  {isRemovingVideo ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Removing...
+                    </>
+                  ) : (
+                    "Remove Video"
+                  )}
                 </Button>
               </div>
             ) : null}

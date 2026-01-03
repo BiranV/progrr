@@ -43,6 +43,18 @@ export default function WorkoutPlanDetailsDialog({
     return raw;
   };
 
+  const formatRest = (restSeconds: any) => {
+    const raw = Number(restSeconds);
+    if (!Number.isFinite(raw)) return "";
+    const seconds = Math.max(0, Math.floor(raw));
+    if (!seconds) return "";
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    if (m && s) return `${m}m ${s}s`;
+    if (m) return `${m}m`;
+    return `${s}s`;
+  };
+
   const { data: exercises = [] } = useQuery({
     queryKey: ["workoutPlanExercises", plan?.id, "details"],
     queryFn: async () => {
@@ -243,95 +255,93 @@ export default function WorkoutPlanDetailsDialog({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {exercises.map((e: any, idx: number) => (
-                    <div
-                      key={e.id || idx}
-                      className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="font-medium text-gray-900 dark:text-white truncate">
-                            {e.name || "-"}
+                  {exercises.map((e: any, idx: number) => {
+                    const restText = formatRest(e.restSeconds);
+                    return (
+                      <div
+                        key={e.id || idx}
+                        className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="font-medium text-gray-900 dark:text-white truncate">
+                              {e.name || "-"}
+                            </div>
+
+                            {String(e.guidelines ?? "").trim() ? (
+                              <div className="mt-1 text-xs text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
+                                {String(e.guidelines)}
+                              </div>
+                            ) : null}
+
+                            {String(e.videoKind ?? "") === "youtube" &&
+                            String(e.videoUrl ?? "").trim() ? (
+                              (() => {
+                                const embed = toYouTubeEmbedUrl(
+                                  String(e.videoUrl ?? "")
+                                );
+                                if (!embed) return null;
+
+                                const id = extractYouTubeVideoId(
+                                  String(e.videoUrl ?? "")
+                                );
+                                const watchUrl = id
+                                  ? `https://www.youtube.com/watch?v=${id}`
+                                  : null;
+
+                                return (
+                                  <div className="mt-2">
+                                    <div
+                                      className="relative w-full overflow-hidden rounded-lg bg-black"
+                                      style={{ paddingTop: "56.25%" }}
+                                    >
+                                      {watchUrl ? (
+                                        <a
+                                          href={watchUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="absolute inset-0 z-10 cursor-pointer"
+                                          title="Open video"
+                                          aria-label="Open video"
+                                        />
+                                      ) : null}
+                                      <iframe
+                                        src={embed}
+                                        title="Exercise video"
+                                        className="absolute inset-0 h-full w-full"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        allowFullScreen
+                                      />
+                                    </div>
+                                  </div>
+                                );
+                              })()
+                            ) : String(e.videoKind ?? "") === "upload" &&
+                              String(e.videoUrl ?? "").trim() ? (
+                              <div className="mt-2">
+                                <video
+                                  className="w-full rounded-lg"
+                                  controls
+                                  preload="metadata"
+                                  src={String(e.videoUrl ?? "").trim()}
+                                />
+                              </div>
+                            ) : null}
                           </div>
 
-                          {String(e.guidelines ?? "").trim() ? (
-                            <div className="mt-1 text-xs text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
-                              {String(e.guidelines)}
-                            </div>
-                          ) : null}
-
-                          {String(e.videoKind ?? "") === "youtube" &&
-                          String(e.videoUrl ?? "").trim() ? (
-                            (() => {
-                              const embed = toYouTubeEmbedUrl(
-                                String(e.videoUrl ?? "")
-                              );
-                              if (!embed) return null;
-
-                              const id = extractYouTubeVideoId(
-                                String(e.videoUrl ?? "")
-                              );
-                              const watchUrl = id
-                                ? `https://www.youtube.com/watch?v=${id}`
-                                : null;
-
-                              return (
-                                <div className="mt-2">
-                                  <div
-                                    className="relative w-full overflow-hidden rounded-lg bg-black"
-                                    style={{ paddingTop: "56.25%" }}
-                                  >
-                                    {watchUrl ? (
-                                      <a
-                                        href={watchUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="absolute inset-0 z-10 cursor-pointer"
-                                        title="Open video"
-                                        aria-label="Open video"
-                                      />
-                                    ) : null}
-                                    <iframe
-                                      src={embed}
-                                      title="Exercise video"
-                                      className="absolute inset-0 h-full w-full"
-                                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                      allowFullScreen
-                                    />
-                                  </div>
-                                </div>
-                              );
-                            })()
-                          ) : String(e.videoKind ?? "") === "upload" &&
-                            String(e.videoUrl ?? "").trim() ? (
-                            <div className="mt-2">
-                              <video
-                                className="w-full rounded-lg"
-                                controls
-                                preload="metadata"
-                                src={String(e.videoUrl ?? "").trim()}
-                              />
-                            </div>
-                          ) : null}
-                        </div>
-                        <div className="shrink-0 text-xs text-gray-600 dark:text-gray-300">
-                          {e.sets ? <span>{e.sets} sets</span> : null}
-                          {e.sets && e.reps ? <span> · </span> : null}
-                          {e.reps ? <span>{e.reps} reps</span> : null}
-                          {e.restSeconds ? (
-                            <>
-                              {(e.sets || e.reps) && <span> · </span>}
-                              <span>
-                                Rest{" "}
-                                {Math.floor(Number(e.restSeconds) / 60) || 0}m{" "}
-                                {Math.max(0, Number(e.restSeconds) % 60) || 0}s
-                              </span>
-                            </>
-                          ) : null}
+                          <div className="shrink-0 text-sm text-gray-700 dark:text-gray-200 text-right leading-5">
+                            {String(e.sets ?? "").trim() ? (
+                              <div>{String(e.sets).trim()} Sets</div>
+                            ) : null}
+                            {String(e.reps ?? "").trim() ? (
+                              <div>{String(e.reps).trim()} Reps</div>
+                            ) : null}
+                            {restText ? <div>{restText} Rest</div> : null}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
