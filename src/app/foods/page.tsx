@@ -16,18 +16,10 @@ import {
   Beef,
   Wheat,
   Droplets,
-  FileDown,
-  FileText,
-  Copy,
 } from "lucide-react";
 import FoodLibraryDialog from "@/components/FoodLibraryDialog";
 import FoodLibraryDetailsDialog from "@/components/FoodLibraryDetailsDialog";
 import { toast } from "sonner";
-import {
-  copyTextToClipboard,
-  downloadPdfFile,
-  downloadTextFile,
-} from "@/lib/plan-export";
 
 export default function FoodsPage() {
   const queryClient = useQueryClient();
@@ -78,38 +70,6 @@ export default function FoodsPage() {
   const handleDelete = (id: string) => {
     if (confirm("Delete this food from the library?")) {
       deleteMutation.mutate(id);
-    }
-  };
-
-  const exportFood = async (food: any, kind: "pdf" | "txt" | "copy") => {
-    const name = String(food?.name ?? "").trim() || "Food";
-    const calories = String(food?.calories ?? "").trim();
-    const protein = String(food?.protein ?? "").trim();
-    const carbs = String(food?.carbs ?? "").trim();
-    const fat = String(food?.fat ?? "").trim();
-
-    const lines: string[] = [];
-    lines.push(`Food: ${name}`);
-    lines.push("Values per 100g:");
-    lines.push(`- Calories: ${calories || "-"} kcal`);
-    lines.push(`- Protein: ${protein || "-"} g`);
-    lines.push(`- Carbs: ${carbs || "-"} g`);
-    lines.push(`- Fat: ${fat || "-"} g`);
-    const text = lines.join("\n");
-
-    const filenameBase = `Food - ${name}`;
-
-    try {
-      if (kind === "pdf") {
-        downloadPdfFile(filenameBase, `Food: ${name}`, text);
-      } else if (kind === "txt") {
-        downloadTextFile(filenameBase, text);
-      } else {
-        await copyTextToClipboard(text);
-        toast.success("Copied to clipboard");
-      }
-    } catch (err: any) {
-      toast.error(String(err?.message ?? "Failed to export"));
     }
   };
 
@@ -165,7 +125,16 @@ export default function FoodsPage() {
           {filtered.map((f: any) => (
             <Card
               key={f.id}
-              className="h-[220px] hover:shadow-lg transition-shadow dark:bg-gray-800 dark:border-gray-700"
+              role="button"
+              tabIndex={0}
+              onClick={() => handleDetails(f)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleDetails(f);
+                }
+              }}
+              className="h-[220px] cursor-pointer hover:shadow-lg transition-shadow dark:bg-gray-800 dark:border-gray-700"
             >
               <CardContent className="px-5 flex flex-col h-full">
                 <div className="flex items-start justify-between mb-3">
@@ -180,7 +149,10 @@ export default function FoodsPage() {
 
                   <div className="flex gap-2">
                     <button
-                      onClick={() => handleEdit(f)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(f);
+                      }}
                       className="p-2 text-gray-600 dark:text-gray-400
                         hover:text-indigo-600
                         hover:bg-indigo-50 dark:hover:bg-indigo-900
@@ -190,7 +162,10 @@ export default function FoodsPage() {
                     </button>
 
                     <button
-                      onClick={() => handleDelete(f.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(f.id);
+                      }}
                       className="p-2 text-gray-600 dark:text-gray-400
                         hover:text-red-600
                         hover:bg-red-50 dark:hover:bg-red-900
@@ -205,69 +180,30 @@ export default function FoodsPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex items-center gap-2">
                       <Flame className="w-4 h-4 text-orange-500" />
-                      <span>{String(f.calories ?? "").trim() || "-"} kcal</span>
+                      <span>
+                        Calories: {String(f.calories ?? "").trim() || "-"} kcal
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Beef className="w-4 h-4 text-blue-500" />
-                      <span>{String(f.protein ?? "").trim() || "-"} g</span>
+                      <span>
+                        Protein: {String(f.protein ?? "").trim() || "-"} g
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Wheat className="w-4 h-4 text-yellow-500" />
-                      <span>{String(f.carbs ?? "").trim() || "-"} g</span>
+                      <span>
+                        Carbs: {String(f.carbs ?? "").trim() || "-"} g
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Droplets className="w-4 h-4 text-purple-500" />
-                      <span>{String(f.fat ?? "").trim() || "-"} g</span>
+                      <span>Fat: {String(f.fat ?? "").trim() || "-"} g</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="flex-1" />
-
-                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center justify-end gap-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      className="text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
-                      title="Download PDF"
-                      aria-label="Download PDF"
-                      onClick={() => exportFood(f, "pdf")}
-                    >
-                      <FileDown className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      className="text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
-                      title="Download Text"
-                      aria-label="Download Text"
-                      onClick={() => exportFood(f, "txt")}
-                    >
-                      <FileText className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-300 dark:hover:text-emerald-200"
-                      title="Copy to clipboard"
-                      aria-label="Copy to clipboard"
-                      onClick={() => exportFood(f, "copy")}
-                    >
-                      <Copy className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-200 dark:hover:bg-indigo-900/45"
-                      onClick={() => handleDetails(f)}
-                    >
-                      Details
-                    </Button>
-                  </div>
-                </div>
               </CardContent>
             </Card>
           ))}

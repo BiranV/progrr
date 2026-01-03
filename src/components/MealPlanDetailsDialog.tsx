@@ -10,7 +10,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Copy as CopyIcon, FileDown, FileText } from "lucide-react";
+import {
+  Beef,
+  Copy as CopyIcon,
+  Droplets,
+  FileDown,
+  FileText,
+  Flame,
+  Wheat,
+} from "lucide-react";
 import {
   copyTextToClipboard,
   downloadPdfFile,
@@ -229,25 +237,37 @@ export default function MealPlanDetailsDialog({
 
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-                <div className="text-gray-500 dark:text-gray-400">Calories</div>
+                <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                  <Flame className="w-4 h-4" />
+                  <span>Calories</span>
+                </div>
                 <div className="font-medium text-gray-900 dark:text-white">
                   {plan.dailyCalories ? `${plan.dailyCalories} kcal` : "-"}
                 </div>
               </div>
               <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-                <div className="text-gray-500 dark:text-gray-400">Protein</div>
+                <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                  <Beef className="w-4 h-4" />
+                  <span>Protein</span>
+                </div>
                 <div className="font-medium text-gray-900 dark:text-white">
                   {plan.dailyProtein ? `${plan.dailyProtein} g` : "-"}
                 </div>
               </div>
               <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-                <div className="text-gray-500 dark:text-gray-400">Carbs</div>
+                <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                  <Wheat className="w-4 h-4" />
+                  <span>Carbs</span>
+                </div>
                 <div className="font-medium text-gray-900 dark:text-white">
                   {plan.dailyCarbs ? `${plan.dailyCarbs} g` : "-"}
                 </div>
               </div>
               <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-                <div className="text-gray-500 dark:text-gray-400">Fat</div>
+                <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                  <Droplets className="w-4 h-4" />
+                  <span>Fat</span>
+                </div>
                 <div className="font-medium text-gray-900 dark:text-white">
                   {plan.dailyFat ? `${plan.dailyFat} g` : "-"}
                 </div>
