@@ -54,6 +54,7 @@ export async function createClientAction(data: ClientFormData) {
   const status = normalizeClientStatus(data.status);
 
   if (!name) throw new Error("Client name is required");
+  if (!email) throw new Error("Client email is required");
   if (!phone) throw new Error("Client phone is required");
   if (!status) throw new Error("Client status is required");
 
@@ -63,15 +64,11 @@ export async function createClientAction(data: ClientFormData) {
     adminId,
     $or: [
       { "data.phone": phone },
-      ...(email
-        ? [
-            {
-              "data.email": {
-                $regex: new RegExp(`^${escapeRegExp(email)}$`, "i"),
-              },
-            },
-          ]
-        : []),
+      {
+        "data.email": {
+          $regex: new RegExp(`^${escapeRegExp(email)}$`, "i"),
+        },
+      },
     ],
   });
 
@@ -186,6 +183,7 @@ export async function updateClientAction(id: string, data: ClientFormData) {
   const name = String(data.name ?? "").trim();
   const email = normalizeEmail(data.email);
   if (!name) throw new Error("Client name is required");
+  if (!email) throw new Error("Client email is required");
   if (!phone) throw new Error("Client phone is required");
 
   // Prevent duplicates within the same admin (excluding this client).
@@ -195,15 +193,11 @@ export async function updateClientAction(id: string, data: ClientFormData) {
     _id: { $ne: entityId },
     $or: [
       { "data.phone": phone },
-      ...(email
-        ? [
-            {
-              "data.email": {
-                $regex: new RegExp(`^${escapeRegExp(email)}$`, "i"),
-              },
-            },
-          ]
-        : []),
+      {
+        "data.email": {
+          $regex: new RegExp(`^${escapeRegExp(email)}$`, "i"),
+        },
+      },
     ],
   });
 

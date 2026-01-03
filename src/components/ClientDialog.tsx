@@ -35,12 +35,6 @@ const REQUIRED_FIELDS: Array<keyof Client> = [
   "name",
   "email",
   "phone",
-  "birthDate",
-  "gender",
-  "height",
-  "weight",
-  "goal",
-  "activityLevel",
   "status",
 ];
 
