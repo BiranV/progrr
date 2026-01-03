@@ -9,6 +9,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import {
+  copyTextToClipboard,
+  downloadPdfFile,
+  downloadTextFile,
+  formatMealPlanText,
+} from "@/lib/plan-export";
 import { MealPlan, Meal, Food } from "@/types";
 
 interface MealPlanDetailsDialogProps {
@@ -57,6 +64,48 @@ export default function MealPlanDetailsDialog({
     enabled: !!plan && open,
   });
 
+  const exportText = React.useMemo(() => {
+    if (!plan) return "";
+    return formatMealPlanText(plan, meals as any);
+  }, [plan, meals]);
+
+  const exportFilenameBase = React.useMemo(() => {
+    const name = String(plan?.name ?? "").trim();
+    const id = String((plan as any)?.id ?? "").trim();
+    return `meal-plan-${name || id || "plan"}`;
+  }, [plan]);
+
+  const handleCopy = async () => {
+    if (!plan) return;
+    try {
+      await copyTextToClipboard(exportText);
+    } catch (err) {
+      console.error("Failed to copy meal plan", err);
+    }
+  };
+
+  const handleDownloadText = () => {
+    if (!plan) return;
+    try {
+      downloadTextFile(exportFilenameBase, exportText);
+    } catch (err) {
+      console.error("Failed to download meal plan text", err);
+    }
+  };
+
+  const handleDownloadPdf = () => {
+    if (!plan) return;
+    try {
+      downloadPdfFile(
+        exportFilenameBase,
+        String(plan.name ?? "Meal Plan").trim() || "Meal Plan",
+        exportText
+      );
+    } catch (err) {
+      console.error("Failed to download meal plan PDF", err);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-gray-800">
@@ -70,20 +119,49 @@ export default function MealPlanDetailsDialog({
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="space-y-1">
-              <div className="text-xl font-semibold text-gray-900 dark:text-white">
-                {plan.name}
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1 min-w-0">
+                <div className="text-xl font-semibold text-gray-900 dark:text-white truncate">
+                  {plan.name}
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-300">
+                  {plan.goal ? (
+                    <span className="capitalize">
+                      {String(plan.goal).replace(/[_-]/g, " ")}
+                    </span>
+                  ) : (
+                    <span className="text-gray-500 dark:text-gray-400">
+                      Goal: -
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="text-sm text-gray-600 dark:text-gray-300">
-                {plan.goal ? (
-                  <span className="capitalize">
-                    {String(plan.goal).replace(/[_-]/g, " ")}
-                  </span>
-                ) : (
-                  <span className="text-gray-500 dark:text-gray-400">
-                    Goal: -
-                  </span>
-                )}
+
+              <div className="shrink-0 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopy}
+                >
+                  Copy
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownloadText}
+                >
+                  Text
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownloadPdf}
+                >
+                  PDF
+                </Button>
               </div>
             </div>
 

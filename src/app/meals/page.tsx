@@ -20,10 +20,20 @@ import {
   UtensilsCrossed,
   Flame,
   Dumbbell,
+  FileDown,
+  FileText,
+  Copy,
 } from "lucide-react";
 import MealPlanDialog from "@/components/MealPlanDialog";
 import MealPlanDetailsDialog from "@/components/MealPlanDetailsDialog";
 import { MealPlan, Meal, Food } from "@/types";
+import {
+  copyTextToClipboard,
+  downloadPdfFile,
+  downloadTextFile,
+  formatMealPlanText,
+} from "@/lib/plan-export";
+import { toast } from "sonner";
 
 export default function MealsPage() {
   const [search, setSearch] = React.useState("");
@@ -79,6 +89,41 @@ export default function MealsPage() {
     setDialogOpen(open);
     if (!open) {
       setEditingPlan(null);
+    }
+  };
+
+  const exportPlan = async (plan: MealPlan, kind: "pdf" | "txt" | "copy") => {
+    try {
+      const rows = await db.entities.Meal.filter({ mealPlanId: plan.id });
+      const mealsWithFoods = await Promise.all(
+        rows.map(async (meal: Meal) => {
+          const foods = await db.entities.Food.filter({ mealId: meal.id });
+          return {
+            ...meal,
+            foods: [...foods].sort(
+              (a: Food, b: Food) => (a.order || 0) - (b.order || 0)
+            ),
+          };
+        })
+      );
+
+      const meals = [...mealsWithFoods].sort(
+        (a: any, b: any) => (a.order || 0) - (b.order || 0)
+      );
+
+      const text = formatMealPlanText(plan, meals);
+      const filenameBase = `Meal Plan - ${plan.name || ""}`;
+
+      if (kind === "pdf") {
+        downloadPdfFile(filenameBase, `Meal Plan: ${plan.name || ""}`, text);
+      } else if (kind === "txt") {
+        downloadTextFile(filenameBase, text);
+      } else {
+        await copyTextToClipboard(text);
+        toast.success("Copied to clipboard");
+      }
+    } catch (err: any) {
+      toast.error(String(err?.message ?? "Failed to export plan"));
     }
   };
 
@@ -202,11 +247,40 @@ export default function MealsPage() {
                 </div>
 
                 <div className="pt-4 mt-4 border-t border-gray-100 dark:border-gray-800">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
-                      <UtensilsCrossed className="w-4 h-4" />
-                      <span>View Meals</span>
-                    </div>
+                  <div className="flex items-center justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
+                      title="Download PDF"
+                      aria-label="Download PDF"
+                      onClick={() => exportPlan(plan, "pdf")}
+                    >
+                      <FileDown className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
+                      title="Download Text"
+                      aria-label="Download Text"
+                      onClick={() => exportPlan(plan, "txt")}
+                    >
+                      <FileText className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-300 dark:hover:text-emerald-200"
+                      title="Copy to clipboard"
+                      aria-label="Copy to clipboard"
+                      onClick={() => exportPlan(plan, "copy")}
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
                     <Button
                       size="sm"
                       className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-200 dark:hover:bg-indigo-900/45 border-0 font-medium"

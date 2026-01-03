@@ -15,10 +15,20 @@ import {
   BarChart,
   Edit,
   Trash2,
+  FileDown,
+  FileText,
+  Copy,
 } from "lucide-react";
 import PlanDialog from "@/components/PlanDialog";
 import WorkoutPlanDetailsDialog from "@/components/WorkoutPlanDetailsDialog";
 import { WorkoutPlan } from "@/types";
+import {
+  copyTextToClipboard,
+  downloadPdfFile,
+  downloadTextFile,
+  formatWorkoutPlanText,
+} from "@/lib/plan-export";
+import { toast } from "sonner";
 
 export default function PlansPage() {
   const queryClient = useQueryClient();
@@ -69,6 +79,32 @@ export default function PlansPage() {
   const handleDelete = (id: string) => {
     if (confirm("Are you sure you want to delete this workout plan?")) {
       deleteMutation.mutate(id);
+    }
+  };
+
+  const exportPlan = async (
+    plan: WorkoutPlan,
+    kind: "pdf" | "txt" | "copy"
+  ) => {
+    try {
+      const rows = await db.entities.Exercise.filter({ workoutPlanId: plan.id });
+      const exercises = [...rows].sort(
+        (a: any, b: any) => (a.order || 0) - (b.order || 0)
+      );
+
+      const text = formatWorkoutPlanText(plan, exercises);
+      const filenameBase = `Workout Plan - ${plan.name || ""}`;
+
+      if (kind === "pdf") {
+        downloadPdfFile(filenameBase, `Workout Plan: ${plan.name || ""}`, text);
+      } else if (kind === "txt") {
+        downloadTextFile(filenameBase, text);
+      } else {
+        await copyTextToClipboard(text);
+        toast.success("Copied to clipboard");
+      }
+    } catch (err: any) {
+      toast.error(String(err?.message ?? "Failed to export plan"));
     }
   };
 
@@ -180,11 +216,40 @@ export default function PlansPage() {
                 </div>
 
                 {/* Footer */}
-                <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
-                    <Dumbbell className="w-4 h-4" />
-                    Exercises
-                  </div>
+                <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
+                    title="Download PDF"
+                    aria-label="Download PDF"
+                    onClick={() => exportPlan(plan, "pdf")}
+                  >
+                    <FileDown className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
+                    title="Download Text"
+                    aria-label="Download Text"
+                    onClick={() => exportPlan(plan, "txt")}
+                  >
+                    <FileText className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-300 dark:hover:text-emerald-200"
+                    title="Copy to clipboard"
+                    aria-label="Copy to clipboard"
+                    onClick={() => exportPlan(plan, "copy")}
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
                   <Button
                     size="sm"
                     className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-200 dark:hover:bg-indigo-900/45"

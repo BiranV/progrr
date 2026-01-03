@@ -9,6 +9,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import {
+  copyTextToClipboard,
+  downloadPdfFile,
+  downloadTextFile,
+  formatWorkoutPlanText,
+} from "@/lib/plan-export";
 import { WorkoutPlan, Exercise } from "@/types";
 
 interface WorkoutPlanDetailsDialogProps {
@@ -36,6 +43,48 @@ export default function WorkoutPlanDetailsDialog({
     enabled: !!plan && open,
   });
 
+  const exportText = React.useMemo(() => {
+    if (!plan) return "";
+    return formatWorkoutPlanText(plan, exercises as any);
+  }, [plan, exercises]);
+
+  const exportFilenameBase = React.useMemo(() => {
+    const name = String(plan?.name ?? "").trim();
+    const id = String((plan as any)?.id ?? "").trim();
+    return `workout-plan-${name || id || "plan"}`;
+  }, [plan]);
+
+  const handleCopy = async () => {
+    if (!plan) return;
+    try {
+      await copyTextToClipboard(exportText);
+    } catch (err) {
+      console.error("Failed to copy workout plan", err);
+    }
+  };
+
+  const handleDownloadText = () => {
+    if (!plan) return;
+    try {
+      downloadTextFile(exportFilenameBase, exportText);
+    } catch (err) {
+      console.error("Failed to download workout plan text", err);
+    }
+  };
+
+  const handleDownloadPdf = () => {
+    if (!plan) return;
+    try {
+      downloadPdfFile(
+        exportFilenameBase,
+        String(plan.name ?? "Workout Plan").trim() || "Workout Plan",
+        exportText
+      );
+    } catch (err) {
+      console.error("Failed to download workout plan PDF", err);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-gray-800">
@@ -49,22 +98,51 @@ export default function WorkoutPlanDetailsDialog({
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="space-y-1">
-              <div className="text-xl font-semibold text-gray-900 dark:text-white">
-                {plan.name}
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1 min-w-0">
+                <div className="text-xl font-semibold text-gray-900 dark:text-white truncate">
+                  {plan.name}
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-300">
+                  {plan.difficulty ? (
+                    <span className="capitalize">
+                      {String(plan.difficulty).replace(/[_-]/g, " ")}
+                    </span>
+                  ) : (
+                    <span className="text-gray-500 dark:text-gray-400">
+                      Difficulty: -
+                    </span>
+                  )}
+                  {plan.duration ? <span> · {plan.duration}</span> : null}
+                  {plan.goal ? <span> · {plan.goal}</span> : null}
+                </div>
               </div>
-              <div className="text-sm text-gray-600 dark:text-gray-300">
-                {plan.difficulty ? (
-                  <span className="capitalize">
-                    {String(plan.difficulty).replace(/[_-]/g, " ")}
-                  </span>
-                ) : (
-                  <span className="text-gray-500 dark:text-gray-400">
-                    Difficulty: -
-                  </span>
-                )}
-                {plan.duration ? <span> · {plan.duration}</span> : null}
-                {plan.goal ? <span> · {plan.goal}</span> : null}
+
+              <div className="shrink-0 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopy}
+                >
+                  Copy
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownloadText}
+                >
+                  Text
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDownloadPdf}
+                >
+                  PDF
+                </Button>
               </div>
             </div>
 

@@ -35,6 +35,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import ClientAvatar from "@/components/ClientAvatar";
+import {
+  copyTextToClipboard,
+  downloadPdfFile,
+  downloadTextFile,
+  formatMealPlanText,
+  formatWorkoutPlanText,
+} from "@/lib/plan-export";
 
 export default function DashboardPage() {
   const { user, isLoadingAuth } = useAuth();
@@ -576,6 +583,92 @@ function ClientDashboard({ user }: { user: any }) {
     },
     enabled: !!assignedMealPlan?.id,
   });
+
+  const workoutPlanExportText = React.useMemo(() => {
+    if (!assignedPlan) return "";
+    return formatWorkoutPlanText(assignedPlan as any, planExercises as any);
+  }, [assignedPlan, planExercises]);
+
+  const mealPlanExportText = React.useMemo(() => {
+    if (!assignedMealPlan) return "";
+    return formatMealPlanText(assignedMealPlan as any, mealPlanMeals as any);
+  }, [assignedMealPlan, mealPlanMeals]);
+
+  const workoutPlanFilenameBase = React.useMemo(() => {
+    const name = String((assignedPlan as any)?.name ?? "").trim();
+    const id = String((assignedPlan as any)?.id ?? "").trim();
+    return `workout-plan-${name || id || "plan"}`;
+  }, [assignedPlan]);
+
+  const mealPlanFilenameBase = React.useMemo(() => {
+    const name = String((assignedMealPlan as any)?.name ?? "").trim();
+    const id = String((assignedMealPlan as any)?.id ?? "").trim();
+    return `meal-plan-${name || id || "plan"}`;
+  }, [assignedMealPlan]);
+
+  const copyWorkoutPlan = async () => {
+    if (!assignedPlan) return;
+    try {
+      await copyTextToClipboard(workoutPlanExportText);
+    } catch (err) {
+      console.error("Failed to copy workout plan", err);
+    }
+  };
+
+  const downloadWorkoutPlanText = () => {
+    if (!assignedPlan) return;
+    try {
+      downloadTextFile(workoutPlanFilenameBase, workoutPlanExportText);
+    } catch (err) {
+      console.error("Failed to download workout plan text", err);
+    }
+  };
+
+  const downloadWorkoutPlanPdf = () => {
+    if (!assignedPlan) return;
+    try {
+      downloadPdfFile(
+        workoutPlanFilenameBase,
+        String((assignedPlan as any)?.name ?? "Workout Plan").trim() ||
+          "Workout Plan",
+        workoutPlanExportText
+      );
+    } catch (err) {
+      console.error("Failed to download workout plan PDF", err);
+    }
+  };
+
+  const copyMealPlan = async () => {
+    if (!assignedMealPlan) return;
+    try {
+      await copyTextToClipboard(mealPlanExportText);
+    } catch (err) {
+      console.error("Failed to copy meal plan", err);
+    }
+  };
+
+  const downloadMealPlanText = () => {
+    if (!assignedMealPlan) return;
+    try {
+      downloadTextFile(mealPlanFilenameBase, mealPlanExportText);
+    } catch (err) {
+      console.error("Failed to download meal plan text", err);
+    }
+  };
+
+  const downloadMealPlanPdf = () => {
+    if (!assignedMealPlan) return;
+    try {
+      downloadPdfFile(
+        mealPlanFilenameBase,
+        String((assignedMealPlan as any)?.name ?? "Meal Plan").trim() ||
+          "Meal Plan",
+        mealPlanExportText
+      );
+    } catch (err) {
+      console.error("Failed to download meal plan PDF", err);
+    }
+  };
 
   const { data: messages = [] } = useQuery({
     queryKey: ["myMessages", myClient?.id],
@@ -1139,9 +1232,37 @@ function ClientDashboard({ user }: { user: any }) {
             <CardContent>
               {assignedPlan ? (
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                    {assignedPlan.name}
-                  </h3>
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white min-w-0 truncate">
+                      {assignedPlan.name}
+                    </h3>
+                    <div className="shrink-0 flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={copyWorkoutPlan}
+                      >
+                        Copy
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={downloadWorkoutPlanText}
+                      >
+                        Text
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={downloadWorkoutPlanPdf}
+                      >
+                        PDF
+                      </Button>
+                    </div>
+                  </div>
                   <p className="text-gray-600 dark:text-gray-400 mt-2">
                     {assignedPlan.notes}
                   </p>
@@ -1219,9 +1340,37 @@ function ClientDashboard({ user }: { user: any }) {
             <CardContent>
               {assignedMealPlan ? (
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                    {assignedMealPlan.name}
-                  </h3>
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white min-w-0 truncate">
+                      {assignedMealPlan.name}
+                    </h3>
+                    <div className="shrink-0 flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={copyMealPlan}
+                      >
+                        Copy
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={downloadMealPlanText}
+                      >
+                        Text
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={downloadMealPlanPdf}
+                      >
+                        PDF
+                      </Button>
+                    </div>
+                  </div>
                   {assignedMealPlan.goal ? (
                     <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                       Goal: {toTitleCase(assignedMealPlan.goal)}
