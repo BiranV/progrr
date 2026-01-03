@@ -22,6 +22,10 @@ import {
 import { X, Plus, Trash2, XCircle } from "lucide-react";
 import { MealPlan, Meal, Food, FoodLibrary, PlanFood } from "@/types";
 
+const EMPTY_FOOD_LIBRARY: FoodLibrary[] = [];
+const EMPTY_APP_SETTINGS: any[] = [];
+const EMPTY_MEALS: any[] = [];
+
 interface MealPlanDialogProps {
   plan: MealPlan | null;
   open: boolean;
@@ -47,7 +51,7 @@ export default function MealPlanDialog({
     notes: "",
   });
 
-  const { data: foodLibrary = [] } = useQuery({
+  const { data: foodLibraryData } = useQuery({
     queryKey: ["foodLibrary"],
     queryFn: async () => {
       const rows = await db.entities.FoodLibrary.list();
@@ -60,14 +64,20 @@ export default function MealPlanDialog({
     enabled: open,
   });
 
-  const { data: appSettings = [] } = useQuery({
+  const foodLibrary = (foodLibraryData ?? EMPTY_FOOD_LIBRARY) as FoodLibrary[];
+
+  const { data: appSettingsData } = useQuery({
     queryKey: ["appSettings"],
     queryFn: () => db.entities.AppSettings.list(),
     enabled: open,
   });
 
-  const { data: queryMeals } = useQuery({
-    queryKey: ["meals", plan?.id],
+  const appSettings = (appSettingsData ?? EMPTY_APP_SETTINGS) as any[];
+
+  const planId = String(plan?.id ?? "").trim();
+
+  const { data: queryMealsData } = useQuery({
+    queryKey: ["meals", planId],
     queryFn: async () => {
       if (!plan) return [];
       const meals = await db.entities.Meal.filter({ mealPlanId: plan.id });
@@ -99,10 +109,11 @@ export default function MealPlanDialog({
         (a: Meal, b: Meal) => (a.order || 0) - (b.order || 0)
       );
     },
-    enabled: !!plan && open,
+    enabled: Boolean(planId) && open,
   });
 
-  const existingMeals = queryMeals || [];
+  const queryMeals = (queryMealsData ?? EMPTY_MEALS) as any[];
+  const existingMeals = queryMeals;
 
   type MealForm = Partial<Meal> & {
     planFoods?: Array<Partial<PlanFood> & { legacyName?: string }>;
@@ -215,7 +226,10 @@ export default function MealPlanDialog({
   }, [plan, open]);
 
   React.useEffect(() => {
-    if (queryMeals && queryMeals.length > 0) {
+    if (!open) return;
+    if (!planId) return; // create mode: do not sync from query
+
+    if (Array.isArray(queryMeals) && queryMeals.length > 0) {
       const byName = new Map<string, string>();
       for (const f of foodLibrary) {
         const key = String(f.name ?? "")
@@ -261,10 +275,10 @@ export default function MealPlanDialog({
         if (JSON.stringify(prev) === JSON.stringify(normalized)) return prev;
         return normalized;
       });
-    } else if (!plan) {
-      setMeals([]);
+    } else {
+      setMeals((prev) => (prev.length ? [] : prev));
     }
-  }, [queryMeals, plan, foodLibrary, normalizeMealType]);
+  }, [open, planId, queryMeals, foodLibrary, normalizeMealType]);
 
   const saveMutation = useMutation({
     mutationFn: async (data: Partial<MealPlan>) => {
