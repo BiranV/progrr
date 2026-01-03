@@ -471,16 +471,16 @@ function LoginForm({
           onValueChange={(v) => setLoginAs(v === "client" ? "client" : "admin")}
           className="w-full"
         >
-          <TabsList className="grid w-full grid-cols-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-0 rounded-lg h-10">
+          <TabsList className="grid w-full grid-cols-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-0 rounded-md h-9">
             <TabsTrigger
               value="admin"
-              className="rounded-lg h-10 text-sm cursor-pointer text-gray-600 dark:text-gray-300 data-[state=active]:bg-gray-200 data-[state=active]:text-gray-900 dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white transition-all"
+              className="rounded-md h-9 text-sm cursor-pointer text-gray-600 dark:text-gray-300 data-[state=active]:bg-gray-200 data-[state=active]:text-gray-900 dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white transition-all"
             >
               Admin
             </TabsTrigger>
             <TabsTrigger
               value="client"
-              className="rounded-lg h-10 text-sm cursor-pointer text-gray-600 dark:text-gray-300 data-[state=active]:bg-gray-200 data-[state=active]:text-gray-900 dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white transition-all"
+              className="rounded-md h-9 text-sm cursor-pointer text-gray-600 dark:text-gray-300 data-[state=active]:bg-gray-200 data-[state=active]:text-gray-900 dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white transition-all"
             >
               Client
             </TabsTrigger>
