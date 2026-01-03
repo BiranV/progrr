@@ -15,6 +15,8 @@ import {
   MessageSquare,
   Mail,
   Phone,
+  Video,
+  MapPin,
   Bell,
   Send,
   Sun,
@@ -70,6 +72,9 @@ export default function DashboardPage() {
 
 function AdminDashboard({ user }: { user: any }) {
   const router = useRouter();
+  const PROSPECT_CLIENT_ID = "__PROSPECT__";
+  const PROSPECT_CLIENT_LABEL = "Prospect (Process / Payment questions)";
+
   const { data: clients = [] } = useQuery({
     queryKey: ["clients"],
     queryFn: () => db.entities.Client.list(),
@@ -95,6 +100,32 @@ function AdminDashboard({ user }: { user: any }) {
       .trim()
       .toUpperCase();
     return v === "ACTIVE" || v === "PENDING" || v === "INACTIVE" ? v : "";
+  };
+
+  const clientNameById = React.useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of clients as any[]) {
+      if (c?.id) map.set(String(c.id), String(c.name ?? "").trim());
+    }
+    return map;
+  }, [clients]);
+
+  const getMeetingClientLabel = (clientId: any) => {
+    const id = String(clientId ?? "").trim();
+    if (!id) return "";
+    if (id === PROSPECT_CLIENT_ID) return PROSPECT_CLIENT_LABEL;
+    return clientNameById.get(id) || "Unknown";
+  };
+
+  const getMeetingTypeIcon = (rawType: any) => {
+    const t = String(rawType ?? "")
+      .trim()
+      .toLowerCase();
+    if (t === "zoom") return <Video className="w-4 h-4" />;
+    if (t === "call") return <Phone className="w-4 h-4" />;
+    if (t === "in-person" || t === "meeting")
+      return <MapPin className="w-4 h-4" />;
+    return <MapPin className="w-4 h-4" />;
   };
 
   const activeClients = clients.filter(
@@ -287,12 +318,34 @@ function AdminDashboard({ user }: { user: any }) {
                       key={meeting.id}
                       className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
                     >
-                      <p className="font-medium text-gray-900 dark:text-white">
-                        {meeting.title}
-                      </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {format(new Date(meeting.scheduledAt), "PPP p")}
-                      </p>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-900 dark:text-white truncate">
+                            {meeting.title}
+                          </p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {format(new Date(meeting.scheduledAt), "PPP p")}
+                          </p>
+                        </div>
+
+                        {meeting.type ? (
+                          <span className="shrink-0 inline-flex items-center justify-center h-7 w-7 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200 rounded-full">
+                            {getMeetingTypeIcon(meeting.type)}
+                          </span>
+                        ) : null}
+                      </div>
+
+                      {meeting.clientId ? (
+                        <p className="mt-1 text-sm text-gray-600 dark:text-gray-300 truncate">
+                          With: {getMeetingClientLabel(meeting.clientId)}
+                        </p>
+                      ) : null}
+
+                      {meeting.location ? (
+                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400 truncate">
+                          {meeting.location}
+                        </p>
+                      ) : null}
                     </div>
                   ))}
               </div>
