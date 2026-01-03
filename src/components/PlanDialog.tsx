@@ -19,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { X, Plus, Trash2 } from "lucide-react";
+import { X, Plus, Trash2, XCircle } from "lucide-react";
 import { WorkoutPlan, Exercise } from "@/types";
 
 interface PlanDialogProps {
@@ -34,6 +34,9 @@ export default function PlanDialog({
   onOpenChange,
 }: PlanDialogProps) {
   const queryClient = useQueryClient();
+  const [validationError, setValidationError] = React.useState<string | null>(
+    null
+  );
   const [formData, setFormData] = React.useState<Partial<WorkoutPlan>>({
     name: "",
     difficulty: "",
@@ -53,6 +56,7 @@ export default function PlanDialog({
   const [exercises, setExercises] = React.useState<Partial<Exercise>[]>([]);
 
   React.useEffect(() => {
+    setValidationError(null);
     if (plan) {
       setFormData({
         name: plan.name || "",
@@ -134,11 +138,22 @@ export default function PlanDialog({
       queryClient.invalidateQueries({ queryKey: ["exercises"] });
       onOpenChange(false);
     },
+    onError: (error: any) => {
+      setValidationError(error?.message || "Failed to save workout plan");
+    },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    saveMutation.mutate(formData);
+
+    setValidationError(null);
+    const name = String(formData.name ?? "").trim();
+    if (!name) {
+      setValidationError("Plan name is required");
+      return;
+    }
+
+    saveMutation.mutate({ ...formData, name });
   };
 
   const addExercise = () => {
@@ -168,7 +183,20 @@ export default function PlanDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} noValidate className="space-y-6">
+          {validationError ? (
+            <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-4 min-h-12 py-2">
+              <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
+                <XCircle className="h-3.5 w-3.5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
+                  {validationError}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           {/* Plan Details */}
           <div className="space-y-4">
             <div>
@@ -177,11 +205,11 @@ export default function PlanDialog({
               </label>
               <Input
                 value={formData.name}
-                onChange={(e) =>
+                onChange={(e) => (
+                  validationError && setValidationError(null),
                   setFormData({ ...formData, name: e.target.value })
-                }
+                )}
                 placeholder="e.g., Full Body Strength"
-                required
               />
             </div>
 
