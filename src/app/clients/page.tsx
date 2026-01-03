@@ -30,6 +30,7 @@ import ClientDialog from "@/components/ClientDialog";
 import ClientDetailsDialog from "@/components/ClientDetailsDialog";
 import ClientAvatar from "@/components/ClientAvatar";
 import { Client } from "@/types";
+import { getCookie, setCookie } from "@/lib/client-cookies";
 
 export default function ClientsPage() {
   const [search, setSearch] = React.useState("");
@@ -37,7 +38,19 @@ export default function ClientsPage() {
   const [editingClient, setEditingClient] = React.useState<Client | null>(null);
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   const [detailsClient, setDetailsClient] = React.useState<Client | null>(null);
-  const [pageSize, setPageSize] = React.useState(10);
+  const [pageSize, setPageSize] = React.useState(() => {
+    const PAGE_SIZE_OPTIONS = [5, 10, 25, 50, 100] as const;
+    if (typeof window === "undefined") return 10;
+    const raw = getCookie("progrr_clients_rows_per_page");
+    const parsed = raw ? Number(raw) : NaN;
+    if (
+      Number.isFinite(parsed) &&
+      (PAGE_SIZE_OPTIONS as readonly number[]).includes(parsed)
+    ) {
+      return parsed;
+    }
+    return 10;
+  });
   const [primaryPage, setPrimaryPage] = React.useState(1);
   const [inactivePage, setInactivePage] = React.useState(1);
   const [sortConfig, setSortConfig] = React.useState<{
@@ -47,32 +60,12 @@ export default function ClientsPage() {
   const queryClient = useQueryClient();
 
   const PAGE_SIZE_OPTIONS = [5, 10, 25, 50, 100] as const;
-  const PAGE_SIZE_STORAGE_KEY = "progrr_clients_rows_per_page";
 
-  // Restore saved page size on first mount.
+  // Persist page size changes (like dark/light mode)
   React.useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(PAGE_SIZE_STORAGE_KEY);
-      const parsed = raw ? Number(raw) : NaN;
-      if (
-        Number.isFinite(parsed) &&
-        (PAGE_SIZE_OPTIONS as readonly number[]).includes(parsed)
-      ) {
-        setPageSize(parsed);
-      }
-    } catch {
-      // ignore (private mode / blocked storage)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Persist page size changes.
-  React.useEffect(() => {
-    try {
-      window.localStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(pageSize));
-    } catch {
-      // ignore
-    }
+    setCookie("progrr_clients_rows_per_page", String(pageSize), {
+      maxAgeSeconds: 60 * 60 * 24 * 365,
+    });
   }, [pageSize]);
 
   const { data: clients = [], isLoading } = useQuery({
