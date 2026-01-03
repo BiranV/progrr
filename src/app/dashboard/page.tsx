@@ -69,6 +69,7 @@ export default function DashboardPage() {
 }
 
 function AdminDashboard({ user }: { user: any }) {
+  const router = useRouter();
   const { data: clients = [] } = useQuery({
     queryKey: ["clients"],
     queryFn: () => db.entities.Client.list(),
@@ -115,24 +116,28 @@ function AdminDashboard({ user }: { user: any }) {
       total: clients.length,
       icon: Users,
       color: "bg-blue-500",
+      href: "/clients",
     },
     {
       label: "Workout Plans",
       value: plans.length,
       icon: Dumbbell,
       color: "bg-indigo-500",
+      href: "/plans",
     },
     {
       label: "Upcoming Meetings",
       value: upcomingMeetings,
       icon: Calendar,
       color: "bg-green-500",
+      href: "/meetings",
     },
     {
       label: "Unread Messages",
       value: unreadMessages,
       icon: MessageSquare,
       color: "bg-orange-500",
+      href: "/messages",
     },
   ];
 
@@ -158,7 +163,19 @@ function AdminDashboard({ user }: { user: any }) {
         {stats.map((stat, index) => {
           const Icon = stat.icon;
           return (
-            <Card key={index} className="dark:bg-gray-800 dark:border-gray-700">
+            <Card
+              key={index}
+              className="dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/80 transition-colors"
+              onClick={() => router.push(stat.href)}
+              role="link"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  router.push(stat.href);
+                }
+              }}
+            >
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
