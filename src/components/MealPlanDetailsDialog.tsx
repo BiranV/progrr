@@ -319,7 +319,7 @@ export default function MealPlanDetailsDialog({
                           )}
                         </div>
                         <div className="shrink-0 text-xs text-gray-600 dark:text-gray-300">
-                          {(meal.foods || []).length} foods
+                          per 100g
                         </div>
                       </div>
 
@@ -341,9 +341,13 @@ export default function MealPlanDetailsDialog({
                                   ) : null}
                                 </div>
                                 <div className="shrink-0 text-gray-500 dark:text-gray-400">
-                                  {food.protein ? `P ${food.protein}` : ""}
-                                  {food.carbs ? ` C ${food.carbs}` : ""}
-                                  {food.fat ? ` F ${food.fat}` : ""}
+                                  {[
+                                    food.protein ? `P ${food.protein}` : "",
+                                    food.carbs ? `C ${food.carbs}` : "",
+                                    food.fat ? `F ${food.fat}` : "",
+                                  ]
+                                    .filter((v): v is string => Boolean(v))
+                                    .join(" · ")}
                                 </div>
                               </div>
                             )
