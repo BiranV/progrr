@@ -175,16 +175,6 @@ export default function MeetingDetailsDialog({
                 </div>
               </div>
             ) : null}
-
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-              >
-                Close
-              </Button>
-            </div>
           </div>
         )}
       </DialogContent>
