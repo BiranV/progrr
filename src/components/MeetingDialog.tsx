@@ -119,6 +119,24 @@ export default function MeetingDialog({
     return existing.getTime() >= Date.now();
   }, [meeting]);
 
+  const canChooseNoShow = React.useMemo(() => {
+    // Allow selecting No Show only for meetings that belong in the Past section.
+    // (i.e., an existing meeting whose scheduled date has already passed)
+    if (shouldEnforceMinDateTime) return false;
+
+    const scheduledAt = String(formData.scheduledAt ?? "").trim();
+    const d = scheduledAt ? new Date(scheduledAt) : null;
+    if (!d || Number.isNaN(d.getTime())) return false;
+    return d.getTime() < Date.now();
+  }, [formData.scheduledAt, shouldEnforceMinDateTime]);
+
+  React.useEffect(() => {
+    const status = String(formData.status ?? "");
+    if ((status === "no-show" || status === "no_show") && !canChooseNoShow) {
+      setFormData((prev) => ({ ...prev, status: "scheduled" }));
+    }
+  }, [canChooseNoShow]);
+
   const saveMutation = useMutation({
     mutationFn: (data: Partial<Meeting>) => {
       const payload = {
@@ -237,7 +255,9 @@ export default function MeetingDialog({
                   <SelectItem value="scheduled">Scheduled</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
-                  <SelectItem value="no-show">No Show</SelectItem>
+                  {canChooseNoShow ? (
+                    <SelectItem value="no-show">No Show</SelectItem>
+                  ) : null}
                 </SelectContent>
               </Select>
             </div>

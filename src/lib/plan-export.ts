@@ -116,6 +116,11 @@ export const formatWorkoutPlanText = (
       if (youtubeUrl) {
         lines.push(`   YouTube: ${youtubeUrl}`);
       }
+
+      // Visual spacing between exercises (helps PDF readability)
+      if (idx < exercises.length - 1) {
+        lines.push("");
+      }
     });
   }
 

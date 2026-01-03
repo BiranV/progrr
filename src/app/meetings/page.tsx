@@ -4,7 +4,13 @@ import React from "react";
 import { db } from "@/lib/db";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Plus,
   Calendar as CalendarIcon,
@@ -17,6 +23,7 @@ import {
   History,
 } from "lucide-react";
 import MeetingDialog from "@/components/MeetingDialog";
+import MeetingDetailsDialog from "@/components/MeetingDetailsDialog";
 import { format } from "date-fns";
 import { Meeting, Client } from "@/types";
 
@@ -26,6 +33,10 @@ const PROSPECT_CLIENT_LABEL = "Prospect (Process / Payment questions)";
 export default function MeetingsPage() {
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editingMeeting, setEditingMeeting] = React.useState<Meeting | null>(
+    null
+  );
+  const [detailsOpen, setDetailsOpen] = React.useState(false);
+  const [detailsMeeting, setDetailsMeeting] = React.useState<Meeting | null>(
     null
   );
   const queryClient = useQueryClient();
@@ -72,6 +83,11 @@ export default function MeetingsPage() {
   const handleEdit = (meeting: Meeting) => {
     setEditingMeeting(meeting);
     setDialogOpen(true);
+  };
+
+  const handleDetails = (meeting: Meeting) => {
+    setDetailsMeeting(meeting);
+    setDetailsOpen(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -151,57 +167,95 @@ export default function MeetingsPage() {
                 {upcoming.map((meeting: Meeting) => (
                   <Card
                     key={meeting.id}
-                    className="h-[240px] hover:shadow-lg transition-shadow dark:bg-gray-800 dark:border-gray-700"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleDetails(meeting)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleDetails(meeting);
+                      }
+                    }}
+                    className="hover:shadow-lg cursor-pointer transition-shadow duration-200 flex flex-col h-full dark:bg-gray-800 dark:border-gray-700"
                   >
-                    <CardContent className="px-5 py-2 flex flex-col h-full">
-                      {/* Header */}
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="p-2 bg-indigo-100 dark:bg-indigo-900 rounded-lg text-indigo-600 dark:text-indigo-300">
-                            {getMeetingIcon(meeting.type)}
-                          </div>
-                          <div className="min-w-0">
-                            <h3 className="font-semibold truncate">
-                              {meeting.title}
-                            </h3>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                              {format(new Date(meeting.scheduledAt), "PPP p")}
-                            </p>
-                          </div>
-                        </div>
+                    <CardHeader className="flex flex-row items-start justify-between pb-2">
+                      <div className="space-y-1 min-w-0">
+                        <CardTitle className="text-xl font-semibold truncate">
+                          {meeting.title}
+                        </CardTitle>
+                        <CardDescription className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          {format(new Date(meeting.scheduledAt), "PPP p")}
+                        </CardDescription>
+                      </div>
 
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleEdit(meeting)}
-                            className="p-2 text-gray-600 dark:text-gray-400
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`inline-flex items-center h-7 px-3 rounded-md text-xs font-medium capitalize ${statusChipClasses(
+                            meeting.status
+                          )}`}
+                        >
+                          {meeting.status?.replace(/[-_]/g, " ") || "unknown"}
+                        </span>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(meeting);
+                          }}
+                          className="p-2 text-gray-600 dark:text-gray-400
                                        hover:text-indigo-600
                                        hover:bg-indigo-50 dark:hover:bg-indigo-900
                                        rounded-lg"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(meeting.id)}
-                            className="p-2 text-gray-600 dark:text-gray-400
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(meeting.id);
+                          }}
+                          className="p-2 text-gray-600 dark:text-gray-400
                                        hover:text-red-600
                                        hover:bg-red-50 dark:hover:bg-red-900
                                        rounded-lg"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
+                    </CardHeader>
 
-                      {/* Body */}
-                      <div className="flex-1 text-sm text-gray-600 dark:text-gray-400 space-y-1 ml-11">
-                        {meeting.clientId && (
-                          <p className="truncate">
-                            With: {getClientName(meeting.clientId)}
-                          </p>
-                        )}
-                        {meeting.location && (
-                          <p className="truncate">{meeting.location}</p>
-                        )}
+                    <CardContent className="px-5 py-2">
+                      <div className="space-y-3 text-sm text-gray-600 dark:text-gray-300">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="flex items-center gap-2 truncate">
+                            <span className="shrink-0">
+                              {getMeetingIcon(meeting.type)}
+                            </span>
+                            <span className="truncate capitalize">
+                              Type:{" "}
+                              {String(meeting.type ?? "-").replace(
+                                /[-_]/g,
+                                " "
+                              )}
+                            </span>
+                          </div>
+
+                          {meeting.clientId ? (
+                            <div className="flex items-center gap-2 truncate">
+                              <span className="truncate">
+                                With: {getClientName(meeting.clientId)}
+                              </span>
+                            </div>
+                          ) : null}
+
+                          {meeting.location ? (
+                            <div className="flex items-center gap-2 truncate col-span-2">
+                              <span className="truncate">
+                                {meeting.location}
+                              </span>
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -228,7 +282,16 @@ export default function MeetingsPage() {
                 {past.map((meeting: Meeting) => (
                   <Card
                     key={meeting.id}
-                    className="dark:bg-gray-800 dark:border-gray-700"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleDetails(meeting)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleDetails(meeting);
+                      }
+                    }}
+                    className="cursor-pointer hover:shadow-lg transition-shadow dark:bg-gray-800 dark:border-gray-700"
                   >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
@@ -254,7 +317,10 @@ export default function MeetingsPage() {
                           </span>
                           <div className="flex gap-2">
                             <button
-                              onClick={() => handleEdit(meeting)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEdit(meeting);
+                              }}
                               className="p-2 text-gray-600 dark:text-gray-400
                                        hover:text-indigo-600
                                        hover:bg-indigo-50 dark:hover:bg-indigo-900
@@ -263,7 +329,10 @@ export default function MeetingsPage() {
                               <Edit className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => handleDelete(meeting.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(meeting.id);
+                              }}
                               className="p-2 text-gray-600 dark:text-gray-400
                                        hover:text-red-600
                                        hover:bg-red-50 dark:hover:bg-red-900
@@ -288,6 +357,16 @@ export default function MeetingsPage() {
         clients={clients}
         open={dialogOpen}
         onOpenChange={handleCloseDialog}
+      />
+
+      <MeetingDetailsDialog
+        meeting={detailsMeeting}
+        clients={clients}
+        open={detailsOpen}
+        onOpenChange={(open) => {
+          setDetailsOpen(open);
+          if (!open) setDetailsMeeting(null);
+        }}
       />
     </div>
   );

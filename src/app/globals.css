@@ -148,3 +148,28 @@ select:-webkit-autofill:focus {
   box-shadow: 0 0 0px 1000px var(--background) inset;
   transition: background-color 9999s ease-out 0s;
 }
+
+/* Dark mode scrollbar */
+.dark {
+  scrollbar-color: var(--muted-foreground) var(--background);
+  scrollbar-width: thin;
+}
+
+.dark ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background-color: var(--muted);
+  border-radius: 9999px;
+  border: 2px solid var(--background);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted-foreground);
+}
