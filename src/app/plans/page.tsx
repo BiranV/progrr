@@ -16,6 +16,7 @@ import {
   Plus,
   Search,
   Dumbbell,
+  ClipboardList,
   Clock,
   Target,
   BarChart,
@@ -179,7 +180,7 @@ export default function PlansPage() {
       ) : filteredPlans.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <Dumbbell className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <ClipboardList className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-500 dark:text-gray-400">
               {search
                 ? "No workout plans found"
