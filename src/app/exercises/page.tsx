@@ -5,26 +5,25 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Plus,
   Search,
   Edit,
   Trash2,
   Dumbbell,
-  FileDown,
   FileText,
-  Copy,
   Video,
 } from "lucide-react";
 import ExerciseLibraryDialog from "@/components/ExerciseLibraryDialog";
+import ExerciseLibraryDetailsDialog from "@/components/ExerciseLibraryDetailsDialog";
 import { toast } from "sonner";
-import {
-  copyTextToClipboard,
-  downloadPdfFile,
-  downloadTextFile,
-} from "@/lib/plan-export";
-import { extractYouTubeVideoId } from "@/lib/youtube";
 
 export default function ExercisesPage() {
   const queryClient = useQueryClient();
@@ -34,60 +33,10 @@ export default function ExercisesPage() {
     null
   );
 
-  const formatExerciseExportText = (exercise: any) => {
-    const lines: string[] = [];
-    const name = String(exercise?.name ?? "").trim() || "-";
-    lines.push(`Exercise: ${name}`);
-
-    const guidelines = String(exercise?.guidelines ?? "").trim();
-    if (guidelines) {
-      lines.push("");
-      lines.push("Guidelines:");
-      lines.push(guidelines);
-    }
-
-    const videoKind = String(exercise?.videoKind ?? "").trim();
-    const videoUrl = String(exercise?.videoUrl ?? "").trim();
-
-    const youtubeWatchUrl = (() => {
-      if (videoKind !== "youtube" || !videoUrl) return "";
-      const id = extractYouTubeVideoId(videoUrl);
-      return id ? `https://www.youtube.com/watch?v=${id}` : "";
-    })();
-
-    if (youtubeWatchUrl) {
-      lines.push("");
-      lines.push(`YouTube: ${youtubeWatchUrl}`);
-    } else if (videoKind === "upload" && videoUrl) {
-      lines.push("");
-      lines.push(`Video: ${videoUrl}`);
-    }
-
-    return lines.join("\n");
-  };
-
-  const exportExercise = async (
-    exercise: any,
-    kind: "pdf" | "txt" | "copy"
-  ) => {
-    try {
-      const name = String(exercise?.name ?? "").trim();
-      const id = String(exercise?.id ?? "").trim();
-      const filenameBase = `Exercise - ${name || id || "exercise"}`;
-      const text = formatExerciseExportText(exercise);
-
-      if (kind === "pdf") {
-        downloadPdfFile(filenameBase, `Exercise: ${name || ""}`.trim(), text);
-      } else if (kind === "txt") {
-        downloadTextFile(filenameBase, text);
-      } else {
-        await copyTextToClipboard(text);
-        toast.success("Copied to clipboard");
-      }
-    } catch (err: any) {
-      toast.error(String(err?.message ?? "Failed to export"));
-    }
-  };
+  const [detailsOpen, setDetailsOpen] = React.useState(false);
+  const [detailsExercise, setDetailsExercise] = React.useState<any | null>(
+    null
+  );
 
   const { data: exercises = [], isLoading } = useQuery({
     queryKey: ["exerciseLibrary"],
@@ -127,6 +76,11 @@ export default function ExercisesPage() {
   const handleEdit = (exercise: any) => {
     setEditingExercise(exercise);
     setDialogOpen(true);
+  };
+
+  const handleDetails = (exercise: any) => {
+    setDetailsExercise(exercise);
+    setDetailsOpen(true);
   };
 
   const handleCreate = () => {
@@ -189,112 +143,111 @@ export default function ExercisesPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered.map((e: any) => (
-            <Card
-              key={e.id}
-              className="h-[220px] hover:shadow-lg transition-shadow dark:bg-gray-800 dark:border-gray-700"
-            >
-              <CardContent className="px-5 flex flex-col h-full">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="min-w-0">
-                    <h3 className="text-lg font-semibold truncate">
-                      {e.name || "-"}
-                    </h3>
-                    {String(e.videoKind ?? "").trim() ||
-                    String(e.guidelines ?? "").trim() ? (
-                      <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        {String(e.videoKind ?? "").trim() ? (
-                          <div className="flex items-center gap-2 truncate">
-                            <Video className="w-4 h-4 shrink-0" />
-                            <span className="truncate">Video</span>
-                          </div>
-                        ) : null}
+          {filtered.map((e: any) =>
+            (() => {
+              const videoKind = String(e?.videoKind ?? "").trim();
+              const videoUrl = String(e?.videoUrl ?? "").trim();
+              const hasVideo =
+                !!videoKind &&
+                (videoKind !== "youtube" || !!videoUrl) &&
+                (videoKind !== "upload" || !!videoUrl);
+              const hasGuidelines = !!String(e?.guidelines ?? "").trim();
 
-                        {String(e.guidelines ?? "").trim() ? (
-                          <div className="flex items-center gap-2 truncate">
-                            <FileText className="w-4 h-4 shrink-0" />
-                            <span className="truncate">Guideline</span>
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </div>
+              const subtitle =
+                hasVideo && hasGuidelines
+                  ? "Video & guidelines"
+                  : hasVideo
+                  ? "Video"
+                  : hasGuidelines
+                  ? "Guidelines"
+                  : "";
 
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleEdit(e)}
-                      className="p-2 text-gray-600 dark:text-gray-400
+              const videoLabel =
+                videoKind === "youtube"
+                  ? "YouTube"
+                  : videoKind === "upload"
+                  ? "Upload"
+                  : videoKind || "";
+
+              return (
+                <Card
+                  key={e.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleDetails(e)}
+                  onKeyDown={(ev) => {
+                    if (ev.key === "Enter" || ev.key === " ") {
+                      ev.preventDefault();
+                      handleDetails(e);
+                    }
+                  }}
+                  className="hover:shadow-lg cursor-pointer transition-shadow duration-200 flex flex-col h-full dark:bg-gray-800 dark:border-gray-700"
+                >
+                  <CardHeader className="flex flex-row items-start justify-between pb-2">
+                    <div className="space-y-1 min-w-0">
+                      <CardTitle className="text-xl font-semibold truncate">
+                        {e.name || "-"}
+                      </CardTitle>
+                      {subtitle ? (
+                        <CardDescription className="text-xs text-gray-500 dark:text-gray-400">
+                          {subtitle}
+                        </CardDescription>
+                      ) : null}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          handleEdit(e);
+                        }}
+                        className="p-2 text-gray-600 dark:text-gray-400
                         hover:text-indigo-600
                         hover:bg-indigo-50 dark:hover:bg-indigo-900
                         rounded-lg"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
 
-                    <button
-                      onClick={() => handleDelete(e.id)}
-                      className="p-2 text-gray-600 dark:text-gray-400
+                      <button
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          handleDelete(e.id);
+                        }}
+                        className="p-2 text-gray-600 dark:text-gray-400
                         hover:text-red-600
                         hover:bg-red-50 dark:hover:bg-red-900
                         rounded-lg"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex-1" />
-
-                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end">
-                  <div className="flex items-center justify-end gap-2 w-full">
-                    <div className="flex items-center gap-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        className="text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
-                        title="Download PDF"
-                        aria-label="Download PDF"
-                        onClick={() => exportExercise(e, "pdf")}
                       >
-                        <FileDown className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        className="text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
-                        title="Download Text"
-                        aria-label="Download Text"
-                        onClick={() => exportExercise(e, "txt")}
-                      >
-                        <FileText className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-300 dark:hover:text-emerald-200"
-                        title="Copy to clipboard"
-                        aria-label="Copy to clipboard"
-                        onClick={() => exportExercise(e, "copy")}
-                      >
-                        <Copy className="w-4 h-4" />
-                      </Button>
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
+                  </CardHeader>
 
-                    <Button
-                      size="sm"
-                      className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-200 dark:hover:bg-indigo-900/45"
-                      onClick={() => handleEdit(e)}
-                    >
-                      Details
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  <CardContent className="px-5 py-2">
+                    {hasVideo || hasGuidelines ? (
+                      <div className="space-y-3 text-sm text-gray-600 dark:text-gray-300">
+                        <div className="grid grid-cols-2 gap-4">
+                          {hasVideo ? (
+                            <div className="flex items-center gap-2">
+                              <Video className="w-4 h-4" />
+                              <span>Video: {videoLabel || "-"}</span>
+                            </div>
+                          ) : null}
+                          {hasGuidelines ? (
+                            <div className="flex items-center gap-2">
+                              <FileText className="w-4 h-4" />
+                              <span>Guidelines</span>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              );
+            })()
+          )}
         </div>
       )}
 
@@ -304,6 +257,15 @@ export default function ExercisesPage() {
         onOpenChange={(open) => {
           setDialogOpen(open);
           if (!open) setEditingExercise(null);
+        }}
+      />
+
+      <ExerciseLibraryDetailsDialog
+        exercise={detailsExercise}
+        open={detailsOpen}
+        onOpenChange={(open) => {
+          setDetailsOpen(open);
+          if (!open) setDetailsExercise(null);
         }}
       />
     </div>
