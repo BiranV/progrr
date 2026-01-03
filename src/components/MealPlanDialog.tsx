@@ -405,9 +405,9 @@ export default function MealPlanDialog({
                     <button
                       type="button"
                       onClick={() => removeMeal(mealIndex)}
-                      className="p-2 hover:bg-red-50 rounded"
+                      className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors"
                     >
-                      <Trash2 className="w-4 h-4 text-red-600" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
 

@@ -22,12 +22,15 @@ import {
   Dumbbell,
 } from "lucide-react";
 import MealPlanDialog from "@/components/MealPlanDialog";
+import MealPlanDetailsDialog from "@/components/MealPlanDetailsDialog";
 import { MealPlan, Meal, Food } from "@/types";
 
 export default function MealsPage() {
   const [search, setSearch] = React.useState("");
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editingPlan, setEditingPlan] = React.useState<MealPlan | null>(null);
+  const [detailsOpen, setDetailsOpen] = React.useState(false);
+  const [detailsPlan, setDetailsPlan] = React.useState<MealPlan | null>(null);
   const queryClient = useQueryClient();
 
   const { data: mealPlans = [], isLoading } = useQuery({
@@ -59,6 +62,11 @@ export default function MealsPage() {
   const handleEdit = (plan: MealPlan) => {
     setEditingPlan(plan);
     setDialogOpen(true);
+  };
+
+  const handleDetails = (plan: MealPlan) => {
+    setDetailsPlan(plan);
+    setDetailsOpen(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -202,7 +210,7 @@ export default function MealsPage() {
                     <Button
                       size="sm"
                       className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-200 dark:hover:bg-indigo-900/45 border-0 font-medium"
-                      onClick={() => handleEdit(plan)}
+                      onClick={() => handleDetails(plan)}
                     >
                       Details
                     </Button>
@@ -218,6 +226,15 @@ export default function MealsPage() {
         plan={editingPlan}
         open={dialogOpen}
         onOpenChange={handleCloseDialog}
+      />
+
+      <MealPlanDetailsDialog
+        plan={detailsPlan}
+        open={detailsOpen}
+        onOpenChange={(open) => {
+          setDetailsOpen(open);
+          if (!open) setDetailsPlan(null);
+        }}
       />
     </div>
   );

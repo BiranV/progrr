@@ -17,6 +17,7 @@ import {
   Trash2,
 } from "lucide-react";
 import PlanDialog from "@/components/PlanDialog";
+import WorkoutPlanDetailsDialog from "@/components/WorkoutPlanDetailsDialog";
 import { WorkoutPlan } from "@/types";
 
 export default function PlansPage() {
@@ -24,6 +25,10 @@ export default function PlansPage() {
   const [search, setSearch] = React.useState("");
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editingPlan, setEditingPlan] = React.useState<WorkoutPlan | null>(
+    null
+  );
+  const [detailsOpen, setDetailsOpen] = React.useState(false);
+  const [detailsPlan, setDetailsPlan] = React.useState<WorkoutPlan | null>(
     null
   );
 
@@ -54,6 +59,11 @@ export default function PlansPage() {
   const handleEdit = (plan: WorkoutPlan) => {
     setEditingPlan(plan);
     setDialogOpen(true);
+  };
+
+  const handleDetails = (plan: WorkoutPlan) => {
+    setDetailsPlan(plan);
+    setDetailsOpen(true);
   };
 
   const handleDelete = (id: string) => {
@@ -178,7 +188,7 @@ export default function PlansPage() {
                   <Button
                     size="sm"
                     className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-200 dark:hover:bg-indigo-900/45"
-                    onClick={() => handleEdit(plan)}
+                    onClick={() => handleDetails(plan)}
                   >
                     Details
                   </Button>
@@ -193,6 +203,15 @@ export default function PlansPage() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         plan={editingPlan}
+      />
+
+      <WorkoutPlanDetailsDialog
+        open={detailsOpen}
+        onOpenChange={(open) => {
+          setDetailsOpen(open);
+          if (!open) setDetailsPlan(null);
+        }}
+        plan={detailsPlan}
       />
     </div>
   );
