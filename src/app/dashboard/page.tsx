@@ -956,7 +956,7 @@ function ClientDashboard({ user }: { user: any }) {
   };
 
   return (
-    <div className="p-8">
+    <div className="p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
       <div className="flex items-center justify-between mb-6">
         <div className="min-w-0">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
