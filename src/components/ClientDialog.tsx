@@ -8,6 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import {
+  getCountries,
+  getCountryCallingCode,
+  parsePhoneNumberFromString,
+} from "libphonenumber-js";
+import {
   createClientAction,
   updateClientAction,
   ClientFormData,
@@ -37,6 +42,76 @@ const REQUIRED_FIELDS: Array<keyof Client> = [
   "phone",
   "status",
 ];
+
+const DEFAULT_COUNTRY = "IL";
+
+function getDialCode(country: string): string {
+  try {
+    return `+${getCountryCallingCode(country as any)}`;
+  } catch {
+    return "+972";
+  }
+}
+
+function getLocale(): string {
+  if (typeof navigator !== "undefined" && navigator.language) {
+    return navigator.language;
+  }
+  return "en";
+}
+
+function getCountryLabel(country: string): string {
+  const locale = getLocale();
+  try {
+    const dn = new Intl.DisplayNames([locale], { type: "region" });
+    return dn.of(country) || country;
+  } catch {
+    return country;
+  }
+}
+
+function splitPhoneForUi(raw: unknown): {
+  country: string;
+  national: string;
+} {
+  const v = String(raw ?? "").trim();
+  const digitsOnly = (s: string) => s.replace(/\D/g, "");
+
+  if (!v) return { country: DEFAULT_COUNTRY, national: "" };
+
+  // If user pasted an international number, try to parse it and infer country.
+  if (v.startsWith("+") || v.startsWith("00")) {
+    const formatted = v.startsWith("00") ? `+${digitsOnly(v).slice(2)}` : v;
+    const pn = parsePhoneNumberFromString(formatted);
+    if (pn) {
+      return {
+        country: (pn.country as string) || DEFAULT_COUNTRY,
+        national: pn.nationalNumber || "",
+      };
+    }
+
+    // Fallback: keep default country, strip any obvious dial-code prefix.
+    const digits = digitsOnly(formatted);
+    if (digits.startsWith("972")) {
+      let national = digits.slice(3);
+      if (national.startsWith("0")) national = national.slice(1);
+      return { country: DEFAULT_COUNTRY, national };
+    }
+    return { country: DEFAULT_COUNTRY, national: digits };
+  }
+
+  // Local format fallback (keeps existing IL behavior)
+  let national = digitsOnly(v);
+  if (national.startsWith("0")) national = national.slice(1);
+  return { country: DEFAULT_COUNTRY, national };
+}
+
+function buildPhoneValue(country: string, nationalInput: string): string {
+  const countryCode = getDialCode(country);
+  const digits = String(nationalInput ?? "").replace(/\D/g, "");
+  const normalized = digits.startsWith("0") ? digits.slice(1) : digits;
+  return normalized ? `${countryCode}${normalized}` : "";
+}
 
 interface ClientDialogProps {
   client: Client | null;
@@ -92,15 +167,32 @@ export default function ClientDialog({
     assignedMealPlanId: "",
   });
 
+  const [phoneCountry, setPhoneCountry] = React.useState(DEFAULT_COUNTRY);
+  const [phoneNational, setPhoneNational] = React.useState("");
+
+  const countryOptions = React.useMemo(() => {
+    const items = getCountries().map((c) => ({
+      country: c,
+      label: getCountryLabel(c),
+      dial: getDialCode(c),
+    }));
+    items.sort((a, b) => a.label.localeCompare(b.label));
+    return items;
+  }, []);
+
   /* ======================================================
      Init / Reset
      ====================================================== */
   React.useEffect(() => {
     if (client) {
+      const split = splitPhoneForUi(client.phone);
+      setPhoneCountry(split.country);
+      setPhoneNational(split.national);
+
       setFormData({
         name: client.name || "",
         email: client.email || "",
-        phone: client.phone || "",
+        phone: buildPhoneValue(split.country, split.national) || "",
         birthDate: client.birthDate || "",
         gender: client.gender || "",
         height: client.height || "",
@@ -113,6 +205,9 @@ export default function ClientDialog({
         assignedMealPlanId: client.assignedMealPlanId || "",
       });
     } else {
+      setPhoneCountry(DEFAULT_COUNTRY);
+      setPhoneNational("");
+
       setFormData({
         name: "",
         email: "",
@@ -205,6 +300,67 @@ export default function ClientDialog({
               <Input {...getInputProps("name")} />
             </div>
 
+            {/* PHONE */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Phone {isRequired("phone") && "*"}
+              </label>
+              <div className="flex gap-2">
+                <Select
+                  value={phoneCountry}
+                  onValueChange={(v) => {
+                    setPhoneCountry(v);
+                    const nextPhone = buildPhoneValue(v, phoneNational);
+                    setFormData({ ...formData, phone: nextPhone });
+                  }}
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[320px]">
+                    {countryOptions.map((c) => (
+                      <SelectItem key={c.country} value={c.country}>
+                        {c.label} ({c.dial})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Input
+                  value={phoneNational}
+                  required={isRequired("phone")}
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="Phone number"
+                  onChange={(e) => {
+                    const raw = e.target.value;
+
+                    // If user pasted a full number, split it.
+                    if (
+                      raw.includes("+") ||
+                      raw.startsWith("00") ||
+                      /^(\d{1,4})/.test(raw)
+                    ) {
+                      const split = splitPhoneForUi(raw);
+                      setPhoneCountry(split.country);
+                      setPhoneNational(split.national);
+                      setFormData({
+                        ...formData,
+                        phone: buildPhoneValue(split.country, split.national),
+                      });
+                      return;
+                    }
+
+                    setPhoneNational(raw);
+                    setFormData({
+                      ...formData,
+                      phone: buildPhoneValue(phoneCountry, raw),
+                    });
+                  }}
+                />
+              </div>
+            </div>
+
             {/* EMAIL */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -218,12 +374,27 @@ export default function ClientDialog({
               />
             </div>
 
-            {/* PHONE */}
+            {/* STATUS */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Phone {isRequired("phone") && "*"}
+                Status {isRequired("status") && "*"}
               </label>
-              <Input {...getInputProps("phone")} />
+              <Select
+                value={formData.status}
+                required={isRequired("status")}
+                onValueChange={(v) => {
+                  setFormData({ ...formData, status: v });
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="INACTIVE">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* BIRTH DATE */}
@@ -323,29 +494,6 @@ export default function ClientDialog({
                   <SelectItem value="moderate">Moderate</SelectItem>
                   <SelectItem value="very">Very Active</SelectItem>
                   <SelectItem value="extra">Extra Active</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* STATUS */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Status {isRequired("status") && "*"}
-              </label>
-              <Select
-                value={formData.status}
-                required={isRequired("status")}
-                onValueChange={(v) => {
-                  setFormData({ ...formData, status: v });
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ACTIVE">Active</SelectItem>
-                  <SelectItem value="PENDING">Pending</SelectItem>
-                  <SelectItem value="INACTIVE">Inactive</SelectItem>
                 </SelectContent>
               </Select>
             </div>

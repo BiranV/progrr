@@ -21,7 +21,59 @@ function normalizeEmail(email: unknown): string | undefined {
 }
 
 function normalizePhone(phone: unknown): string {
-  return String(phone ?? "").trim();
+  const raw = String(phone ?? "").trim();
+  if (!raw) return "";
+
+  // Keep only digits; we'll re-add '+' as needed
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return "";
+
+  // International formats
+  if (raw.startsWith("+")) {
+    return `+${digits}`;
+  }
+  if (raw.startsWith("00") && digits.startsWith("00")) {
+    const rest = digits.slice(2);
+    return rest ? `+${rest}` : "";
+  }
+
+  // Backward compatibility: legacy Israeli local formats (e.g. 05xxxxxxxx)
+  if (digits.startsWith("0")) {
+    const national = digits.slice(1);
+    return national ? `+972${national}` : "";
+  }
+  if (digits.startsWith("972")) {
+    const national = digits.slice(3);
+    return national ? `+972${national}` : "";
+  }
+
+  // Last resort fallback (keeps previous behavior): assume IL
+  return `+972${digits}`;
+}
+
+function phoneVariants(phone: unknown): string[] {
+  const normalized = normalizePhone(phone);
+  if (!normalized) return [];
+
+  const variants = new Set<string>();
+  variants.add(normalized);
+
+  // Common international alternative forms (no '+', and '00' prefix)
+  const digits = normalized.replace(/\D/g, "");
+  if (digits) {
+    variants.add(digits);
+    variants.add(`00${digits}`);
+  }
+
+  // Extra compatibility for older Israeli records
+  if (normalized.startsWith("+972")) {
+    const national = normalized.slice(4);
+    variants.add(`972${national}`);
+    variants.add(`00972${national}`);
+    variants.add(`0${national}`);
+  }
+
+  return Array.from(variants);
 }
 
 function normalizeClientStatus(
@@ -67,6 +119,7 @@ export async function createClientAction(data: ClientFormData) {
 
   const adminId = new ObjectId(adminUser.id);
   const phone = normalizePhone(data.phone);
+  const phoneCandidates = phoneVariants(phone);
   const name = String(data.name ?? "").trim();
   const email = normalizeEmail(data.email);
   const status = normalizeClientStatus(data.status);
@@ -83,7 +136,7 @@ export async function createClientAction(data: ClientFormData) {
     entity: "Client",
     adminId,
     $or: [
-      { "data.phone": phone },
+      { "data.phone": { $in: phoneCandidates } },
       {
         "data.email": {
           $regex: new RegExp(`^${escapeRegExp(email)}$`, "i"),
@@ -104,7 +157,9 @@ export async function createClientAction(data: ClientFormData) {
   }
 
   // Create the login record. Hard rule: phone is the login key.
-  const existingAuthClient = await c.clients.findOne({ phone });
+  const existingAuthClient = await c.clients.findOne({
+    phone: { $in: phoneCandidates },
+  });
 
   let clientAuthId: ObjectId;
   if (existingAuthClient) {
@@ -200,6 +255,7 @@ export async function updateClientAction(id: string, data: ClientFormData) {
   if (!existing) throw new Error("Client not found");
 
   const phone = normalizePhone(data.phone);
+  const phoneCandidates = phoneVariants(phone);
   const name = String(data.name ?? "").trim();
   const email = normalizeEmail(data.email);
   if (!name) throw new Error("Client name is required");
@@ -214,7 +270,7 @@ export async function updateClientAction(id: string, data: ClientFormData) {
     adminId,
     _id: { $ne: entityId },
     $or: [
-      { "data.phone": phone },
+      { "data.phone": { $in: phoneCandidates } },
       {
         "data.email": {
           $regex: new RegExp(`^${escapeRegExp(email)}$`, "i"),
@@ -255,6 +311,15 @@ export async function updateClientAction(id: string, data: ClientFormData) {
       role: "client",
     });
     clientAuthId = insert.insertedId;
+  }
+
+  // Also prevent duplicate login phones across common variants (not just exact match).
+  const existingAuthDup = await c.clients.findOne({
+    phone: { $in: phoneCandidates },
+    _id: { $ne: clientAuthId },
+  });
+  if (existingAuthDup) {
+    throw new Error("A client with this phone already exists");
   }
 
   try {
