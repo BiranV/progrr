@@ -142,9 +142,6 @@ export default function ClientDetailsDialog({
                   {String((client as any)?.birthDate ?? "").trim() || "-"}
                 </div>
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
                 <div className="text-gray-500 dark:text-gray-400">Height</div>
                 <div className="font-medium text-gray-900 dark:text-white">
@@ -157,9 +154,6 @@ export default function ClientDetailsDialog({
                   {String((client as any)?.weight ?? "").trim() || "-"}
                 </div>
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
                 <div className="text-gray-500 dark:text-gray-400">
                   Assigned Workout Plans
@@ -176,18 +170,16 @@ export default function ClientDetailsDialog({
                   {mealNames.length ? mealNames.join(", ") : "-"}
                 </div>
               </div>
-            </div>
 
-            {String((client as any)?.notes ?? "").trim() ? (
-              <div>
-                <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-                  Notes
+              {String((client as any)?.notes ?? "").trim() ? (
+                <div className="col-span-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+                  <div className="text-gray-500 dark:text-gray-400">Notes</div>
+                  <div className="mt-1 text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">
+                    {String((client as any)?.notes ?? "").trim()}
+                  </div>
                 </div>
-                <div className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
-                  {String((client as any)?.notes ?? "").trim()}
-                </div>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </div>
         )}
       </DialogContent>
