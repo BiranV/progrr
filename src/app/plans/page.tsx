@@ -87,7 +87,9 @@ export default function PlansPage() {
     kind: "pdf" | "txt" | "copy"
   ) => {
     try {
-      const rows = await db.entities.Exercise.filter({ workoutPlanId: plan.id });
+      const rows = await db.entities.Exercise.filter({
+        workoutPlanId: plan.id,
+      });
       const exercises = [...rows].sort(
         (a: any, b: any) => (a.order || 0) - (b.order || 0)
       );

@@ -10,12 +10,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Copy as CopyIcon, FileDown, FileText } from "lucide-react";
 import {
   copyTextToClipboard,
   downloadPdfFile,
   downloadTextFile,
   formatMealPlanText,
 } from "@/lib/plan-export";
+import { toast } from "sonner";
 import { MealPlan, Meal, Food } from "@/types";
 
 interface MealPlanDetailsDialogProps {
@@ -79,8 +81,10 @@ export default function MealPlanDetailsDialog({
     if (!plan) return;
     try {
       await copyTextToClipboard(exportText);
+      toast.success("Copied to clipboard");
     } catch (err) {
       console.error("Failed to copy meal plan", err);
+      toast.error("Failed to copy");
     }
   };
 
@@ -90,6 +94,7 @@ export default function MealPlanDetailsDialog({
       downloadTextFile(exportFilenameBase, exportText);
     } catch (err) {
       console.error("Failed to download meal plan text", err);
+      toast.error("Failed to download text");
     }
   };
 
@@ -103,6 +108,7 @@ export default function MealPlanDetailsDialog({
       );
     } catch (err) {
       console.error("Failed to download meal plan PDF", err);
+      toast.error("Failed to download PDF");
     }
   };
 
@@ -140,27 +146,36 @@ export default function MealPlanDetailsDialog({
               <div className="shrink-0 flex flex-wrap gap-2">
                 <Button
                   type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCopy}
-                >
-                  Copy
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDownloadText}
-                >
-                  Text
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
+                  title="Download PDF"
+                  aria-label="Download PDF"
                   onClick={handleDownloadPdf}
                 >
-                  PDF
+                  <FileDown className="w-4 h-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
+                  title="Download Text"
+                  aria-label="Download Text"
+                  onClick={handleDownloadText}
+                >
+                  <FileText className="w-4 h-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-green-600 hover:text-green-700 dark:text-green-300 dark:hover:text-green-200"
+                  title="Copy to clipboard"
+                  aria-label="Copy to clipboard"
+                  onClick={handleCopy}
+                >
+                  <CopyIcon className="w-4 h-4" />
                 </Button>
               </div>
             </div>

@@ -22,6 +22,9 @@ import {
   Sun,
   Moon,
   LogOut,
+  FileDown,
+  FileText,
+  Copy as CopyIcon,
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -42,6 +45,7 @@ import {
   formatMealPlanText,
   formatWorkoutPlanText,
 } from "@/lib/plan-export";
+import { toast } from "sonner";
 
 export default function DashboardPage() {
   const { user, isLoadingAuth } = useAuth();
@@ -610,8 +614,10 @@ function ClientDashboard({ user }: { user: any }) {
     if (!assignedPlan) return;
     try {
       await copyTextToClipboard(workoutPlanExportText);
+      toast.success("Copied to clipboard");
     } catch (err) {
       console.error("Failed to copy workout plan", err);
+      toast.error("Failed to copy");
     }
   };
 
@@ -621,6 +627,7 @@ function ClientDashboard({ user }: { user: any }) {
       downloadTextFile(workoutPlanFilenameBase, workoutPlanExportText);
     } catch (err) {
       console.error("Failed to download workout plan text", err);
+      toast.error("Failed to download text");
     }
   };
 
@@ -635,6 +642,7 @@ function ClientDashboard({ user }: { user: any }) {
       );
     } catch (err) {
       console.error("Failed to download workout plan PDF", err);
+      toast.error("Failed to download PDF");
     }
   };
 
@@ -642,8 +650,10 @@ function ClientDashboard({ user }: { user: any }) {
     if (!assignedMealPlan) return;
     try {
       await copyTextToClipboard(mealPlanExportText);
+      toast.success("Copied to clipboard");
     } catch (err) {
       console.error("Failed to copy meal plan", err);
+      toast.error("Failed to copy");
     }
   };
 
@@ -653,6 +663,7 @@ function ClientDashboard({ user }: { user: any }) {
       downloadTextFile(mealPlanFilenameBase, mealPlanExportText);
     } catch (err) {
       console.error("Failed to download meal plan text", err);
+      toast.error("Failed to download text");
     }
   };
 
@@ -667,6 +678,7 @@ function ClientDashboard({ user }: { user: any }) {
       );
     } catch (err) {
       console.error("Failed to download meal plan PDF", err);
+      toast.error("Failed to download PDF");
     }
   };
 
@@ -1239,27 +1251,36 @@ function ClientDashboard({ user }: { user: any }) {
                     <div className="shrink-0 flex flex-wrap gap-2">
                       <Button
                         type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={copyWorkoutPlan}
-                      >
-                        Copy
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={downloadWorkoutPlanText}
-                      >
-                        Text
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
+                        title="Download PDF"
+                        aria-label="Download PDF"
                         onClick={downloadWorkoutPlanPdf}
                       >
-                        PDF
+                        <FileDown className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
+                        title="Download Text"
+                        aria-label="Download Text"
+                        onClick={downloadWorkoutPlanText}
+                      >
+                        <FileText className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-green-600 hover:text-green-700 dark:text-green-300 dark:hover:text-green-200"
+                        title="Copy to clipboard"
+                        aria-label="Copy to clipboard"
+                        onClick={copyWorkoutPlan}
+                      >
+                        <CopyIcon className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
@@ -1347,27 +1368,36 @@ function ClientDashboard({ user }: { user: any }) {
                     <div className="shrink-0 flex flex-wrap gap-2">
                       <Button
                         type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={copyMealPlan}
-                      >
-                        Copy
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={downloadMealPlanText}
-                      >
-                        Text
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
+                        title="Download PDF"
+                        aria-label="Download PDF"
                         onClick={downloadMealPlanPdf}
                       >
-                        PDF
+                        <FileDown className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
+                        title="Download Text"
+                        aria-label="Download Text"
+                        onClick={downloadMealPlanText}
+                      >
+                        <FileText className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-green-600 hover:text-green-700 dark:text-green-300 dark:hover:text-green-200"
+                        title="Copy to clipboard"
+                        aria-label="Copy to clipboard"
+                        onClick={copyMealPlan}
+                      >
+                        <CopyIcon className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
