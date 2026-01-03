@@ -13,9 +13,9 @@ import {
   Trash2,
   Apple,
   Flame,
-  Dumbbell,
+  Beef,
   Wheat,
-  Droplet,
+  Droplets,
   FileDown,
   FileText,
   Copy,
@@ -200,7 +200,7 @@ export default function FoodsPage() {
                       <span>{String(f.calories ?? "").trim() || "-"} kcal</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Dumbbell className="w-4 h-4 text-blue-500" />
+                      <Beef className="w-4 h-4 text-blue-500" />
                       <span>{String(f.protein ?? "").trim() || "-"} g</span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -208,7 +208,7 @@ export default function FoodsPage() {
                       <span>{String(f.carbs ?? "").trim() || "-"} g</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Droplet className="w-4 h-4 text-purple-500" />
+                      <Droplets className="w-4 h-4 text-purple-500" />
                       <span>{String(f.fat ?? "").trim() || "-"} g</span>
                     </div>
                   </div>
