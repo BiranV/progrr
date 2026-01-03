@@ -973,7 +973,7 @@ function ClientDashboard({ user }: { user: any }) {
             </button>
           </DialogTrigger>
 
-          <DialogContent className="max-w-xl">
+          <DialogContent className="w-[90vw] max-w-[90vw] sm:max-w-xl">
             <DialogHeader>
               <DialogTitle>Messages</DialogTitle>
             </DialogHeader>
