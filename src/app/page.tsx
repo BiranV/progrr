@@ -211,11 +211,19 @@ export default function Home() {
                   </TabsList>
 
                   <TabsContent value="login" className="flex-1 flex flex-col">
-                    <LoginForm key={`login-${tab}`} banner={banner} />
+                    <LoginForm
+                      key={`login-${tab}`}
+                      banner={banner}
+                      clearBanner={() => setBanner(null)}
+                    />
                   </TabsContent>
 
                   <TabsContent value="signup" className="flex-1 flex flex-col">
-                    <RegisterForm key={`signup-${tab}`} banner={banner} />
+                    <RegisterForm
+                      key={`signup-${tab}`}
+                      banner={banner}
+                      clearBanner={() => setBanner(null)}
+                    />
                   </TabsContent>
                 </Tabs>
               </CardContent>
@@ -233,11 +241,13 @@ export default function Home() {
 
 function LoginForm({
   banner,
+  clearBanner,
 }: {
   banner:
     | { type: "error"; text: string }
     | { type: "message"; text: string }
     | null;
+  clearBanner: () => void;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -259,6 +269,7 @@ function LoginForm({
 
   useEffect(() => {
     // Clear the form completely when switching roles.
+    clearBanner();
     setAdminEmail("");
     setAdminPassword("");
 
@@ -273,6 +284,7 @@ function LoginForm({
   }, [loginAs]);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    clearBanner();
     const formData = new FormData(e.currentTarget);
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
@@ -303,6 +315,7 @@ function LoginForm({
 
   const handleClientSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
+    clearBanner();
     setClientError(null);
     setClientInfo(null);
 
@@ -344,6 +357,7 @@ function LoginForm({
 
   const handleClientVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
+    clearBanner();
     setClientError(null);
     setClientInfo(null);
 
@@ -496,7 +510,11 @@ function LoginForm({
                 placeholder="coach@example.com"
                 autoComplete="email"
                 value={adminEmail}
-                onChange={(e) => setAdminEmail(e.target.value)}
+                onChange={(e) => {
+                  clearBanner();
+                  if (adminValidationError) setAdminValidationError(null);
+                  setAdminEmail(e.target.value);
+                }}
               />
             </div>
             <div className="space-y-2">
@@ -513,7 +531,11 @@ function LoginForm({
                 placeholder=""
                 autoComplete="current-password"
                 value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
+                onChange={(e) => {
+                  clearBanner();
+                  if (adminValidationError) setAdminValidationError(null);
+                  setAdminPassword(e.target.value);
+                }}
               />
             </div>
           </div>
@@ -542,7 +564,11 @@ function LoginForm({
               placeholder="+1 555 555 5555"
               autoComplete="tel"
               value={clientPhone}
-              onChange={(e) => setClientPhone(e.target.value)}
+              onChange={(e) => {
+                clearBanner();
+                if (clientError) setClientError(null);
+                setClientPhone(e.target.value);
+              }}
             />
           </div>
 
@@ -571,7 +597,11 @@ function LoginForm({
               name="phone"
               type="tel"
               value={clientPhone}
-              onChange={(e) => setClientPhone(e.target.value)}
+              onChange={(e) => {
+                clearBanner();
+                if (clientError) setClientError(null);
+                setClientPhone(e.target.value);
+              }}
             />
           </div>
 
@@ -586,7 +616,11 @@ function LoginForm({
               id="client_code"
               name="code"
               value={clientCode}
-              onChange={setClientCode}
+              onChange={(next) => {
+                clearBanner();
+                if (clientError) setClientError(null);
+                setClientCode(next);
+              }}
               length={6}
               disabled={clientLoading}
             />
@@ -760,11 +794,13 @@ function OtpInput({
 
 function RegisterForm({
   banner,
+  clearBanner,
 }: {
   banner:
     | { type: "error"; text: string }
     | { type: "message"; text: string }
     | null;
+  clearBanner: () => void;
 }) {
   const [registerFullName, setRegisterFullName] = useState("");
   const [registerEmail, setRegisterEmail] = useState("");
@@ -774,6 +810,7 @@ function RegisterForm({
   >(null);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    clearBanner();
     const fullName = registerFullName;
     const email = registerEmail;
     const password = registerPassword;
@@ -878,6 +915,7 @@ function RegisterForm({
               autoComplete="name"
               value={registerFullName}
               onChange={(e) => {
+                clearBanner();
                 setRegisterFullName(e.target.value);
                 if (registerValidationError) setRegisterValidationError(null);
               }}
@@ -898,6 +936,7 @@ function RegisterForm({
               autoComplete="email"
               value={registerEmail}
               onChange={(e) => {
+                clearBanner();
                 setRegisterEmail(e.target.value);
                 if (registerValidationError) setRegisterValidationError(null);
               }}
@@ -918,6 +957,7 @@ function RegisterForm({
               autoComplete="new-password"
               value={registerPassword}
               onChange={(e) => {
+                clearBanner();
                 setRegisterPassword(e.target.value);
                 if (registerValidationError) setRegisterValidationError(null);
               }}
