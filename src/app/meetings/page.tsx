@@ -189,14 +189,6 @@ export default function MeetingsPage() {
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <span
-                          className={`inline-flex items-center h-7 px-3 rounded-md text-xs font-medium capitalize ${statusChipClasses(
-                            meeting.status
-                          )}`}
-                        >
-                          {meeting.status?.replace(/[-_]/g, " ") || "unknown"}
-                        </span>
-
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -224,7 +216,7 @@ export default function MeetingsPage() {
                       </div>
                     </CardHeader>
 
-                    <CardContent className="px-5 py-2">
+                    <CardContent className="px-5 py-2 flex flex-col flex-1">
                       <div className="space-y-3 text-sm text-gray-600 dark:text-gray-300">
                         <div className="grid grid-cols-2 gap-4">
                           <div className="flex items-center gap-2 truncate">
@@ -256,6 +248,16 @@ export default function MeetingsPage() {
                             </div>
                           ) : null}
                         </div>
+                      </div>
+
+                      <div className="mt-auto pt-3 flex justify-end">
+                        <span
+                          className={`inline-flex items-center h-7 px-3 rounded-md text-xs font-medium capitalize ${statusChipClasses(
+                            meeting.status
+                          )}`}
+                        >
+                          {meeting.status?.replace(/[-_]/g, " ") || "unknown"}
+                        </span>
                       </div>
                     </CardContent>
                   </Card>
@@ -293,7 +295,7 @@ export default function MeetingsPage() {
                     }}
                     className="cursor-pointer hover:shadow-lg transition-shadow dark:bg-gray-800 dark:border-gray-700"
                   >
-                    <CardContent className="p-4">
+                    <CardContent className="p-4 flex flex-col">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-500 dark:text-gray-400">
@@ -309,12 +311,6 @@ export default function MeetingsPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-4">
-                          <span
-                            className={`inline-flex items-center h-7 px-3 rounded-md text-xs font-medium capitalize
-              ${statusChipClasses(meeting.status)}`}
-                          >
-                            {meeting.status?.replace(/[-_]/g, " ") || "unknown"}
-                          </span>
                           <div className="flex gap-2">
                             <button
                               onClick={(e) => {
@@ -342,6 +338,15 @@ export default function MeetingsPage() {
                             </button>
                           </div>
                         </div>
+                      </div>
+
+                      <div className="mt-3 flex justify-end">
+                        <span
+                          className={`inline-flex items-center h-7 px-3 rounded-md text-xs font-medium capitalize
+              ${statusChipClasses(meeting.status)}`}
+                        >
+                          {meeting.status?.replace(/[-_]/g, " ") || "unknown"}
+                        </span>
                       </div>
                     </CardContent>
                   </Card>
