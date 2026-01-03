@@ -36,6 +36,13 @@ function withMock<T extends Record<string, any>>(data: T): T {
   };
 }
 
+function pickDeterministic<T>(items: readonly T[], seed: number): T {
+  // Deterministic, lightweight mixing (not crypto).
+  // Keeps stable results while avoiding correlated fields.
+  const idx = Math.abs((seed * 1103515245 + 12345) | 0) % items.length;
+  return items[idx];
+}
+
 async function clearMockData(adminId: ObjectId) {
   const c = await collections();
 
@@ -556,7 +563,10 @@ export async function POST(req: Request) {
           email: clientAuthDocs[i].email,
           phone,
           birthDate,
-          gender: ["male", "female", "other"][i % 3],
+          gender: pickDeterministic(
+            ["male", "female", "other"] as const,
+            i + 17
+          ),
           height: `${160 + (i % 25)} cm`,
           weight: `${55 + (i % 40)} kg`,
           goal: [
@@ -574,7 +584,10 @@ export async function POST(req: Request) {
             "Very Active",
           ][i % 5],
           subscription: ["Starter", "Premium", "VIP"][i % 3],
-          status: ["ACTIVE", "PENDING", "INACTIVE"][i % 3],
+          status: pickDeterministic(
+            ["ACTIVE", "PENDING", "INACTIVE"] as const,
+            i + 101
+          ),
           notes:
             "Initial intake completed. Tracking adherence, sleep, steps, and weekly check-ins. Adjust plan based on recovery and progress.",
           userId: authIdStr,
