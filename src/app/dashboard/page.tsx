@@ -28,6 +28,10 @@ import {
   ChevronDown,
   ChevronUp,
   ArrowLeft,
+  Flame,
+  Beef,
+  Wheat,
+  Droplets,
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -1162,116 +1166,108 @@ function ClientDashboard({ user }: { user: any }) {
           </div>
 
           {activeSection === "profile" ? (
-            <Card className="dark:bg-gray-800 dark:border-gray-700">
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                  <CardTitle>My Details</CardTitle>
+            <div>
+              {!myClient ? (
+                <div className="py-10 text-center text-gray-500 dark:text-gray-400">
+                  No client profile found
                 </div>
-              </CardHeader>
-              <CardContent>
-                {!myClient ? (
-                  <div className="py-10 text-center text-gray-500 dark:text-gray-400">
-                    No client profile found
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {avatarError ? (
-                      <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-200">
-                        {avatarError}
-                      </div>
-                    ) : null}
+              ) : (
+                <div className="space-y-3">
+                  {avatarError ? (
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-200">
+                      {avatarError}
+                    </div>
+                  ) : null}
 
-                    <div className="flex items-center justify-start gap-3">
-                      <ClientAvatar
-                        name={String(
-                          myClient.name || user.full_name || ""
-                        ).trim()}
-                        src={(myClient as any).avatarDataUrl}
-                        size={56}
+                  <div className="flex items-center justify-start gap-3">
+                    <ClientAvatar
+                      name={String(
+                        myClient.name || user.full_name || ""
+                      ).trim()}
+                      src={(myClient as any).avatarDataUrl}
+                      size={56}
+                    />
+                    <div className="flex flex-col gap-2">
+                      <input
+                        ref={avatarInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) =>
+                          handleAvatarFile(e.target.files?.[0] ?? null)
+                        }
                       />
-                      <div className="flex flex-col gap-2">
-                        <input
-                          ref={avatarInputRef}
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) =>
-                            handleAvatarFile(e.target.files?.[0] ?? null)
-                          }
-                        />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-9"
+                        disabled={uploadAvatarMutation.isPending}
+                        onClick={() => avatarInputRef.current?.click()}
+                      >
+                        {uploadAvatarMutation.isPending
+                          ? "Uploading..."
+                          : "Upload photo"}
+                      </Button>
+
+                      {(myClient as any).avatarDataUrl ? (
                         <Button
                           type="button"
                           variant="outline"
                           className="h-9"
                           disabled={uploadAvatarMutation.isPending}
-                          onClick={() => avatarInputRef.current?.click()}
-                        >
-                          {uploadAvatarMutation.isPending
-                            ? "Uploading..."
-                            : "Upload photo"}
-                        </Button>
-
-                        {(myClient as any).avatarDataUrl ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="h-9"
-                            disabled={uploadAvatarMutation.isPending}
-                            onClick={async () => {
-                              if (confirm("Remove your photo?")) {
-                                try {
-                                  setAvatarError(null);
-                                  await uploadAvatarMutation.mutateAsync(null);
-                                } catch (err: any) {
-                                  setAvatarError(
-                                    String(
-                                      err?.message ?? "Failed to remove avatar"
-                                    )
-                                  );
-                                }
+                          onClick={async () => {
+                            if (confirm("Remove your photo?")) {
+                              try {
+                                setAvatarError(null);
+                                await uploadAvatarMutation.mutateAsync(null);
+                              } catch (err: any) {
+                                setAvatarError(
+                                  String(
+                                    err?.message ?? "Failed to remove avatar"
+                                  )
+                                );
                               }
-                            }}
-                          >
-                            Remove photo
-                          </Button>
-                        ) : null}
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          Auto-cropped to a square avatar
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          Full name
-                        </div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                          {toTitleCase(myClient.name || user.full_name || "")}
-                        </div>
-                      </div>
-                      <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          Phone
-                        </div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                          {myClient.phone || user.phone || ""}
-                        </div>
-                      </div>
-                      <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          Email
-                        </div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                          {myClient.email || user.email || ""}
-                        </div>
+                            }
+                          }}
+                        >
+                          Remove photo
+                        </Button>
+                      ) : null}
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Auto-cropped to a square avatar
                       </div>
                     </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Full name
+                      </div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {toTitleCase(myClient.name || user.full_name || "")}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Phone
+                      </div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {myClient.phone || user.phone || ""}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Email
+                      </div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {myClient.email || user.email || ""}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           ) : null}
 
           {activeSection === "meetings" ? (
@@ -1777,56 +1773,79 @@ function ClientDashboard({ user }: { user: any }) {
                               </div>
                             ) : null}
 
-                            {(plan.dailyCalories ||
-                              plan.dailyProtein ||
-                              plan.dailyCarbs ||
-                              plan.dailyFat) && (
-                              <div className="grid grid-cols-2 gap-3">
-                                {plan.dailyCalories ? (
-                                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                                      Daily Calories
-                                    </div>
-                                    <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                      {plan.dailyCalories}
-                                    </div>
-                                  </div>
-                                ) : null}
-
-                                {plan.dailyProtein ? (
-                                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                                      Daily Protein
-                                    </div>
-                                    <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                      {plan.dailyProtein}
-                                    </div>
-                                  </div>
-                                ) : null}
-
-                                {plan.dailyCarbs ? (
-                                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                                      Daily Carbs
-                                    </div>
-                                    <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                      {plan.dailyCarbs}
-                                    </div>
-                                  </div>
-                                ) : null}
-
-                                {plan.dailyFat ? (
-                                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                                      Daily Fat
-                                    </div>
-                                    <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                      {plan.dailyFat}
-                                    </div>
-                                  </div>
-                                ) : null}
+                            <div className="grid grid-cols-2 gap-3 text-sm">
+                              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+                                <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                                  <Flame className="w-4 h-4 text-orange-500" />
+                                  <span>Calories</span>
+                                </div>
+                                <div className="mt-1 font-medium text-gray-900 dark:text-white">
+                                  {(() => {
+                                    const raw = String(
+                                      plan.dailyCalories ?? ""
+                                    ).trim();
+                                    if (!raw) return "-";
+                                    return /kcal/i.test(raw)
+                                      ? raw
+                                      : `${raw} kcal`;
+                                  })()}
+                                </div>
                               </div>
-                            )}
+
+                              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+                                <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                                  <Beef className="w-4 h-4 text-blue-500" />
+                                  <span>Protein</span>
+                                </div>
+                                <div className="mt-1 font-medium text-gray-900 dark:text-white">
+                                  {(() => {
+                                    const raw = String(
+                                      plan.dailyProtein ?? ""
+                                    ).trim();
+                                    if (!raw) return "-";
+                                    return /\bg\b/i.test(raw)
+                                      ? raw
+                                      : `${raw} g`;
+                                  })()}
+                                </div>
+                              </div>
+
+                              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+                                <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                                  <Wheat className="w-4 h-4 text-yellow-500" />
+                                  <span>Carbs</span>
+                                </div>
+                                <div className="mt-1 font-medium text-gray-900 dark:text-white">
+                                  {(() => {
+                                    const raw = String(
+                                      plan.dailyCarbs ?? ""
+                                    ).trim();
+                                    if (!raw) return "-";
+                                    return /\bg\b/i.test(raw)
+                                      ? raw
+                                      : `${raw} g`;
+                                  })()}
+                                </div>
+                              </div>
+
+                              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+                                <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                                  <Droplets className="w-4 h-4 text-purple-500" />
+                                  <span>Fat</span>
+                                </div>
+                                <div className="mt-1 font-medium text-gray-900 dark:text-white">
+                                  {(() => {
+                                    const raw = String(
+                                      plan.dailyFat ?? ""
+                                    ).trim();
+                                    if (!raw) return "-";
+                                    return /\bg\b/i.test(raw)
+                                      ? raw
+                                      : `${raw} g`;
+                                  })()}
+                                </div>
+                              </div>
+                            </div>
 
                             {plan.notes ? (
                               <p className="text-gray-600 dark:text-gray-400">
@@ -1853,73 +1872,77 @@ function ClientDashboard({ user }: { user: any }) {
                                     (meal: any, mealIdx: number) => (
                                       <div
                                         key={meal.id || `${mealIdx}`}
-                                        className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                                        className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2"
                                       >
-                                        <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                                          {toTitleCase(meal.type || "Meal")}
-                                          {meal.name
-                                            ? `: ${toTitleCase(meal.name)}`
-                                            : ""}
+                                        <div className="flex items-center justify-between gap-3">
+                                          <div className="min-w-0">
+                                            {String(meal.name ?? "").trim() ? (
+                                              <>
+                                                <div className="font-medium text-gray-900 dark:text-white truncate">
+                                                  {String(
+                                                    meal.name ?? ""
+                                                  ).trim()}
+                                                </div>
+                                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                  {toTitleCase(meal.type) ||
+                                                    "Meal"}
+                                                </div>
+                                              </>
+                                            ) : (
+                                              <div className="font-medium text-gray-900 dark:text-white truncate">
+                                                {toTitleCase(meal.type) ||
+                                                  "Meal"}
+                                              </div>
+                                            )}
+                                          </div>
+                                          <div className="shrink-0 text-xs text-gray-600 dark:text-gray-300">
+                                            per 100g
+                                          </div>
                                         </div>
 
                                         {Array.isArray(meal.foods) &&
                                         meal.foods.length > 0 ? (
-                                          <div className="mt-2 space-y-2">
+                                          <div className="mt-2 space-y-1">
                                             {meal.foods.map(
-                                              (food: any, foodIdx: number) => {
-                                                const amount = String(
-                                                  food.amount ?? ""
-                                                ).trim();
-                                                const macros = [
-                                                  food.protein
-                                                    ? `Protein ${String(
-                                                        food.protein
-                                                      ).trim()}`
-                                                    : "",
-                                                  food.carbs
-                                                    ? `Carbs ${String(
-                                                        food.carbs
-                                                      ).trim()}`
-                                                    : "",
-                                                  food.fat
-                                                    ? `Fat ${String(
-                                                        food.fat
-                                                      ).trim()}`
-                                                    : "",
-                                                  food.calories
-                                                    ? `Calories ${String(
-                                                        food.calories
-                                                      ).trim()}`
-                                                    : "",
-                                                ].filter(Boolean);
-
-                                                return (
-                                                  <div
-                                                    key={
-                                                      food.id || `${foodIdx}`
-                                                    }
-                                                    className="text-sm text-gray-900 dark:text-gray-100 min-w-0"
-                                                  >
-                                                    {foodIdx + 1}.{" "}
-                                                    {toTitleCase(food.name)}
-                                                    {amount ? (
-                                                      <span className="text-gray-600 dark:text-gray-400">
-                                                        {` — ${amount}`}
+                                              (food: any, foodIdx: number) => (
+                                                <div
+                                                  key={food.id || `${foodIdx}`}
+                                                  className="flex items-center justify-between gap-3 text-xs text-gray-600 dark:text-gray-300"
+                                                >
+                                                  <div className="min-w-0 truncate">
+                                                    {food.name || "-"}
+                                                    {food.amount ? (
+                                                      <span className="text-gray-500 dark:text-gray-400">
+                                                        {" "}
+                                                        · {food.amount}
                                                       </span>
                                                     ) : null}
-                                                    {macros.length > 0 ? (
-                                                      <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                                        {macros.join(" • ")}
-                                                      </div>
-                                                    ) : null}
                                                   </div>
-                                                );
-                                              }
+                                                  <div className="shrink-0 text-gray-500 dark:text-gray-400">
+                                                    {[
+                                                      food.protein
+                                                        ? `P ${food.protein}`
+                                                        : "",
+                                                      food.carbs
+                                                        ? `C ${food.carbs}`
+                                                        : "",
+                                                      food.fat
+                                                        ? `F ${food.fat}`
+                                                        : "",
+                                                    ]
+                                                      .filter(
+                                                        (v): v is string =>
+                                                          Boolean(v)
+                                                      )
+                                                      .join(" · ")}
+                                                  </div>
+                                                </div>
+                                              )
                                             )}
                                           </div>
                                         ) : (
-                                          <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                            No foods added
+                                          <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                            No foods
                                           </div>
                                         )}
                                       </div>
