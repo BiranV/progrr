@@ -246,7 +246,7 @@ export default function MealsPage() {
                   </div>
                 </div>
 
-                <div className="pt-4 mt-4 border-t border-gray-100 dark:border-gray-800">
+                <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
                   <div className="flex items-center justify-end gap-2">
                     <Button
                       type="button"
