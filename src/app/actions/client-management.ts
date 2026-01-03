@@ -38,6 +38,24 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function todayYmd(): string {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function assertBirthDateNotFuture(birthDate: unknown) {
+  const v = String(birthDate ?? "").trim();
+  if (!v) return;
+  // Expect HTML date input format: YYYY-MM-DD
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return;
+  if (v > todayYmd()) {
+    throw new Error("Birth date cannot be in the future");
+  }
+}
+
 export async function createClientAction(data: ClientFormData) {
   const adminUser = await requireAppUser();
   if (adminUser.role !== "admin") {
@@ -57,6 +75,8 @@ export async function createClientAction(data: ClientFormData) {
   if (!email) throw new Error("Client email is required");
   if (!phone) throw new Error("Client phone is required");
   if (!status) throw new Error("Client status is required");
+
+  assertBirthDateNotFuture((data as any).birthDate);
 
   // Prevent duplicates within the same admin.
   const existingByPhoneOrEmail = await c.entities.findOne({
@@ -185,6 +205,8 @@ export async function updateClientAction(id: string, data: ClientFormData) {
   if (!name) throw new Error("Client name is required");
   if (!email) throw new Error("Client email is required");
   if (!phone) throw new Error("Client phone is required");
+
+  assertBirthDateNotFuture((data as any).birthDate);
 
   // Prevent duplicates within the same admin (excluding this client).
   const duplicate = await c.entities.findOne({
