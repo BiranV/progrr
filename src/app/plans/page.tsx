@@ -218,7 +218,7 @@ export default function PlansPage() {
                 </div>
 
                 {/* Footer */}
-                <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-end gap-2">
+                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-2">
                   <Button
                     type="button"
                     variant="ghost"
