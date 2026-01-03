@@ -133,7 +133,7 @@ export default function ExercisesPage() {
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <Dumbbell className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <Dumbbell className="w-12 h-12 text-indigo-500 dark:text-indigo-400 mx-auto mb-4" />
             <p className="text-gray-500 dark:text-gray-400">
               {search
                 ? "No exercises found"
@@ -230,13 +230,13 @@ export default function ExercisesPage() {
                         <div className="grid grid-cols-2 gap-4">
                           {hasVideo ? (
                             <div className="flex items-center gap-2">
-                              <Video className="w-4 h-4" />
+                              <Video className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                               <span>Video: {videoLabel || "-"}</span>
                             </div>
                           ) : null}
                           {hasGuidelines ? (
                             <div className="flex items-center gap-2">
-                              <FileText className="w-4 h-4" />
+                              <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                               <span>Guidelines</span>
                             </div>
                           ) : null}
