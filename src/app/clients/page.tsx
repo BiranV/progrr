@@ -11,6 +11,8 @@ import {
   Search,
   Mail,
   Phone,
+  Mars,
+  Venus,
   Trash2,
   Edit,
   ArrowUpDown,
@@ -153,21 +155,15 @@ export default function ClientsPage() {
                 <ArrowUpDown className="w-4 h-4" />
               </div>
             </th>
-            <th
-              className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-              onClick={() => handleSort("gender")}
-            >
-              <div className="flex items-center gap-2">
-                Gender
-                <ArrowUpDown className="w-4 h-4" />
-              </div>
-            </th>
             <th className="px-4 py-3 text-left font-medium"></th>
           </tr>
         </thead>
         <tbody>
           {rows.map((client: Client) => {
             const status = normalizeStatus(client.status) || "ACTIVE";
+            const gender = String(client.gender ?? "")
+              .trim()
+              .toLowerCase();
             return (
               <tr
                 key={client.id}
@@ -176,7 +172,16 @@ export default function ClientsPage() {
                 {/* CLIENT COLUMN */}
                 <td className="px-4 py-3">
                   <div className="flex flex-col min-w-0">
-                    <span className="font-medium truncate">{client.name}</span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      {gender === "female" ? (
+                        <Venus className="w-4 h-4 text-pink-500 shrink-0" />
+                      ) : gender === "male" ? (
+                        <Mars className="w-4 h-4 text-blue-500 shrink-0" />
+                      ) : null}
+                      <span className="font-medium truncate">
+                        {client.name}
+                      </span>
+                    </div>
                     <div className="flex items-center gap-2 text-xs text-gray-500 truncate">
                       <Mail className="w-3 h-3" />
                       {client.email}
@@ -202,8 +207,6 @@ export default function ClientsPage() {
                 <td className="px-4 py-3 capitalize">
                   {client.activityLevel || "-"}
                 </td>
-                <td className="px-4 py-3 capitalize">{client.gender || "-"}</td>
-
                 <td className="px-4 py-3 text-right">
                   <div className="flex justify-end gap-2">
                     <button
