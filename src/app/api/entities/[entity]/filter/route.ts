@@ -144,6 +144,26 @@ export async function POST(
         return NextResponse.json(filterRecords(records, criteria));
       }
 
+      // PlanExercises: only those belonging to the client's assigned workout plan
+      if (entity === "PlanExercise") {
+        const workoutPlanId = String(criteria.workoutPlanId ?? "").trim();
+        if (!workoutPlanId || !allowedWorkoutPlanIds.includes(workoutPlanId)) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        const docs = await c.entities
+          .find({
+            entity: "PlanExercise",
+            adminId,
+            "data.workoutPlanId": workoutPlanId,
+          })
+          .sort({ "data.order": 1, updatedAt: -1 })
+          .toArray();
+
+        const records = docs.map(toPublicEntityDoc);
+        return NextResponse.json(filterRecords(records, criteria));
+      }
+
       // Meals: only those belonging to the client's assigned meal plan
       if (entity === "Meal") {
         const mealPlanId = String(criteria.mealPlanId ?? "").trim();

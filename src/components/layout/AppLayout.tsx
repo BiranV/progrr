@@ -114,6 +114,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const adminOnlyPrefixes = [
       "/clients",
       "/plans",
+      "/exercises",
       "/meals",
       "/meetings",
       "/settings",
@@ -140,6 +141,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     ? [
         { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
         { name: "Clients", icon: Users, href: "/clients" },
+        { name: "Exercises", icon: Dumbbell, href: "/exercises" },
         { name: "Workout Plans", icon: Dumbbell, href: "/plans" },
         { name: "Meal Plans", icon: UtensilsCrossed, href: "/meals" },
         { name: "Meetings", icon: Calendar, href: "/meetings" },

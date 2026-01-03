@@ -38,6 +38,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import ClientAvatar from "@/components/ClientAvatar";
+import { toYouTubeEmbedUrl } from "@/lib/youtube";
 import {
   copyTextToClipboard,
   downloadPdfFile,
@@ -544,6 +545,53 @@ function ClientDashboard({ user }: { user: any }) {
     queryKey: ["planExercises", assignedPlan?.id],
     queryFn: async () => {
       if (!assignedPlan?.id) return [];
+
+      const planExerciseRows = await db.entities.PlanExercise.filter({
+        workoutPlanId: assignedPlan.id,
+      });
+      const sortedPlanExercises = [...planExerciseRows].sort(
+        (a: any, b: any) => (a.order || 0) - (b.order || 0)
+      );
+
+      if (sortedPlanExercises.length) {
+        const ids = Array.from(
+          new Set(
+            sortedPlanExercises
+              .map((r: any) => String(r.exerciseLibraryId ?? "").trim())
+              .filter(Boolean)
+          )
+        );
+
+        const libs = await Promise.all(
+          ids.map(async (id) => {
+            try {
+              return await db.entities.ExerciseLibrary.get(id);
+            } catch {
+              return null;
+            }
+          })
+        );
+        const libById = new Map(
+          libs.filter(Boolean).map((l: any) => [String(l.id), l])
+        );
+
+        return sortedPlanExercises.map((row: any) => {
+          const lib = libById.get(String(row.exerciseLibraryId ?? "").trim());
+          return {
+            id: row.id,
+            name: lib?.name ?? "-",
+            guidelines: lib?.guidelines ?? "",
+            videoKind: lib?.videoKind ?? null,
+            videoUrl: lib?.videoUrl ?? null,
+            sets: row?.sets,
+            reps: row?.reps,
+            restSeconds: row?.restSeconds,
+            order: row?.order,
+          };
+        });
+      }
+
+      // Legacy fallback
       const exercises = await db.entities.Exercise.filter({
         workoutPlanId: assignedPlan.id,
       });
@@ -1313,12 +1361,27 @@ function ClientDashboard({ user }: { user: any }) {
                         {planExercises.map((ex: any, idx: number) => {
                           const sets = String(ex.sets ?? "").trim();
                           const reps = String(ex.reps ?? "").trim();
+                          const restSecondsRaw = Number(ex.restSeconds);
+                          const restSeconds = Number.isFinite(restSecondsRaw)
+                            ? Math.max(0, Math.floor(restSecondsRaw))
+                            : 0;
+                          const videoKind = String(ex.videoKind ?? "").trim();
+                          const videoUrlRaw = String(ex.videoUrl ?? "").trim();
+                          const youtubeEmbed =
+                            videoKind === "youtube" && videoUrlRaw
+                              ? toYouTubeEmbedUrl(videoUrlRaw)
+                              : null;
                           const detail =
                             sets || reps
                               ? `${sets ? `${sets} sets` : ""}${
                                   sets && reps ? " × " : ""
                                 }${reps ? `${reps} reps` : ""}`
                               : "";
+                          const restText = restSeconds
+                            ? `${Math.floor(restSeconds / 60)}m ${
+                                restSeconds % 60
+                              }s`
+                            : "";
                           return (
                             <div
                               key={ex.id || `${idx}`}
@@ -1332,6 +1395,43 @@ function ClientDashboard({ user }: { user: any }) {
                                   {detail ? (
                                     <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                                       {detail}
+                                    </div>
+                                  ) : null}
+                                  {restText ? (
+                                    <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                      Rest: {restText}
+                                    </div>
+                                  ) : null}
+
+                                  {String(ex.guidelines ?? "").trim() ? (
+                                    <div className="text-xs text-gray-600 dark:text-gray-300 mt-2 whitespace-pre-wrap">
+                                      {String(ex.guidelines)}
+                                    </div>
+                                  ) : null}
+
+                                  {youtubeEmbed ? (
+                                    <div className="mt-2">
+                                      <div
+                                        className="relative w-full overflow-hidden rounded-lg bg-black"
+                                        style={{ paddingTop: "56.25%" }}
+                                      >
+                                        <iframe
+                                          src={youtubeEmbed}
+                                          title="Exercise video"
+                                          className="absolute inset-0 h-full w-full"
+                                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                          allowFullScreen
+                                        />
+                                      </div>
+                                    </div>
+                                  ) : videoKind === "upload" && videoUrlRaw ? (
+                                    <div className="mt-2">
+                                      <video
+                                        className="w-full rounded-lg"
+                                        controls
+                                        preload="metadata"
+                                        src={videoUrlRaw}
+                                      />
                                     </div>
                                   ) : null}
                                 </div>

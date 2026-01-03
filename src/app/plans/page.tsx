@@ -50,11 +50,21 @@ export default function PlansPage() {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       await db.entities.WorkoutPlan.delete(id);
-      const exercises = await db.entities.Exercise.filter({
+
+      // New model: PlanExercise rows
+      const planExercises = await db.entities.PlanExercise.filter({
         workoutPlanId: id,
       });
       await Promise.all(
-        exercises.map((e: any) => db.entities.Exercise.delete(e.id))
+        planExercises.map((e: any) => db.entities.PlanExercise.delete(e.id))
+      );
+
+      // Legacy cleanup: Exercise rows
+      const legacyExercises = await db.entities.Exercise.filter({
+        workoutPlanId: id,
+      });
+      await Promise.all(
+        legacyExercises.map((e: any) => db.entities.Exercise.delete(e.id))
       );
     },
     onSuccess: () => {
@@ -87,14 +97,58 @@ export default function PlansPage() {
     kind: "pdf" | "txt" | "copy"
   ) => {
     try {
-      const rows = await db.entities.Exercise.filter({
+      const planExerciseRows = await db.entities.PlanExercise.filter({
         workoutPlanId: plan.id,
       });
-      const exercises = [...rows].sort(
+
+      const sortedPlanExercises = [...planExerciseRows].sort(
         (a: any, b: any) => (a.order || 0) - (b.order || 0)
       );
 
-      const text = formatWorkoutPlanText(plan, exercises);
+      let exportRows: any[] = [];
+
+      if (sortedPlanExercises.length) {
+        const ids = Array.from(
+          new Set(
+            sortedPlanExercises
+              .map((r: any) => String(r.exerciseLibraryId ?? "").trim())
+              .filter(Boolean)
+          )
+        );
+
+        const libs = await Promise.all(
+          ids.map(async (id) => {
+            try {
+              return await db.entities.ExerciseLibrary.get(id);
+            } catch {
+              return null;
+            }
+          })
+        );
+        const libById = new Map(
+          libs.filter(Boolean).map((l: any) => [String(l.id), l])
+        );
+
+        exportRows = sortedPlanExercises.map((row: any) => {
+          const lib = libById.get(String(row.exerciseLibraryId ?? "").trim());
+          return {
+            name: lib?.name ?? "-",
+            sets: row?.sets,
+            reps: row?.reps,
+            restSeconds: row?.restSeconds,
+          };
+        });
+      } else {
+        // Fallback legacy
+        const rows = await db.entities.Exercise.filter({
+          workoutPlanId: plan.id,
+        });
+        exportRows = [...rows].sort(
+          (a: any, b: any) => (a.order || 0) - (b.order || 0)
+        );
+      }
+
+      const text = formatWorkoutPlanText(plan, exportRows as any);
       const filenameBase = `Workout Plan - ${plan.name || ""}`;
 
       if (kind === "pdf") {
@@ -123,7 +177,10 @@ export default function PlansPage() {
           </p>
         </div>
         <Button
-          onClick={() => setDialogOpen(true)}
+          onClick={() => {
+            setEditingPlan(null);
+            setDialogOpen(true);
+          }}
           className="min-w-[120px] bg-indigo-600 hover:bg-indigo-700 text-white"
         >
           <Plus className="w-5 h-5 mr-2" />
@@ -268,7 +325,10 @@ export default function PlansPage() {
 
       <PlanDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setEditingPlan(null);
+        }}
         plan={editingPlan}
       />
 

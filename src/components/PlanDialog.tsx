@@ -19,8 +19,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { X, Plus, Trash2, XCircle } from "lucide-react";
-import { WorkoutPlan, Exercise } from "@/types";
+import { Plus, Trash2, XCircle } from "lucide-react";
+import { WorkoutPlan, PlanExercise, ExerciseLibrary } from "@/types";
 
 interface PlanDialogProps {
   plan: WorkoutPlan | null;
@@ -45,15 +45,38 @@ export default function PlanDialog({
     notes: "",
   });
 
-  const { data: queryExercises } = useQuery({
-    queryKey: ["exercises", plan?.id],
-    queryFn: () => db.entities.Exercise.filter({ workoutPlanId: plan?.id }),
+  const { data: exerciseLibrary = [] } = useQuery({
+    queryKey: ["exerciseLibrary"],
+    queryFn: async () => {
+      const rows = await db.entities.ExerciseLibrary.list();
+      return [...rows].sort((a: ExerciseLibrary, b: ExerciseLibrary) =>
+        String(a.name ?? "")
+          .trim()
+          .localeCompare(String(b.name ?? "").trim())
+      );
+    },
+    enabled: open,
+  });
+
+  const { data: queryPlanExercises } = useQuery({
+    queryKey: ["planExercises", plan?.id, "edit"],
+    queryFn: async () => {
+      if (!plan?.id) return [];
+      const rows = await db.entities.PlanExercise.filter({
+        workoutPlanId: plan.id,
+      });
+      return [...rows].sort(
+        (a: PlanExercise, b: PlanExercise) => (a.order || 0) - (b.order || 0)
+      );
+    },
     enabled: !!plan && open,
   });
 
-  const existingExercises = queryExercises || [];
+  const existingPlanExercises = queryPlanExercises || [];
 
-  const [exercises, setExercises] = React.useState<Partial<Exercise>[]>([]);
+  const [planExercises, setPlanExercises] = React.useState<
+    Partial<PlanExercise>[]
+  >([]);
 
   React.useEffect(() => {
     setValidationError(null);
@@ -73,23 +96,22 @@ export default function PlanDialog({
         goal: "",
         notes: "",
       });
-      setExercises([]);
+      setPlanExercises([]);
     }
   }, [plan, open]);
 
   React.useEffect(() => {
-    if (queryExercises && queryExercises.length > 0) {
-      const sorted = [...queryExercises].sort(
-        (a: Exercise, b: Exercise) => (a.order || 0) - (b.order || 0)
-      );
-      setExercises((prev) => {
-        if (JSON.stringify(prev) === JSON.stringify(sorted)) return prev;
-        return sorted;
+    if (queryPlanExercises && queryPlanExercises.length > 0) {
+      setPlanExercises((prev) => {
+        if (JSON.stringify(prev) === JSON.stringify(queryPlanExercises)) {
+          return prev;
+        }
+        return queryPlanExercises;
       });
     } else if (!plan) {
-      setExercises([]);
+      setPlanExercises([]);
     }
-  }, [queryExercises, plan]);
+  }, [queryPlanExercises, plan]);
 
   const saveMutation = useMutation({
     mutationFn: async (data: Partial<WorkoutPlan>) => {
@@ -98,44 +120,45 @@ export default function PlanDialog({
         await db.entities.WorkoutPlan.update(plan.id, data);
         planId = plan.id;
 
-        // Delete removed exercises
-        const currentExerciseIds = exercises
-          .map((e) => e.id)
-          .filter(Boolean) as string[];
-        const exercisesToDelete = existingExercises.filter(
-          (e: Exercise) => !currentExerciseIds.includes(e.id)
+        // Delete removed PlanExercise rows
+        const currentIds = planExercises
+          .map((e) => String(e.id ?? "").trim())
+          .filter(Boolean);
+        const rowsToDelete = existingPlanExercises.filter(
+          (e: any) => !currentIds.includes(String(e.id ?? "").trim())
         );
         await Promise.all(
-          exercisesToDelete.map((e: Exercise) =>
-            db.entities.Exercise.delete(e.id)
-          )
+          rowsToDelete.map((e: any) => db.entities.PlanExercise.delete(e.id))
         );
       } else {
         const newPlan = await db.entities.WorkoutPlan.create(data);
         planId = newPlan.id;
       }
 
-      // Save exercises
-      for (let i = 0; i < exercises.length; i++) {
-        const exercise = exercises[i];
-        const exerciseData = {
+      // Save PlanExercise rows
+      for (let i = 0; i < planExercises.length; i++) {
+        const row = planExercises[i] as any;
+        const exerciseLibraryId = String(row.exerciseLibraryId ?? "").trim();
+        const rowData: any = {
           workoutPlanId: planId,
-          name: exercise.name || "",
-          sets: exercise.sets || "",
-          reps: exercise.reps || "",
+          exerciseLibraryId,
+          sets: String(row.sets ?? "").trim(),
+          reps: String(row.reps ?? "").trim(),
+          restSeconds:
+            typeof row.restSeconds === "number" ? row.restSeconds : undefined,
           order: i,
         };
 
-        if (exercise.id) {
-          await db.entities.Exercise.update(exercise.id, exerciseData);
+        if (row.id) {
+          await db.entities.PlanExercise.update(String(row.id), rowData);
         } else {
-          await db.entities.Exercise.create(exerciseData);
+          await db.entities.PlanExercise.create(rowData);
         }
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workoutPlans"] });
-      queryClient.invalidateQueries({ queryKey: ["exercises"] });
+      queryClient.invalidateQueries({ queryKey: ["planExercises"] });
       onOpenChange(false);
     },
     onError: (error: any) => {
@@ -153,30 +176,55 @@ export default function PlanDialog({
       return;
     }
 
+    for (const row of planExercises) {
+      const exId = String((row as any)?.exerciseLibraryId ?? "").trim();
+      if (!exId) {
+        setValidationError("Each exercise must be selected from the library");
+        return;
+      }
+    }
+
     saveMutation.mutate({ ...formData, name });
   };
 
   const addExercise = () => {
-    setExercises([...exercises, { name: "", sets: "", reps: "" }]);
+    setPlanExercises([
+      ...planExercises,
+      { exerciseLibraryId: "", sets: "", reps: "", restSeconds: undefined },
+    ]);
   };
 
-  const updateExercise = (
-    index: number,
-    field: keyof Exercise,
-    value: string
-  ) => {
-    const updated = [...exercises];
-    updated[index] = { ...updated[index], [field]: value };
-    setExercises(updated);
+  const updatePlanExercise = (index: number, patch: Partial<PlanExercise>) => {
+    setPlanExercises((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], ...patch };
+      return updated;
+    });
+  };
+
+  const updateRestSeconds = (index: number, value: string) => {
+    const raw = String(value ?? "").trim();
+    if (!raw) {
+      updatePlanExercise(index, { restSeconds: undefined });
+      return;
+    }
+
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isFinite(parsed)) {
+      updatePlanExercise(index, { restSeconds: undefined });
+      return;
+    }
+
+    updatePlanExercise(index, { restSeconds: Math.max(0, parsed) });
   };
 
   const removeExercise = (index: number) => {
-    setExercises(exercises.filter((_, i) => i !== index));
+    setPlanExercises(planExercises.filter((_, i) => i !== index));
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {plan ? "Edit Workout Plan" : "Create Workout Plan"}
@@ -295,33 +343,64 @@ export default function PlanDialog({
             </div>
 
             <div className="space-y-3">
-              {exercises.map((exercise, index) => (
+              {planExercises.map((row, index) => (
                 <div
                   key={index}
                   className="flex gap-3 items-start p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
                 >
-                  <div className="flex-1 grid grid-cols-3 gap-3">
-                    <Input
-                      value={exercise.name}
-                      onChange={(e) =>
-                        updateExercise(index, "name", e.target.value)
-                      }
-                      placeholder="Exercise name"
-                    />
-                    <Input
-                      value={exercise.sets}
-                      onChange={(e) =>
-                        updateExercise(index, "sets", e.target.value)
-                      }
-                      placeholder="Sets"
-                    />
-                    <Input
-                      value={exercise.reps}
-                      onChange={(e) =>
-                        updateExercise(index, "reps", e.target.value)
-                      }
-                      placeholder="Reps"
-                    />
+                  <div className="flex-1 space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
+                      <div className="sm:col-span-3">
+                        <Select
+                          value={String((row as any).exerciseLibraryId ?? "")}
+                          onValueChange={(value) =>
+                            updatePlanExercise(index, {
+                              exerciseLibraryId: value,
+                            })
+                          }
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select exercise" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {exerciseLibrary.map((ex) => (
+                              <SelectItem key={ex.id} value={ex.id}>
+                                {ex.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <Input
+                        value={String((row as any).sets ?? "")}
+                        onChange={(e) =>
+                          updatePlanExercise(index, { sets: e.target.value })
+                        }
+                        placeholder="Sets"
+                        className="sm:col-span-1"
+                      />
+                      <Input
+                        value={String((row as any).reps ?? "")}
+                        onChange={(e) =>
+                          updatePlanExercise(index, { reps: e.target.value })
+                        }
+                        placeholder="Reps"
+                        className="sm:col-span-1"
+                      />
+
+                      <div className="sm:col-span-1">
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          value={String((row as any).restSeconds ?? "")}
+                          onChange={(e) =>
+                            updateRestSeconds(index, e.target.value)
+                          }
+                          placeholder="Rest"
+                        />
+                      </div>
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -333,7 +412,7 @@ export default function PlanDialog({
                 </div>
               ))}
 
-              {exercises.length === 0 && (
+              {planExercises.length === 0 && (
                 <p className="text-center text-gray-500 dark:text-gray-400 py-4">
                   No exercises added yet. Click "Add Exercise" to get started.
                 </p>

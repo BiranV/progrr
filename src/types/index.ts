@@ -144,6 +144,33 @@ export interface Exercise {
   sets?: string;
   reps?: string;
   order?: number;
+  // Legacy fields (kept for backward compatibility)
+  videoKind?: "upload" | "youtube" | null;
+  videoUrl?: string | null;
+  [key: string]: any;
+}
+
+// New: reusable exercise library (admin-managed)
+export interface ExerciseLibrary {
+  id: string;
+  name: string;
+  guidelines?: string;
+  videoKind?: "upload" | "youtube" | null;
+  videoUrl?: string | null;
+  created_date?: string;
+  [key: string]: any;
+}
+
+// New: plan-specific assignment of a library exercise
+export interface PlanExercise {
+  id: string;
+  workoutPlanId: string;
+  exerciseLibraryId: string;
+  sets?: string;
+  reps?: string;
+  restSeconds?: number;
+  order?: number;
+  created_date?: string;
   [key: string]: any;
 }
 

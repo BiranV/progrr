@@ -1,5 +1,5 @@
 import { jsPDF } from "jspdf";
-import type { Exercise, Food, Meal, MealPlan, WorkoutPlan } from "@/types";
+import type { Food, Meal, MealPlan, WorkoutPlan } from "@/types";
 
 const toTitleCase = (value: unknown) => {
   const raw = String(value ?? "").trim();
@@ -25,7 +25,12 @@ const safeFilenameBase = (base: string) => {
 
 export const formatWorkoutPlanText = (
   plan: WorkoutPlan,
-  exercises: Exercise[]
+  exercises: Array<{
+    name?: string;
+    sets?: string;
+    reps?: string;
+    restSeconds?: number;
+  }>
 ) => {
   const lines: string[] = [];
 
@@ -56,15 +61,36 @@ export const formatWorkoutPlanText = (
       const name = String(e?.name ?? "").trim() || "-";
       const sets = String(e?.sets ?? "").trim();
       const reps = String(e?.reps ?? "").trim();
+
+      const restSecondsRaw = Number(e?.restSeconds);
+      const restSeconds = Number.isFinite(restSecondsRaw)
+        ? Math.max(0, Math.floor(restSecondsRaw))
+        : 0;
+      const restText = (() => {
+        if (!restSeconds) return "";
+        const m = Math.floor(restSeconds / 60);
+        const s = restSeconds % 60;
+        if (m && s) return `${m}m ${s}s`;
+        if (m) return `${m}m`;
+        return `${s}s`;
+      })();
+
       const detail =
         sets || reps
           ? `${sets ? `${sets} sets` : ""}${sets && reps ? " × " : ""}${
               reps ? `${reps} reps` : ""
             }`
           : "";
-      lines.push(
-        `${idx + 1}. ${toTitleCase(name)}${detail ? ` — ${detail}` : ""}`
+      const suffixParts = [detail, restText ? `Rest ${restText}` : ""].filter(
+        Boolean
       );
+      if (suffixParts.length) {
+        lines.push(
+          `${idx + 1}. ${toTitleCase(name)} — ${suffixParts.join(" · ")}`
+        );
+      } else {
+        lines.push(`${idx + 1}. ${toTitleCase(name)}`);
+      }
     });
   }
 

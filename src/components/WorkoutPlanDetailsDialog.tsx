@@ -18,7 +18,8 @@ import {
   formatWorkoutPlanText,
 } from "@/lib/plan-export";
 import { toast } from "sonner";
-import { WorkoutPlan, Exercise } from "@/types";
+import { WorkoutPlan, Exercise, PlanExercise } from "@/types";
+import { toYouTubeEmbedUrl } from "@/lib/youtube";
 
 interface WorkoutPlanDetailsDialogProps {
   plan: WorkoutPlan | null;
@@ -32,9 +33,56 @@ export default function WorkoutPlanDetailsDialog({
   onOpenChange,
 }: WorkoutPlanDetailsDialogProps) {
   const { data: exercises = [] } = useQuery({
-    queryKey: ["exercises", plan?.id, "details"],
+    queryKey: ["workoutPlanExercises", plan?.id, "details"],
     queryFn: async () => {
-      if (!plan) return [];
+      if (!plan?.id) return [];
+
+      const planExerciseRows = await db.entities.PlanExercise.filter({
+        workoutPlanId: plan.id,
+      });
+
+      const sortedPlanExercises = [...planExerciseRows].sort(
+        (a: PlanExercise, b: PlanExercise) => (a.order || 0) - (b.order || 0)
+      );
+
+      if (sortedPlanExercises.length) {
+        const ids = Array.from(
+          new Set(
+            sortedPlanExercises
+              .map((r: any) => String(r.exerciseLibraryId ?? "").trim())
+              .filter(Boolean)
+          )
+        );
+
+        const libs = await Promise.all(
+          ids.map(async (id) => {
+            try {
+              return await db.entities.ExerciseLibrary.get(id);
+            } catch {
+              return null;
+            }
+          })
+        );
+        const libById = new Map(
+          libs.filter(Boolean).map((l: any) => [String(l.id), l])
+        );
+
+        return sortedPlanExercises.map((row: any) => {
+          const lib = libById.get(String(row.exerciseLibraryId ?? "").trim());
+          return {
+            id: row.id,
+            name: lib?.name ?? "-",
+            guidelines: lib?.guidelines ?? "",
+            videoKind: lib?.videoKind ?? null,
+            videoUrl: lib?.videoUrl ?? null,
+            sets: row?.sets,
+            reps: row?.reps,
+            restSeconds: row?.restSeconds,
+          };
+        });
+      }
+
+      // Legacy fallback
       const rows = await db.entities.Exercise.filter({
         workoutPlanId: plan.id,
       });
@@ -93,7 +141,7 @@ export default function WorkoutPlanDetailsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-gray-800">
+      <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto dark:bg-gray-800">
         <DialogHeader>
           <DialogTitle>Workout Plan Details</DialogTitle>
         </DialogHeader>
@@ -192,11 +240,63 @@ export default function WorkoutPlanDetailsDialog({
                           <div className="font-medium text-gray-900 dark:text-white truncate">
                             {e.name || "-"}
                           </div>
+
+                          {String(e.guidelines ?? "").trim() ? (
+                            <div className="mt-1 text-xs text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
+                              {String(e.guidelines)}
+                            </div>
+                          ) : null}
+
+                          {String(e.videoKind ?? "") === "youtube" &&
+                          String(e.videoUrl ?? "").trim() ? (
+                            (() => {
+                              const embed = toYouTubeEmbedUrl(
+                                String(e.videoUrl ?? "")
+                              );
+                              if (!embed) return null;
+                              return (
+                                <div className="mt-2">
+                                  <div
+                                    className="relative w-full overflow-hidden rounded-lg bg-black"
+                                    style={{ paddingTop: "56.25%" }}
+                                  >
+                                    <iframe
+                                      src={embed}
+                                      title="Exercise video"
+                                      className="absolute inset-0 h-full w-full"
+                                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                      allowFullScreen
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })()
+                          ) : String(e.videoKind ?? "") === "upload" &&
+                            String(e.videoUrl ?? "").trim() ? (
+                            <div className="mt-2">
+                              <video
+                                className="w-full rounded-lg"
+                                controls
+                                preload="metadata"
+                                src={String(e.videoUrl ?? "").trim()}
+                              />
+                            </div>
+                          ) : null}
                         </div>
                         <div className="shrink-0 text-xs text-gray-600 dark:text-gray-300">
                           {e.sets ? <span>{e.sets} sets</span> : null}
                           {e.sets && e.reps ? <span> · </span> : null}
                           {e.reps ? <span>{e.reps} reps</span> : null}
+                          {e.restSeconds ? (
+                            <>
+                              {(e.sets || e.reps) && <span> · </span>}
+                              <span>
+                                Rest{" "}
+                                {Math.floor(Number(e.restSeconds) / 60) || 0}m{" "}
+                                {Math.max(0, Number(e.restSeconds) % 60) || 0}s
+                              </span>
+                            </>
+                          ) : null}
                         </div>
                       </div>
                     </div>

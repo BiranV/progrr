@@ -271,7 +271,7 @@ export default function MealPlanDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-gray-800">
+      <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto dark:bg-gray-800">
         <DialogHeader>
           <DialogTitle>
             {plan ? "Edit Meal Plan" : "Create Meal Plan"}

@@ -67,6 +67,28 @@ export async function GET(
         $or: [{ "data.userId": user.id }, { "data.clientAuthId": user.id }],
       });
 
+      const normalizeIdList = (value: any, fallbackSingle?: any): string[] => {
+        const arr = Array.isArray(value) ? value : [];
+        const fallback = String(fallbackSingle ?? "").trim();
+        const merged = [
+          ...arr.map((v: any) => String(v ?? "").trim()),
+          ...(fallback ? [fallback] : []),
+        ]
+          .map((v) => String(v).trim())
+          .filter((v) => v && v !== "none");
+        return Array.from(new Set(merged));
+      };
+
+      const myClientData = (myClient?.data ?? {}) as any;
+      const allowedWorkoutPlanIds = normalizeIdList(
+        myClientData.assignedPlanIds,
+        myClientData.assignedPlanId
+      );
+      const allowedMealPlanIds = normalizeIdList(
+        myClientData.assignedMealPlanIds,
+        myClientData.assignedMealPlanId
+      );
+
       if (entity === "Client") {
         if (!myClient || myClient._id.toHexString() !== id) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -127,26 +149,8 @@ export async function GET(
         if (!myClient) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
-        const d = (myClient.data ?? {}) as any;
-        const normalizeIdList = (
-          value: any,
-          fallbackSingle?: any
-        ): string[] => {
-          const arr = Array.isArray(value) ? value : [];
-          const fallback = String(fallbackSingle ?? "").trim();
-          const merged = [
-            ...arr.map((v: any) => String(v ?? "").trim()),
-            ...(fallback ? [fallback] : []),
-          ]
-            .map((v) => String(v).trim())
-            .filter((v) => v && v !== "none");
-          return Array.from(new Set(merged));
-        };
-
         const allowedIds =
-          entity === "WorkoutPlan"
-            ? normalizeIdList(d.assignedPlanIds, d.assignedPlanId)
-            : normalizeIdList(d.assignedMealPlanIds, d.assignedMealPlanId);
+          entity === "WorkoutPlan" ? allowedWorkoutPlanIds : allowedMealPlanIds;
 
         if (!allowedIds.length || !allowedIds.includes(id)) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -159,6 +163,64 @@ export async function GET(
         const row = await c.entities.findOne({
           _id: new ObjectId(id),
           entity,
+          adminId,
+        });
+        if (!row) {
+          return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
+        return NextResponse.json(toPublicEntityDoc(row));
+      }
+
+      if (entity === "PlanExercise") {
+        if (!myClient) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        if (!ObjectId.isValid(id)) {
+          return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
+        const row = await c.entities.findOne({
+          _id: new ObjectId(id),
+          entity: "PlanExercise",
+          adminId,
+        });
+        if (!row) {
+          return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
+        const workoutPlanId = String(
+          (row.data ?? {})?.workoutPlanId ?? ""
+        ).trim();
+        if (!workoutPlanId || !allowedWorkoutPlanIds.includes(workoutPlanId)) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        return NextResponse.json(toPublicEntityDoc(row));
+      }
+
+      if (entity === "ExerciseLibrary") {
+        if (!myClient) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        if (!ObjectId.isValid(id)) {
+          return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
+
+        // Allow only if the library exercise is referenced by at least one
+        // PlanExercise within the client's assigned workout plan(s).
+        if (!allowedWorkoutPlanIds.length) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        const isReferenced = await c.entities.findOne({
+          entity: "PlanExercise",
+          adminId,
+          "data.exerciseLibraryId": id,
+          "data.workoutPlanId": { $in: allowedWorkoutPlanIds },
+        });
+        if (!isReferenced) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        const row = await c.entities.findOne({
+          _id: new ObjectId(id),
+          entity: "ExerciseLibrary",
           adminId,
         });
         if (!row) {
