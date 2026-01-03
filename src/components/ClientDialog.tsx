@@ -52,6 +52,65 @@ const REQUIRED_FIELDS: Array<keyof Client> = [
 
 const DEFAULT_COUNTRY = "IL";
 
+const GOAL_VALUES = [
+  "weight_loss",
+  "muscle_gain",
+  "maintenance",
+  "strength",
+  "endurance",
+] as const;
+
+const ACTIVITY_VALUES = [
+  "sedentary",
+  "light",
+  "moderate",
+  "very",
+  "extra",
+] as const;
+
+function normalizeGoal(value: unknown): (typeof GOAL_VALUES)[number] | "" {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+
+  const v = raw.toLowerCase().replace(/\s+/g, "_");
+  if ((GOAL_VALUES as readonly string[]).includes(v)) {
+    return v as any;
+  }
+
+  // Common legacy / human-friendly values
+  if (v.includes("loss") || v.includes("cut") || v.includes("fat"))
+    return "weight_loss";
+  if (v.includes("muscle") || v.includes("gain") || v.includes("bulk"))
+    return "muscle_gain";
+  if (v.includes("maint")) return "maintenance";
+  if (v.includes("strength")) return "strength";
+  if (v.includes("endur") || v.includes("cardio")) return "endurance";
+
+  return "";
+}
+
+function normalizeActivityLevel(
+  value: unknown
+): (typeof ACTIVITY_VALUES)[number] | "" {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+
+  const v = raw.toLowerCase().replace(/\s+/g, "_");
+  if ((ACTIVITY_VALUES as readonly string[]).includes(v)) {
+    return v as any;
+  }
+
+  // Common legacy / human-friendly values
+  if (v.includes("sedent")) return "sedentary";
+  if (v.includes("light")) return "light";
+  if (v.includes("moderate")) return "moderate";
+  if (v.includes("extra")) return "extra";
+  if (v.includes("very")) return "very";
+  if (v === "active") return "very";
+
+  return "";
+}
+
 function getDialCode(country: string): string {
   try {
     return `+${getCountryCallingCode(country as any)}`;
@@ -222,8 +281,8 @@ export default function ClientDialog({
         gender: client.gender || "",
         height: client.height || "",
         weight: client.weight || "",
-        goal: client.goal || "",
-        activityLevel: client.activityLevel || "",
+        goal: normalizeGoal(client.goal) || "",
+        activityLevel: normalizeActivityLevel(client.activityLevel) || "",
         status: normalizeStatus(client.status) || "ACTIVE",
         notes: client.notes || "",
         assignedPlanIds: normalizeIdArray(
@@ -361,7 +420,13 @@ export default function ClientDialog({
       return;
     }
 
-    const next = { ...formData, status: normalized };
+    const next = {
+      ...formData,
+      status: normalized,
+      goal: normalizeGoal((formData as any).goal) || "",
+      activityLevel:
+        normalizeActivityLevel((formData as any).activityLevel) || "",
+    };
     const assignedPlanIds = normalizeIdArray(
       (next as any).assignedPlanIds,
       (next as any).assignedPlanId
