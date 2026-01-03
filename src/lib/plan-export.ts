@@ -195,6 +195,11 @@ export const formatMealPlanText = (
           );
         });
       }
+
+      // Visual spacing between meals (helps readability)
+      if (mealIdx < meals.length - 1) {
+        lines.push("");
+      }
     });
   }
 
