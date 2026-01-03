@@ -957,201 +957,171 @@ function ClientDashboard({ user }: { user: any }) {
 
   return (
     <div className="p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
-      <div className="flex items-center justify-between mb-6">
-        <div className="min-w-0">
+      <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
+        <Dialog open={messagesOpen} onOpenChange={setMessagesOpen}>
+          <DialogTrigger asChild>
+            <button
+              className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+              aria-label="Messages"
+            >
+              <Bell className="w-6 h-6 text-gray-700 dark:text-gray-200" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 h-5 min-w-5 px-1 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+          </DialogTrigger>
+
+          <DialogContent className="max-w-xl">
+            <DialogHeader>
+              <DialogTitle>Messages</DialogTitle>
+            </DialogHeader>
+
+            {!myClient ? (
+              <div className="py-10 text-center text-gray-500">
+                No client profile found
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <div className="h-80 overflow-y-auto border rounded-lg p-3 bg-white dark:bg-gray-900">
+                  {sortedMessages.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-gray-500">
+                      No messages yet
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {sortedMessages.map((m: any) => {
+                        const fromMe = m.senderRole === "client";
+                        return (
+                          <div
+                            key={m.id}
+                            className={`flex ${
+                              fromMe ? "justify-end" : "justify-start"
+                            }`}
+                          >
+                            <div
+                              className={`max-w-[75%] rounded-lg px-3 py-2 text-sm border ${
+                                fromMe
+                                  ? "bg-indigo-600 text-white border-indigo-600"
+                                  : "bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-200 dark:border-gray-700"
+                              }`}
+                            >
+                              <div>{m.text}</div>
+                              <div
+                                className={`mt-1 text-[11px] ${
+                                  fromMe ? "text-indigo-100" : "text-gray-500"
+                                }`}
+                              >
+                                {m.created_date
+                                  ? format(new Date(m.created_date), "PPP p")
+                                  : ""}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <Input
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Type a message"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void handleSend();
+                      }
+                    }}
+                  />
+                  <Button
+                    onClick={() => void handleSend()}
+                    disabled={sendMutation.isPending || !newMessage.trim()}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        <button
+          onClick={toggleDarkMode}
+          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+          aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {darkMode ? (
+            <Sun className="w-6 h-6 text-gray-700 dark:text-gray-200" />
+          ) : (
+            <Moon className="w-6 h-6 text-gray-700 dark:text-gray-200" />
+          )}
+        </button>
+
+        <button
+          onClick={() => logout(true)}
+          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+          aria-label="Logout"
+        >
+          <LogOut className="w-6 h-6 text-gray-700 dark:text-gray-200" />
+        </button>
+      </div>
+
+      <div className="mb-6">
+        <div className="min-w-0 pr-24 md:pr-0">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Welcome back, {user.full_name}!
+            Hi, {user.full_name}!
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
             Track your progress and stay connected with your coach
           </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Dialog open={messagesOpen} onOpenChange={setMessagesOpen}>
-            <DialogTrigger asChild>
-              <button
-                className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                aria-label="Messages"
-              >
-                <Bell className="w-6 h-6 text-gray-700 dark:text-gray-200" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 h-5 min-w-5 px-1 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-            </DialogTrigger>
-
-            <DialogContent className="max-w-xl">
-              <DialogHeader>
-                <DialogTitle>Messages</DialogTitle>
-              </DialogHeader>
-
-              {!myClient ? (
-                <div className="py-10 text-center text-gray-500">
-                  No client profile found
-                </div>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  <div className="h-80 overflow-y-auto border rounded-lg p-3 bg-white dark:bg-gray-900">
-                    {sortedMessages.length === 0 ? (
-                      <div className="h-full flex items-center justify-center text-gray-500">
-                        No messages yet
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {sortedMessages.map((m: any) => {
-                          const fromMe = m.senderRole === "client";
-                          return (
-                            <div
-                              key={m.id}
-                              className={`flex ${
-                                fromMe ? "justify-end" : "justify-start"
-                              }`}
-                            >
-                              <div
-                                className={`max-w-[75%] rounded-lg px-3 py-2 text-sm border ${
-                                  fromMe
-                                    ? "bg-indigo-600 text-white border-indigo-600"
-                                    : "bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-200 dark:border-gray-700"
-                                }`}
-                              >
-                                <div>{m.text}</div>
-                                <div
-                                  className={`mt-1 text-[11px] ${
-                                    fromMe ? "text-indigo-100" : "text-gray-500"
-                                  }`}
-                                >
-                                  {m.created_date
-                                    ? format(new Date(m.created_date), "PPP p")
-                                    : ""}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Input
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      placeholder="Type a message"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          void handleSend();
-                        }
-                      }}
-                    />
-                    <Button
-                      onClick={() => void handleSend()}
-                      disabled={sendMutation.isPending || !newMessage.trim()}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                    >
-                      <Send className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </DialogContent>
-          </Dialog>
-
-          <button
-            onClick={toggleDarkMode}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-            aria-label={
-              darkMode ? "Switch to light mode" : "Switch to dark mode"
-            }
-          >
-            {darkMode ? (
-              <Sun className="w-6 h-6 text-gray-700 dark:text-gray-200" />
-            ) : (
-              <Moon className="w-6 h-6 text-gray-700 dark:text-gray-200" />
-            )}
-          </button>
-
-          <button
-            onClick={() => logout(true)}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-            aria-label="Logout"
-          >
-            <LogOut className="w-6 h-6 text-gray-700 dark:text-gray-200" />
-          </button>
         </div>
       </div>
 
       {activeSection === "menu" ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card
-            className="dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
+            className="h-32 md:h-36 dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
             onClick={() => setActiveSection("profile")}
           >
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                <CardTitle>Profile</CardTitle>
-              </div>
+            <CardHeader className="h-full flex flex-col items-center justify-center text-center gap-2">
+              <Users className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+              <CardTitle className="text-base">Profile</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                Your details
-              </div>
-            </CardContent>
           </Card>
 
           <Card
-            className="dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
+            className="h-32 md:h-36 dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
             onClick={() => setActiveSection("meetings")}
           >
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                <CardTitle>Meetings</CardTitle>
-              </div>
+            <CardHeader className="h-full flex flex-col items-center justify-center text-center gap-2">
+              <Calendar className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+              <CardTitle className="text-base">Meetings</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                Upcoming and past
-              </div>
-            </CardContent>
           </Card>
 
           <Card
-            className="dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
+            className="h-32 md:h-36 dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
             onClick={() => setActiveSection("workouts")}
           >
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Dumbbell className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                <CardTitle>Workout Plans</CardTitle>
-              </div>
+            <CardHeader className="h-full flex flex-col items-center justify-center text-center gap-2">
+              <Dumbbell className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+              <CardTitle className="text-base">Workout Plans</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                Your assigned plans
-              </div>
-            </CardContent>
           </Card>
 
           <Card
-            className="dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
+            className="h-32 md:h-36 dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
             onClick={() => setActiveSection("meals")}
           >
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <UtensilsCrossed className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                <CardTitle>Meal Plans</CardTitle>
-              </div>
+            <CardHeader className="h-full flex flex-col items-center justify-center text-center gap-2">
+              <UtensilsCrossed className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+              <CardTitle className="text-base">Meal Plans</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                Your assigned plans
-              </div>
-            </CardContent>
           </Card>
         </div>
       ) : (
