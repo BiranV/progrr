@@ -7,6 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Plus,
   Search,
   Mail,
@@ -30,11 +37,16 @@ export default function ClientsPage() {
   const [editingClient, setEditingClient] = React.useState<Client | null>(null);
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   const [detailsClient, setDetailsClient] = React.useState<Client | null>(null);
+  const [pageSize, setPageSize] = React.useState(10);
+  const [primaryPage, setPrimaryPage] = React.useState(1);
+  const [inactivePage, setInactivePage] = React.useState(1);
   const [sortConfig, setSortConfig] = React.useState<{
     key: keyof Client;
     direction: "asc" | "desc";
   } | null>(null);
   const queryClient = useQueryClient();
+
+  const PAGE_SIZE_OPTIONS = [5, 10, 25, 50, 100] as const;
 
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ["clients"],
@@ -157,6 +169,47 @@ export default function ClientsPage() {
     (c: Client) => normalizeStatus(c.status) !== "INACTIVE"
   );
 
+  React.useEffect(() => {
+    setPrimaryPage(1);
+    setInactivePage(1);
+  }, [search, sortConfig?.key, sortConfig?.direction, pageSize]);
+
+  React.useEffect(() => {
+    const totalPrimary = Math.max(
+      1,
+      Math.ceil(primaryClients.length / pageSize)
+    );
+    if (primaryPage > totalPrimary) setPrimaryPage(totalPrimary);
+  }, [primaryClients.length, pageSize, primaryPage]);
+
+  React.useEffect(() => {
+    const totalInactive = Math.max(
+      1,
+      Math.ceil(inactiveClients.length / pageSize)
+    );
+    if (inactivePage > totalInactive) setInactivePage(totalInactive);
+  }, [inactiveClients.length, pageSize, inactivePage]);
+
+  const paginate = React.useCallback(
+    (rows: Client[], page: number) => {
+      const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+      const safePage = Math.min(Math.max(1, page), totalPages);
+      const start = (safePage - 1) * pageSize;
+      const pagedRows = rows.slice(start, start + pageSize);
+      return { pagedRows, totalPages, page: safePage, totalCount: rows.length };
+    },
+    [pageSize]
+  );
+
+  const primaryPaging = React.useMemo(
+    () => paginate(primaryClients, primaryPage),
+    [paginate, primaryClients, primaryPage]
+  );
+  const inactivePaging = React.useMemo(
+    () => paginate(inactiveClients, inactivePage),
+    [paginate, inactiveClients, inactivePage]
+  );
+
   const workoutPlanNameById = React.useMemo(() => {
     const map = new Map<string, string>();
     for (const p of workoutPlans as any[]) {
@@ -173,202 +226,242 @@ export default function ClientsPage() {
     return map;
   }, [mealPlans]);
 
-  const renderClientsTable = (rows: Client[]) => (
-    <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg border">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50 dark:bg-gray-700">
-          <tr>
-            <th
-              className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-              onClick={() => handleSort("name")}
-            >
-              <div className="flex items-center gap-2">
-                Client
-                <ArrowUpDown className="w-4 h-4" />
-              </div>
-            </th>
-            <th
-              className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-              onClick={() => handleSort("status")}
-            >
-              <div className="flex items-center gap-2">
-                Status
-                <ArrowUpDown className="w-4 h-4" />
-              </div>
-            </th>
-            <th
-              className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-              onClick={() => handleSort("goal")}
-            >
-              <div className="flex items-center gap-2">
-                Goal
-                <ArrowUpDown className="w-4 h-4" />
-              </div>
-            </th>
-            <th
-              className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-              onClick={() => handleSort("activityLevel")}
-            >
-              <div className="flex items-center gap-2">
-                Activity
-                <ArrowUpDown className="w-4 h-4" />
-              </div>
-            </th>
-            <th className="px-4 py-3 text-left font-medium">Assigned Plan</th>
-            <th className="px-4 py-3 text-left font-medium">Assigned Meal</th>
-            <th className="px-4 py-3 text-left font-medium"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((client: Client) => {
-            const status = normalizeStatus(client.status) || "ACTIVE";
-            const gender = String(client.gender ?? "")
-              .trim()
-              .toLowerCase();
-
-            const rawPlanIds = (client as any).assignedPlanIds;
-            const rawMealPlanIds = (client as any).assignedMealPlanIds;
-
-            const assignedPlanIds: string[] = Array.isArray(rawPlanIds)
-              ? rawPlanIds.map((v: any) => String(v ?? "").trim())
-              : [];
-            const assignedMealPlanIds: string[] = Array.isArray(rawMealPlanIds)
-              ? rawMealPlanIds.map((v: any) => String(v ?? "").trim())
-              : [];
-
-            const legacyPlanId = String(
-              (client as any).assignedPlanId ?? ""
-            ).trim();
-            const legacyMealPlanId = String(
-              (client as any).assignedMealPlanId ?? ""
-            ).trim();
-
-            const normalizedPlanIds = Array.from(
-              new Set(
-                [...assignedPlanIds, ...(legacyPlanId ? [legacyPlanId] : [])]
-                  .map((v) => String(v).trim())
-                  .filter((v) => v && v !== "none")
-              )
-            );
-            const normalizedMealPlanIds = Array.from(
-              new Set(
-                [
-                  ...assignedMealPlanIds,
-                  ...(legacyMealPlanId ? [legacyMealPlanId] : []),
-                ]
-                  .map((v) => String(v).trim())
-                  .filter((v) => v && v !== "none")
-              )
-            );
-
-            const assignedPlanName = normalizedPlanIds.length
-              ? normalizedPlanIds
-                  .map((id) => workoutPlanNameById.get(id) || "-")
-                  .join(", ")
-              : "-";
-            const assignedMealName = normalizedMealPlanIds.length
-              ? normalizedMealPlanIds
-                  .map((id) => mealPlanNameById.get(id) || "-")
-                  .join(", ")
-              : "-";
-
-            return (
-              <tr
-                key={client.id}
-                className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer"
-                onClick={() => handleOpenDetails(client)}
+  const renderClientsTable = (
+    rows: Client[],
+    pagination: {
+      page: number;
+      totalPages: number;
+      totalCount: number;
+      onPrev: () => void;
+      onNext: () => void;
+    }
+  ) => (
+    <div className="bg-white dark:bg-gray-800 rounded-lg border">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 dark:bg-gray-700">
+            <tr>
+              <th
+                className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                onClick={() => handleSort("name")}
               >
-                {/* CLIENT COLUMN */}
-                <td className="px-4 py-3">
-                  <div className="flex items-start justify-start gap-3 min-w-0">
-                    <ClientAvatar
-                      name={client.name}
-                      src={(client as any).avatarDataUrl}
-                      size={36}
-                      className="mt-0.5"
-                    />
+                <div className="flex items-center gap-2">
+                  Client
+                  <ArrowUpDown className="w-4 h-4" />
+                </div>
+              </th>
+              <th
+                className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                onClick={() => handleSort("status")}
+              >
+                <div className="flex items-center gap-2">
+                  Status
+                  <ArrowUpDown className="w-4 h-4" />
+                </div>
+              </th>
+              <th
+                className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                onClick={() => handleSort("goal")}
+              >
+                <div className="flex items-center gap-2">
+                  Goal
+                  <ArrowUpDown className="w-4 h-4" />
+                </div>
+              </th>
+              <th
+                className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                onClick={() => handleSort("activityLevel")}
+              >
+                <div className="flex items-center gap-2">
+                  Activity
+                  <ArrowUpDown className="w-4 h-4" />
+                </div>
+              </th>
+              <th className="px-4 py-3 text-left font-medium">Assigned Plan</th>
+              <th className="px-4 py-3 text-left font-medium">Assigned Meal</th>
+              <th className="px-4 py-3 text-left font-medium"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((client: Client) => {
+              const status = normalizeStatus(client.status) || "ACTIVE";
+              const gender = String(client.gender ?? "")
+                .trim()
+                .toLowerCase();
 
-                    <div className="flex flex-col min-w-0">
-                      <div className="flex items-center gap-2 min-w-0">
-                        {gender === "female" ? (
-                          <Venus className="w-4 h-4 text-pink-500 shrink-0" />
-                        ) : gender === "male" ? (
-                          <Mars className="w-4 h-4 text-blue-500 shrink-0" />
-                        ) : gender === "other" ? (
-                          <VenusAndMars className="w-4 h-4 text-purple-500 shrink-0" />
-                        ) : null}
-                        <span className="font-medium truncate">
-                          {client.name}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-500 truncate">
-                        <Mail className="w-3 h-3" />
-                        {client.email}
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-500 truncate">
-                        <Phone className="w-3 h-3" />
-                        {client.phone}
+              const rawPlanIds = (client as any).assignedPlanIds;
+              const rawMealPlanIds = (client as any).assignedMealPlanIds;
+
+              const assignedPlanIds: string[] = Array.isArray(rawPlanIds)
+                ? rawPlanIds.map((v: any) => String(v ?? "").trim())
+                : [];
+              const assignedMealPlanIds: string[] = Array.isArray(
+                rawMealPlanIds
+              )
+                ? rawMealPlanIds.map((v: any) => String(v ?? "").trim())
+                : [];
+
+              const legacyPlanId = String(
+                (client as any).assignedPlanId ?? ""
+              ).trim();
+              const legacyMealPlanId = String(
+                (client as any).assignedMealPlanId ?? ""
+              ).trim();
+
+              const normalizedPlanIds = Array.from(
+                new Set(
+                  [...assignedPlanIds, ...(legacyPlanId ? [legacyPlanId] : [])]
+                    .map((v) => String(v).trim())
+                    .filter((v) => v && v !== "none")
+                )
+              );
+              const normalizedMealPlanIds = Array.from(
+                new Set(
+                  [
+                    ...assignedMealPlanIds,
+                    ...(legacyMealPlanId ? [legacyMealPlanId] : []),
+                  ]
+                    .map((v) => String(v).trim())
+                    .filter((v) => v && v !== "none")
+                )
+              );
+
+              const assignedPlanName = normalizedPlanIds.length
+                ? normalizedPlanIds
+                    .map((id) => workoutPlanNameById.get(id) || "-")
+                    .join(", ")
+                : "-";
+              const assignedMealName = normalizedMealPlanIds.length
+                ? normalizedMealPlanIds
+                    .map((id) => mealPlanNameById.get(id) || "-")
+                    .join(", ")
+                : "-";
+
+              return (
+                <tr
+                  key={client.id}
+                  className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer"
+                  onClick={() => handleOpenDetails(client)}
+                >
+                  {/* CLIENT COLUMN */}
+                  <td className="px-4 py-3">
+                    <div className="flex items-start justify-start gap-3 min-w-0">
+                      <ClientAvatar
+                        name={client.name}
+                        src={(client as any).avatarDataUrl}
+                        size={36}
+                        className="mt-0.5"
+                      />
+
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {gender === "female" ? (
+                            <Venus className="w-4 h-4 text-pink-500 shrink-0" />
+                          ) : gender === "male" ? (
+                            <Mars className="w-4 h-4 text-blue-500 shrink-0" />
+                          ) : gender === "other" ? (
+                            <VenusAndMars className="w-4 h-4 text-purple-500 shrink-0" />
+                          ) : null}
+                          <span className="font-medium truncate">
+                            {client.name}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-gray-500 truncate">
+                          <Mail className="w-3 h-3" />
+                          {client.email}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-gray-500 truncate">
+                          <Phone className="w-3 h-3" />
+                          {client.phone}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </td>
+                  </td>
 
-                <td className="px-4 py-3">
-                  <span
-                    className={`inline-flex items-center justify-center w-20 h-7 px-3 rounded-md text-xs font-medium ${statusConfig[status]}`}
-                  >
-                    {status}
-                  </span>
-                </td>
-
-                <td className="px-4 py-3 capitalize">
-                  {client.goal?.replace("_", " ") || "-"}
-                </td>
-                <td className="px-4 py-3 capitalize">
-                  {client.activityLevel || "-"}
-                </td>
-
-                <td className="px-4 py-3">
-                  <div className="truncate max-w-[220px]">
-                    {assignedPlanName}
-                  </div>
-                </td>
-
-                <td className="px-4 py-3">
-                  <div className="truncate max-w-[220px]">
-                    {assignedMealName}
-                  </div>
-                </td>
-
-                <td className="px-4 py-3 text-right">
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(client);
-                      }}
-                      className="p-2 text-gray-600 dark:text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900 rounded-lg"
-                      title="Edit Client"
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex items-center justify-center w-20 h-7 px-3 rounded-md text-xs font-medium ${statusConfig[status]}`}
                     >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(client.id);
-                      }}
-                      className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg"
-                      title="Delete Client"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                      {status}
+                    </span>
+                  </td>
+
+                  <td className="px-4 py-3 capitalize">
+                    {client.goal?.replace("_", " ") || "-"}
+                  </td>
+                  <td className="px-4 py-3 capitalize">
+                    {client.activityLevel || "-"}
+                  </td>
+
+                  <td className="px-4 py-3">
+                    <div className="truncate max-w-[220px]">
+                      {assignedPlanName}
+                    </div>
+                  </td>
+
+                  <td className="px-4 py-3">
+                    <div className="truncate max-w-[220px]">
+                      {assignedMealName}
+                    </div>
+                  </td>
+
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEdit(client);
+                        }}
+                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900 rounded-lg"
+                        title="Edit Client"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(client.id);
+                        }}
+                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg"
+                        title="Delete Client"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="flex items-center justify-between gap-3 px-4 py-3 border-t bg-gray-50/60 dark:bg-gray-700/40">
+        <div className="text-xs text-gray-600 dark:text-gray-300">
+          Page {pagination.page} of {pagination.totalPages}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={pagination.page <= 1}
+            onClick={pagination.onPrev}
+          >
+            Previous
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={pagination.page >= pagination.totalPages}
+            onClick={pagination.onNext}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
     </div>
   );
 
@@ -394,15 +487,39 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="mb-6 max-w-md relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search clients"
-          className="pl-10"
-        />
+      {/* Search + Pagination settings */}
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-end gap-3">
+        <div className="max-w-md relative w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search clients"
+            className="pl-10"
+          />
+        </div>
+
+        <div className="w-[180px]">
+          <Select
+            value={String(pageSize)}
+            onValueChange={(v) => {
+              const next = Number(v);
+              if (!Number.isFinite(next)) return;
+              setPageSize(next);
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Rows per page" />
+            </SelectTrigger>
+            <SelectContent>
+              {PAGE_SIZE_OPTIONS.map((n) => (
+                <SelectItem key={n} value={String(n)}>
+                  {n} rows
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Content */}
@@ -422,7 +539,16 @@ export default function ClientsPage() {
       ) : (
         <div className="space-y-6">
           {primaryClients.length > 0
-            ? renderClientsTable(primaryClients)
+            ? renderClientsTable(primaryPaging.pagedRows, {
+                page: primaryPaging.page,
+                totalPages: primaryPaging.totalPages,
+                totalCount: primaryPaging.totalCount,
+                onPrev: () => setPrimaryPage((p) => Math.max(1, p - 1)),
+                onNext: () =>
+                  setPrimaryPage((p) =>
+                    Math.min(primaryPaging.totalPages, p + 1)
+                  ),
+              })
             : null}
 
           {inactiveClients.length > 0 ? (
@@ -430,7 +556,16 @@ export default function ClientsPage() {
               <div className="text-sm font-semibold text-gray-900 dark:text-white">
                 Inactive Clients
               </div>
-              {renderClientsTable(inactiveClients)}
+              {renderClientsTable(inactivePaging.pagedRows, {
+                page: inactivePaging.page,
+                totalPages: inactivePaging.totalPages,
+                totalCount: inactivePaging.totalCount,
+                onPrev: () => setInactivePage((p) => Math.max(1, p - 1)),
+                onNext: () =>
+                  setInactivePage((p) =>
+                    Math.min(inactivePaging.totalPages, p + 1)
+                  ),
+              })}
             </div>
           ) : null}
         </div>
