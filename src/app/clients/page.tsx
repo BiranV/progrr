@@ -36,6 +36,16 @@ export default function ClientsPage() {
     queryFn: () => db.entities.Client.list("-created_date"),
   });
 
+  const { data: workoutPlans = [] } = useQuery({
+    queryKey: ["workoutPlans"],
+    queryFn: () => db.entities.WorkoutPlan.list(),
+  });
+
+  const { data: mealPlans = [] } = useQuery({
+    queryKey: ["mealPlans"],
+    queryFn: () => db.entities.MealPlan.list(),
+  });
+
   const deleteClientMutation = useMutation({
     mutationFn: (id: string) => db.entities.Client.delete(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["clients"] }),
@@ -114,6 +124,22 @@ export default function ClientsPage() {
     (c: Client) => normalizeStatus(c.status) !== "INACTIVE"
   );
 
+  const workoutPlanNameById = React.useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of workoutPlans as any[]) {
+      if (p?.id) map.set(String(p.id), String(p.name ?? ""));
+    }
+    return map;
+  }, [workoutPlans]);
+
+  const mealPlanNameById = React.useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of mealPlans as any[]) {
+      if (p?.id) map.set(String(p.id), String(p.name ?? ""));
+    }
+    return map;
+  }, [mealPlans]);
+
   const renderClientsTable = (rows: Client[]) => (
     <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg border">
       <table className="w-full text-sm">
@@ -155,6 +181,8 @@ export default function ClientsPage() {
                 <ArrowUpDown className="w-4 h-4" />
               </div>
             </th>
+            <th className="px-4 py-3 text-left font-medium">Assigned Plan</th>
+            <th className="px-4 py-3 text-left font-medium">Assigned Meal</th>
             <th className="px-4 py-3 text-left font-medium"></th>
           </tr>
         </thead>
@@ -164,6 +192,23 @@ export default function ClientsPage() {
             const gender = String(client.gender ?? "")
               .trim()
               .toLowerCase();
+
+            const assignedPlanId = String(
+              (client as any).assignedPlanId ?? ""
+            ).trim();
+            const assignedMealPlanId = String(
+              (client as any).assignedMealPlanId ?? ""
+            ).trim();
+
+            const assignedPlanName =
+              assignedPlanId && assignedPlanId !== "none"
+                ? workoutPlanNameById.get(assignedPlanId) || "-"
+                : "-";
+            const assignedMealName =
+              assignedMealPlanId && assignedMealPlanId !== "none"
+                ? mealPlanNameById.get(assignedMealPlanId) || "-"
+                : "-";
+
             return (
               <tr
                 key={client.id}
@@ -207,6 +252,19 @@ export default function ClientsPage() {
                 <td className="px-4 py-3 capitalize">
                   {client.activityLevel || "-"}
                 </td>
+
+                <td className="px-4 py-3">
+                  <div className="truncate max-w-[220px]">
+                    {assignedPlanName}
+                  </div>
+                </td>
+
+                <td className="px-4 py-3">
+                  <div className="truncate max-w-[220px]">
+                    {assignedMealName}
+                  </div>
+                </td>
+
                 <td className="px-4 py-3 text-right">
                   <div className="flex justify-end gap-2">
                     <button
