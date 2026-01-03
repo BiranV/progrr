@@ -155,7 +155,7 @@ export default function ExercisesPage() {
 
               const subtitle =
                 hasVideo && hasGuidelines
-                  ? "Video & guidelines"
+                  ? "Video & Guidelines"
                   : hasVideo
                   ? "Video"
                   : hasGuidelines
