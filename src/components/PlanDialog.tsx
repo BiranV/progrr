@@ -176,6 +176,24 @@ export default function PlanDialog({
       return;
     }
 
+    const difficulty = String(formData.difficulty ?? "").trim();
+    if (!difficulty) {
+      setValidationError("Difficulty is required");
+      return;
+    }
+
+    const duration = String(formData.duration ?? "").trim();
+    if (!duration) {
+      setValidationError("Duration is required");
+      return;
+    }
+
+    const goal = String(formData.goal ?? "").trim();
+    if (!goal) {
+      setValidationError("Goal is required");
+      return;
+    }
+
     for (const row of planExercises) {
       const exId = String((row as any)?.exerciseLibraryId ?? "").trim();
       if (!exId) {
@@ -184,7 +202,7 @@ export default function PlanDialog({
       }
     }
 
-    saveMutation.mutate({ ...formData, name });
+    saveMutation.mutate({ ...formData, name, difficulty, duration, goal });
   };
 
   const addExercise = () => {
@@ -264,13 +282,14 @@ export default function PlanDialog({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Difficulty
+                  Difficulty *
                 </label>
                 <Select
                   value={formData.difficulty}
-                  onValueChange={(value) =>
+                  onValueChange={(value) => (
+                    validationError && setValidationError(null),
                     setFormData({ ...formData, difficulty: value })
-                  }
+                  )}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select difficulty" />
@@ -285,13 +304,14 @@ export default function PlanDialog({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Duration
+                  Duration *
                 </label>
                 <Input
                   value={formData.duration}
-                  onChange={(e) =>
+                  onChange={(e) => (
+                    validationError && setValidationError(null),
                     setFormData({ ...formData, duration: e.target.value })
-                  }
+                  )}
                   placeholder="e.g., 8 weeks"
                 />
               </div>
@@ -299,13 +319,14 @@ export default function PlanDialog({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Goal
+                Goal *
               </label>
               <Input
                 value={formData.goal}
-                onChange={(e) =>
+                onChange={(e) => (
+                  validationError && setValidationError(null),
                   setFormData({ ...formData, goal: e.target.value })
-                }
+                )}
                 placeholder="e.g., Build muscle, Lose fat"
               />
             </div>

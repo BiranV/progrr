@@ -43,6 +43,41 @@ export default function PlansPage() {
     queryFn: () => db.entities.WorkoutPlan.list("-created_date"),
   });
 
+  const { data: exerciseCountByPlanId = {} } = useQuery({
+    queryKey: ["workoutPlanExerciseCounts"],
+    queryFn: async () => {
+      const planExercises = await db.entities.PlanExercise.filter({});
+      const legacyExercises = await db.entities.Exercise.filter({});
+
+      const planCounts: Record<string, number> = {};
+      for (const row of planExercises as any[]) {
+        const planId = String((row as any)?.workoutPlanId ?? "").trim();
+        if (!planId) continue;
+        planCounts[planId] = (planCounts[planId] ?? 0) + 1;
+      }
+
+      const legacyCounts: Record<string, number> = {};
+      for (const row of legacyExercises as any[]) {
+        const planId = String((row as any)?.workoutPlanId ?? "").trim();
+        if (!planId) continue;
+        legacyCounts[planId] = (legacyCounts[planId] ?? 0) + 1;
+      }
+
+      const merged: Record<string, number> = {};
+      const ids = new Set<string>([
+        ...Object.keys(planCounts),
+        ...Object.keys(legacyCounts),
+      ]);
+      ids.forEach((id) => {
+        const planCount = planCounts[id] ?? 0;
+        merged[id] = planCount > 0 ? planCount : legacyCounts[id] ?? 0;
+      });
+
+      return merged;
+    },
+    enabled: Array.isArray(plans) && plans.length > 0,
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       await db.entities.WorkoutPlan.delete(id);
@@ -225,6 +260,12 @@ export default function PlansPage() {
                     <div className="flex items-center gap-2 truncate">
                       <Target className="w-4 h-4 shrink-0" />
                       <span className="truncate">Goal: {plan.goal || "-"}</span>
+                    </div>
+                    <div className="flex items-center gap-2 truncate">
+                      <Dumbbell className="w-4 h-4 shrink-0" />
+                      <span className="truncate">
+                        Exercises: {exerciseCountByPlanId[String(plan.id)] ?? 0}
+                      </span>
                     </div>
                   </div>
                 </div>
