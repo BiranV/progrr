@@ -19,7 +19,7 @@ import {
 } from "@/lib/plan-export";
 import { toast } from "sonner";
 import { WorkoutPlan, Exercise, PlanExercise } from "@/types";
-import { toYouTubeEmbedUrl } from "@/lib/youtube";
+import { extractYouTubeVideoId, toYouTubeEmbedUrl } from "@/lib/youtube";
 
 interface WorkoutPlanDetailsDialogProps {
   plan: WorkoutPlan | null;
@@ -254,12 +254,30 @@ export default function WorkoutPlanDetailsDialog({
                                 String(e.videoUrl ?? "")
                               );
                               if (!embed) return null;
+
+                              const id = extractYouTubeVideoId(
+                                String(e.videoUrl ?? "")
+                              );
+                              const watchUrl = id
+                                ? `https://www.youtube.com/watch?v=${id}`
+                                : null;
+
                               return (
                                 <div className="mt-2">
                                   <div
                                     className="relative w-full overflow-hidden rounded-lg bg-black"
                                     style={{ paddingTop: "56.25%" }}
                                   >
+                                    {watchUrl ? (
+                                      <a
+                                        href={watchUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="absolute inset-0 z-10 cursor-pointer"
+                                        title="Open video"
+                                        aria-label="Open video"
+                                      />
+                                    ) : null}
                                     <iframe
                                       src={embed}
                                       title="Exercise video"
