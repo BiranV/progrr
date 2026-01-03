@@ -8,6 +8,17 @@ export const runtime = "nodejs";
 
 const patchBodySchema = z.record(z.string(), z.any());
 
+function parseDate(value: unknown): Date | null {
+  if (typeof value === "string" || typeof value === "number") {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  return null;
+}
+
 function toPublicRecord(row: {
   id: string;
   data: any;
@@ -252,6 +263,36 @@ export async function PATCH(
     }
 
     const patch = patchBodySchema.parse(await req.json());
+
+    if (
+      entity === "Meeting" &&
+      Object.prototype.hasOwnProperty.call(patch, "scheduledAt")
+    ) {
+      const nextScheduledAt = parseDate((patch as any).scheduledAt);
+      if (!nextScheduledAt) {
+        return NextResponse.json(
+          { error: "Meeting date & time is required" },
+          { status: 400 }
+        );
+      }
+
+      if (nextScheduledAt.getTime() < Date.now()) {
+        const prevScheduledAt = parseDate(
+          ((existing.data ?? {}) as any)?.scheduledAt
+        );
+        const unchanged =
+          prevScheduledAt &&
+          prevScheduledAt.getTime() === nextScheduledAt.getTime();
+
+        if (!unchanged) {
+          return NextResponse.json(
+            { error: "Meeting date & time cannot be in the past" },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     await c.entities.updateOne(
       { _id: new ObjectId(id) },
       {

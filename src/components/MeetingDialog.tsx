@@ -3,6 +3,7 @@
 import React from "react";
 import { db } from "@/lib/db";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,6 +27,30 @@ interface MeetingDialogProps {
   clients: Client[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+function toLocalDateTimeInputValue(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const y = date.getFullYear();
+  const m = pad(date.getMonth() + 1);
+  const d = pad(date.getDate());
+  const hh = pad(date.getHours());
+  const mm = pad(date.getMinutes());
+  return `${y}-${m}-${d}T${hh}:${mm}`;
+}
+
+function ceilToNextMinute(date: Date): Date {
+  const d = new Date(date);
+  const shouldCeil = d.getSeconds() > 0 || d.getMilliseconds() > 0;
+  d.setSeconds(0, 0);
+  if (shouldCeil) d.setMinutes(d.getMinutes() + 1);
+  return d;
+}
+
+function isoToLocalDateTimeInputValue(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return toLocalDateTimeInputValue(d);
 }
 
 export default function MeetingDialog({
@@ -53,7 +78,7 @@ export default function MeetingDialog({
         type: meeting.type || "zoom",
         status: meeting.status || "scheduled",
         scheduledAt: meeting.scheduledAt
-          ? meeting.scheduledAt.substring(0, 16)
+          ? isoToLocalDateTimeInputValue(meeting.scheduledAt)
           : "",
         durationMinutes: meeting.durationMinutes || 60,
         location: meeting.location || "",
@@ -74,6 +99,19 @@ export default function MeetingDialog({
     }
   }, [meeting, open]);
 
+  const minDateTimeLocal = React.useMemo(() => {
+    return toLocalDateTimeInputValue(ceilToNextMinute(new Date()));
+  }, [open]);
+
+  const shouldEnforceMinDateTime = React.useMemo(() => {
+    if (!meeting) return true;
+    const existing = meeting?.scheduledAt
+      ? new Date(meeting.scheduledAt)
+      : null;
+    if (!existing || Number.isNaN(existing.getTime())) return true;
+    return existing.getTime() >= Date.now();
+  }, [meeting]);
+
   const saveMutation = useMutation({
     mutationFn: (data: Partial<Meeting>) => {
       const payload = {
@@ -91,10 +129,27 @@ export default function MeetingDialog({
       queryClient.invalidateQueries({ queryKey: ["meetings"] });
       onOpenChange(false);
     },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to save meeting");
+    },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (shouldEnforceMinDateTime) {
+      const scheduledAt = String(formData.scheduledAt ?? "").trim();
+      const d = scheduledAt ? new Date(scheduledAt) : null;
+      if (!d || Number.isNaN(d.getTime())) {
+        toast.error("Please select a valid meeting date & time");
+        return;
+      }
+      if (d.getTime() < Date.now()) {
+        toast.error("Meeting date & time cannot be in the past");
+        return;
+      }
+    }
+
     saveMutation.mutate(formData);
   };
 
@@ -170,6 +225,7 @@ export default function MeetingDialog({
               </label>
               <Input
                 type="datetime-local"
+                min={shouldEnforceMinDateTime ? minDateTimeLocal : undefined}
                 max="9999-12-31T23:59"
                 value={formData.scheduledAt}
                 onChange={(e) =>

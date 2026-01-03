@@ -8,6 +8,31 @@ export const runtime = "nodejs";
 
 const createBodySchema = z.record(z.string(), z.any());
 
+function parseDate(value: unknown): Date | null {
+  if (typeof value === "string" || typeof value === "number") {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  return null;
+}
+
+function validateMeetingScheduledAtOrThrow(data: Record<string, any>) {
+  const scheduledAt = parseDate(data?.scheduledAt);
+  if (!scheduledAt) {
+    const err: any = new Error("Meeting date & time is required");
+    err.status = 400;
+    throw err;
+  }
+  if (scheduledAt.getTime() < Date.now()) {
+    const err: any = new Error("Meeting date & time cannot be in the past");
+    err.status = 400;
+    throw err;
+  }
+}
+
 function toPublicRecord(row: {
   id: string;
   data: any;
@@ -216,6 +241,10 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    if (entity === "Meeting") {
+      validateMeetingScheduledAtOrThrow(body);
+    }
+
     const adminId = new ObjectId(user.id);
     const now = new Date();
     const insert = await c.entities.insertOne({
@@ -242,7 +271,9 @@ export async function POST(
     return NextResponse.json(
       {
         error:
-          status === 401 ? "Unauthorized" : message || "Internal Server Error",
+          status === 401
+            ? "Unauthorized"
+            : error?.message || message || "Internal Server Error",
       },
       { status }
     );
