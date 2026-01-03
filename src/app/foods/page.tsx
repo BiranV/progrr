@@ -21,6 +21,7 @@ import {
   Copy,
 } from "lucide-react";
 import FoodLibraryDialog from "@/components/FoodLibraryDialog";
+import FoodLibraryDetailsDialog from "@/components/FoodLibraryDetailsDialog";
 import { toast } from "sonner";
 import {
   copyTextToClipboard,
@@ -33,6 +34,8 @@ export default function FoodsPage() {
   const [search, setSearch] = React.useState("");
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editingFood, setEditingFood] = React.useState<any | null>(null);
+  const [detailsOpen, setDetailsOpen] = React.useState(false);
+  const [detailsFood, setDetailsFood] = React.useState<any | null>(null);
 
   const { data: foods = [], isLoading } = useQuery({
     queryKey: ["foodLibrary"],
@@ -60,6 +63,11 @@ export default function FoodsPage() {
   const handleEdit = (food: any) => {
     setEditingFood(food);
     setDialogOpen(true);
+  };
+
+  const handleDetails = (food: any) => {
+    setDetailsFood(food);
+    setDetailsOpen(true);
   };
 
   const handleCreate = () => {
@@ -254,7 +262,7 @@ export default function FoodsPage() {
                     <Button
                       size="sm"
                       className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-200 dark:hover:bg-indigo-900/45"
-                      onClick={() => handleEdit(f)}
+                      onClick={() => handleDetails(f)}
                     >
                       Details
                     </Button>
@@ -272,6 +280,15 @@ export default function FoodsPage() {
         onOpenChange={(open) => {
           setDialogOpen(open);
           if (!open) setEditingFood(null);
+        }}
+      />
+
+      <FoodLibraryDetailsDialog
+        food={detailsFood}
+        open={detailsOpen}
+        onOpenChange={(open) => {
+          setDetailsOpen(open);
+          if (!open) setDetailsFood(null);
         }}
       />
     </div>

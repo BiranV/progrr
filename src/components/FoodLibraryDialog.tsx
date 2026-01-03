@@ -62,6 +62,8 @@ export default function FoodLibraryDialog({
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["foodLibrary"] });
+      await queryClient.invalidateQueries({ queryKey: ["mealPlans"] });
+      await queryClient.invalidateQueries({ queryKey: ["meals"] });
       onOpenChange(false);
       toast.success(food ? "Food updated" : "Food created");
     },

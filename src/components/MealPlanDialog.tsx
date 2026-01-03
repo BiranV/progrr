@@ -60,6 +60,12 @@ export default function MealPlanDialog({
     enabled: open,
   });
 
+  const { data: appSettings = [] } = useQuery({
+    queryKey: ["appSettings"],
+    queryFn: () => db.entities.AppSettings.list(),
+    enabled: open,
+  });
+
   const { data: queryMeals } = useQuery({
     queryKey: ["meals", plan?.id],
     queryFn: async () => {
@@ -104,6 +110,84 @@ export default function MealPlanDialog({
 
   const [meals, setMeals] = React.useState<MealForm[]>([]);
 
+  const normalizeMealType = React.useCallback((value: unknown) => {
+    const v = String(value ?? "").trim();
+    const key = v.toLowerCase();
+    const map: Record<string, string> = {
+      breakfast: "Breakfast",
+      lunch: "Lunch",
+      dinner: "Dinner",
+      snack: "Snack",
+    };
+    return map[key] || v || "Breakfast";
+  }, []);
+
+  const computedDailyTotals = React.useMemo(() => {
+    const byId = new Map<string, FoodLibrary>();
+    for (const f of foodLibrary) {
+      if (f?.id) byId.set(String(f.id), f);
+    }
+
+    const parseNum = (value: unknown) => {
+      const n = Number.parseFloat(String(value ?? "").replace(",", "."));
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    let calories = 0;
+    let protein = 0;
+    let carbs = 0;
+    let fat = 0;
+
+    for (const meal of meals) {
+      for (const row of meal.planFoods || []) {
+        const foodLibraryId = String((row as any)?.foodLibraryId ?? "").trim();
+        const grams = parseNum((row as any)?.amount);
+        if (!foodLibraryId || grams <= 0) continue;
+
+        const f = byId.get(foodLibraryId);
+        if (!f) continue;
+
+        const factor = grams / 100;
+        calories += parseNum(f.calories) * factor;
+        protein += parseNum(f.protein) * factor;
+        carbs += parseNum(f.carbs) * factor;
+        fat += parseNum(f.fat) * factor;
+      }
+    }
+
+    return {
+      calories,
+      protein,
+      carbs,
+      fat,
+    };
+  }, [meals, foodLibrary]);
+
+  const mealTypeOptions = React.useMemo(() => {
+    const defaults = [
+      "Breakfast",
+      "Lunch",
+      "Dinner",
+      "Snack",
+      "Brunch",
+      "Pre Workout",
+      "Post Workout",
+      "Supper",
+    ];
+
+    const fromSettingsRaw = (appSettings?.[0] as any)?.mealTypes;
+    const custom = Array.isArray(fromSettingsRaw)
+      ? fromSettingsRaw.map((x: any) => String(x ?? "").trim()).filter(Boolean)
+      : [];
+
+    const existing = meals
+      .map((m) => normalizeMealType((m as any)?.type))
+      .map((x) => String(x ?? "").trim())
+      .filter(Boolean);
+
+    return Array.from(new Set([...defaults, ...custom, ...existing]));
+  }, [appSettings, meals, normalizeMealType]);
+
   React.useEffect(() => {
     setValidationError(null);
     if (plan) {
@@ -147,6 +231,7 @@ export default function MealPlanDialog({
         if (existingPlanFoods.length) {
           return {
             ...meal,
+            type: normalizeMealType((meal as any)?.type),
             planFoods: existingPlanFoods,
           };
         }
@@ -167,6 +252,7 @@ export default function MealPlanDialog({
 
         return {
           ...meal,
+          type: normalizeMealType((meal as any)?.type),
           planFoods: migratedPlanFoods,
         };
       });
@@ -178,7 +264,7 @@ export default function MealPlanDialog({
     } else if (!plan) {
       setMeals([]);
     }
-  }, [queryMeals, plan, foodLibrary]);
+  }, [queryMeals, plan, foodLibrary, normalizeMealType]);
 
   const saveMutation = useMutation({
     mutationFn: async (data: Partial<MealPlan>) => {
@@ -217,7 +303,7 @@ export default function MealPlanDialog({
         const meal = meals[i];
         const mealData = {
           mealPlanId: planId,
-          type: meal.type || "breakfast",
+          type: normalizeMealType(meal.type),
           name: meal.name || "",
           order: i,
         };
@@ -287,7 +373,10 @@ export default function MealPlanDialog({
   });
 
   const addMeal = () => {
-    setMeals([...meals, { type: "breakfast", name: "", planFoods: [] }]);
+    setMeals([
+      ...meals,
+      { type: mealTypeOptions[0] || "Breakfast", name: "", planFoods: [] },
+    ]);
   };
 
   const updateMeal = (index: number, field: keyof Meal, value: any) => {
@@ -358,7 +447,21 @@ export default function MealPlanDialog({
       }
     }
 
-    saveMutation.mutate({ ...formData, name });
+    const fmt = (n: number, decimals: number) => {
+      if (!Number.isFinite(n)) return "";
+      const v = Number(n.toFixed(decimals));
+      return String(v);
+    };
+
+    saveMutation.mutate({
+      ...formData,
+      name,
+      // Auto-calc daily totals from selected foods (per 100g) * grams/100
+      dailyCalories: fmt(computedDailyTotals.calories, 0),
+      dailyProtein: fmt(computedDailyTotals.protein, 1),
+      dailyCarbs: fmt(computedDailyTotals.carbs, 1),
+      dailyFat: fmt(computedDailyTotals.fat, 1),
+    });
   };
 
   return (
@@ -409,53 +512,17 @@ export default function MealPlanDialog({
                 }
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Daily Calories
-              </label>
-              <Input
-                placeholder="e.g., 2000"
-                value={formData.dailyCalories}
-                onChange={(e) =>
-                  setFormData({ ...formData, dailyCalories: e.target.value })
-                }
-              />
+          </div>
+
+          <div className="rounded-xl border bg-white dark:bg-slate-900/30 px-4 py-3">
+            <div className="text-sm font-medium text-slate-700 dark:text-slate-200">
+              Calculated daily totals (from foods)
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Daily Protein (g)
-              </label>
-              <Input
-                placeholder="e.g., 150"
-                value={formData.dailyProtein}
-                onChange={(e) =>
-                  setFormData({ ...formData, dailyProtein: e.target.value })
-                }
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Daily Carbs (g)
-              </label>
-              <Input
-                placeholder="e.g., 200"
-                value={formData.dailyCarbs}
-                onChange={(e) =>
-                  setFormData({ ...formData, dailyCarbs: e.target.value })
-                }
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Daily Fat (g)
-              </label>
-              <Input
-                placeholder="e.g., 60"
-                value={formData.dailyFat}
-                onChange={(e) =>
-                  setFormData({ ...formData, dailyFat: e.target.value })
-                }
-              />
+            <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+              {Math.round(computedDailyTotals.calories)} kcal ·{" "}
+              {Number(computedDailyTotals.protein.toFixed(1))}g protein ·{" "}
+              {Number(computedDailyTotals.carbs.toFixed(1))}g carbs ·{" "}
+              {Number(computedDailyTotals.fat.toFixed(1))}g fat
             </div>
           </div>
 
@@ -481,17 +548,20 @@ export default function MealPlanDialog({
                 >
                   <div className="flex gap-3">
                     <Select
-                      value={meal.type}
-                      onValueChange={(v) => updateMeal(mealIndex, "type", v)}
+                      value={normalizeMealType(meal.type)}
+                      onValueChange={(v) =>
+                        updateMeal(mealIndex, "type", normalizeMealType(v))
+                      }
                     >
                       <SelectTrigger className="w-full">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="breakfast">Breakfast</SelectItem>
-                        <SelectItem value="lunch">Lunch</SelectItem>
-                        <SelectItem value="dinner">Dinner</SelectItem>
-                        <SelectItem value="snack">Snack</SelectItem>
+                        {mealTypeOptions.map((t) => (
+                          <SelectItem key={t} value={t}>
+                            {t}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <button

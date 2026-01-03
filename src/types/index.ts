@@ -216,6 +216,7 @@ export interface AppSettings {
   logoUrl?: string;
   clientLabel?: string;
   planLabel?: string;
+  mealTypes?: string[];
   weekStartDay?: string;
   facebookUrl?: string;
   instagramUrl?: string;

@@ -68,10 +68,13 @@ export default function SettingsPage() {
     businessDescription: "",
     webAddress: "",
     logoUrl: "",
+    mealTypes: [],
     weekStartDay: "monday",
     facebookUrl: "",
     instagramUrl: "",
   });
+
+  const [newMealType, setNewMealType] = React.useState("");
 
   const { data: settings = [] } = useQuery({
     queryKey: ["appSettings"],
@@ -80,9 +83,47 @@ export default function SettingsPage() {
 
   React.useEffect(() => {
     if (settings.length > 0) {
-      setFormData(settings[0]);
+      const s = settings[0] as any;
+      setFormData({
+        ...s,
+        mealTypes: Array.isArray(s?.mealTypes)
+          ? s.mealTypes
+              .map((v: any) => String(v ?? "").trim())
+              .filter(Boolean)
+          : [],
+      });
     }
   }, [settings]);
+
+  const addMealType = () => {
+    const value = String(newMealType ?? "").trim();
+    if (!value) return;
+    setFormData((prev) => {
+      const existing = Array.isArray((prev as any).mealTypes)
+        ? ((prev as any).mealTypes as any[])
+        : [];
+      const normalized = existing
+        .map((v) => String(v ?? "").trim())
+        .filter(Boolean);
+      const next = Array.from(new Set([...normalized, value]));
+      return { ...prev, mealTypes: next };
+    });
+    setNewMealType("");
+  };
+
+  const removeMealType = (value: string) => {
+    const v = String(value ?? "").trim();
+    if (!v) return;
+    setFormData((prev) => {
+      const existing = Array.isArray((prev as any).mealTypes)
+        ? ((prev as any).mealTypes as any[])
+        : [];
+      const next = existing
+        .map((x) => String(x ?? "").trim())
+        .filter((x) => x && x !== v);
+      return { ...prev, mealTypes: next };
+    });
+  };
 
   const handleFileUpload = async (file: File) => {
     if (!file || !file.type.startsWith("image/")) {
@@ -416,6 +457,59 @@ export default function SettingsPage() {
                     }}
                     className="hidden"
                   />
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="dark:bg-gray-800 dark:border-gray-700">
+          <CardHeader>
+            <CardTitle>Meal Plan Options</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                Meal types
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                These options appear when creating/editing meals.
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Input
+                placeholder="e.g., Brunch"
+                value={newMealType}
+                onChange={(e) => setNewMealType(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addMealType();
+                  }
+                }}
+              />
+              <Button type="button" variant="outline" onClick={addMealType}>
+                Add
+              </Button>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {((formData as any).mealTypes || []).length ? (
+                ((formData as any).mealTypes as string[]).map((t) => (
+                  <Button
+                    key={t}
+                    type="button"
+                    variant="outline"
+                    className="h-8 px-3"
+                    onClick={() => removeMealType(t)}
+                  >
+                    {t}
+                  </Button>
+                ))
+              ) : (
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  No custom meal types yet.
                 </div>
               )}
             </div>

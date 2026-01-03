@@ -8,6 +8,143 @@ export const runtime = "nodejs";
 
 const patchBodySchema = z.record(z.string(), z.any());
 
+function parseNumber(value: unknown): number {
+  const n = Number.parseFloat(String(value ?? "").replace(",", "."));
+  return Number.isFinite(n) ? n : 0;
+}
+
+async function recomputeMealPlanTotalsForFoodLibrary(args: {
+  c: Awaited<ReturnType<typeof collections>>;
+  adminId: ObjectId;
+  foodLibraryId: string;
+}) {
+  const { c, adminId, foodLibraryId } = args;
+  if (!foodLibraryId) return;
+
+  const planFoodDocs = await c.entities
+    .find({
+      entity: "PlanFood",
+      adminId,
+      "data.foodLibraryId": foodLibraryId,
+    })
+    .project({ _id: 1, "data.mealId": 1 })
+    .toArray();
+
+  const mealIds = Array.from(
+    new Set(
+      planFoodDocs
+        .map((d) => String((d as any)?.data?.mealId ?? "").trim())
+        .filter((id) => id && ObjectId.isValid(id))
+    )
+  );
+  if (!mealIds.length) return;
+
+  const mealDocs = await c.entities
+    .find({
+      entity: "Meal",
+      adminId,
+      _id: { $in: mealIds.map((id) => new ObjectId(id)) },
+    })
+    .project({ _id: 1, "data.mealPlanId": 1 })
+    .toArray();
+
+  const mealPlanIds = Array.from(
+    new Set(
+      mealDocs
+        .map((d) => String((d as any)?.data?.mealPlanId ?? "").trim())
+        .filter((id) => id && ObjectId.isValid(id))
+    )
+  );
+  if (!mealPlanIds.length) return;
+
+  for (const mealPlanId of mealPlanIds) {
+    const mealsInPlan = await c.entities
+      .find({
+        entity: "Meal",
+        adminId,
+        "data.mealPlanId": mealPlanId,
+      })
+      .project({ _id: 1 })
+      .toArray();
+    const mealIdsInPlan = mealsInPlan.map((m) => m._id);
+    if (!mealIdsInPlan.length) continue;
+
+    const planFoodsInPlan = await c.entities
+      .find({
+        entity: "PlanFood",
+        adminId,
+        "data.mealId": { $in: mealIdsInPlan.map((x) => x.toHexString()) },
+      })
+      .project({ _id: 1, data: 1 })
+      .toArray();
+
+    const uniqueFoodLibraryIds = Array.from(
+      new Set(
+        planFoodsInPlan
+          .map((pf) => String((pf as any)?.data?.foodLibraryId ?? "").trim())
+          .filter((id) => id && ObjectId.isValid(id))
+      )
+    );
+
+    const foodDocs = uniqueFoodLibraryIds.length
+      ? await c.entities
+          .find({
+            entity: "FoodLibrary",
+            adminId,
+            _id: { $in: uniqueFoodLibraryIds.map((id) => new ObjectId(id)) },
+          })
+          .project({ _id: 1, data: 1 })
+          .toArray()
+      : [];
+
+    const foodById = new Map<string, any>();
+    for (const fd of foodDocs) {
+      foodById.set(fd._id.toHexString(), (fd as any).data ?? {});
+    }
+
+    let calories = 0;
+    let protein = 0;
+    let carbs = 0;
+    let fat = 0;
+
+    for (const pf of planFoodsInPlan) {
+      const data = (pf as any).data ?? {};
+      const fid = String(data.foodLibraryId ?? "").trim();
+      const grams = parseNumber(data.amount);
+      if (!fid || grams <= 0) continue;
+
+      const f = foodById.get(fid);
+      if (!f) continue;
+
+      const factor = grams / 100;
+      calories += parseNumber(f.calories) * factor;
+      protein += parseNumber(f.protein) * factor;
+      carbs += parseNumber(f.carbs) * factor;
+      fat += parseNumber(f.fat) * factor;
+    }
+
+    const next = {
+      dailyCalories: String(Math.round(calories)),
+      dailyProtein: String(Number(protein.toFixed(1))),
+      dailyCarbs: String(Number(carbs.toFixed(1))),
+      dailyFat: String(Number(fat.toFixed(1))),
+    };
+
+    await c.entities.updateOne(
+      { _id: new ObjectId(mealPlanId), entity: "MealPlan", adminId },
+      {
+        $set: {
+          "data.dailyCalories": next.dailyCalories,
+          "data.dailyProtein": next.dailyProtein,
+          "data.dailyCarbs": next.dailyCarbs,
+          "data.dailyFat": next.dailyFat,
+          updatedAt: new Date(),
+        },
+      }
+    );
+  }
+}
+
 function parseDate(value: unknown): Date | null {
   if (typeof value === "string" || typeof value === "number") {
     const d = new Date(value);
@@ -469,6 +606,15 @@ export async function PATCH(
         },
       }
     );
+
+    if (entity === "FoodLibrary") {
+      // Keep dependent meal plan totals in sync when a library food changes.
+      await recomputeMealPlanTotalsForFoodLibrary({
+        c,
+        adminId,
+        foodLibraryId: id,
+      });
+    }
 
     const row = await c.entities.findOne({ _id: new ObjectId(id) });
     if (!row) {
