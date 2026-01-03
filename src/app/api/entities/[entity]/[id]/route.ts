@@ -195,6 +195,41 @@ export async function GET(
         return NextResponse.json(toPublicEntityDoc(row));
       }
 
+      if (entity === "PlanFood") {
+        if (!myClient) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        if (!ObjectId.isValid(id)) {
+          return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
+        const row = await c.entities.findOne({
+          _id: new ObjectId(id),
+          entity: "PlanFood",
+          adminId,
+        });
+        if (!row) {
+          return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
+
+        const mealId = String((row.data ?? {})?.mealId ?? "").trim();
+        if (!mealId || !ObjectId.isValid(mealId)) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        const mealDoc = await c.entities.findOne({
+          _id: new ObjectId(mealId),
+          entity: "Meal",
+          adminId,
+        });
+        const mealData = (mealDoc?.data ?? {}) as any;
+        const mealPlanId = String(mealData.mealPlanId ?? "").trim();
+        if (!mealPlanId || !allowedMealPlanIds.includes(mealPlanId)) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        return NextResponse.json(toPublicEntityDoc(row));
+      }
+
       if (entity === "ExerciseLibrary") {
         if (!myClient) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -221,6 +256,55 @@ export async function GET(
         const row = await c.entities.findOne({
           _id: new ObjectId(id),
           entity: "ExerciseLibrary",
+          adminId,
+        });
+        if (!row) {
+          return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
+        return NextResponse.json(toPublicEntityDoc(row));
+      }
+
+      if (entity === "FoodLibrary") {
+        if (!myClient) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        if (!ObjectId.isValid(id)) {
+          return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
+
+        // Allow only if the library food is referenced by at least one
+        // PlanFood within the client's assigned meal plan(s).
+        if (!allowedMealPlanIds.length) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        const mealDocs = await c.entities
+          .find({
+            entity: "Meal",
+            adminId,
+            "data.mealPlanId": { $in: allowedMealPlanIds },
+          })
+          .project({ _id: 1 })
+          .toArray();
+
+        const allowedMealIds = mealDocs.map((d) => d._id.toHexString());
+        if (!allowedMealIds.length) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        const isReferenced = await c.entities.findOne({
+          entity: "PlanFood",
+          adminId,
+          "data.foodLibraryId": id,
+          "data.mealId": { $in: allowedMealIds },
+        });
+        if (!isReferenced) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        const row = await c.entities.findOne({
+          _id: new ObjectId(id),
+          entity: "FoodLibrary",
           adminId,
         });
         if (!row) {

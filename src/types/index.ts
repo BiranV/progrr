@@ -90,6 +90,29 @@ export interface Food {
   [key: string]: any;
 }
 
+// New: reusable food library (admin-managed)
+export interface FoodLibrary {
+  id: string;
+  name: string;
+  protein?: string;
+  carbs?: string;
+  fat?: string;
+  calories?: string;
+  created_date?: string;
+  [key: string]: any;
+}
+
+// New: meal-specific assignment of a library food
+export interface PlanFood {
+  id: string;
+  mealId: string;
+  foodLibraryId: string;
+  amount?: string;
+  order?: number;
+  created_date?: string;
+  [key: string]: any;
+}
+
 export interface Meal {
   id: string;
   mealPlanId: string;

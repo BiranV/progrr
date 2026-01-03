@@ -16,6 +16,7 @@ import {
   UtensilsCrossed,
   Calendar,
   MessageSquare,
+  Apple,
   Settings,
   LogOut,
   Menu,
@@ -38,9 +39,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   });
 
   // Filter out blob URLs that might cause errors
-  const rawLogoUrl = settings.length > 0 ? settings[0].logoUrl : null;
+  const rawLogoUrl = settings.length > 0 ? (settings[0] as any).logoUrl : null;
   const logoUrl =
-    rawLogoUrl && rawLogoUrl.startsWith("blob:") ? null : rawLogoUrl;
+    typeof rawLogoUrl === "string" && rawLogoUrl.startsWith("blob:")
+      ? null
+      : rawLogoUrl;
 
   const handleLogout = async () => {
     logout();
@@ -115,6 +118,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       "/clients",
       "/plans",
       "/exercises",
+      "/foods",
       "/meals",
       "/meetings",
       "/settings",
@@ -143,6 +147,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         { name: "Clients", icon: Users, href: "/clients" },
         { name: "Exercises", icon: Dumbbell, href: "/exercises" },
         { name: "Workout Plans", icon: Dumbbell, href: "/plans" },
+        { name: "Foods", icon: Apple, href: "/foods" },
         { name: "Meal Plans", icon: UtensilsCrossed, href: "/meals" },
         { name: "Meetings", icon: Calendar, href: "/meetings" },
         { name: "Messages", icon: MessageSquare, href: "/messages" },

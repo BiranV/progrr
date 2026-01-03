@@ -213,6 +213,39 @@ export async function POST(
         return NextResponse.json(filterRecords(records, criteria));
       }
 
+      // PlanFoods: only those belonging to meals inside the client's assigned meal plan
+      if (entity === "PlanFood") {
+        const mealId = String(criteria.mealId ?? "").trim();
+        if (!mealId || !ObjectId.isValid(mealId)) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        const mealDoc = await c.entities.findOne({
+          _id: new ObjectId(mealId),
+          entity: "Meal",
+          adminId,
+        });
+
+        const mealData = (mealDoc?.data ?? {}) as any;
+        if (!mealDoc) return NextResponse.json([]);
+        if (!allowedMealPlanIds.length) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        if (
+          !allowedMealPlanIds.includes(String(mealData.mealPlanId ?? "").trim())
+        ) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        const docs = await c.entities
+          .find({ entity: "PlanFood", adminId, "data.mealId": mealId })
+          .sort({ "data.order": 1, updatedAt: -1 })
+          .toArray();
+
+        const records = docs.map(toPublicEntityDoc);
+        return NextResponse.json(filterRecords(records, criteria));
+      }
+
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

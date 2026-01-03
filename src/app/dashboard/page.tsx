@@ -619,6 +619,53 @@ function ClientDashboard({ user }: { user: any }) {
 
       const mealsWithFoods = await Promise.all(
         meals.map(async (meal: any) => {
+          const planFoodRows = await db.entities.PlanFood.filter({
+            mealId: meal.id,
+          });
+
+          const sortedPlanFoods = [...planFoodRows].sort(
+            (a: any, b: any) => (a.order || 0) - (b.order || 0)
+          );
+
+          if (sortedPlanFoods.length) {
+            const ids = Array.from(
+              new Set(
+                sortedPlanFoods
+                  .map((r: any) => String(r.foodLibraryId ?? "").trim())
+                  .filter(Boolean)
+              )
+            );
+
+            const libs = await Promise.all(
+              ids.map(async (id) => {
+                try {
+                  return await db.entities.FoodLibrary.get(id);
+                } catch {
+                  return null;
+                }
+              })
+            );
+            const libById = new Map(
+              libs.filter(Boolean).map((l: any) => [String(l.id), l])
+            );
+
+            const foods = sortedPlanFoods.map((row: any) => {
+              const lib = libById.get(String(row.foodLibraryId ?? "").trim());
+              return {
+                id: row.id,
+                name: lib?.name ?? "-",
+                amount: row?.amount ?? "",
+                protein: lib?.protein ?? "",
+                carbs: lib?.carbs ?? "",
+                fat: lib?.fat ?? "",
+                calories: lib?.calories ?? "",
+              };
+            });
+
+            return { ...meal, foods };
+          }
+
+          // Legacy fallback
           const foods = await db.entities.Food.filter({ mealId: meal.id });
           return {
             ...meal,

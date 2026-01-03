@@ -20,7 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { X, Plus, Trash2, XCircle } from "lucide-react";
-import { MealPlan, Meal, Food } from "@/types";
+import { MealPlan, Meal, Food, FoodLibrary, PlanFood } from "@/types";
 
 interface MealPlanDialogProps {
   plan: MealPlan | null;
@@ -47,6 +47,19 @@ export default function MealPlanDialog({
     notes: "",
   });
 
+  const { data: foodLibrary = [] } = useQuery({
+    queryKey: ["foodLibrary"],
+    queryFn: async () => {
+      const rows = await db.entities.FoodLibrary.list();
+      return [...rows].sort((a: FoodLibrary, b: FoodLibrary) =>
+        String(a.name ?? "")
+          .trim()
+          .localeCompare(String(b.name ?? "").trim())
+      );
+    },
+    enabled: open,
+  });
+
   const { data: queryMeals } = useQuery({
     queryKey: ["meals", plan?.id],
     queryFn: async () => {
@@ -54,6 +67,19 @@ export default function MealPlanDialog({
       const meals = await db.entities.Meal.filter({ mealPlanId: plan.id });
       const mealsWithFoods = await Promise.all(
         meals.map(async (meal: Meal) => {
+          const planFoods = await db.entities.PlanFood.filter({
+            mealId: meal.id,
+          });
+
+          if (planFoods.length) {
+            return {
+              ...meal,
+              planFoods: [...planFoods].sort(
+                (a: PlanFood, b: PlanFood) => (a.order || 0) - (b.order || 0)
+              ),
+            };
+          }
+
           const foods = await db.entities.Food.filter({ mealId: meal.id });
           return {
             ...meal,
@@ -72,7 +98,11 @@ export default function MealPlanDialog({
 
   const existingMeals = queryMeals || [];
 
-  const [meals, setMeals] = React.useState<Partial<Meal>[]>([]);
+  type MealForm = Partial<Meal> & {
+    planFoods?: Array<Partial<PlanFood> & { legacyName?: string }>;
+  };
+
+  const [meals, setMeals] = React.useState<MealForm[]>([]);
 
   React.useEffect(() => {
     setValidationError(null);
@@ -102,14 +132,53 @@ export default function MealPlanDialog({
 
   React.useEffect(() => {
     if (queryMeals && queryMeals.length > 0) {
+      const byName = new Map<string, string>();
+      for (const f of foodLibrary) {
+        const key = String(f.name ?? "")
+          .trim()
+          .toLowerCase();
+        if (key && f.id) byName.set(key, f.id);
+      }
+
+      const normalized: MealForm[] = (queryMeals as any[]).map((meal) => {
+        const existingPlanFoods = Array.isArray(meal.planFoods)
+          ? (meal.planFoods as PlanFood[])
+          : [];
+        if (existingPlanFoods.length) {
+          return {
+            ...meal,
+            planFoods: existingPlanFoods,
+          };
+        }
+
+        const legacyFoods = Array.isArray(meal.foods)
+          ? (meal.foods as Food[])
+          : [];
+
+        const migratedPlanFoods = legacyFoods.map((lf) => {
+          const legacyName = String(lf.name ?? "").trim();
+          const matchedId = byName.get(legacyName.toLowerCase());
+          return {
+            foodLibraryId: matchedId || "",
+            amount: lf.amount || "",
+            legacyName,
+          } satisfies Partial<PlanFood> & { legacyName?: string };
+        });
+
+        return {
+          ...meal,
+          planFoods: migratedPlanFoods,
+        };
+      });
+
       setMeals((prev) => {
-        if (JSON.stringify(prev) === JSON.stringify(queryMeals)) return prev;
-        return queryMeals;
+        if (JSON.stringify(prev) === JSON.stringify(normalized)) return prev;
+        return normalized;
       });
     } else if (!plan) {
       setMeals([]);
     }
-  }, [queryMeals, plan]);
+  }, [queryMeals, plan, foodLibrary]);
 
   const saveMutation = useMutation({
     mutationFn: async (data: Partial<MealPlan>) => {
@@ -131,6 +200,12 @@ export default function MealPlanDialog({
       );
 
       for (const meal of mealsToDelete) {
+        const planFoods = await db.entities.PlanFood.filter({
+          mealId: meal.id,
+        });
+        await Promise.all(
+          planFoods.map((pf: PlanFood) => db.entities.PlanFood.delete(pf.id))
+        );
         const foods = await db.entities.Food.filter({ mealId: meal.id });
         await Promise.all(
           foods.map((f: Food) => db.entities.Food.delete(f.id))
@@ -156,38 +231,45 @@ export default function MealPlanDialog({
           mealId = newMeal.id;
         }
 
-        // Save foods
-        const existingFoodIds = (meal.foods || [])
-          .map((f) => f.id)
-          .filter(Boolean) as string[];
+        // Remove any legacy foods when saving (migrates old plans to library-based foods)
+        const existingLegacyFoods = await db.entities.Food.filter({ mealId });
+        await Promise.all(
+          existingLegacyFoods.map((f: Food) => db.entities.Food.delete(f.id))
+        );
+
+        // Delete removed PlanFood rows (edit only)
         if (meal.id) {
-          const existingFoods = await db.entities.Food.filter({
+          const currentIds = (meal.planFoods || [])
+            .map((pf) => String(pf.id ?? "").trim())
+            .filter(Boolean);
+          const existingPlanFoods = await db.entities.PlanFood.filter({
             mealId: meal.id,
           });
-          const foodsToDelete = existingFoods.filter(
-            (f: Food) => !existingFoodIds.includes(f.id)
+          const rowsToDelete = existingPlanFoods.filter(
+            (pf: PlanFood) => !currentIds.includes(String(pf.id ?? "").trim())
           );
           await Promise.all(
-            foodsToDelete.map((f: Food) => db.entities.Food.delete(f.id))
+            rowsToDelete.map((pf: PlanFood) =>
+              db.entities.PlanFood.delete(pf.id)
+            )
           );
         }
 
-        for (let j = 0; j < (meal.foods || []).length; j++) {
-          const food = meal.foods![j];
-          const foodData = {
+        // Save PlanFood rows
+        for (let j = 0; j < (meal.planFoods || []).length; j++) {
+          const row = (meal.planFoods || [])[j] as any;
+          const foodLibraryId = String(row.foodLibraryId ?? "").trim();
+          const rowData: any = {
             mealId,
-            name: food.name,
-            amount: food.amount || "",
-            protein: food.protein || "",
-            carbs: food.carbs || "",
-            fat: food.fat || "",
+            foodLibraryId,
+            amount: String(row.amount ?? "").trim(),
             order: j,
           };
 
-          if (food.id) {
-            await db.entities.Food.update(food.id, foodData);
+          if (row.id) {
+            await db.entities.PlanFood.update(String(row.id), rowData);
           } else {
-            await db.entities.Food.create(foodData);
+            await db.entities.PlanFood.create(rowData);
           }
         }
       }
@@ -196,6 +278,7 @@ export default function MealPlanDialog({
       queryClient.invalidateQueries({ queryKey: ["mealPlans"] });
       queryClient.invalidateQueries({ queryKey: ["meals"] });
       queryClient.invalidateQueries({ queryKey: ["foods"] });
+      queryClient.invalidateQueries({ queryKey: ["planFoods"] });
       onOpenChange(false);
     },
     onError: (error: any) => {
@@ -204,7 +287,7 @@ export default function MealPlanDialog({
   });
 
   const addMeal = () => {
-    setMeals([...meals, { type: "breakfast", name: "", foods: [] }]);
+    setMeals([...meals, { type: "breakfast", name: "", planFoods: [] }]);
   };
 
   const updateMeal = (index: number, field: keyof Meal, value: any) => {
@@ -219,28 +302,27 @@ export default function MealPlanDialog({
 
   const addFood = (mealIndex: number) => {
     const updated = [...meals];
-    if (!updated[mealIndex].foods) updated[mealIndex].foods = [];
-    updated[mealIndex].foods!.push({
-      name: "",
+    if (!updated[mealIndex].planFoods) updated[mealIndex].planFoods = [];
+    updated[mealIndex].planFoods!.push({
+      foodLibraryId: "",
       amount: "",
-      protein: "",
-      carbs: "",
-      fat: "",
-    } as Food);
+    } as Partial<PlanFood>);
     setMeals(updated);
   };
 
-  const updateFood = (
+  const updatePlanFood = (
     mealIndex: number,
     foodIndex: number,
-    field: keyof Food,
-    value: any
+    patch: Partial<PlanFood> & { legacyName?: string }
   ) => {
     const updated = [...meals];
-    if (updated[mealIndex].foods && updated[mealIndex].foods![foodIndex]) {
-      updated[mealIndex].foods![foodIndex] = {
-        ...updated[mealIndex].foods![foodIndex],
-        [field]: value,
+    if (
+      updated[mealIndex].planFoods &&
+      updated[mealIndex].planFoods![foodIndex]
+    ) {
+      updated[mealIndex].planFoods![foodIndex] = {
+        ...updated[mealIndex].planFoods![foodIndex],
+        ...patch,
       };
       setMeals(updated);
     }
@@ -248,8 +330,8 @@ export default function MealPlanDialog({
 
   const removeFood = (mealIndex: number, foodIndex: number) => {
     const updated = [...meals];
-    if (updated[mealIndex].foods) {
-      updated[mealIndex].foods = updated[mealIndex].foods!.filter(
+    if (updated[mealIndex].planFoods) {
+      updated[mealIndex].planFoods = updated[mealIndex].planFoods!.filter(
         (_, i) => i !== foodIndex
       );
       setMeals(updated);
@@ -264,6 +346,16 @@ export default function MealPlanDialog({
     if (!name) {
       setValidationError("Plan name is required");
       return;
+    }
+
+    for (const meal of meals) {
+      for (const row of meal.planFoods || []) {
+        const foodLibraryId = String((row as any)?.foodLibraryId ?? "").trim();
+        if (!foodLibraryId) {
+          setValidationError("Each food must be selected from the library");
+          return;
+        }
+      }
     }
 
     saveMutation.mutate({ ...formData, name });
@@ -411,33 +503,41 @@ export default function MealPlanDialog({
                     </button>
                   </div>
 
-                  {(meal.foods || []).map((food, foodIndex) => (
+                  {(meal.planFoods || []).map((row, foodIndex) => (
                     <div
                       key={foodIndex}
                       className="ml-4 flex gap-2 items-start"
                     >
-                      <Input
-                        value={food.name}
-                        onChange={(e) =>
-                          updateFood(
-                            mealIndex,
-                            foodIndex,
-                            "name",
-                            e.target.value
-                          )
+                      <Select
+                        value={String((row as any).foodLibraryId ?? "")}
+                        onValueChange={(v) =>
+                          updatePlanFood(mealIndex, foodIndex, {
+                            foodLibraryId: v,
+                          })
                         }
-                        placeholder="Food"
-                        className="flex-1"
-                      />
+                      >
+                        <SelectTrigger className="flex-1">
+                          <SelectValue
+                            placeholder={
+                              String((row as any)?.legacyName ?? "").trim() ||
+                              "Food"
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {foodLibrary.map((f) => (
+                            <SelectItem key={f.id} value={f.id}>
+                              {f.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <Input
-                        value={food.amount}
+                        value={String((row as any).amount ?? "")}
                         onChange={(e) =>
-                          updateFood(
-                            mealIndex,
-                            foodIndex,
-                            "amount",
-                            e.target.value
-                          )
+                          updatePlanFood(mealIndex, foodIndex, {
+                            amount: e.target.value,
+                          })
                         }
                         placeholder="Amount"
                         className="w-24"
