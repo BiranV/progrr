@@ -534,19 +534,14 @@ export default function ClientDialog({
               <div className="flex items-center justify-start gap-3">
                 <ClientAvatar
                   name={String(formData.name ?? client?.name ?? "").trim()}
-                  src={
-                    (formData as any).avatarDataUrl ??
-                    (client as any)?.avatarDataUrl
-                  }
+                  src={(formData as any).avatarDataUrl ?? null}
                   size={44}
                 />
 
                 <div className="flex-1 min-w-0">
                   <Input {...getInputProps("name")} />
 
-                  {client &&
-                  ((formData as any).avatarDataUrl ||
-                    (client as any)?.avatarDataUrl) ? (
+                  {client && (formData as any).avatarDataUrl ? (
                     <div className="mt-2">
                       <Button
                         type="button"
