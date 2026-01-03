@@ -5,7 +5,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Plus,
   Search,
@@ -134,48 +140,48 @@ export default function FoodsPage() {
                   handleDetails(f);
                 }
               }}
-              className="h-[220px] cursor-pointer hover:shadow-lg transition-shadow dark:bg-gray-800 dark:border-gray-700"
+              className="hover:shadow-lg cursor-pointer transition-shadow duration-200 flex flex-col h-full dark:bg-gray-800 dark:border-gray-700"
             >
-              <CardContent className="px-5 flex flex-col h-full">
-                <div className="flex items-start justify-between mb-6">
-                  <div className="min-w-0">
-                    <h3 className="text-lg font-semibold truncate">
-                      {String(f.name ?? "-")}
-                    </h3>
-                    <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      Values per 100g
-                    </div>
-                  </div>
+              <CardHeader className="flex flex-row items-start justify-between pb-2">
+                <div className="space-y-1 min-w-0">
+                  <CardTitle className="text-xl font-semibold truncate">
+                    {String(f.name ?? "-")}
+                  </CardTitle>
+                  <CardDescription className="text-xs text-gray-500 dark:text-gray-400">
+                    Values per 100g
+                  </CardDescription>
+                </div>
 
-                  <div className="flex gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(f);
-                      }}
-                      className="p-2 text-gray-600 dark:text-gray-400
+                <div className="flex gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEdit(f);
+                    }}
+                    className="p-2 text-gray-600 dark:text-gray-400
                         hover:text-indigo-600
                         hover:bg-indigo-50 dark:hover:bg-indigo-900
                         rounded-lg"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
 
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(f.id);
-                      }}
-                      className="p-2 text-gray-600 dark:text-gray-400
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(f.id);
+                    }}
+                    className="p-2 text-gray-600 dark:text-gray-400
                         hover:text-red-600
                         hover:bg-red-50 dark:hover:bg-red-900
                         rounded-lg"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
+              </CardHeader>
 
+              <CardContent className="px-5 py-2">
                 <div className="space-y-3 text-sm text-gray-600 dark:text-gray-300">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex items-center gap-2">
