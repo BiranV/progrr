@@ -34,6 +34,10 @@ function normalizeClientStatus(
   return undefined;
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export async function createClientAction(data: ClientFormData) {
   const adminUser = await requireAppUser();
   if (adminUser.role !== "admin") {
@@ -53,7 +57,36 @@ export async function createClientAction(data: ClientFormData) {
   if (!phone) throw new Error("Client phone is required");
   if (!status) throw new Error("Client status is required");
 
-  // Create or re-use the login record. Hard rule: phone is the login key.
+  // Prevent duplicates within the same admin.
+  const existingByPhoneOrEmail = await c.entities.findOne({
+    entity: "Client",
+    adminId,
+    $or: [
+      { "data.phone": phone },
+      ...(email
+        ? [
+            {
+              "data.email": {
+                $regex: new RegExp(`^${escapeRegExp(email)}$`, "i"),
+              },
+            },
+          ]
+        : []),
+    ],
+  });
+
+  if (existingByPhoneOrEmail) {
+    const existingData: any = existingByPhoneOrEmail.data ?? {};
+    if (normalizePhone(existingData.phone) === phone) {
+      throw new Error("A client with this phone already exists");
+    }
+    if (email && normalizeEmail(existingData.email) === email) {
+      throw new Error("A client with this email already exists");
+    }
+    throw new Error("A client with this phone or email already exists");
+  }
+
+  // Create the login record. Hard rule: phone is the login key.
   const existingAuthClient = await c.clients.findOne({ phone });
 
   let clientAuthId: ObjectId;
@@ -63,17 +96,7 @@ export async function createClientAction(data: ClientFormData) {
         "A client with this phone already belongs to another admin"
       );
     }
-    clientAuthId = existingAuthClient._id;
-    await c.clients.updateOne(
-      { _id: clientAuthId },
-      {
-        $set: {
-          name,
-          phone,
-          email,
-        },
-      }
-    );
+    throw new Error("A client with this phone already exists");
   } else {
     const insert = await c.clients.insertOne({
       adminId,
@@ -164,6 +187,36 @@ export async function updateClientAction(id: string, data: ClientFormData) {
   const email = normalizeEmail(data.email);
   if (!name) throw new Error("Client name is required");
   if (!phone) throw new Error("Client phone is required");
+
+  // Prevent duplicates within the same admin (excluding this client).
+  const duplicate = await c.entities.findOne({
+    entity: "Client",
+    adminId,
+    _id: { $ne: entityId },
+    $or: [
+      { "data.phone": phone },
+      ...(email
+        ? [
+            {
+              "data.email": {
+                $regex: new RegExp(`^${escapeRegExp(email)}$`, "i"),
+              },
+            },
+          ]
+        : []),
+    ],
+  });
+
+  if (duplicate) {
+    const dupData: any = duplicate.data ?? {};
+    if (normalizePhone(dupData.phone) === phone) {
+      throw new Error("A client with this phone already exists");
+    }
+    if (email && normalizeEmail(dupData.email) === email) {
+      throw new Error("A client with this email already exists");
+    }
+    throw new Error("A client with this phone or email already exists");
+  }
 
   const oldData = (existing.data ?? {}) as any;
   const normalizedStatus =
