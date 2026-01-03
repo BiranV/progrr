@@ -217,7 +217,6 @@ export default function MeetingDialog({
                 <SelectContent>
                   <SelectItem value="zoom">Zoom</SelectItem>
                   <SelectItem value="call">Call</SelectItem>
-                  <SelectItem value="meeting">In-Person</SelectItem>
                   <SelectItem value="in-person">In-Person</SelectItem>
                 </SelectContent>
               </Select>
