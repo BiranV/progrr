@@ -13,6 +13,7 @@ import {
   Phone,
   Mars,
   Venus,
+  VenusAndMars,
   Trash2,
   Edit,
   ArrowUpDown,
@@ -61,17 +62,33 @@ export default function ClientsPage() {
   const sortedClients = React.useMemo(() => {
     if (!sortConfig) return filteredClients;
 
-    return [...filteredClients].sort((a, b) => {
-      const aValue = a[sortConfig.key] || "";
-      const bValue = b[sortConfig.key] || "";
+    const collator = new Intl.Collator(["he", "en"], {
+      sensitivity: "base",
+      numeric: true,
+    });
 
-      if (aValue < bValue) {
-        return sortConfig.direction === "asc" ? -1 : 1;
-      }
-      if (aValue > bValue) {
-        return sortConfig.direction === "asc" ? 1 : -1;
-      }
-      return 0;
+    return [...filteredClients].sort((a, b) => {
+      const direction = sortConfig.direction === "asc" ? 1 : -1;
+
+      const aRaw =
+        sortConfig.key === "name" ? a.name : (a[sortConfig.key] as any);
+      const bRaw =
+        sortConfig.key === "name" ? b.name : (b[sortConfig.key] as any);
+
+      const aValue = String(aRaw ?? "").trim();
+      const bValue = String(bRaw ?? "").trim();
+
+      // Keep empties at the bottom regardless of direction
+      const aEmpty = aValue.length === 0;
+      const bEmpty = bValue.length === 0;
+      if (aEmpty && !bEmpty) return 1;
+      if (!aEmpty && bEmpty) return -1;
+
+      const cmp = collator.compare(aValue, bValue);
+      if (cmp !== 0) return cmp * direction;
+
+      // Stable-ish fallback
+      return String(a.id ?? "").localeCompare(String(b.id ?? ""));
     });
   }, [filteredClients, sortConfig]);
 
@@ -224,6 +241,8 @@ export default function ClientsPage() {
                         <Venus className="w-4 h-4 text-pink-500 shrink-0" />
                       ) : gender === "male" ? (
                         <Mars className="w-4 h-4 text-blue-500 shrink-0" />
+                      ) : gender === "other" ? (
+                        <VenusAndMars className="w-4 h-4 text-purple-500 shrink-0" />
                       ) : null}
                       <span className="font-medium truncate">
                         {client.name}
