@@ -1,0 +1,187 @@
+"use client";
+
+import React from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Client } from "@/types";
+
+interface ClientDetailsDialogProps {
+  client: Client | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  workoutPlanNameById?: Map<string, string>;
+  mealPlanNameById?: Map<string, string>;
+}
+
+function toTitleCase(value: any) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  return raw
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w))
+    .join(" ");
+}
+
+function normalizeIdList(value: any, fallbackSingle?: any): string[] {
+  const arr = Array.isArray(value) ? value : [];
+  const fallback = String(fallbackSingle ?? "").trim();
+  const merged = [
+    ...arr.map((v: any) => String(v ?? "").trim()),
+    ...(fallback ? [fallback] : []),
+  ]
+    .map((v) => String(v).trim())
+    .filter((v) => v && v !== "none");
+
+  return Array.from(new Set(merged));
+}
+
+export default function ClientDetailsDialog({
+  client,
+  open,
+  onOpenChange,
+  workoutPlanNameById,
+  mealPlanNameById,
+}: ClientDetailsDialogProps) {
+  const workoutIds = normalizeIdList(
+    (client as any)?.assignedPlanIds,
+    (client as any)?.assignedPlanId
+  );
+  const mealIds = normalizeIdList(
+    (client as any)?.assignedMealPlanIds,
+    (client as any)?.assignedMealPlanId
+  );
+
+  const workoutNames = workoutIds.map((id) =>
+    workoutPlanNameById?.get(id) ? String(workoutPlanNameById.get(id)) : id
+  );
+  const mealNames = mealIds.map((id) =>
+    mealPlanNameById?.get(id) ? String(mealPlanNameById.get(id)) : id
+  );
+
+  const gender = toTitleCase((client as any)?.gender);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-gray-800">
+        <DialogHeader>
+          <DialogTitle>Client Details</DialogTitle>
+        </DialogHeader>
+
+        {!client ? (
+          <div className="text-sm text-gray-600 dark:text-gray-300">
+            No client selected
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="space-y-1">
+              <div className="text-xl font-semibold text-gray-900 dark:text-white">
+                {client.name || "-"}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-300">
+                {client.email ? <span>{client.email}</span> : <span>-</span>}
+                {client.phone ? <span> · {client.phone}</span> : null}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+                <div className="text-gray-500 dark:text-gray-400">Status</div>
+                <div className="font-medium text-gray-900 dark:text-white">
+                  {toTitleCase((client as any)?.status) || "-"}
+                </div>
+              </div>
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+                <div className="text-gray-500 dark:text-gray-400">
+                  Subscription
+                </div>
+                <div className="font-medium text-gray-900 dark:text-white">
+                  {String((client as any)?.subscription ?? "").trim() || "-"}
+                </div>
+              </div>
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+                <div className="text-gray-500 dark:text-gray-400">Goal</div>
+                <div className="font-medium text-gray-900 dark:text-white">
+                  {toTitleCase((client as any)?.goal) || "-"}
+                </div>
+              </div>
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+                <div className="text-gray-500 dark:text-gray-400">
+                  Activity Level
+                </div>
+                <div className="font-medium text-gray-900 dark:text-white">
+                  {toTitleCase((client as any)?.activityLevel) || "-"}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+                <div className="text-gray-500 dark:text-gray-400">
+                  Birth Date
+                </div>
+                <div className="font-medium text-gray-900 dark:text-white">
+                  {String((client as any)?.birthDate ?? "").trim() || "-"}
+                </div>
+              </div>
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+                <div className="text-gray-500 dark:text-gray-400">Gender</div>
+                <div className="font-medium text-gray-900 dark:text-white">
+                  {gender || "-"}
+                </div>
+              </div>
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+                <div className="text-gray-500 dark:text-gray-400">Height</div>
+                <div className="font-medium text-gray-900 dark:text-white">
+                  {String((client as any)?.height ?? "").trim() || "-"}
+                </div>
+              </div>
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+                <div className="text-gray-500 dark:text-gray-400">Weight</div>
+                <div className="font-medium text-gray-900 dark:text-white">
+                  {String((client as any)?.weight ?? "").trim() || "-"}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+                <div className="text-gray-500 dark:text-gray-400">
+                  Assigned Workout Plans
+                </div>
+                <div className="font-medium text-gray-900 dark:text-white">
+                  {workoutNames.length ? workoutNames.join(", ") : "-"}
+                </div>
+              </div>
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+                <div className="text-gray-500 dark:text-gray-400">
+                  Assigned Meal Plans
+                </div>
+                <div className="font-medium text-gray-900 dark:text-white">
+                  {mealNames.length ? mealNames.join(", ") : "-"}
+                </div>
+              </div>
+            </div>
+
+            {String((client as any)?.notes ?? "").trim() ? (
+              <div>
+                <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                  Notes
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
+                  {String((client as any)?.notes ?? "").trim()}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}

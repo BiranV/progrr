@@ -36,6 +36,8 @@ export type ClientDoc = {
   role: "client";
   // Optional legacy/extra fields (kept for UI continuity)
   email?: string;
+  // Optional: used by Settings "mock data" tools
+  mockSeedId?: string;
 };
 
 export type EntityDoc = {

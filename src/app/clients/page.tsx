@@ -20,12 +20,15 @@ import {
   Users,
 } from "lucide-react";
 import ClientDialog from "@/components/ClientDialog";
+import ClientDetailsDialog from "@/components/ClientDetailsDialog";
 import { Client } from "@/types";
 
 export default function ClientsPage() {
   const [search, setSearch] = React.useState("");
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editingClient, setEditingClient] = React.useState<Client | null>(null);
+  const [detailsOpen, setDetailsOpen] = React.useState(false);
+  const [detailsClient, setDetailsClient] = React.useState<Client | null>(null);
   const [sortConfig, setSortConfig] = React.useState<{
     key: keyof Client;
     direction: "asc" | "desc";
@@ -109,6 +112,11 @@ export default function ClientsPage() {
     setDialogOpen(true);
   };
 
+  const handleOpenDetails = (client: Client) => {
+    setDetailsClient(client);
+    setDetailsOpen(true);
+  };
+
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this client?")) {
       await deleteClientMutation.mutateAsync(id);
@@ -118,6 +126,11 @@ export default function ClientsPage() {
   const handleCloseDialog = (open: boolean) => {
     setDialogOpen(open);
     if (!open) setEditingClient(null);
+  };
+
+  const handleCloseDetails = (open: boolean) => {
+    setDetailsOpen(open);
+    if (!open) setDetailsClient(null);
   };
 
   const normalizeStatus = (value: unknown) => {
@@ -261,7 +274,8 @@ export default function ClientsPage() {
             return (
               <tr
                 key={client.id}
-                className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40"
+                className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer"
+                onClick={() => handleOpenDetails(client)}
               >
                 {/* CLIENT COLUMN */}
                 <td className="px-4 py-3">
@@ -319,14 +333,20 @@ export default function ClientsPage() {
                 <td className="px-4 py-3 text-right">
                   <div className="flex justify-end gap-2">
                     <button
-                      onClick={() => handleEdit(client)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(client);
+                      }}
                       className="p-2 text-gray-600 dark:text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900 rounded-lg"
                       title="Edit Client"
                     >
                       <Edit className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => handleDelete(client.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(client.id);
+                      }}
                       className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg"
                       title="Delete Client"
                     >
@@ -410,6 +430,14 @@ export default function ClientsPage() {
         client={editingClient}
         open={dialogOpen}
         onOpenChange={handleCloseDialog}
+      />
+
+      <ClientDetailsDialog
+        client={detailsClient}
+        open={detailsOpen}
+        onOpenChange={handleCloseDetails}
+        workoutPlanNameById={workoutPlanNameById}
+        mealPlanNameById={mealPlanNameById}
       />
     </div>
   );
