@@ -92,6 +92,17 @@ export default function PlansPage() {
     }
   };
 
+  const formatDurationWeeks = (duration: any) => {
+    const raw = String(duration ?? "").trim();
+    if (!raw) return "";
+    if (/^\d+$/.test(raw)) {
+      const weeks = Number(raw);
+      if (Number.isFinite(weeks))
+        return `${weeks} week${weeks === 1 ? "" : "s"}`;
+    }
+    return raw;
+  };
+
   const exportPlan = async (
     plan: WorkoutPlan,
     kind: "pdf" | "txt" | "copy"
@@ -133,6 +144,8 @@ export default function PlansPage() {
           const lib = libById.get(String(row.exerciseLibraryId ?? "").trim());
           return {
             name: lib?.name ?? "-",
+            videoKind: lib?.videoKind ?? null,
+            videoUrl: lib?.videoUrl ?? null,
             sets: row?.sets,
             reps: row?.reps,
             restSeconds: row?.restSeconds,
@@ -264,7 +277,9 @@ export default function PlansPage() {
                 <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400 flex-1">
                   <div className="flex items-center gap-2 truncate">
                     <Clock className="w-4 h-4 shrink-0" />
-                    <span className="truncate">{plan.duration || "N/A"}</span>
+                    <span className="truncate">
+                      {formatDurationWeeks(plan.duration) || "N/A"}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2 truncate">
                     <Target className="w-4 h-4 shrink-0" />

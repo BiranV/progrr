@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import type { Food, Meal, MealPlan, WorkoutPlan } from "@/types";
+import { extractYouTubeVideoId } from "@/lib/youtube";
 
 const toTitleCase = (value: unknown) => {
   const raw = String(value ?? "").trim();
@@ -27,6 +28,8 @@ export const formatWorkoutPlanText = (
   plan: WorkoutPlan,
   exercises: Array<{
     name?: string;
+    videoKind?: string | null;
+    videoUrl?: string | null;
     sets?: string;
     reps?: string;
     restSeconds?: number;
@@ -40,8 +43,18 @@ export const formatWorkoutPlanText = (
   const duration = String((plan as any).duration ?? "").trim();
   const goal = String((plan as any).goal ?? "").trim();
 
+  const durationText = (() => {
+    if (!duration) return "";
+    if (/^\d+$/.test(duration)) {
+      const weeks = Number(duration);
+      if (Number.isFinite(weeks))
+        return `${weeks} week${weeks === 1 ? "" : "s"}`;
+    }
+    return duration;
+  })();
+
   if (difficulty) lines.push(`Difficulty: ${toTitleCase(difficulty)}`);
-  if (duration) lines.push(`Duration: ${duration}`);
+  if (durationText) lines.push(`Duration: ${durationText}`);
   if (goal) lines.push(`Goal: ${toTitleCase(goal)}`);
 
   const notes = String((plan as any).notes ?? "").trim();
@@ -61,6 +74,14 @@ export const formatWorkoutPlanText = (
       const name = String(e?.name ?? "").trim() || "-";
       const sets = String(e?.sets ?? "").trim();
       const reps = String(e?.reps ?? "").trim();
+
+      const youtubeUrl = (() => {
+        if (String(e?.videoKind ?? "") !== "youtube") return "";
+        const raw = String(e?.videoUrl ?? "").trim();
+        if (!raw) return "";
+        const id = extractYouTubeVideoId(raw);
+        return id ? `https://www.youtube.com/watch?v=${id}` : "";
+      })();
 
       const restSecondsRaw = Number(e?.restSeconds);
       const restSeconds = Number.isFinite(restSecondsRaw)
@@ -90,6 +111,10 @@ export const formatWorkoutPlanText = (
         );
       } else {
         lines.push(`${idx + 1}. ${toTitleCase(name)}`);
+      }
+
+      if (youtubeUrl) {
+        lines.push(`   YouTube: ${youtubeUrl}`);
       }
     });
   }

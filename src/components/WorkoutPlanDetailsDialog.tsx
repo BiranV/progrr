@@ -32,6 +32,17 @@ export default function WorkoutPlanDetailsDialog({
   open,
   onOpenChange,
 }: WorkoutPlanDetailsDialogProps) {
+  const formatDurationWeeks = (duration: any) => {
+    const raw = String(duration ?? "").trim();
+    if (!raw) return "";
+    if (/^\d+$/.test(raw)) {
+      const weeks = Number(raw);
+      if (Number.isFinite(weeks))
+        return `${weeks} week${weeks === 1 ? "" : "s"}`;
+    }
+    return raw;
+  };
+
   const { data: exercises = [] } = useQuery({
     queryKey: ["workoutPlanExercises", plan?.id, "details"],
     queryFn: async () => {
@@ -167,7 +178,9 @@ export default function WorkoutPlanDetailsDialog({
                       Difficulty: -
                     </span>
                   )}
-                  {plan.duration ? <span> · {plan.duration}</span> : null}
+                  {plan.duration ? (
+                    <span> · {formatDurationWeeks(plan.duration)}</span>
+                  ) : null}
                   {plan.goal ? <span> · {plan.goal}</span> : null}
                 </div>
               </div>
