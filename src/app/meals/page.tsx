@@ -19,20 +19,13 @@ import {
   Edit,
   UtensilsCrossed,
   Flame,
-  Dumbbell,
-  FileDown,
-  FileText,
-  Copy,
+  Beef,
+  Wheat,
+  Droplets,
 } from "lucide-react";
 import MealPlanDialog from "@/components/MealPlanDialog";
 import MealPlanDetailsDialog from "@/components/MealPlanDetailsDialog";
 import { MealPlan, Meal, Food, PlanFood, FoodLibrary } from "@/types";
-import {
-  copyTextToClipboard,
-  downloadPdfFile,
-  downloadTextFile,
-  formatMealPlanText,
-} from "@/lib/plan-export";
 import { toast } from "sonner";
 
 export default function MealsPage() {
@@ -98,88 +91,6 @@ export default function MealsPage() {
     }
   };
 
-  const exportPlan = async (plan: MealPlan, kind: "pdf" | "txt" | "copy") => {
-    try {
-      const rows = await db.entities.Meal.filter({ mealPlanId: plan.id });
-      const mealsWithFoods = await Promise.all(
-        rows.map(async (meal: Meal) => {
-          const planFoodRows = await db.entities.PlanFood.filter({
-            mealId: meal.id,
-          });
-
-          const sortedPlanFoods = [...planFoodRows].sort(
-            (a: PlanFood, b: PlanFood) => (a.order || 0) - (b.order || 0)
-          );
-
-          if (sortedPlanFoods.length) {
-            const ids = Array.from(
-              new Set(
-                sortedPlanFoods
-                  .map((r: any) => String(r.foodLibraryId ?? "").trim())
-                  .filter(Boolean)
-              )
-            );
-
-            const libs = await Promise.all(
-              ids.map(async (id) => {
-                try {
-                  return await db.entities.FoodLibrary.get(id);
-                } catch {
-                  return null;
-                }
-              })
-            );
-            const libById = new Map(
-              libs.filter(Boolean).map((l: any) => [String(l.id), l])
-            );
-
-            const foods = sortedPlanFoods.map((row: any) => {
-              const lib = libById.get(String(row.foodLibraryId ?? "").trim());
-              return {
-                id: row.id,
-                name: lib?.name ?? "-",
-                amount: row?.amount ?? "",
-                protein: lib?.protein ?? "",
-                carbs: lib?.carbs ?? "",
-                fat: lib?.fat ?? "",
-                calories: lib?.calories ?? "",
-              };
-            });
-
-            return { ...meal, foods };
-          }
-
-          // Legacy fallback
-          const foods = await db.entities.Food.filter({ mealId: meal.id });
-          return {
-            ...meal,
-            foods: [...foods].sort(
-              (a: Food, b: Food) => (a.order || 0) - (b.order || 0)
-            ),
-          };
-        })
-      );
-
-      const meals = [...mealsWithFoods].sort(
-        (a: any, b: any) => (a.order || 0) - (b.order || 0)
-      );
-
-      const text = formatMealPlanText(plan, meals);
-      const filenameBase = `Meal Plan - ${plan.name || ""}`;
-
-      if (kind === "pdf") {
-        downloadPdfFile(filenameBase, `Meal Plan: ${plan.name || ""}`, text);
-      } else if (kind === "txt") {
-        downloadTextFile(filenameBase, text);
-      } else {
-        await copyTextToClipboard(text);
-        toast.success("Copied to clipboard");
-      }
-    } catch (err: any) {
-      toast.error(String(err?.message ?? "Failed to export plan"));
-    }
-  };
-
   return (
     <div className="p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
       <div className="flex items-center justify-between mb-8">
@@ -232,24 +143,33 @@ export default function MealsPage() {
           {filteredPlans.map((plan: MealPlan) => (
             <Card
               key={plan.id}
-              className="hover:shadow-lg transition-shadow duration-200 flex flex-col h-full dark:bg-gray-800 dark:border-gray-700"
+              role="button"
+              tabIndex={0}
+              onClick={() => handleDetails(plan)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleDetails(plan);
+                }
+              }}
+              className="hover:shadow-lg cursor-pointer transition-shadow duration-200 flex flex-col h-full dark:bg-gray-800 dark:border-gray-700"
             >
               <CardHeader className="flex flex-row items-start justify-between pb-2">
-                <div className="space-y-1">
-                  <CardTitle className="text-xl font-semibold">
+                <div className="space-y-1 min-w-0">
+                  <CardTitle className="text-xl font-semibold truncate">
                     {plan.name}
                   </CardTitle>
-                  <CardDescription className="flex items-center gap-2">
-                    <UtensilsCrossed className="w-4 h-4" />
-                    <span className="capitalize">
-                      {plan.goal || "Nutrition Plan"}
-                    </span>
+                  <CardDescription className="text-xs text-gray-500 dark:text-gray-400">
+                    Total values
                   </CardDescription>
                 </div>
 
                 <div className="flex gap-2">
                   <button
-                    onClick={() => handleEdit(plan)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEdit(plan);
+                    }}
                     className="p-2 text-gray-600 dark:text-gray-400
                hover:text-indigo-600
                hover:bg-indigo-50 dark:hover:bg-indigo-900
@@ -259,7 +179,10 @@ export default function MealsPage() {
                   </button>
 
                   <button
-                    onClick={() => handleDelete(plan.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(plan.id);
+                    }}
                     className="p-2 text-gray-600 dark:text-gray-400
                hover:text-red-600
                hover:bg-red-50 dark:hover:bg-red-900
@@ -269,78 +192,35 @@ export default function MealsPage() {
                   </button>
                 </div>
               </CardHeader>
-              <CardContent className="px-5 py-2 flex-1 flex flex-col">
-                <div className="space-y-4 flex-1">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
+              <CardContent className="px-5 py-2">
+                <div className="space-y-3 text-sm text-gray-600 dark:text-gray-300">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex items-center gap-2">
                       <Flame className="w-4 h-4 text-orange-500" />
                       <span>
-                        {plan.dailyCalories
-                          ? `${plan.dailyCalories} kcal`
-                          : "N/A"}
+                        Calories:{" "}
+                        {String(plan.dailyCalories ?? "").trim() || "-"} kcal
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-                      <Dumbbell className="w-4 h-4 text-blue-500" />
+                    <div className="flex items-center gap-2">
+                      <Beef className="w-4 h-4 text-blue-500" />
                       <span>
-                        {plan.dailyProtein
-                          ? `${plan.dailyProtein}g Protein`
-                          : "N/A"}
+                        Protein: {String(plan.dailyProtein ?? "").trim() || "-"}{" "}
+                        g
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-                      <span className="w-2 h-2 rounded-full bg-yellow-400" />
-                      <span>Carbs: {plan.dailyCarbs || 0}g</span>
+                    <div className="flex items-center gap-2">
+                      <Wheat className="w-4 h-4 text-yellow-500" />
+                      <span>
+                        Carbs: {String(plan.dailyCarbs ?? "").trim() || "-"} g
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
-                      <span className="w-2 h-2 rounded-full bg-purple-400" />
-                      <span>Fat: {plan.dailyFat || 0}g</span>
+                    <div className="flex items-center gap-2">
+                      <Droplets className="w-4 h-4 text-purple-500" />
+                      <span>
+                        Fat: {String(plan.dailyFat ?? "").trim() || "-"} g
+                      </span>
                     </div>
-                  </div>
-                </div>
-
-                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center justify-end gap-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      className="text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
-                      title="Download PDF"
-                      aria-label="Download PDF"
-                      onClick={() => exportPlan(plan, "pdf")}
-                    >
-                      <FileDown className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      className="text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
-                      title="Download Text"
-                      aria-label="Download Text"
-                      onClick={() => exportPlan(plan, "txt")}
-                    >
-                      <FileText className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-300 dark:hover:text-emerald-200"
-                      title="Copy to clipboard"
-                      aria-label="Copy to clipboard"
-                      onClick={() => exportPlan(plan, "copy")}
-                    >
-                      <Copy className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-200 dark:hover:bg-indigo-900/45 border-0 font-medium"
-                      onClick={() => handleDetails(plan)}
-                    >
-                      Details
-                    </Button>
                   </div>
                 </div>
               </CardContent>
