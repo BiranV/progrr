@@ -135,6 +135,7 @@ async function main() {
   const db = dbName ? client.db(dbName) : client.db();
 
   const admins = db.collection("admins");
+  const authClients = db.collection("clients");
   const entities = db.collection("entities");
 
   const adminEmail = String(
@@ -201,6 +202,15 @@ async function main() {
       entity: { $in: targetEntities },
     });
     console.log(`WIPED ${del.deletedCount} entity docs for admin ${admin.email}`);
+
+    // Safety: only wipe previously-seeded auth client identities.
+    const delAuth = await authClients.deleteMany({
+      adminId,
+      mockSeedId: { $exists: true },
+    });
+    if (delAuth.deletedCount) {
+      console.log(`WIPED ${delAuth.deletedCount} auth client docs for admin ${admin.email}`);
+    }
   } else {
     const del = await entities.deleteMany({
       adminId,
@@ -209,6 +219,11 @@ async function main() {
     });
     if (del.deletedCount) {
       console.log(`Removed ${del.deletedCount} previously-seeded docs (${seedId}).`);
+    }
+
+    const delAuth = await authClients.deleteMany({ adminId, mockSeedId: seedId });
+    if (delAuth.deletedCount) {
+      console.log(`Removed ${delAuth.deletedCount} previously-seeded auth client docs (${seedId}).`);
     }
   }
 
@@ -585,10 +600,51 @@ async function main() {
     const assignedPlans = pickManyUnique(rng, workoutPlanIds, randInt(rng, 0, 2));
     const assignedMealPlans = pickManyUnique(rng, mealPlanIds, randInt(rng, 0, 2));
 
+    const phone = `+1555${String(100000 + i)}`;
+
+    // Create matching auth identity in the `clients` collection (used by OTP login)
+    const existingAuth = await authClients.findOne({ phone });
+    if (existingAuth && String(existingAuth.adminId) !== String(adminId)) {
+      throw new Error(
+        `Phone already exists for a different admin: ${phone}. Delete the existing auth client or change the seed phone range.`
+      );
+    }
+
+    let authClientId;
+    if (existingAuth) {
+      await authClients.updateOne(
+        { _id: existingAuth._id },
+        {
+          $set: {
+            adminId,
+            phone,
+            name,
+            theme: "light",
+            role: "client",
+            mockSeedId: seedId,
+          },
+        }
+      );
+      authClientId = existingAuth._id.toHexString();
+    } else {
+      const ins = await authClients.insertOne({
+        adminId,
+        phone,
+        name,
+        theme: "light",
+        role: "client",
+        mockSeedId: seedId,
+      });
+      authClientId = ins.insertedId.toHexString();
+    }
+
     const clientId = await insertEntity("Client", {
       name,
       email: `client${String(i + 1).padStart(3, "0")}@example.com`,
-      phone: `+1555${String(100000 + i)}`,
+      phone,
+      // Link entity client profile to auth client identity
+      clientAuthId: authClientId,
+      userId: authClientId,
       birthDate: toIsoDateOnly(birth),
       gender: pick(rng, genders),
       height: String(randInt(rng, 150, 200)),

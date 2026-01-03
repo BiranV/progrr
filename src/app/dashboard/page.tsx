@@ -25,6 +25,9 @@ import {
   FileDown,
   FileText,
   Copy as CopyIcon,
+  ChevronDown,
+  ChevronUp,
+  ArrowLeft,
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -374,10 +377,19 @@ function ClientDashboard({ user }: { user: any }) {
   const { logout } = useAuth();
   const { darkMode, toggleDarkMode } = useTheme();
   const queryClient = useQueryClient();
+  const [activeSection, setActiveSection] = React.useState<
+    "menu" | "profile" | "meetings" | "workouts" | "meals"
+  >("menu");
   const [messagesOpen, setMessagesOpen] = React.useState(false);
   const [newMessage, setNewMessage] = React.useState("");
   const avatarInputRef = React.useRef<HTMLInputElement | null>(null);
   const [avatarError, setAvatarError] = React.useState<string | null>(null);
+  const [expandedWorkoutPlanIds, setExpandedWorkoutPlanIds] = React.useState<
+    Record<string, boolean>
+  >({});
+  const [expandedMealPlanIds, setExpandedMealPlanIds] = React.useState<
+    Record<string, boolean>
+  >({});
 
   const toTitleCase = (value: any) => {
     const raw = String(value ?? "").trim();
@@ -515,200 +527,269 @@ function ClientDashboard({ user }: { user: any }) {
     }
   };
 
-  const firstAssignedPlanId = React.useMemo(() => {
+  const assignedPlanIds = React.useMemo(() => {
     const ids = Array.isArray((myClient as any)?.assignedPlanIds)
       ? ((myClient as any).assignedPlanIds as any[])
           .map((v) => String(v ?? "").trim())
           .filter((v) => v && v !== "none")
       : [];
     const legacy = String((myClient as any)?.assignedPlanId ?? "").trim();
-    return ids[0] || (legacy && legacy !== "none" ? legacy : "");
+    const all = [...ids, ...(legacy && legacy !== "none" ? [legacy] : [])];
+    return Array.from(new Set(all));
   }, [myClient]);
 
-  const firstAssignedMealPlanId = React.useMemo(() => {
+  const assignedMealPlanIds = React.useMemo(() => {
     const ids = Array.isArray((myClient as any)?.assignedMealPlanIds)
       ? ((myClient as any).assignedMealPlanIds as any[])
           .map((v) => String(v ?? "").trim())
           .filter((v) => v && v !== "none")
       : [];
     const legacy = String((myClient as any)?.assignedMealPlanId ?? "").trim();
-    return ids[0] || (legacy && legacy !== "none" ? legacy : "");
+    const all = [...ids, ...(legacy && legacy !== "none" ? [legacy] : [])];
+    return Array.from(new Set(all));
   }, [myClient]);
 
-  const { data: assignedPlan } = useQuery({
-    queryKey: ["assignedPlan", firstAssignedPlanId],
-    queryFn: () => db.entities.WorkoutPlan.get(firstAssignedPlanId),
-    enabled: !!firstAssignedPlanId,
-  });
-
-  const { data: planExercises = [] } = useQuery({
-    queryKey: ["planExercises", assignedPlan?.id],
-    queryFn: async () => {
-      if (!assignedPlan?.id) return [];
-
-      const planExerciseRows = await db.entities.PlanExercise.filter({
-        workoutPlanId: assignedPlan.id,
-      });
-      const sortedPlanExercises = [...planExerciseRows].sort(
-        (a: any, b: any) => (a.order || 0) - (b.order || 0)
-      );
-
-      if (sortedPlanExercises.length) {
-        const ids = Array.from(
-          new Set(
-            sortedPlanExercises
-              .map((r: any) => String(r.exerciseLibraryId ?? "").trim())
-              .filter(Boolean)
-          )
-        );
-
-        const libs = await Promise.all(
-          ids.map(async (id) => {
+  const { data: assignedPlans = [], isLoading: assignedPlansLoading } =
+    useQuery({
+      queryKey: ["assignedPlans", assignedPlanIds.join("|")],
+      queryFn: async () => {
+        if (!assignedPlanIds.length) return [];
+        const plans = await Promise.all(
+          assignedPlanIds.map(async (id) => {
             try {
-              return await db.entities.ExerciseLibrary.get(id);
+              return await db.entities.WorkoutPlan.get(id);
             } catch {
               return null;
             }
           })
         );
-        const libById = new Map(
-          libs.filter(Boolean).map((l: any) => [String(l.id), l])
+        return plans.filter(Boolean);
+      },
+      enabled: activeSection === "workouts" && assignedPlanIds.length > 0,
+    });
+
+  const {
+    data: planExercisesByPlanId = {},
+    isLoading: planExercisesByPlanIdLoading,
+  } = useQuery({
+    queryKey: [
+      "planExercisesByPlanId",
+      assignedPlans.map((p: any) => String(p?.id ?? "")).join("|"),
+    ],
+    queryFn: async () => {
+      const result = {};
+      const plans = (assignedPlans as any[]).filter(Boolean);
+      for (const plan of plans) {
+        const planId = String(plan?.id ?? "").trim();
+        if (!planId) continue;
+
+        const planExerciseRows = await db.entities.PlanExercise.filter({
+          workoutPlanId: planId,
+        });
+        const sortedPlanExercises = [...planExerciseRows].sort(
+          (a: any, b: any) => (a.order || 0) - (b.order || 0)
         );
 
-        return sortedPlanExercises.map((row: any) => {
-          const lib = libById.get(String(row.exerciseLibraryId ?? "").trim());
-          return {
-            id: row.id,
-            name: lib?.name ?? "-",
-            guidelines: lib?.guidelines ?? "",
-            videoKind: lib?.videoKind ?? null,
-            videoUrl: lib?.videoUrl ?? null,
-            sets: row?.sets,
-            reps: row?.reps,
-            restSeconds: row?.restSeconds,
-            order: row?.order,
-          };
-        });
-      }
-
-      // Legacy fallback
-      const exercises = await db.entities.Exercise.filter({
-        workoutPlanId: assignedPlan.id,
-      });
-      return [...exercises].sort(
-        (a: any, b: any) => (a.order || 0) - (b.order || 0)
-      );
-    },
-    enabled: !!assignedPlan?.id,
-  });
-
-  const { data: assignedMealPlan } = useQuery({
-    queryKey: ["assignedMealPlan", firstAssignedMealPlanId],
-    queryFn: () => db.entities.MealPlan.get(firstAssignedMealPlanId),
-    enabled: !!firstAssignedMealPlanId,
-  });
-
-  const { data: mealPlanMeals = [] } = useQuery({
-    queryKey: ["mealPlanMeals", assignedMealPlan?.id],
-    queryFn: async () => {
-      if (!assignedMealPlan?.id) return [];
-
-      const meals = await db.entities.Meal.filter({
-        mealPlanId: assignedMealPlan.id,
-      });
-
-      const mealsWithFoods = await Promise.all(
-        meals.map(async (meal: any) => {
-          const planFoodRows = await db.entities.PlanFood.filter({
-            mealId: meal.id,
-          });
-
-          const sortedPlanFoods = [...planFoodRows].sort(
-            (a: any, b: any) => (a.order || 0) - (b.order || 0)
+        if (sortedPlanExercises.length) {
+          const ids = Array.from(
+            new Set(
+              sortedPlanExercises
+                .map((r: any) => String(r.exerciseLibraryId ?? "").trim())
+                .filter(Boolean)
+            )
           );
 
-          if (sortedPlanFoods.length) {
-            const ids = Array.from(
-              new Set(
-                sortedPlanFoods
-                  .map((r: any) => String(r.foodLibraryId ?? "").trim())
-                  .filter(Boolean)
-              )
-            );
+          const libs = await Promise.all(
+            ids.map(async (id) => {
+              try {
+                return await db.entities.ExerciseLibrary.get(id);
+              } catch {
+                return null;
+              }
+            })
+          );
+          const libById = new Map(
+            libs.filter(Boolean).map((l: any) => [String(l.id), l])
+          );
 
-            const libs = await Promise.all(
-              ids.map(async (id) => {
-                try {
-                  return await db.entities.FoodLibrary.get(id);
-                } catch {
-                  return null;
-                }
-              })
-            );
-            const libById = new Map(
-              libs.filter(Boolean).map((l: any) => [String(l.id), l])
-            );
+          (result as any)[planId] = sortedPlanExercises.map((row: any) => {
+            const lib = libById.get(String(row.exerciseLibraryId ?? "").trim());
+            return {
+              id: row.id,
+              name: lib?.name ?? "-",
+              guidelines: lib?.guidelines ?? "",
+              videoKind: lib?.videoKind ?? null,
+              videoUrl: lib?.videoUrl ?? null,
+              sets: row?.sets,
+              reps: row?.reps,
+              restSeconds: row?.restSeconds,
+              order: row?.order,
+            };
+          });
+          continue;
+        }
 
-            const foods = sortedPlanFoods.map((row: any) => {
-              const lib = libById.get(String(row.foodLibraryId ?? "").trim());
-              return {
-                id: row.id,
-                name: lib?.name ?? "-",
-                amount: row?.amount ?? "",
-                protein: lib?.protein ?? "",
-                carbs: lib?.carbs ?? "",
-                fat: lib?.fat ?? "",
-                calories: lib?.calories ?? "",
-              };
-            });
-
-            return { ...meal, foods };
-          }
-
-          // Legacy fallback
-          const foods = await db.entities.Food.filter({ mealId: meal.id });
-          return {
-            ...meal,
-            foods: [...foods].sort(
-              (a: any, b: any) => (a.order || 0) - (b.order || 0)
-            ),
-          };
-        })
-      );
-
-      return [...mealsWithFoods].sort(
-        (a: any, b: any) => (a.order || 0) - (b.order || 0)
-      );
+        // Legacy fallback
+        const exercises = await db.entities.Exercise.filter({
+          workoutPlanId: planId,
+        });
+        (result as any)[planId] = [...exercises].sort(
+          (a: any, b: any) => (a.order || 0) - (b.order || 0)
+        );
+      }
+      return result;
     },
-    enabled: !!assignedMealPlan?.id,
+    enabled: activeSection === "workouts" && assignedPlans.length > 0,
   });
 
-  const workoutPlanExportText = React.useMemo(() => {
-    if (!assignedPlan) return "";
-    return formatWorkoutPlanText(assignedPlan as any, planExercises as any);
-  }, [assignedPlan, planExercises]);
+  const { data: assignedMealPlans = [], isLoading: assignedMealPlansLoading } =
+    useQuery({
+      queryKey: ["assignedMealPlans", assignedMealPlanIds.join("|")],
+      queryFn: async () => {
+        if (!assignedMealPlanIds.length) return [];
+        const plans = await Promise.all(
+          assignedMealPlanIds.map(async (id) => {
+            try {
+              return await db.entities.MealPlan.get(id);
+            } catch {
+              return null;
+            }
+          })
+        );
+        return plans.filter(Boolean);
+      },
+      enabled: activeSection === "meals" && assignedMealPlanIds.length > 0,
+    });
 
-  const mealPlanExportText = React.useMemo(() => {
-    if (!assignedMealPlan) return "";
-    return formatMealPlanText(assignedMealPlan as any, mealPlanMeals as any);
-  }, [assignedMealPlan, mealPlanMeals]);
+  const {
+    data: mealPlanMealsByPlanId = {},
+    isLoading: mealPlanMealsByPlanIdLoading,
+  } = useQuery({
+    queryKey: [
+      "mealPlanMealsByPlanId",
+      assignedMealPlans.map((p: any) => String(p?.id ?? "")).join("|"),
+    ],
+    queryFn: async () => {
+      const result = {};
+      const plans = (assignedMealPlans as any[]).filter(Boolean);
 
-  const workoutPlanFilenameBase = React.useMemo(() => {
-    const name = String((assignedPlan as any)?.name ?? "").trim();
-    const id = String((assignedPlan as any)?.id ?? "").trim();
+      for (const plan of plans) {
+        const mealPlanId = String(plan?.id ?? "").trim();
+        if (!mealPlanId) continue;
+
+        const meals = await db.entities.Meal.filter({ mealPlanId });
+
+        const mealsWithFoods = await Promise.all(
+          meals.map(async (meal: any) => {
+            const planFoodRows = await db.entities.PlanFood.filter({
+              mealId: meal.id,
+            });
+
+            const sortedPlanFoods = [...planFoodRows].sort(
+              (a: any, b: any) => (a.order || 0) - (b.order || 0)
+            );
+
+            if (sortedPlanFoods.length) {
+              const ids = Array.from(
+                new Set(
+                  sortedPlanFoods
+                    .map((r: any) => String(r.foodLibraryId ?? "").trim())
+                    .filter(Boolean)
+                )
+              );
+
+              const libs = await Promise.all(
+                ids.map(async (id) => {
+                  try {
+                    return await db.entities.FoodLibrary.get(id);
+                  } catch {
+                    return null;
+                  }
+                })
+              );
+              const libById = new Map(
+                libs.filter(Boolean).map((l: any) => [String(l.id), l])
+              );
+
+              const foods = sortedPlanFoods.map((row: any) => {
+                const lib = libById.get(String(row.foodLibraryId ?? "").trim());
+                return {
+                  id: row.id,
+                  name: lib?.name ?? "-",
+                  amount: row?.amount ?? "",
+                  protein: lib?.protein ?? "",
+                  carbs: lib?.carbs ?? "",
+                  fat: lib?.fat ?? "",
+                  calories: lib?.calories ?? "",
+                };
+              });
+
+              return { ...meal, foods };
+            }
+
+            // Legacy fallback
+            const foods = await db.entities.Food.filter({ mealId: meal.id });
+            return {
+              ...meal,
+              foods: [...foods].sort(
+                (a: any, b: any) => (a.order || 0) - (b.order || 0)
+              ),
+            };
+          })
+        );
+
+        (result as any)[mealPlanId] = [...mealsWithFoods].sort(
+          (a: any, b: any) => (a.order || 0) - (b.order || 0)
+        );
+      }
+
+      return result;
+    },
+    enabled: activeSection === "meals" && assignedMealPlans.length > 0,
+  });
+
+  const workoutPlanExportTextById = React.useMemo(() => {
+    const out = {};
+    for (const plan of assignedPlans as any[]) {
+      const planId = String(plan?.id ?? "").trim();
+      if (!planId) continue;
+      const exercises = (planExercisesByPlanId as any)[planId] || [];
+      (out as any)[planId] = formatWorkoutPlanText(
+        plan as any,
+        exercises as any
+      );
+    }
+    return out as Record<string, string>;
+  }, [assignedPlans, planExercisesByPlanId]);
+
+  const mealPlanExportTextById = React.useMemo(() => {
+    const out = {};
+    for (const plan of assignedMealPlans as any[]) {
+      const planId = String(plan?.id ?? "").trim();
+      if (!planId) continue;
+      const meals = (mealPlanMealsByPlanId as any)[planId] || [];
+      (out as any)[planId] = formatMealPlanText(plan as any, meals as any);
+    }
+    return out as Record<string, string>;
+  }, [assignedMealPlans, mealPlanMealsByPlanId]);
+
+  const getWorkoutPlanFilenameBase = (plan: any) => {
+    const name = String(plan?.name ?? "").trim();
+    const id = String(plan?.id ?? "").trim();
     return `workout-plan-${name || id || "plan"}`;
-  }, [assignedPlan]);
+  };
 
-  const mealPlanFilenameBase = React.useMemo(() => {
-    const name = String((assignedMealPlan as any)?.name ?? "").trim();
-    const id = String((assignedMealPlan as any)?.id ?? "").trim();
+  const getMealPlanFilenameBase = (plan: any) => {
+    const name = String(plan?.name ?? "").trim();
+    const id = String(plan?.id ?? "").trim();
     return `meal-plan-${name || id || "plan"}`;
-  }, [assignedMealPlan]);
+  };
 
-  const copyWorkoutPlan = async () => {
-    if (!assignedPlan) return;
+  const copyWorkoutPlan = async (plan: any) => {
+    if (!plan?.id) return;
     try {
-      await copyTextToClipboard(workoutPlanExportText);
+      const text = workoutPlanExportTextById[String(plan.id)] || "";
+      await copyTextToClipboard(text);
       toast.success("Copied to clipboard");
     } catch (err) {
       console.error("Failed to copy workout plan", err);
@@ -716,24 +797,25 @@ function ClientDashboard({ user }: { user: any }) {
     }
   };
 
-  const downloadWorkoutPlanText = () => {
-    if (!assignedPlan) return;
+  const downloadWorkoutPlanText = (plan: any) => {
+    if (!plan?.id) return;
     try {
-      downloadTextFile(workoutPlanFilenameBase, workoutPlanExportText);
+      const text = workoutPlanExportTextById[String(plan.id)] || "";
+      downloadTextFile(getWorkoutPlanFilenameBase(plan), text);
     } catch (err) {
       console.error("Failed to download workout plan text", err);
       toast.error("Failed to download text");
     }
   };
 
-  const downloadWorkoutPlanPdf = () => {
-    if (!assignedPlan) return;
+  const downloadWorkoutPlanPdf = (plan: any) => {
+    if (!plan?.id) return;
     try {
+      const text = workoutPlanExportTextById[String(plan.id)] || "";
       downloadPdfFile(
-        workoutPlanFilenameBase,
-        String((assignedPlan as any)?.name ?? "Workout Plan").trim() ||
-          "Workout Plan",
-        workoutPlanExportText
+        getWorkoutPlanFilenameBase(plan),
+        String(plan?.name ?? "Workout Plan").trim() || "Workout Plan",
+        text
       );
     } catch (err) {
       console.error("Failed to download workout plan PDF", err);
@@ -741,10 +823,11 @@ function ClientDashboard({ user }: { user: any }) {
     }
   };
 
-  const copyMealPlan = async () => {
-    if (!assignedMealPlan) return;
+  const copyMealPlan = async (plan: any) => {
+    if (!plan?.id) return;
     try {
-      await copyTextToClipboard(mealPlanExportText);
+      const text = mealPlanExportTextById[String(plan.id)] || "";
+      await copyTextToClipboard(text);
       toast.success("Copied to clipboard");
     } catch (err) {
       console.error("Failed to copy meal plan", err);
@@ -752,24 +835,25 @@ function ClientDashboard({ user }: { user: any }) {
     }
   };
 
-  const downloadMealPlanText = () => {
-    if (!assignedMealPlan) return;
+  const downloadMealPlanText = (plan: any) => {
+    if (!plan?.id) return;
     try {
-      downloadTextFile(mealPlanFilenameBase, mealPlanExportText);
+      const text = mealPlanExportTextById[String(plan.id)] || "";
+      downloadTextFile(getMealPlanFilenameBase(plan), text);
     } catch (err) {
       console.error("Failed to download meal plan text", err);
       toast.error("Failed to download text");
     }
   };
 
-  const downloadMealPlanPdf = () => {
-    if (!assignedMealPlan) return;
+  const downloadMealPlanPdf = (plan: any) => {
+    if (!plan?.id) return;
     try {
+      const text = mealPlanExportTextById[String(plan.id)] || "";
       downloadPdfFile(
-        mealPlanFilenameBase,
-        String((assignedMealPlan as any)?.name ?? "Meal Plan").trim() ||
-          "Meal Plan",
-        mealPlanExportText
+        getMealPlanFilenameBase(plan),
+        String((plan as any)?.name ?? "Meal Plan").trim() || "Meal Plan",
+        text
       );
     } catch (err) {
       console.error("Failed to download meal plan PDF", err);
@@ -984,729 +1068,885 @@ function ClientDashboard({ user }: { user: any }) {
         </div>
       </div>
 
-      <Card className="dark:bg-gray-800 dark:border-gray-700 mb-6">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            <CardTitle>Meetings</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {meetings.length === 0 ? (
-            <div className="py-8 text-center text-gray-500 dark:text-gray-400">
-              No meetings yet
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <div>
-                <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
-                  Upcoming
-                </div>
-                {upcomingMeetings.length === 0 ? (
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
-                    No upcoming meetings
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {upcomingMeetings.map((m: any) => (
-                      <div
-                        key={m.id}
-                        className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                              {toTitleCase(m.title)}
-                            </div>
-                            <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                              {m.scheduledAt
-                                ? format(new Date(m.scheduledAt), "PPP p")
-                                : ""}
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap gap-2 text-xs">
-                            {m.type ? (
-                              <span className="px-2 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200 rounded-full">
-                                {toTitleCase(m.type)}
-                              </span>
-                            ) : null}
-                            {m.status ? (
-                              <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200 rounded-full">
-                                {toTitleCase(m.status)}
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-
-                        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                          {m.durationMinutes ? (
-                            <div className="text-gray-700 dark:text-gray-300">
-                              <span className="text-gray-500 dark:text-gray-400">
-                                Duration:{" "}
-                              </span>
-                              {m.durationMinutes} minutes
-                            </div>
-                          ) : null}
-                          {m.location ? (
-                            <div className="text-gray-700 dark:text-gray-300">
-                              <span className="text-gray-500 dark:text-gray-400">
-                                Location:{" "}
-                              </span>
-                              {toTitleCase(m.location)}
-                            </div>
-                          ) : null}
-                        </div>
-
-                        {m.notes ? (
-                          <div className="mt-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                            <span className="text-gray-500 dark:text-gray-400">
-                              Notes:{" "}
-                            </span>
-                            {m.notes}
-                          </div>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
-                  Past
-                </div>
-                {pastMeetings.length === 0 ? (
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
-                    No past meetings
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {pastMeetings.map((m: any) => (
-                      <div
-                        key={m.id}
-                        className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                              {toTitleCase(m.title)}
-                            </div>
-                            <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                              {m.scheduledAt
-                                ? format(new Date(m.scheduledAt), "PPP p")
-                                : ""}
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap gap-2 text-xs">
-                            {m.type ? (
-                              <span className="px-2 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200 rounded-full">
-                                {toTitleCase(m.type)}
-                              </span>
-                            ) : null}
-                            {m.status ? (
-                              <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200 rounded-full">
-                                {toTitleCase(m.status)}
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-
-                        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                          {m.durationMinutes ? (
-                            <div className="text-gray-700 dark:text-gray-300">
-                              <span className="text-gray-500 dark:text-gray-400">
-                                Duration:{" "}
-                              </span>
-                              {m.durationMinutes} minutes
-                            </div>
-                          ) : null}
-                          {m.location ? (
-                            <div className="text-gray-700 dark:text-gray-300">
-                              <span className="text-gray-500 dark:text-gray-400">
-                                Location:{" "}
-                              </span>
-                              {toTitleCase(m.location)}
-                            </div>
-                          ) : null}
-                        </div>
-
-                        {m.notes ? (
-                          <div className="mt-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                            <span className="text-gray-500 dark:text-gray-400">
-                              Notes:{" "}
-                            </span>
-                            {m.notes}
-                          </div>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="dark:bg-gray-800 dark:border-gray-700">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-              <CardTitle>My Details</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {!myClient ? (
-              <div className="py-10 text-center text-gray-500 dark:text-gray-400">
-                No client profile found
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {avatarError ? (
-                  <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-200">
-                    {avatarError}
-                  </div>
-                ) : null}
-
-                <div className="flex items-center justify-start gap-3">
-                  <ClientAvatar
-                    name={String(myClient.name || user.full_name || "").trim()}
-                    src={(myClient as any).avatarDataUrl}
-                    size={56}
-                  />
-                  <div className="flex flex-col gap-2">
-                    <input
-                      ref={avatarInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) =>
-                        handleAvatarFile(e.target.files?.[0] ?? null)
-                      }
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="h-9"
-                      disabled={uploadAvatarMutation.isPending}
-                      onClick={() => avatarInputRef.current?.click()}
-                    >
-                      {uploadAvatarMutation.isPending
-                        ? "Uploading..."
-                        : "Upload photo"}
-                    </Button>
-
-                    {(myClient as any).avatarDataUrl ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-9"
-                        disabled={uploadAvatarMutation.isPending}
-                        onClick={async () => {
-                          if (confirm("Remove your photo?")) {
-                            try {
-                              setAvatarError(null);
-                              await uploadAvatarMutation.mutateAsync(null);
-                            } catch (err: any) {
-                              setAvatarError(
-                                String(
-                                  err?.message ?? "Failed to remove avatar"
-                                )
-                              );
-                            }
-                          }
-                        }}
-                      >
-                        Remove photo
-                      </Button>
-                    ) : null}
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      Auto-cropped to a square avatar
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      Full name
-                    </div>
-                    <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {toTitleCase(myClient.name || user.full_name || "")}
-                    </div>
-                  </div>
-                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      Phone
-                    </div>
-                    <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {myClient.phone || user.phone || ""}
-                    </div>
-                  </div>
-                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      Email
-                    </div>
-                    <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {myClient.email || user.email || ""}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      Birth date
-                    </div>
-                    <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {myClient.birthDate || ""}
-                    </div>
-                  </div>
-                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      Gender
-                    </div>
-                    <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {toTitleCase(myClient.gender || "")}
-                    </div>
-                  </div>
-                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      Height
-                    </div>
-                    <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {myClient.height || ""}
-                    </div>
-                  </div>
-                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      Weight
-                    </div>
-                    <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {myClient.weight || ""}
-                    </div>
-                  </div>
-                </div>
-
-                {myClient.goal || myClient.activityLevel || myClient.notes ? (
-                  <div className="space-y-2">
-                    {myClient.goal ? (
-                      <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          Goal
-                        </div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {toTitleCase(myClient.goal)}
-                        </div>
-                      </div>
-                    ) : null}
-                    {myClient.activityLevel ? (
-                      <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          Activity level
-                        </div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {toTitleCase(myClient.activityLevel)}
-                        </div>
-                      </div>
-                    ) : null}
-                    {myClient.notes ? (
-                      <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          Notes
-                        </div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white whitespace-pre-wrap">
-                          {myClient.notes}
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <div className="grid grid-cols-1 gap-6">
-          <Card className="dark:bg-gray-800 dark:border-gray-700">
+      {activeSection === "menu" ? (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card
+            className="dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
+            onClick={() => setActiveSection("profile")}
+          >
             <CardHeader>
               <div className="flex items-center gap-2">
-                <Dumbbell className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                <CardTitle>My Workout Plan</CardTitle>
+                <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <CardTitle>Profile</CardTitle>
               </div>
             </CardHeader>
             <CardContent>
-              {assignedPlan ? (
-                <div>
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white min-w-0 truncate">
-                      {assignedPlan.name}
-                    </h3>
-                    <div className="shrink-0 flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        className="text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
-                        title="Download PDF"
-                        aria-label="Download PDF"
-                        onClick={downloadWorkoutPlanPdf}
-                      >
-                        <FileDown className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        className="text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
-                        title="Download Text"
-                        aria-label="Download Text"
-                        onClick={downloadWorkoutPlanText}
-                      >
-                        <FileText className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        className="text-green-600 hover:text-green-700 dark:text-green-300 dark:hover:text-green-200"
-                        title="Copy to clipboard"
-                        aria-label="Copy to clipboard"
-                        onClick={copyWorkoutPlan}
-                      >
-                        <CopyIcon className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <p className="text-gray-600 dark:text-gray-400 mt-2">
-                    {assignedPlan.notes}
-                  </p>
-                  <div className="mt-4 flex gap-4 text-sm">
-                    {assignedPlan.difficulty && (
-                      <span className="px-3 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-full">
-                        {toTitleCase(assignedPlan.difficulty)}
-                      </span>
-                    )}
-                    {assignedPlan.duration && (
-                      <span className="px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 rounded-full">
-                        {formatDuration(assignedPlan.duration)}
-                      </span>
-                    )}
-                  </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Your details
+              </div>
+            </CardContent>
+          </Card>
 
-                  <div className="mt-5">
-                    <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
-                      Exercises
-                    </div>
-                    {planExercises.length === 0 ? (
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        No exercises added to this plan yet
+          <Card
+            className="dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
+            onClick={() => setActiveSection("meetings")}
+          >
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <CardTitle>Meetings</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Upcoming and past
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
+            onClick={() => setActiveSection("workouts")}
+          >
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Dumbbell className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <CardTitle>Workout Plans</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Your assigned plans
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card
+            className="dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
+            onClick={() => setActiveSection("meals")}
+          >
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <UtensilsCrossed className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <CardTitle>Meal Plans</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Your assigned plans
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              className="gap-2"
+              onClick={() => setActiveSection("menu")}
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back
+            </Button>
+            <div className="text-lg font-semibold text-gray-900 dark:text-white">
+              {activeSection === "profile"
+                ? "Profile"
+                : activeSection === "meetings"
+                ? "Meetings"
+                : activeSection === "workouts"
+                ? "Workout Plans"
+                : "Meal Plans"}
+            </div>
+          </div>
+
+          {activeSection === "profile" ? (
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  <CardTitle>My Details</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {!myClient ? (
+                  <div className="py-10 text-center text-gray-500 dark:text-gray-400">
+                    No client profile found
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {avatarError ? (
+                      <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-900/20 dark:text-red-200">
+                        {avatarError}
                       </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {planExercises.map((ex: any, idx: number) => {
-                          const sets = String(ex.sets ?? "").trim();
-                          const reps = String(ex.reps ?? "").trim();
-                          const restSecondsRaw = Number(ex.restSeconds);
-                          const restSeconds = Number.isFinite(restSecondsRaw)
-                            ? Math.max(0, Math.floor(restSecondsRaw))
-                            : 0;
-                          const videoKind = String(ex.videoKind ?? "").trim();
-                          const videoUrlRaw = String(ex.videoUrl ?? "").trim();
-                          const youtubeEmbed =
-                            videoKind === "youtube" && videoUrlRaw
-                              ? toYouTubeEmbedUrl(videoUrlRaw)
-                              : null;
-                          const detail =
-                            sets || reps
-                              ? `${sets ? `${sets} sets` : ""}${
-                                  sets && reps ? " × " : ""
-                                }${reps ? `${reps} reps` : ""}`
-                              : "";
-                          const restText = restSeconds
-                            ? `${Math.floor(restSeconds / 60)}m ${
-                                restSeconds % 60
-                              }s`
-                            : "";
-                          return (
+                    ) : null}
+
+                    <div className="flex items-center justify-start gap-3">
+                      <ClientAvatar
+                        name={String(
+                          myClient.name || user.full_name || ""
+                        ).trim()}
+                        src={(myClient as any).avatarDataUrl}
+                        size={56}
+                      />
+                      <div className="flex flex-col gap-2">
+                        <input
+                          ref={avatarInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) =>
+                            handleAvatarFile(e.target.files?.[0] ?? null)
+                          }
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-9"
+                          disabled={uploadAvatarMutation.isPending}
+                          onClick={() => avatarInputRef.current?.click()}
+                        >
+                          {uploadAvatarMutation.isPending
+                            ? "Uploading..."
+                            : "Upload photo"}
+                        </Button>
+
+                        {(myClient as any).avatarDataUrl ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-9"
+                            disabled={uploadAvatarMutation.isPending}
+                            onClick={async () => {
+                              if (confirm("Remove your photo?")) {
+                                try {
+                                  setAvatarError(null);
+                                  await uploadAvatarMutation.mutateAsync(null);
+                                } catch (err: any) {
+                                  setAvatarError(
+                                    String(
+                                      err?.message ?? "Failed to remove avatar"
+                                    )
+                                  );
+                                }
+                              }
+                            }}
+                          >
+                            Remove photo
+                          </Button>
+                        ) : null}
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Auto-cropped to a square avatar
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Full name
+                        </div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {toTitleCase(myClient.name || user.full_name || "")}
+                        </div>
+                      </div>
+                      <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Phone
+                        </div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {myClient.phone || user.phone || ""}
+                        </div>
+                      </div>
+                      <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Email
+                        </div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {myClient.email || user.email || ""}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {activeSection === "meetings" ? (
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  <CardTitle>Meetings</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {meetings.length === 0 ? (
+                  <div className="py-8 text-center text-gray-500 dark:text-gray-400">
+                    No meetings yet
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                        Upcoming
+                      </div>
+                      {upcomingMeetings.length === 0 ? (
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          No upcoming meetings
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {upcomingMeetings.map((m: any) => (
                             <div
-                              key={ex.id || `${idx}`}
+                              key={m.id}
                               className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
                             >
                               <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
-                                  <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                                    {idx + 1}. {toTitleCase(ex.name)}
+                                  <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                                    {toTitleCase(m.title)}
                                   </div>
-                                  {detail ? (
-                                    <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                      {detail}
-                                    </div>
+                                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                    {m.scheduledAt
+                                      ? format(new Date(m.scheduledAt), "PPP p")
+                                      : ""}
+                                  </div>
+                                </div>
+                                <div className="flex flex-wrap gap-2 text-xs">
+                                  {m.type ? (
+                                    <span className="px-2 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200 rounded-full">
+                                      {toTitleCase(m.type)}
+                                    </span>
                                   ) : null}
-                                  {restText ? (
-                                    <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                      Rest: {restText}
-                                    </div>
-                                  ) : null}
-
-                                  {String(ex.guidelines ?? "").trim() ? (
-                                    <div className="text-xs text-gray-600 dark:text-gray-300 mt-2 whitespace-pre-wrap">
-                                      {String(ex.guidelines)}
-                                    </div>
-                                  ) : null}
-
-                                  {youtubeEmbed ? (
-                                    <div className="mt-2">
-                                      <div
-                                        className="relative w-full overflow-hidden rounded-lg bg-black"
-                                        style={{ paddingTop: "56.25%" }}
-                                      >
-                                        <iframe
-                                          src={youtubeEmbed}
-                                          title="Exercise video"
-                                          className="absolute inset-0 h-full w-full"
-                                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                          allowFullScreen
-                                        />
-                                      </div>
-                                    </div>
-                                  ) : videoKind === "upload" && videoUrlRaw ? (
-                                    <div className="mt-2">
-                                      <video
-                                        className="w-full rounded-lg"
-                                        controls
-                                        preload="metadata"
-                                        src={videoUrlRaw}
-                                      />
-                                    </div>
+                                  {m.status ? (
+                                    <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200 rounded-full">
+                                      {toTitleCase(m.status)}
+                                    </span>
                                   ) : null}
                                 </div>
                               </div>
+
+                              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                                {m.durationMinutes ? (
+                                  <div className="text-gray-700 dark:text-gray-300">
+                                    <span className="text-gray-500 dark:text-gray-400">
+                                      Duration:{" "}
+                                    </span>
+                                    {m.durationMinutes} minutes
+                                  </div>
+                                ) : null}
+                                {m.location ? (
+                                  <div className="text-gray-700 dark:text-gray-300">
+                                    <span className="text-gray-500 dark:text-gray-400">
+                                      Location:{" "}
+                                    </span>
+                                    {toTitleCase(m.location)}
+                                  </div>
+                                ) : null}
+                              </div>
+
+                              {m.notes ? (
+                                <div className="mt-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                                  <span className="text-gray-500 dark:text-gray-400">
+                                    Notes:{" "}
+                                  </span>
+                                  {m.notes}
+                                </div>
+                              ) : null}
                             </div>
-                          );
-                        })}
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                        Past
                       </div>
-                    )}
+                      {pastMeetings.length === 0 ? (
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          No past meetings
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {pastMeetings.map((m: any) => (
+                            <div
+                              key={m.id}
+                              className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                                    {toTitleCase(m.title)}
+                                  </div>
+                                  <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                    {m.scheduledAt
+                                      ? format(new Date(m.scheduledAt), "PPP p")
+                                      : ""}
+                                  </div>
+                                </div>
+                                <div className="flex flex-wrap gap-2 text-xs">
+                                  {m.type ? (
+                                    <span className="px-2 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200 rounded-full">
+                                      {toTitleCase(m.type)}
+                                    </span>
+                                  ) : null}
+                                  {m.status ? (
+                                    <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200 rounded-full">
+                                      {toTitleCase(m.status)}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </div>
+
+                              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                                {m.durationMinutes ? (
+                                  <div className="text-gray-700 dark:text-gray-300">
+                                    <span className="text-gray-500 dark:text-gray-400">
+                                      Duration:{" "}
+                                    </span>
+                                    {m.durationMinutes} minutes
+                                  </div>
+                                ) : null}
+                                {m.location ? (
+                                  <div className="text-gray-700 dark:text-gray-300">
+                                    <span className="text-gray-500 dark:text-gray-400">
+                                      Location:{" "}
+                                    </span>
+                                    {toTitleCase(m.location)}
+                                  </div>
+                                ) : null}
+                              </div>
+
+                              {m.notes ? (
+                                <div className="mt-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                                  <span className="text-gray-500 dark:text-gray-400">
+                                    Notes:{" "}
+                                  </span>
+                                  {m.notes}
+                                </div>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ) : (
+                )}
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {activeSection === "workouts" ? (
+            <div className="space-y-4">
+              {assignedPlanIds.length === 0 ? (
                 <p className="text-gray-500 dark:text-gray-400">
                   No workout plan assigned yet
                 </p>
-              )}
-            </CardContent>
-          </Card>
+              ) : assignedPlansLoading ? (
+                <p className="text-gray-500 dark:text-gray-400">Loading...</p>
+              ) : assignedPlans.length === 0 ? (
+                <p className="text-gray-500 dark:text-gray-400">
+                  No workout plan assigned yet
+                </p>
+              ) : (
+                assignedPlans.map((plan: any) => {
+                  const planId = String(plan?.id ?? "").trim();
+                  const expanded = !!expandedWorkoutPlanIds[planId];
+                  const planExercises =
+                    ((planExercisesByPlanId as any)[planId] as any[]) || [];
 
-          <Card className="dark:bg-gray-800 dark:border-gray-700">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <UtensilsCrossed className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                <CardTitle>My Meal Plan</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {assignedMealPlan ? (
-                <div>
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white min-w-0 truncate">
-                      {assignedMealPlan.name}
-                    </h3>
-                    <div className="shrink-0 flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        className="text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
-                        title="Download PDF"
-                        aria-label="Download PDF"
-                        onClick={downloadMealPlanPdf}
-                      >
-                        <FileDown className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        className="text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
-                        title="Download Text"
-                        aria-label="Download Text"
-                        onClick={downloadMealPlanText}
-                      >
-                        <FileText className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        className="text-green-600 hover:text-green-700 dark:text-green-300 dark:hover:text-green-200"
-                        title="Copy to clipboard"
-                        aria-label="Copy to clipboard"
-                        onClick={copyMealPlan}
-                      >
-                        <CopyIcon className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  {assignedMealPlan.goal ? (
-                    <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                      Goal: {toTitleCase(assignedMealPlan.goal)}
-                    </div>
-                  ) : null}
-
-                  {(assignedMealPlan.dailyCalories ||
-                    assignedMealPlan.dailyProtein ||
-                    assignedMealPlan.dailyCarbs ||
-                    assignedMealPlan.dailyFat) && (
-                    <div className="mt-4 grid grid-cols-2 gap-3">
-                      {assignedMealPlan.dailyCalories ? (
-                        <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            Daily Calories
+                  return (
+                    <Card
+                      key={planId}
+                      className="dark:bg-gray-800 dark:border-gray-700"
+                    >
+                      <CardHeader>
+                        <div
+                          className="flex items-start justify-between gap-3 cursor-pointer"
+                          onClick={() => {
+                            setExpandedWorkoutPlanIds((m) => ({
+                              ...m,
+                              [planId]: !m[planId],
+                            }));
+                          }}
+                        >
+                          <div className="min-w-0">
+                            <CardTitle className="truncate">
+                              {plan.name}
+                            </CardTitle>
                           </div>
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {assignedMealPlan.dailyCalories}
-                          </div>
-                        </div>
-                      ) : null}
-
-                      {assignedMealPlan.dailyProtein ? (
-                        <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            Daily Protein
-                          </div>
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {assignedMealPlan.dailyProtein}
-                          </div>
-                        </div>
-                      ) : null}
-
-                      {assignedMealPlan.dailyCarbs ? (
-                        <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            Daily Carbs
-                          </div>
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {assignedMealPlan.dailyCarbs}
-                          </div>
-                        </div>
-                      ) : null}
-
-                      {assignedMealPlan.dailyFat ? (
-                        <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            Daily Fat
-                          </div>
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {assignedMealPlan.dailyFat}
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                  )}
-
-                  {assignedMealPlan.notes ? (
-                    <p className="text-gray-600 dark:text-gray-400 mt-3">
-                      {assignedMealPlan.notes}
-                    </p>
-                  ) : null}
-
-                  <div className="mt-5">
-                    <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
-                      Meals
-                    </div>
-                    {mealPlanMeals.length === 0 ? (
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        No meals added to this plan yet
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {mealPlanMeals.map((meal: any, mealIdx: number) => (
-                          <div
-                            key={meal.id || `${mealIdx}`}
-                            className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedWorkoutPlanIds((m) => ({
+                                ...m,
+                                [planId]: !m[planId],
+                              }));
+                            }}
+                            aria-label={expanded ? "Collapse" : "Expand"}
                           >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                                  {toTitleCase(meal.type || "Meal")}
-                                  {meal.name
-                                    ? `: ${toTitleCase(meal.name)}`
-                                    : ""}
-                                </div>
-                              </div>
+                            {expanded ? (
+                              <ChevronUp className="w-4 h-4" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </CardHeader>
+
+                      {expanded ? (
+                        <CardContent>
+                          <div className="space-y-4">
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                className="text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
+                                title="Download PDF"
+                                aria-label="Download PDF"
+                                onClick={() => downloadWorkoutPlanPdf(plan)}
+                              >
+                                <FileDown className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                className="text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
+                                title="Download Text"
+                                aria-label="Download Text"
+                                onClick={() => downloadWorkoutPlanText(plan)}
+                              >
+                                <FileText className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                className="text-green-600 hover:text-green-700 dark:text-green-300 dark:hover:text-green-200"
+                                title="Copy to clipboard"
+                                aria-label="Copy to clipboard"
+                                onClick={() => void copyWorkoutPlan(plan)}
+                              >
+                                <CopyIcon className="w-4 h-4" />
+                              </Button>
                             </div>
 
-                            {Array.isArray(meal.foods) &&
-                            meal.foods.length > 0 ? (
-                              <div className="mt-2 space-y-2">
-                                {meal.foods.map(
-                                  (food: any, foodIdx: number) => {
-                                    const amount = String(
-                                      food.amount ?? ""
+                            {plan.notes ? (
+                              <p className="text-gray-600 dark:text-gray-400">
+                                {plan.notes}
+                              </p>
+                            ) : null}
+
+                            <div className="flex flex-wrap gap-3 text-sm">
+                              {plan.difficulty ? (
+                                <span className="px-3 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-full">
+                                  {toTitleCase(plan.difficulty)}
+                                </span>
+                              ) : null}
+                              {plan.duration ? (
+                                <span className="px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 rounded-full">
+                                  {formatDuration(plan.duration)}
+                                </span>
+                              ) : null}
+                            </div>
+
+                            <div>
+                              <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                                Exercises
+                              </div>
+                              {planExercisesByPlanIdLoading ? (
+                                <div className="text-sm text-gray-500 dark:text-gray-400">
+                                  Loading...
+                                </div>
+                              ) : planExercises.length === 0 ? (
+                                <div className="text-sm text-gray-500 dark:text-gray-400">
+                                  No exercises added to this plan yet
+                                </div>
+                              ) : (
+                                <div className="space-y-2">
+                                  {planExercises.map((ex: any, idx: number) => {
+                                    const sets = String(ex.sets ?? "").trim();
+                                    const reps = String(ex.reps ?? "").trim();
+                                    const restSecondsRaw = Number(
+                                      ex.restSeconds
+                                    );
+                                    const restSeconds = Number.isFinite(
+                                      restSecondsRaw
+                                    )
+                                      ? Math.max(0, Math.floor(restSecondsRaw))
+                                      : 0;
+                                    const videoKind = String(
+                                      ex.videoKind ?? ""
                                     ).trim();
-                                    const macros = [
-                                      food.protein
-                                        ? `Protein ${String(
-                                            food.protein
-                                          ).trim()}`
-                                        : "",
-                                      food.carbs
-                                        ? `Carbs ${String(food.carbs).trim()}`
-                                        : "",
-                                      food.fat
-                                        ? `Fat ${String(food.fat).trim()}`
-                                        : "",
-                                      food.calories
-                                        ? `Calories ${String(
-                                            food.calories
-                                          ).trim()}`
-                                        : "",
-                                    ].filter(Boolean);
+                                    const videoUrlRaw = String(
+                                      ex.videoUrl ?? ""
+                                    ).trim();
+                                    const youtubeEmbed =
+                                      videoKind === "youtube" && videoUrlRaw
+                                        ? toYouTubeEmbedUrl(videoUrlRaw)
+                                        : null;
+                                    const detail =
+                                      sets || reps
+                                        ? `${sets ? `${sets} sets` : ""}${
+                                            sets && reps ? " × " : ""
+                                          }${reps ? `${reps} reps` : ""}`
+                                        : "";
+                                    const restText = restSeconds
+                                      ? `${Math.floor(restSeconds / 60)}m ${
+                                          restSeconds % 60
+                                        }s`
+                                      : "";
+
                                     return (
                                       <div
-                                        key={food.id || `${foodIdx}`}
-                                        className="flex items-start justify-between gap-3"
+                                        key={ex.id || `${planId}-${idx}`}
+                                        className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
                                       >
-                                        <div className="text-sm text-gray-900 dark:text-gray-100 min-w-0">
-                                          {foodIdx + 1}.{" "}
-                                          {toTitleCase(food.name)}
-                                          {amount ? (
-                                            <span className="text-gray-600 dark:text-gray-400">
-                                              {` — ${amount}`}
-                                            </span>
-                                          ) : null}
-                                          {macros.length > 0 ? (
+                                        <div className="min-w-0">
+                                          <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                            {idx + 1}. {toTitleCase(ex.name)}
+                                          </div>
+                                          {detail ? (
                                             <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                              {macros.join(" • ")}
+                                              {detail}
+                                            </div>
+                                          ) : null}
+                                          {restText ? (
+                                            <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                              Rest: {restText}
+                                            </div>
+                                          ) : null}
+
+                                          {String(
+                                            ex.guidelines ?? ""
+                                          ).trim() ? (
+                                            <div className="text-xs text-gray-600 dark:text-gray-300 mt-2 whitespace-pre-wrap">
+                                              {String(ex.guidelines)}
+                                            </div>
+                                          ) : null}
+
+                                          {youtubeEmbed ? (
+                                            <div className="mt-2">
+                                              <div
+                                                className="relative w-full overflow-hidden rounded-lg bg-black"
+                                                style={{
+                                                  paddingTop: "56.25%",
+                                                }}
+                                              >
+                                                <iframe
+                                                  src={youtubeEmbed}
+                                                  title="Exercise video"
+                                                  className="absolute inset-0 h-full w-full"
+                                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                                  allowFullScreen
+                                                />
+                                              </div>
+                                            </div>
+                                          ) : videoKind === "upload" &&
+                                            videoUrlRaw ? (
+                                            <div className="mt-2">
+                                              <video
+                                                className="w-full rounded-lg"
+                                                controls
+                                                preload="metadata"
+                                                src={videoUrlRaw}
+                                              />
                                             </div>
                                           ) : null}
                                         </div>
                                       </div>
                                     );
-                                  }
-                                )}
-                              </div>
-                            ) : (
-                              <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                                No foods added
-                              </div>
-                            )}
+                                  })}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
+                        </CardContent>
+                      ) : null}
+                    </Card>
+                  );
+                })
+              )}
+            </div>
+          ) : null}
+
+          {activeSection === "meals" ? (
+            <div className="space-y-4">
+              {assignedMealPlanIds.length === 0 ? (
                 <p className="text-gray-500 dark:text-gray-400">
                   No meal plan assigned yet
                 </p>
+              ) : assignedMealPlansLoading ? (
+                <p className="text-gray-500 dark:text-gray-400">Loading...</p>
+              ) : assignedMealPlans.length === 0 ? (
+                <p className="text-gray-500 dark:text-gray-400">
+                  No meal plan assigned yet
+                </p>
+              ) : (
+                assignedMealPlans.map((plan: any) => {
+                  const planId = String(plan?.id ?? "").trim();
+                  const expanded = !!expandedMealPlanIds[planId];
+                  const planMeals =
+                    ((mealPlanMealsByPlanId as any)[planId] as any[]) || [];
+
+                  return (
+                    <Card
+                      key={planId}
+                      className="dark:bg-gray-800 dark:border-gray-700"
+                    >
+                      <CardHeader>
+                        <div
+                          className="flex items-start justify-between gap-3 cursor-pointer"
+                          onClick={() => {
+                            setExpandedMealPlanIds((m) => ({
+                              ...m,
+                              [planId]: !m[planId],
+                            }));
+                          }}
+                        >
+                          <div className="min-w-0">
+                            <CardTitle className="truncate">
+                              {plan.name}
+                            </CardTitle>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedMealPlanIds((m) => ({
+                                ...m,
+                                [planId]: !m[planId],
+                              }));
+                            }}
+                            aria-label={expanded ? "Collapse" : "Expand"}
+                          >
+                            {expanded ? (
+                              <ChevronUp className="w-4 h-4" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </CardHeader>
+
+                      {expanded ? (
+                        <CardContent>
+                          <div className="space-y-4">
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                className="text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
+                                title="Download PDF"
+                                aria-label="Download PDF"
+                                onClick={() => downloadMealPlanPdf(plan)}
+                              >
+                                <FileDown className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                className="text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
+                                title="Download Text"
+                                aria-label="Download Text"
+                                onClick={() => downloadMealPlanText(plan)}
+                              >
+                                <FileText className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                className="text-green-600 hover:text-green-700 dark:text-green-300 dark:hover:text-green-200"
+                                title="Copy to clipboard"
+                                aria-label="Copy to clipboard"
+                                onClick={() => void copyMealPlan(plan)}
+                              >
+                                <CopyIcon className="w-4 h-4" />
+                              </Button>
+                            </div>
+
+                            {plan.goal ? (
+                              <div className="text-sm text-gray-600 dark:text-gray-400">
+                                Goal: {toTitleCase(plan.goal)}
+                              </div>
+                            ) : null}
+
+                            {(plan.dailyCalories ||
+                              plan.dailyProtein ||
+                              plan.dailyCarbs ||
+                              plan.dailyFat) && (
+                              <div className="grid grid-cols-2 gap-3">
+                                {plan.dailyCalories ? (
+                                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                                      Daily Calories
+                                    </div>
+                                    <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                      {plan.dailyCalories}
+                                    </div>
+                                  </div>
+                                ) : null}
+
+                                {plan.dailyProtein ? (
+                                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                                      Daily Protein
+                                    </div>
+                                    <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                      {plan.dailyProtein}
+                                    </div>
+                                  </div>
+                                ) : null}
+
+                                {plan.dailyCarbs ? (
+                                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                                      Daily Carbs
+                                    </div>
+                                    <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                      {plan.dailyCarbs}
+                                    </div>
+                                  </div>
+                                ) : null}
+
+                                {plan.dailyFat ? (
+                                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                                      Daily Fat
+                                    </div>
+                                    <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                      {plan.dailyFat}
+                                    </div>
+                                  </div>
+                                ) : null}
+                              </div>
+                            )}
+
+                            {plan.notes ? (
+                              <p className="text-gray-600 dark:text-gray-400">
+                                {plan.notes}
+                              </p>
+                            ) : null}
+
+                            <div>
+                              <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                                Meals
+                              </div>
+
+                              {mealPlanMealsByPlanIdLoading ? (
+                                <div className="text-sm text-gray-500 dark:text-gray-400">
+                                  Loading...
+                                </div>
+                              ) : planMeals.length === 0 ? (
+                                <div className="text-sm text-gray-500 dark:text-gray-400">
+                                  No meals added to this plan yet
+                                </div>
+                              ) : (
+                                <div className="space-y-3">
+                                  {planMeals.map(
+                                    (meal: any, mealIdx: number) => (
+                                      <div
+                                        key={meal.id || `${mealIdx}`}
+                                        className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                                      >
+                                        <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                                          {toTitleCase(meal.type || "Meal")}
+                                          {meal.name
+                                            ? `: ${toTitleCase(meal.name)}`
+                                            : ""}
+                                        </div>
+
+                                        {Array.isArray(meal.foods) &&
+                                        meal.foods.length > 0 ? (
+                                          <div className="mt-2 space-y-2">
+                                            {meal.foods.map(
+                                              (food: any, foodIdx: number) => {
+                                                const amount = String(
+                                                  food.amount ?? ""
+                                                ).trim();
+                                                const macros = [
+                                                  food.protein
+                                                    ? `Protein ${String(
+                                                        food.protein
+                                                      ).trim()}`
+                                                    : "",
+                                                  food.carbs
+                                                    ? `Carbs ${String(
+                                                        food.carbs
+                                                      ).trim()}`
+                                                    : "",
+                                                  food.fat
+                                                    ? `Fat ${String(
+                                                        food.fat
+                                                      ).trim()}`
+                                                    : "",
+                                                  food.calories
+                                                    ? `Calories ${String(
+                                                        food.calories
+                                                      ).trim()}`
+                                                    : "",
+                                                ].filter(Boolean);
+
+                                                return (
+                                                  <div
+                                                    key={
+                                                      food.id || `${foodIdx}`
+                                                    }
+                                                    className="text-sm text-gray-900 dark:text-gray-100 min-w-0"
+                                                  >
+                                                    {foodIdx + 1}.{" "}
+                                                    {toTitleCase(food.name)}
+                                                    {amount ? (
+                                                      <span className="text-gray-600 dark:text-gray-400">
+                                                        {` — ${amount}`}
+                                                      </span>
+                                                    ) : null}
+                                                    {macros.length > 0 ? (
+                                                      <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                                        {macros.join(" • ")}
+                                                      </div>
+                                                    ) : null}
+                                                  </div>
+                                                );
+                                              }
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <div className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                            No foods added
+                                          </div>
+                                        )}
+                                      </div>
+                                    )
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      ) : null}
+                    </Card>
+                  );
+                })
               )}
-            </CardContent>
-          </Card>
+            </div>
+          ) : null}
         </div>
-      </div>
+      )}
     </div>
   );
 }
