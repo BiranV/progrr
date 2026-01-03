@@ -177,7 +177,7 @@ export default function PlansPage() {
                   </div>
                   <Button
                     size="sm"
-                    className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/50 dark:text-indigo-300 dark:hover:bg-indigo-900"
+                    className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-200 dark:hover:bg-indigo-900/45"
                     onClick={() => handleEdit(plan)}
                   >
                     Details

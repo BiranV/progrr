@@ -111,10 +111,12 @@ export default function ClientsPage() {
   };
 
   const statusConfig: Record<string, string> = {
-    ACTIVE: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
+    ACTIVE:
+      "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200",
     PENDING:
-      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
-    INACTIVE: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400",
+      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/25 dark:text-yellow-200",
+    INACTIVE:
+      "bg-gray-100 text-gray-700 dark:bg-gray-800/60 dark:text-gray-200",
   };
 
   const inactiveClients = sortedClients.filter(

@@ -142,10 +142,12 @@ function AdminDashboard({ user }: { user: any }) {
   ];
 
   const statusConfig: Record<string, string> = {
-    ACTIVE: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
+    ACTIVE:
+      "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200",
     PENDING:
-      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
-    INACTIVE: "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400",
+      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/25 dark:text-yellow-200",
+    INACTIVE:
+      "bg-gray-100 text-gray-700 dark:bg-gray-800/60 dark:text-gray-200",
   };
 
   return (
@@ -663,12 +665,12 @@ function ClientDashboard({ user }: { user: any }) {
                           </div>
                           <div className="flex flex-wrap gap-2 text-xs">
                             {m.type ? (
-                              <span className="px-2 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 rounded-full">
+                              <span className="px-2 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200 rounded-full">
                                 {toTitleCase(m.type)}
                               </span>
                             ) : null}
                             {m.status ? (
-                              <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full">
+                              <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200 rounded-full">
                                 {toTitleCase(m.status)}
                               </span>
                             ) : null}
@@ -736,12 +738,12 @@ function ClientDashboard({ user }: { user: any }) {
                           </div>
                           <div className="flex flex-wrap gap-2 text-xs">
                             {m.type ? (
-                              <span className="px-2 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300 rounded-full">
+                              <span className="px-2 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200 rounded-full">
                                 {toTitleCase(m.type)}
                               </span>
                             ) : null}
                             {m.status ? (
-                              <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 rounded-full">
+                              <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200 rounded-full">
                                 {toTitleCase(m.status)}
                               </span>
                             ) : null}
