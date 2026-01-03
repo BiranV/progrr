@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { XCircle } from "lucide-react";
 import {
   getCountries,
   getCountryCallingCode,
@@ -125,6 +126,9 @@ export default function ClientDialog({
   onOpenChange,
 }: ClientDialogProps) {
   const queryClient = useQueryClient();
+  const [validationError, setValidationError] = React.useState<string | null>(
+    null
+  );
 
   const { data: workoutPlans = [] } = useQuery({
     queryKey: ["workoutPlans"],
@@ -184,6 +188,7 @@ export default function ClientDialog({
      Init / Reset
      ====================================================== */
   React.useEffect(() => {
+    setValidationError(null);
     if (client) {
       const split = splitPhoneForUi(client.phone);
       setPhoneCountry(split.country);
@@ -245,7 +250,7 @@ export default function ClientDialog({
       onOpenChange(false);
     },
     onError: (error) => {
-      toast.error("Failed to save client: " + error.message);
+      setValidationError(error?.message || "Failed to save client");
     },
   });
 
@@ -255,9 +260,37 @@ export default function ClientDialog({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Disable native HTML validation; use banner-only errors (like login)
+    setValidationError(null);
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const name = String(formData.name ?? "").trim();
+    const email = String(formData.email ?? "").trim();
+    const phone = String(formData.phone ?? "").trim();
+
+    if (!name) {
+      setValidationError("Full name is required");
+      return;
+    }
+
+    if (!phone) {
+      setValidationError("Phone is required");
+      return;
+    }
+
+    if (!email) {
+      setValidationError("Email is required");
+      return;
+    }
+
+    if (!emailRegex.test(email)) {
+      setValidationError("Please enter a valid email address");
+      return;
+    }
+
     const normalized = normalizeStatus(formData.status);
     if (!normalized) {
-      toast.error("Please select a client status");
+      setValidationError("Status is required");
       return;
     }
 
@@ -272,10 +305,10 @@ export default function ClientDialog({
 
   const getInputProps = (field: keyof Client) => ({
     value: formData[field] || "",
-    required: isRequired(field),
     onChange: (
       e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
     ) => {
+      if (validationError) setValidationError(null);
       setFormData({ ...formData, [field]: e.target.value });
     },
   });
@@ -290,7 +323,20 @@ export default function ClientDialog({
           <DialogTitle>{client ? "Edit Client" : "Add New Client"}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
+          {validationError ? (
+            <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-4 min-h-12 py-2">
+              <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
+                <XCircle className="h-3.5 w-3.5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
+                  {validationError}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* NAME */}
             <div className="md:col-span-2">
@@ -328,11 +374,11 @@ export default function ClientDialog({
 
                 <Input
                   value={phoneNational}
-                  required={isRequired("phone")}
                   inputMode="tel"
                   autoComplete="tel"
                   placeholder="Phone number"
                   onChange={(e) => {
+                    if (validationError) setValidationError(null);
                     const raw = e.target.value;
 
                     // If user pasted a full number, split it.
@@ -366,12 +412,7 @@ export default function ClientDialog({
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Email {isRequired("email") && "*"}
               </label>
-              <Input
-                type="email"
-                pattern="[^@\s]+@[^@\s]+\.[^@\s]+"
-                title="Please enter a valid email address (e.g., user@example.com)"
-                {...getInputProps("email")}
-              />
+              <Input type="email" {...getInputProps("email")} />
             </div>
 
             {/* STATUS */}
@@ -381,8 +422,8 @@ export default function ClientDialog({
               </label>
               <Select
                 value={formData.status}
-                required={isRequired("status")}
                 onValueChange={(v) => {
+                  if (validationError) setValidationError(null);
                   setFormData({ ...formData, status: v });
                 }}
               >
