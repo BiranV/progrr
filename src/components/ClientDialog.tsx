@@ -58,12 +58,15 @@ const GOAL_VALUES = [
   "maintenance",
   "strength",
   "endurance",
+  "recomposition",
+  "better_habits",
 ] as const;
 
 const ACTIVITY_VALUES = [
   "sedentary",
   "light",
   "moderate",
+  "active",
   "very",
   "extra",
 ] as const;
@@ -85,6 +88,14 @@ function normalizeGoal(value: unknown): (typeof GOAL_VALUES)[number] | "" {
   if (v.includes("maint")) return "maintenance";
   if (v.includes("strength")) return "strength";
   if (v.includes("endur") || v.includes("cardio")) return "endurance";
+  if (v.includes("recomp") || v.includes("recomposition"))
+    return "recomposition";
+  if (
+    v.includes("habit") ||
+    v.includes("better_habits") ||
+    v.includes("lifestyle")
+  )
+    return "better_habits";
 
   return "";
 }
@@ -104,9 +115,12 @@ function normalizeActivityLevel(
   if (v.includes("sedent")) return "sedentary";
   if (v.includes("light")) return "light";
   if (v.includes("moderate")) return "moderate";
+  if (v === "active") return "active";
+  if (v.includes("active") && !v.includes("very") && !v.includes("extra")) {
+    return "active";
+  }
   if (v.includes("extra")) return "extra";
   if (v.includes("very")) return "very";
-  if (v === "active") return "very";
 
   return "";
 }
@@ -653,11 +667,13 @@ export default function ClientDialog({
                   <SelectValue placeholder="Select goal" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="weight_loss">Weight Loss</SelectItem>
+                  <SelectItem value="weight_loss">Fat Loss</SelectItem>
                   <SelectItem value="muscle_gain">Muscle Gain</SelectItem>
                   <SelectItem value="maintenance">Maintenance</SelectItem>
                   <SelectItem value="strength">Strength</SelectItem>
                   <SelectItem value="endurance">Endurance</SelectItem>
+                  <SelectItem value="recomposition">Recomposition</SelectItem>
+                  <SelectItem value="better_habits">Better Habits</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -681,6 +697,7 @@ export default function ClientDialog({
                   <SelectItem value="sedentary">Sedentary</SelectItem>
                   <SelectItem value="light">Light</SelectItem>
                   <SelectItem value="moderate">Moderate</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="very">Very Active</SelectItem>
                   <SelectItem value="extra">Extra Active</SelectItem>
                 </SelectContent>
