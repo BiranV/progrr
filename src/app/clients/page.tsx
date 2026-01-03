@@ -47,6 +47,33 @@ export default function ClientsPage() {
   const queryClient = useQueryClient();
 
   const PAGE_SIZE_OPTIONS = [5, 10, 25, 50, 100] as const;
+  const PAGE_SIZE_STORAGE_KEY = "progrr_clients_rows_per_page";
+
+  // Restore saved page size on first mount.
+  React.useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(PAGE_SIZE_STORAGE_KEY);
+      const parsed = raw ? Number(raw) : NaN;
+      if (
+        Number.isFinite(parsed) &&
+        (PAGE_SIZE_OPTIONS as readonly number[]).includes(parsed)
+      ) {
+        setPageSize(parsed);
+      }
+    } catch {
+      // ignore (private mode / blocked storage)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist page size changes.
+  React.useEffect(() => {
+    try {
+      window.localStorage.setItem(PAGE_SIZE_STORAGE_KEY, String(pageSize));
+    } catch {
+      // ignore
+    }
+  }, [pageSize]);
 
   const { data: clients = [], isLoading } = useQuery({
     queryKey: ["clients"],
