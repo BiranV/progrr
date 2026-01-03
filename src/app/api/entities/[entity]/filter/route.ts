@@ -74,6 +74,27 @@ export async function POST(
       const myClientId = myClient._id.toHexString();
       const myClientData = (myClient.data ?? {}) as any;
 
+      const normalizeIdList = (value: any, fallbackSingle?: any): string[] => {
+        const arr = Array.isArray(value) ? value : [];
+        const fallback = String(fallbackSingle ?? "").trim();
+        const merged = [
+          ...arr.map((v: any) => String(v ?? "").trim()),
+          ...(fallback ? [fallback] : []),
+        ]
+          .map((v) => String(v).trim())
+          .filter((v) => v && v !== "none");
+        return Array.from(new Set(merged));
+      };
+
+      const allowedWorkoutPlanIds = normalizeIdList(
+        myClientData.assignedPlanIds,
+        myClientData.assignedPlanId
+      );
+      const allowedMealPlanIds = normalizeIdList(
+        myClientData.assignedMealPlanIds,
+        myClientData.assignedMealPlanId
+      );
+
       // Messages: only messages for their own clientId
       if (entity === "Message") {
         if (criteria.clientId !== myClientId) {
@@ -106,7 +127,7 @@ export async function POST(
       // Exercises: only those belonging to the client's assigned workout plan
       if (entity === "Exercise") {
         const workoutPlanId = String(criteria.workoutPlanId ?? "").trim();
-        if (!workoutPlanId || myClientData.assignedPlanId !== workoutPlanId) {
+        if (!workoutPlanId || !allowedWorkoutPlanIds.includes(workoutPlanId)) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
@@ -126,7 +147,7 @@ export async function POST(
       // Meals: only those belonging to the client's assigned meal plan
       if (entity === "Meal") {
         const mealPlanId = String(criteria.mealPlanId ?? "").trim();
-        if (!mealPlanId || myClientData.assignedMealPlanId !== mealPlanId) {
+        if (!mealPlanId || !allowedMealPlanIds.includes(mealPlanId)) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
@@ -154,10 +175,12 @@ export async function POST(
 
         const mealData = (mealDoc?.data ?? {}) as any;
         if (!mealDoc) return NextResponse.json([]);
-        if (!myClientData.assignedMealPlanId) {
+        if (!allowedMealPlanIds.length) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
-        if (mealData.mealPlanId !== myClientData.assignedMealPlanId) {
+        if (
+          !allowedMealPlanIds.includes(String(mealData.mealPlanId ?? "").trim())
+        ) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 

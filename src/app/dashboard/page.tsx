@@ -415,10 +415,30 @@ function ClientDashboard({ user }: { user: any }) {
 
   const myClient = clients[0];
 
+  const firstAssignedPlanId = React.useMemo(() => {
+    const ids = Array.isArray((myClient as any)?.assignedPlanIds)
+      ? ((myClient as any).assignedPlanIds as any[])
+          .map((v) => String(v ?? "").trim())
+          .filter((v) => v && v !== "none")
+      : [];
+    const legacy = String((myClient as any)?.assignedPlanId ?? "").trim();
+    return ids[0] || (legacy && legacy !== "none" ? legacy : "");
+  }, [myClient]);
+
+  const firstAssignedMealPlanId = React.useMemo(() => {
+    const ids = Array.isArray((myClient as any)?.assignedMealPlanIds)
+      ? ((myClient as any).assignedMealPlanIds as any[])
+          .map((v) => String(v ?? "").trim())
+          .filter((v) => v && v !== "none")
+      : [];
+    const legacy = String((myClient as any)?.assignedMealPlanId ?? "").trim();
+    return ids[0] || (legacy && legacy !== "none" ? legacy : "");
+  }, [myClient]);
+
   const { data: assignedPlan } = useQuery({
-    queryKey: ["assignedPlan", myClient?.assignedPlanId],
-    queryFn: () => db.entities.WorkoutPlan.get(myClient.assignedPlanId),
-    enabled: !!myClient?.assignedPlanId,
+    queryKey: ["assignedPlan", firstAssignedPlanId],
+    queryFn: () => db.entities.WorkoutPlan.get(firstAssignedPlanId),
+    enabled: !!firstAssignedPlanId,
   });
 
   const { data: planExercises = [] } = useQuery({
@@ -436,9 +456,9 @@ function ClientDashboard({ user }: { user: any }) {
   });
 
   const { data: assignedMealPlan } = useQuery({
-    queryKey: ["assignedMealPlan", myClient?.assignedMealPlanId],
-    queryFn: () => db.entities.MealPlan.get(myClient.assignedMealPlanId),
-    enabled: !!myClient?.assignedMealPlanId,
+    queryKey: ["assignedMealPlan", firstAssignedMealPlanId],
+    queryFn: () => db.entities.MealPlan.get(firstAssignedMealPlanId),
+    enabled: !!firstAssignedMealPlanId,
   });
 
   const { data: mealPlanMeals = [] } = useQuery({

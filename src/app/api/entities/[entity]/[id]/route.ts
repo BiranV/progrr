@@ -128,9 +128,27 @@ export async function GET(
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
         const d = (myClient.data ?? {}) as any;
-        const allowedId =
-          entity === "WorkoutPlan" ? d.assignedPlanId : d.assignedMealPlanId;
-        if (!allowedId || allowedId !== id) {
+        const normalizeIdList = (
+          value: any,
+          fallbackSingle?: any
+        ): string[] => {
+          const arr = Array.isArray(value) ? value : [];
+          const fallback = String(fallbackSingle ?? "").trim();
+          const merged = [
+            ...arr.map((v: any) => String(v ?? "").trim()),
+            ...(fallback ? [fallback] : []),
+          ]
+            .map((v) => String(v).trim())
+            .filter((v) => v && v !== "none");
+          return Array.from(new Set(merged));
+        };
+
+        const allowedIds =
+          entity === "WorkoutPlan"
+            ? normalizeIdList(d.assignedPlanIds, d.assignedPlanId)
+            : normalizeIdList(d.assignedMealPlanIds, d.assignedMealPlanId);
+
+        if (!allowedIds.length || !allowedIds.includes(id)) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 

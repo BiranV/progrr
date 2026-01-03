@@ -212,21 +212,51 @@ export default function ClientsPage() {
               .trim()
               .toLowerCase();
 
-            const assignedPlanId = String(
+            const rawPlanIds = (client as any).assignedPlanIds;
+            const rawMealPlanIds = (client as any).assignedMealPlanIds;
+
+            const assignedPlanIds: string[] = Array.isArray(rawPlanIds)
+              ? rawPlanIds.map((v: any) => String(v ?? "").trim())
+              : [];
+            const assignedMealPlanIds: string[] = Array.isArray(rawMealPlanIds)
+              ? rawMealPlanIds.map((v: any) => String(v ?? "").trim())
+              : [];
+
+            const legacyPlanId = String(
               (client as any).assignedPlanId ?? ""
             ).trim();
-            const assignedMealPlanId = String(
+            const legacyMealPlanId = String(
               (client as any).assignedMealPlanId ?? ""
             ).trim();
 
-            const assignedPlanName =
-              assignedPlanId && assignedPlanId !== "none"
-                ? workoutPlanNameById.get(assignedPlanId) || "-"
-                : "-";
-            const assignedMealName =
-              assignedMealPlanId && assignedMealPlanId !== "none"
-                ? mealPlanNameById.get(assignedMealPlanId) || "-"
-                : "-";
+            const normalizedPlanIds = Array.from(
+              new Set(
+                [...assignedPlanIds, ...(legacyPlanId ? [legacyPlanId] : [])]
+                  .map((v) => String(v).trim())
+                  .filter((v) => v && v !== "none")
+              )
+            );
+            const normalizedMealPlanIds = Array.from(
+              new Set(
+                [
+                  ...assignedMealPlanIds,
+                  ...(legacyMealPlanId ? [legacyMealPlanId] : []),
+                ]
+                  .map((v) => String(v).trim())
+                  .filter((v) => v && v !== "none")
+              )
+            );
+
+            const assignedPlanName = normalizedPlanIds.length
+              ? normalizedPlanIds
+                  .map((id) => workoutPlanNameById.get(id) || "-")
+                  .join(", ")
+              : "-";
+            const assignedMealName = normalizedMealPlanIds.length
+              ? normalizedMealPlanIds
+                  .map((id) => mealPlanNameById.get(id) || "-")
+                  .join(", ")
+              : "-";
 
             return (
               <tr

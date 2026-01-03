@@ -32,6 +32,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Client } from "@/types";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 
 /* ======================================================
    REQUIRED FIELDS – single source of truth
@@ -169,7 +175,21 @@ export default function ClientDialog({
     notes: "",
     assignedPlanId: "",
     assignedMealPlanId: "",
+    assignedPlanIds: [],
+    assignedMealPlanIds: [],
   });
+
+  const normalizeIdArray = (value: any, fallbackSingle?: any): string[] => {
+    const fromArray = Array.isArray(value) ? value : [];
+    const fallback = String(fallbackSingle ?? "").trim();
+    const merged = [
+      ...fromArray.map((v: any) => String(v ?? "").trim()),
+      ...(fallback ? [fallback] : []),
+    ]
+      .map((v) => String(v).trim())
+      .filter((v) => v && v !== "none");
+    return Array.from(new Set(merged));
+  };
 
   const [phoneCountry, setPhoneCountry] = React.useState(DEFAULT_COUNTRY);
   const [phoneNational, setPhoneNational] = React.useState("");
@@ -206,8 +226,27 @@ export default function ClientDialog({
         activityLevel: client.activityLevel || "",
         status: normalizeStatus(client.status) || "ACTIVE",
         notes: client.notes || "",
-        assignedPlanId: client.assignedPlanId || "",
-        assignedMealPlanId: client.assignedMealPlanId || "",
+        assignedPlanIds: normalizeIdArray(
+          (client as any).assignedPlanIds,
+          (client as any).assignedPlanId
+        ),
+        assignedMealPlanIds: normalizeIdArray(
+          (client as any).assignedMealPlanIds,
+          (client as any).assignedMealPlanId
+        ),
+        // Keep legacy single-id fields aligned (first selected)
+        assignedPlanId: String(
+          normalizeIdArray(
+            (client as any).assignedPlanIds,
+            (client as any).assignedPlanId
+          )[0] ?? ""
+        ),
+        assignedMealPlanId: String(
+          normalizeIdArray(
+            (client as any).assignedMealPlanIds,
+            (client as any).assignedMealPlanId
+          )[0] ?? ""
+        ),
       });
     } else {
       setPhoneCountry(DEFAULT_COUNTRY);
@@ -227,9 +266,37 @@ export default function ClientDialog({
         notes: "",
         assignedPlanId: "",
         assignedMealPlanId: "",
+        assignedPlanIds: [],
+        assignedMealPlanIds: [],
       });
     }
   }, [client, open]);
+
+  const toggleAssignedId = (
+    field: "assignedPlanIds" | "assignedMealPlanIds",
+    id: string
+  ) => {
+    const cleanId = String(id ?? "").trim();
+    if (!cleanId) return;
+    setFormData((prev) => {
+      const current = Array.isArray((prev as any)[field])
+        ? ((prev as any)[field] as any[]).map((v) => String(v ?? "").trim())
+        : [];
+      const next = current.includes(cleanId)
+        ? current.filter((x) => x !== cleanId)
+        : [...current, cleanId];
+      const unique = Array.from(new Set(next)).filter((v) => v && v !== "none");
+
+      // Keep legacy single-id fields aligned (first selected)
+      const legacyKey =
+        field === "assignedPlanIds" ? "assignedPlanId" : "assignedMealPlanId";
+      return {
+        ...prev,
+        [field]: unique,
+        [legacyKey]: unique[0] ?? "",
+      } as any;
+    });
+  };
 
   /* ======================================================
      Save
@@ -295,7 +362,23 @@ export default function ClientDialog({
     }
 
     const next = { ...formData, status: normalized };
-    saveMutation.mutate(next);
+    const assignedPlanIds = normalizeIdArray(
+      (next as any).assignedPlanIds,
+      (next as any).assignedPlanId
+    );
+    const assignedMealPlanIds = normalizeIdArray(
+      (next as any).assignedMealPlanIds,
+      (next as any).assignedMealPlanId
+    );
+
+    saveMutation.mutate({
+      ...next,
+      assignedPlanIds,
+      assignedMealPlanIds,
+      // Backward compatibility
+      assignedPlanId: assignedPlanIds[0] ?? "",
+      assignedMealPlanId: assignedMealPlanIds[0] ?? "",
+    });
   };
 
   /* ======================================================
@@ -544,24 +627,55 @@ export default function ClientDialog({
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Assigned Workout Plan
               </label>
-              <Select
-                value={formData.assignedPlanId}
-                onValueChange={(v) => {
-                  setFormData({ ...formData, assignedPlanId: v });
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select workout plan" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {workoutPlans.map((plan: any) => (
-                    <SelectItem key={plan.id} value={plan.id}>
-                      {plan.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-between"
+                    onClick={() => {
+                      if (validationError) setValidationError(null);
+                    }}
+                  >
+                    {Array.isArray(formData.assignedPlanIds) &&
+                    formData.assignedPlanIds.length > 0
+                      ? `${formData.assignedPlanIds.length} selected`
+                      : "None"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-[320px] p-3">
+                  <div className="max-h-64 overflow-y-auto space-y-2">
+                    {workoutPlans.map((plan: any) => {
+                      const id = String(plan.id);
+                      const checked = Array.isArray(formData.assignedPlanIds)
+                        ? formData.assignedPlanIds.includes(id)
+                        : false;
+                      return (
+                        <label
+                          key={id}
+                          className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-700/40 cursor-pointer"
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={() => {
+                              if (validationError) setValidationError(null);
+                              toggleAssignedId("assignedPlanIds", id);
+                            }}
+                          />
+                          <span className="text-sm text-gray-900 dark:text-gray-100 truncate">
+                            {plan.name}
+                          </span>
+                        </label>
+                      );
+                    })}
+                    {workoutPlans.length === 0 ? (
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        No workout plans
+                      </div>
+                    ) : null}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
 
             {/* ASSIGNED MEAL PLAN */}
@@ -569,24 +683,57 @@ export default function ClientDialog({
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Assigned Meal Plan
               </label>
-              <Select
-                value={formData.assignedMealPlanId}
-                onValueChange={(v) => {
-                  setFormData({ ...formData, assignedMealPlanId: v });
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select meal plan" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {mealPlans.map((plan: any) => (
-                    <SelectItem key={plan.id} value={plan.id}>
-                      {plan.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-between"
+                    onClick={() => {
+                      if (validationError) setValidationError(null);
+                    }}
+                  >
+                    {Array.isArray(formData.assignedMealPlanIds) &&
+                    formData.assignedMealPlanIds.length > 0
+                      ? `${formData.assignedMealPlanIds.length} selected`
+                      : "None"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-[320px] p-3">
+                  <div className="max-h-64 overflow-y-auto space-y-2">
+                    {mealPlans.map((plan: any) => {
+                      const id = String(plan.id);
+                      const checked = Array.isArray(
+                        formData.assignedMealPlanIds
+                      )
+                        ? formData.assignedMealPlanIds.includes(id)
+                        : false;
+                      return (
+                        <label
+                          key={id}
+                          className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-700/40 cursor-pointer"
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={() => {
+                              if (validationError) setValidationError(null);
+                              toggleAssignedId("assignedMealPlanIds", id);
+                            }}
+                          />
+                          <span className="text-sm text-gray-900 dark:text-gray-100 truncate">
+                            {plan.name}
+                          </span>
+                        </label>
+                      );
+                    })}
+                    {mealPlans.length === 0 ? (
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        No meal plans
+                      </div>
+                    ) : null}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
 
             {/* NOTES (NOT REQUIRED) */}

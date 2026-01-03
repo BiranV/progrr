@@ -67,6 +67,12 @@ export interface Client {
   subscription?: string;
   status: string;
   notes?: string;
+  // Backward-compatible single assignments
+  assignedPlanId?: string;
+  assignedMealPlanId?: string;
+  // New: multiple assignments
+  assignedPlanIds?: string[];
+  assignedMealPlanIds?: string[];
   [key: string]: any;
 }
 
