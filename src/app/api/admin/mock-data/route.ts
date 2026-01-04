@@ -114,13 +114,42 @@ async function generateUniquePhones(adminId: ObjectId, count: number) {
   const phones: string[] = [];
   const used = new Set<string>();
 
-  // IL-style mobile: +97254XXXXXXX (7 digits)
-  // Try deterministic range first, then fall back to random if needed.
-  let cursor = 1000000;
+  // Generate a mix of E.164-looking numbers across multiple countries.
+  // Note: real SMS deliverability depends on your provider config; this ensures
+  // the app can store, find, and attempt OTP for international numbers.
+  const specs: Array<{ key: string; prefix: string; suffixDigits: number }> = [
+    // Israel (mobile)
+    { key: "IL", prefix: "+97254", suffixDigits: 7 },
+    // United States (example range)
+    { key: "US", prefix: "+1202555", suffixDigits: 4 },
+    // United Kingdom (mobile-like)
+    { key: "GB", prefix: "+447400", suffixDigits: 6 },
+    // Germany (mobile-like)
+    { key: "DE", prefix: "+49151", suffixDigits: 7 },
+    // France (mobile-like)
+    { key: "FR", prefix: "+336", suffixDigits: 8 },
+    // Australia (mobile-like)
+    { key: "AU", prefix: "+614", suffixDigits: 8 },
+    // India (mobile-like)
+    { key: "IN", prefix: "+9198", suffixDigits: 8 },
+    // Brazil (SP mobile-like)
+    { key: "BR", prefix: "+55119", suffixDigits: 8 },
+    // Spain (mobile-like)
+    { key: "ES", prefix: "+346", suffixDigits: 8 },
+    // Japan (mobile-like)
+    { key: "JP", prefix: "+8190", suffixDigits: 8 },
+  ];
+
+  const counters = new Map<string, number>();
+  for (const s of specs) counters.set(s.key, 0);
 
   while (phones.length < count) {
-    const candidate = `+97254${String(cursor).padStart(7, "0")}`;
-    cursor += 1;
+    const spec = specs[phones.length % specs.length];
+    const next = (counters.get(spec.key) ?? 0) + 1;
+    counters.set(spec.key, next);
+
+    const suffix = String(next).padStart(spec.suffixDigits, "0");
+    const candidate = `${spec.prefix}${suffix}`;
 
     if (used.has(candidate)) continue;
 

@@ -139,15 +139,40 @@ export default function MeetingDialog({
 
   const saveMutation = useMutation({
     mutationFn: (data: Partial<Meeting>) => {
-      const payload = {
-        ...data,
-        scheduledAt: data.scheduledAt
-          ? new Date(data.scheduledAt).toISOString()
-          : new Date().toISOString(),
-      };
+      // IMPORTANT: datetime-local input drops seconds/ms.
+      // If we always convert to ISO, editing a past meeting can unintentionally
+      // change `scheduledAt` (e.g. :34:56Z -> :34:00Z), and the API rejects
+      // changing meetings into the past. So only send `scheduledAt` when it
+      // actually changed.
+      const payload: any = { ...data };
+
+      const scheduledAtLocal = String(data.scheduledAt ?? "").trim();
+
       if (meeting) {
+        const originalLocal = meeting.scheduledAt
+          ? isoToLocalDateTimeInputValue(meeting.scheduledAt)
+          : "";
+
+        const scheduledAtUnchanged =
+          !!scheduledAtLocal &&
+          !!originalLocal &&
+          scheduledAtLocal === originalLocal;
+
+        if (scheduledAtUnchanged) {
+          delete payload.scheduledAt;
+        } else if (scheduledAtLocal) {
+          payload.scheduledAt = new Date(scheduledAtLocal).toISOString();
+        } else {
+          delete payload.scheduledAt;
+        }
+
         return db.entities.Meeting.update(meeting.id, payload);
       }
+
+      payload.scheduledAt = scheduledAtLocal
+        ? new Date(scheduledAtLocal).toISOString()
+        : new Date().toISOString();
+
       return db.entities.Meeting.create(payload);
     },
     onSuccess: () => {
