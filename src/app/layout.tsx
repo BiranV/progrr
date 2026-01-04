@@ -20,14 +20,15 @@ export const metadata: Metadata = {
   title: "Progrr",
   description: "Professional Growth & Resource Repository",
   manifest: "/manifest.webmanifest",
+  themeColor: "#ffffff",
   appleWebApp: {
     capable: true,
     title: "Progrr",
     statusBarStyle: "default",
   },
   icons: {
-    icon: "/logo.png",
-    apple: "/logo.png",
+    icon: "/icons/icon-192.png",
+    apple: "/icons/apple-touch-icon.png",
   },
 };
 
