@@ -4,6 +4,7 @@ import "./globals.css";
 import Providers from "@/components/providers";
 import AppLayout from "@/components/layout/AppLayout";
 import { Toaster } from "@/components/ui/sonner";
+import PWARegister from "@/components/PWARegister";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,8 +19,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Progrr",
   description: "Professional Growth & Resource Repository",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Progrr",
+    statusBarStyle: "default",
+  },
   icons: {
     icon: "/logo.png",
+    apple: "/logo.png",
   },
 };
 
@@ -34,6 +42,7 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Providers>
+          <PWARegister />
           <AppLayout>{children}</AppLayout>
           <Toaster />
         </Providers>
