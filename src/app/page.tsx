@@ -134,7 +134,7 @@ export default function Home() {
         </button>
       </div>
 
-      <div className="relative min-h-screen flex items-center justify-center px-4 py-12">
+      <div className="relative min-h-screen flex items-center justify-center px-4 py-8 sm:py-12">
         <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-12 items-center">
           {/* Left Side - Branding */}
           <div className="flex flex-col items-center justify-center text-center space-y-0">
@@ -142,30 +142,30 @@ export default function Home() {
               <img
                 src="/logo.png"
                 alt="Progrr Logo"
-                className="relative w-36 h-36 sm:w-52 sm:h-52 lg:w-64 lg:h-64 object-contain drop-shadow-2xl"
+                className="relative w-24 h-24 sm:w-44 sm:h-44 lg:w-64 lg:h-64 object-contain drop-shadow-2xl"
               />
             </div>
-            <div className="space-y-4 -mt-4 sm:-mt-6 lg:-mt-8">
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent pb-2">
+            <div className="space-y-3 -mt-2 sm:space-y-4 sm:-mt-5 lg:-mt-8">
+              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent pb-1 lg:pb-2">
                 progrr
               </h1>
-              <p className="text-xl text-gray-600 dark:text-gray-300 max-w-md">
+              <p className="text-base sm:text-lg lg:text-xl text-gray-600 dark:text-gray-300 max-w-md">
                 Transform your coaching business with intelligent client
                 management
               </p>
-              <div className="flex flex-wrap justify-center gap-4 pt-4">
-                <div className="px-4 py-2 bg-white dark:bg-gray-800 rounded-full shadow-md">
-                  <span className="text-sm font-semibold text-purple-600 dark:text-purple-400">
+              <div className="flex flex-wrap justify-center gap-2 sm:gap-3 lg:gap-4 pt-2 sm:pt-3 lg:pt-4">
+                <div className="px-3 py-1.5 sm:px-4 sm:py-2 bg-white dark:bg-gray-800 rounded-full shadow-md">
+                  <span className="text-xs sm:text-sm font-semibold text-purple-600 dark:text-purple-400">
                     📊 Track Progress
                   </span>
                 </div>
-                <div className="px-4 py-2 bg-white dark:bg-gray-800 rounded-full shadow-md">
-                  <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">
+                <div className="px-3 py-1.5 sm:px-4 sm:py-2 bg-white dark:bg-gray-800 rounded-full shadow-md">
+                  <span className="text-xs sm:text-sm font-semibold text-indigo-600 dark:text-indigo-400">
                     💪 Build Plans
                   </span>
                 </div>
-                <div className="px-4 py-2 bg-white dark:bg-gray-800 rounded-full shadow-md">
-                  <span className="text-sm font-semibold text-purple-600 dark:text-purple-400">
+                <div className="px-3 py-1.5 sm:px-4 sm:py-2 bg-white dark:bg-gray-800 rounded-full shadow-md">
+                  <span className="text-xs sm:text-sm font-semibold text-purple-600 dark:text-purple-400">
                     🎯 Achieve Goals
                   </span>
                 </div>
@@ -177,7 +177,7 @@ export default function Home() {
           <div className="w-full max-w-md mx-auto">
             <Card className="backdrop-blur-lg bg-white/80 dark:bg-gray-800/80 shadow-2xl border-0 overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600"></div>
-              <CardContent className="pt-8 pb-6 px-8 min-h-[500px] flex flex-col">
+              <CardContent className="pt-6 pb-5 px-5 sm:px-6 lg:pt-8 lg:pb-6 lg:px-8 min-h-[420px] sm:min-h-[460px] lg:min-h-[500px] flex flex-col">
                 <Tabs
                   value={tab}
                   onValueChange={(value) => {
@@ -190,16 +190,16 @@ export default function Home() {
                   }}
                   className="w-full flex-1 flex flex-col"
                 >
-                  <TabsList className="grid w-full grid-cols-2 bg-gray-100 dark:bg-gray-700 p-1 rounded-xl mb-6 h-12">
+                  <TabsList className="grid w-full grid-cols-2 bg-gray-100 dark:bg-gray-700 p-1 rounded-xl mb-4 lg:mb-6 h-10 lg:h-12">
                     <TabsTrigger
                       value="login"
-                      className="rounded-lg h-10 cursor-pointer data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all dark:text-gray-300 dark:data-[state=active]:text-white"
+                      className="rounded-lg h-8 lg:h-10 text-sm cursor-pointer data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all dark:text-gray-300 dark:data-[state=active]:text-white"
                     >
                       Login
                     </TabsTrigger>
                     <TabsTrigger
                       value="signup"
-                      className="rounded-lg h-10 cursor-pointer data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all dark:text-gray-300 dark:data-[state=active]:text-white"
+                      className="rounded-lg h-8 lg:h-10 text-sm cursor-pointer data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all dark:text-gray-300 dark:data-[state=active]:text-white"
                     >
                       Sign up
                     </TabsTrigger>
@@ -224,7 +224,7 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">
+            <p className="text-center text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-4 sm:mt-6">
               By continuing, you agree to our Terms & Privacy Policy
             </p>
           </div>
