@@ -12,8 +12,10 @@ import {
   Calendar as CalendarIcon,
   Clock,
   History,
+  Link as LinkIcon,
   MapPin,
   Phone,
+  User,
   Video,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -72,6 +74,34 @@ export default function MeetingDetailsDialog({
     ? new Date(meeting.scheduledAt)
     : null;
   const isPast = scheduledAt ? scheduledAt.getTime() < Date.now() : false;
+
+  const isLikelyUrl = (value: unknown) => {
+    const s = String(value ?? "").trim();
+    if (!s) return false;
+    if (/^https?:\/\//i.test(s)) return true;
+    if (/^www\./i.test(s)) return true;
+    if (s.includes(" ")) return false;
+    return /^[^\s]+\.[^\s]+/i.test(s);
+  };
+
+  const locationKind = React.useMemo<
+    "link" | "location" | "phone" | null
+  >(() => {
+    const explicit = String((meeting as any)?.locationKind ?? "").trim();
+    if (
+      explicit === "link" ||
+      explicit === "location" ||
+      explicit === "phone"
+    ) {
+      return explicit;
+    }
+
+    const loc = String((meeting as any)?.location ?? "").trim();
+    if (!loc) return null;
+    if (isLikelyUrl(loc)) return "link";
+    if (/^\+?[0-9().\-\s]{6,}$/.test(loc) && /\d/.test(loc)) return "phone";
+    return "location";
+  }, [meeting]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -147,7 +177,10 @@ export default function MeetingDetailsDialog({
               </div>
 
               <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-                <div className="text-gray-500 dark:text-gray-400">Client</div>
+                <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                  <User className="w-4 h-4" />
+                  <span>With</span>
+                </div>
                 <div className="mt-1 font-medium text-gray-900 dark:text-white truncate">
                   {meeting.clientId ? getClientName(meeting.clientId) : "-"}
                 </div>
@@ -157,10 +190,21 @@ export default function MeetingDetailsDialog({
             {meeting.location ? (
               <div>
                 <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-                  Location / Link
+                  {locationKind === "phone"
+                    ? "Phone"
+                    : locationKind === "link"
+                    ? "Link"
+                    : "Location"}
                 </div>
-                <div className="text-sm text-gray-600 dark:text-gray-300 break-words">
-                  {meeting.location}
+                <div className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300 break-words">
+                  {locationKind === "phone" ? (
+                    <Phone className="w-4 h-4 mt-0.5 shrink-0 text-gray-500 dark:text-gray-400" />
+                  ) : locationKind === "link" ? (
+                    <LinkIcon className="w-4 h-4 mt-0.5 shrink-0 text-gray-500 dark:text-gray-400" />
+                  ) : (
+                    <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-gray-500 dark:text-gray-400" />
+                  )}
+                  <span className="min-w-0">{meeting.location}</span>
                 </div>
               </div>
             ) : null}

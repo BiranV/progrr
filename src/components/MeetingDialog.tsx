@@ -267,6 +267,39 @@ export default function MeetingDialog({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {String(formData.type ?? "")
+                  .trim()
+                  .toLowerCase() === "call"
+                  ? "Phone"
+                  : String(formData.type ?? "")
+                      .trim()
+                      .toLowerCase() === "in-person"
+                  ? "Location"
+                  : "Link"}
+              </label>
+              <Input
+                value={formData.location}
+                onChange={(e) =>
+                  setFormData({ ...formData, location: e.target.value })
+                }
+                placeholder={
+                  String(formData.type ?? "")
+                    .trim()
+                    .toLowerCase() === "call"
+                    ? "+1 202 555 0123"
+                    : String(formData.type ?? "")
+                        .trim()
+                        .toLowerCase() === "in-person"
+                    ? "Address / meeting point"
+                    : "https://..."
+                }
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Status
               </label>
               <Select
@@ -286,9 +319,7 @@ export default function MeetingDialog({
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Date & Time *
@@ -304,22 +335,22 @@ export default function MeetingDialog({
                 }}
               />
             </div>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Duration (min)
-              </label>
-              <Input
-                type="number"
-                value={formData.durationMinutes}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    durationMinutes: parseInt(e.target.value),
-                  })
-                }
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Duration (min)
+            </label>
+            <Input
+              type="number"
+              value={formData.durationMinutes}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  durationMinutes: parseInt(e.target.value),
+                })
+              }
+            />
           </div>
 
           <div>
@@ -347,19 +378,6 @@ export default function MeetingDialog({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Location/Link
-            </label>
-            <Input
-              value={formData.location}
-              onChange={(e) =>
-                setFormData({ ...formData, location: e.target.value })
-              }
-              placeholder="Zoom link, phone number, or address"
-            />
           </div>
 
           <div>

@@ -144,6 +144,7 @@ export interface Meeting {
   scheduledAt: string;
   durationMinutes?: number;
   location?: string;
+  locationKind?: "link" | "location" | "phone";
   clientId?: string;
   notes?: string;
   [key: string]: any;
