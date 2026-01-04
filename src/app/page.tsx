@@ -30,7 +30,10 @@ export default function Home() {
   const authMessageFromUrl = searchParams.get("authMessage");
 
   const nextPath = searchParams.get("next");
-  const [tab, setTab] = useState<"login" | "signup">("login");
+  const tabFromUrl = searchParams.get("tab");
+  const [tab, setTab] = useState<"login" | "signup">(
+    tabFromUrl === "signup" ? "signup" : "login"
+  );
   const [banner, setBanner] = useState<
     { type: "error"; text: string } | { type: "message"; text: string } | null
   >(null);
@@ -55,18 +58,25 @@ export default function Home() {
 
   useEffect(() => {
     if (!urlHasBanner) return;
+
+    // If the server redirected us with a specific tab (e.g. signup error),
+    // make sure the UI is on that tab before showing the banner.
+    if (tabFromUrl === "signup") {
+      setTab("signup");
+    } else if (tabFromUrl === "login") {
+      setTab("login");
+    }
+
     if (authErrorFromUrl) {
       setBanner({ type: "error", text: authErrorFromUrl });
     } else if (authMessageFromUrl) {
       setBanner({ type: "message", text: authMessageFromUrl });
     }
-
-    // Important: remove banner params so refresh doesn't re-show the same message.
-    clearAuthBannersFromUrl();
   }, [
     authErrorFromUrl,
     authMessageFromUrl,
     clearAuthBannersFromUrl,
+    tabFromUrl,
     urlHasBanner,
   ]);
 

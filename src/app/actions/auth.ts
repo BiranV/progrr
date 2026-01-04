@@ -55,7 +55,9 @@ export async function signUpWithPassword(formData: FormData) {
   const password = getString(formData, "password");
 
   if (!fullName) {
-    redirect(`/?authError=${encodeURIComponent("Full name is required.")}`);
+    redirect(
+      `/?tab=signup&authError=${encodeURIComponent("Full name is required.")}`
+    );
   }
 
   try {
@@ -86,7 +88,9 @@ export async function signUpWithPassword(formData: FormData) {
     await setAuthCookieInAction(token);
   } catch (e: any) {
     redirect(
-      `/?authError=${encodeURIComponent(e?.message || "Signup failed")}`
+      `/?tab=signup&authError=${encodeURIComponent(
+        e?.message || "Signup failed"
+      )}`
     );
   }
 

@@ -124,6 +124,11 @@ export async function createClientAction(data: ClientFormData) {
   const email = normalizeEmail(data.email);
   const status = normalizeClientStatus(data.status);
 
+  const adminEmail = normalizeEmail(adminUser.email);
+  if (email && adminEmail && email === adminEmail) {
+    throw new Error("Client email cannot be the same as your admin email");
+  }
+
   if (!name) throw new Error("Client name is required");
   if (!email) throw new Error("Client email is required");
   if (!phone) throw new Error("Client phone is required");
@@ -261,6 +266,11 @@ export async function updateClientAction(id: string, data: ClientFormData) {
   if (!name) throw new Error("Client name is required");
   if (!email) throw new Error("Client email is required");
   if (!phone) throw new Error("Client phone is required");
+
+  const adminEmail = normalizeEmail(adminUser.email);
+  if (adminEmail && email === adminEmail) {
+    throw new Error("Client email cannot be the same as your admin email");
+  }
 
   assertBirthDateNotFuture((data as any).birthDate);
 
