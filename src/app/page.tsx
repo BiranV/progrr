@@ -393,26 +393,26 @@ function LoginForm({
   };
 
   return (
-    <div className="space-y-5 flex-1 flex flex-col">
+    <div className="space-y-4 sm:space-y-5 flex-1 flex flex-col">
       {banner ? (
         banner.type === "error" ? (
-          <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-4 h-12">
-            <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
-              <XCircle className="h-3.5 w-3.5" />
+          <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-3 sm:px-4 h-10 sm:h-12">
+            <div className="inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
+              <XCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
             </div>
             <div className="min-w-0">
-              <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
+              <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 break-words">
                 {banner.text}
               </div>
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-50 dark:bg-slate-900/60 px-4 h-12">
-            <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
-              <CheckCircle2 className="h-3.5 w-3.5" />
+          <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-50 dark:bg-slate-900/60 px-3 sm:px-4 h-10 sm:h-12">
+            <div className="inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+              <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
             </div>
             <div className="min-w-0">
-              <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
+              <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 break-words">
                 {banner.text}
               </div>
             </div>
@@ -421,12 +421,12 @@ function LoginForm({
       ) : null}
 
       {adminValidationError ? (
-        <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-4 h-12">
-          <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
-            <XCircle className="h-3.5 w-3.5" />
+        <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-3 sm:px-4 h-10 sm:h-12">
+          <div className="inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
+            <XCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
           </div>
           <div className="min-w-0">
-            <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
+            <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 break-words">
               {adminValidationError}
             </div>
           </div>
@@ -434,12 +434,12 @@ function LoginForm({
       ) : null}
 
       {clientError ? (
-        <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-4 h-12">
-          <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
-            <XCircle className="h-3.5 w-3.5" />
+        <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-3 sm:px-4 h-10 sm:h-12">
+          <div className="inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
+            <XCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
           </div>
           <div className="min-w-0">
-            <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
+            <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 break-words">
               {clientError}
             </div>
           </div>
@@ -447,12 +447,12 @@ function LoginForm({
       ) : null}
 
       {clientInfo ? (
-        <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-50 dark:bg-slate-900/60 px-4 h-12">
-          <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
-            <CheckCircle2 className="h-3.5 w-3.5" />
+        <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-50 dark:bg-slate-900/60 px-3 sm:px-4 h-10 sm:h-12">
+          <div className="inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+            <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
           </div>
           <div className="min-w-0">
-            <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
+            <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 break-words">
               {clientInfo}
             </div>
           </div>
@@ -466,16 +466,16 @@ function LoginForm({
           onValueChange={(v) => setLoginAs(v === "client" ? "client" : "admin")}
           className="w-full"
         >
-          <TabsList className="grid w-full grid-cols-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-0 rounded-md h-9">
+          <TabsList className="grid w-full grid-cols-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-0 rounded-md h-8 sm:h-9">
             <TabsTrigger
               value="admin"
-              className="rounded-md h-9 text-sm cursor-pointer text-gray-600 dark:text-gray-300 data-[state=active]:bg-gray-200 data-[state=active]:text-gray-900 dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white transition-all"
+              className="rounded-md h-8 sm:h-9 text-sm cursor-pointer text-gray-600 dark:text-gray-300 data-[state=active]:bg-gray-200 data-[state=active]:text-gray-900 dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white transition-all"
             >
               Admin
             </TabsTrigger>
             <TabsTrigger
               value="client"
-              className="rounded-md h-9 text-sm cursor-pointer text-gray-600 dark:text-gray-300 data-[state=active]:bg-gray-200 data-[state=active]:text-gray-900 dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white transition-all"
+              className="rounded-md h-8 sm:h-9 text-sm cursor-pointer text-gray-600 dark:text-gray-300 data-[state=active]:bg-gray-200 data-[state=active]:text-gray-900 dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white transition-all"
             >
               Client
             </TabsTrigger>
@@ -569,7 +569,7 @@ function LoginForm({
 
           <Button
             type="submit"
-            className="w-full h-12 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] mt-auto disabled:opacity-70 disabled:cursor-not-allowed"
+            className="w-full h-10 sm:h-11 lg:h-12 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] mt-auto disabled:opacity-70 disabled:cursor-not-allowed"
             disabled={clientLoading}
           >
             {clientLoading ? "Sending..." : "Send verification code"}
@@ -623,7 +623,7 @@ function LoginForm({
 
           <Button
             type="submit"
-            className="w-full h-12 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] mt-auto disabled:opacity-70 disabled:cursor-not-allowed"
+            className="w-full h-10 sm:h-11 lg:h-12 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] mt-auto disabled:opacity-70 disabled:cursor-not-allowed"
             disabled={clientLoading}
           >
             {clientLoading ? "Verifying..." : "Verify & login"}
@@ -632,7 +632,7 @@ function LoginForm({
           <Button
             type="button"
             variant="outline"
-            className="w-full h-12 rounded-xl dark:bg-transparent dark:text-white dark:border-gray-600 dark:hover:bg-gray-800"
+            className="w-full h-10 sm:h-11 lg:h-12 text-sm rounded-xl dark:bg-transparent dark:text-white dark:border-gray-600 dark:hover:bg-gray-800"
             onClick={() => {
               setClientStep("phone");
               setClientCode("");
@@ -661,7 +661,7 @@ function SubmitButton({
   return (
     <Button
       type="submit"
-      className="w-full h-12 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] mt-auto disabled:opacity-70 disabled:cursor-not-allowed"
+      className="w-full h-10 sm:h-11 lg:h-12 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] mt-auto disabled:opacity-70 disabled:cursor-not-allowed"
       disabled={pending}
     >
       {pending ? (
@@ -780,7 +780,7 @@ function OtpInput({
           ref={(el) => {
             inputsRef.current[index] = el;
           }}
-          className="h-12 w-12 p-0 text-center text-base font-medium"
+          className="h-10 w-10 sm:h-12 sm:w-12 p-0 text-center text-sm sm:text-base font-medium"
         />
       ))}
     </div>
@@ -848,26 +848,26 @@ function RegisterForm({
   };
 
   return (
-    <div className="space-y-5 flex-1 flex flex-col">
+    <div className="space-y-4 sm:space-y-5 flex-1 flex flex-col">
       {banner ? (
         banner.type === "error" ? (
-          <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-4 h-12">
-            <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
-              <XCircle className="h-3.5 w-3.5" />
+          <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-3 sm:px-4 h-10 sm:h-12">
+            <div className="inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
+              <XCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
             </div>
             <div className="min-w-0">
-              <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
+              <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 break-words">
                 {banner.text}
               </div>
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-50 dark:bg-slate-900/60 px-4 h-12">
-            <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
-              <CheckCircle2 className="h-3.5 w-3.5" />
+          <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-50 dark:bg-slate-900/60 px-3 sm:px-4 h-10 sm:h-12">
+            <div className="inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+              <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
             </div>
             <div className="min-w-0">
-              <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
+              <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 break-words">
                 {banner.text}
               </div>
             </div>
@@ -876,12 +876,12 @@ function RegisterForm({
       ) : null}
 
       {registerValidationError ? (
-        <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-4 h-12">
-          <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
-            <XCircle className="h-3.5 w-3.5" />
+        <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-3 sm:px-4 h-10 sm:h-12">
+          <div className="inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
+            <XCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
           </div>
           <div className="min-w-0">
-            <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
+            <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 break-words">
               {registerValidationError}
             </div>
           </div>
