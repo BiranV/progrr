@@ -139,7 +139,7 @@ function AdminMessages({ user }: { user: any }) {
             ) : (
               <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
                 <div className="text-center">
-                  <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-400 dark:text-gray-600" />
+                  <MessageSquare className="w-12 h-12 mx-auto mb-4 text-indigo-500 dark:text-indigo-400" />
                   <p>Select a client to view messages</p>
                 </div>
               </div>

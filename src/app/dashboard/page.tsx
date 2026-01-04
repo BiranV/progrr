@@ -266,7 +266,7 @@ function AdminDashboard({ user }: { user: any }) {
           <CardContent>
             {clients.length === 0 ? (
               <div className="py-12 text-center">
-                <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <Users className="w-12 h-12 text-indigo-500 dark:text-indigo-400 mx-auto mb-4" />
                 <p className="text-gray-500 dark:text-gray-400">
                   No clients yet
                 </p>
@@ -319,7 +319,7 @@ function AdminDashboard({ user }: { user: any }) {
             {meetings.filter((m: any) => new Date(m.scheduledAt) > new Date())
               .length === 0 ? (
               <div className="py-12 text-center">
-                <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <Calendar className="w-12 h-12 text-indigo-500 dark:text-indigo-400 mx-auto mb-4" />
                 <p className="text-gray-500 dark:text-gray-400">
                   No upcoming meetings
                 </p>

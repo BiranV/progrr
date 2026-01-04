@@ -14,6 +14,27 @@ const bodySchema = z
 
 const MOCK_SEED_ID = "settings_demo_v1";
 
+const ENTITIES_WIPED_BY_CLEAR = [
+  "Client",
+  "WorkoutPlan",
+  // Legacy plan exercises
+  "Exercise",
+  // New model plan exercises
+  "PlanExercise",
+  // Library exercises
+  "ExerciseLibrary",
+  "MealPlan",
+  "Meal",
+  // Legacy meal foods
+  "Food",
+  // New model plan foods
+  "PlanFood",
+  // Library foods
+  "FoodLibrary",
+  "Meeting",
+  "Message",
+] as const;
+
 function isoDateOnly(d: Date): string {
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -46,31 +67,37 @@ function pickDeterministic<T>(items: readonly T[], seed: number): T {
 async function clearMockData(adminId: ObjectId) {
   const c = await collections();
 
-  await c.entities.deleteMany({
+  // Collect phones first so we can remove OTPs too (optional hygiene).
+  const clientPhones = await c.clients
+    .find({ adminId }, { projection: { phone: 1 } })
+    .toArray();
+  const phones = clientPhones
+    .map((d) => String((d as any)?.phone ?? "").trim())
+    .filter(Boolean);
+
+  const entitiesDelete = await c.entities.deleteMany({
     adminId,
-    "data.mockSeedId": MOCK_SEED_ID,
+    entity: { $in: [...ENTITIES_WIPED_BY_CLEAR] },
   });
 
-  await c.clients.deleteMany({
-    adminId,
-    mockSeedId: MOCK_SEED_ID,
-  });
+  const clientsDelete = await c.clients.deleteMany({ adminId });
+
+  const otpsDelete = phones.length
+    ? await c.otps.deleteMany({ phone: { $in: phones } })
+    : { deletedCount: 0 };
+
+  return {
+    entitiesDeleted: entitiesDelete.deletedCount ?? 0,
+    clientAuthDeleted: clientsDelete.deletedCount ?? 0,
+    otpsDeleted: (otpsDelete as any)?.deletedCount ?? 0,
+  };
 }
 
 async function resetAdminDataForSeed(adminId: ObjectId) {
   const c = await collections();
 
   // Only reset the collections/entities explicitly requested.
-  const entitiesToDelete = [
-    "Client",
-    "WorkoutPlan",
-    "Exercise",
-    "MealPlan",
-    "Meal",
-    "Food",
-    "Meeting",
-    "Message",
-  ];
+  const entitiesToDelete = [...ENTITIES_WIPED_BY_CLEAR];
 
   await c.entities.deleteMany({
     adminId,
@@ -122,8 +149,8 @@ export async function POST(req: Request) {
     const adminId = new ObjectId(user.id);
 
     if (body.action === "clear") {
-      await clearMockData(adminId);
-      return NextResponse.json({ ok: true, action: "clear" });
+      const counts = await clearMockData(adminId);
+      return NextResponse.json({ ok: true, action: "clear", counts });
     }
 
     // action === "seed"

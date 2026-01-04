@@ -548,7 +548,7 @@ export default function ClientsPage() {
       ) : sortedClients.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <Users className="w-12 h-12 text-indigo-500 dark:text-indigo-400 mx-auto mb-4" />
             <p className="text-gray-500 dark:text-gray-400">
               {search
                 ? "No clients found"

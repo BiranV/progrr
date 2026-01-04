@@ -118,7 +118,7 @@ export default function FoodsPage() {
       ) : filtered.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <Apple className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <Apple className="w-12 h-12 text-indigo-500 dark:text-indigo-400 mx-auto mb-4" />
             <p className="text-gray-500 dark:text-gray-400">
               {search
                 ? "No foods found"
