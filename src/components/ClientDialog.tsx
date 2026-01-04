@@ -39,7 +39,12 @@ import { Checkbox } from "@/components/ui/checkbox";
    REQUIRED FIELDS – single source of truth
    (Notes is intentionally NOT here)
    ====================================================== */
-const REQUIRED_FIELDS: Array<keyof Client> = ["name", "email", "status"];
+const REQUIRED_FIELDS: Array<keyof Client> = [
+  "name",
+  "email",
+  "phone",
+  "status",
+];
 
 const DEFAULT_COUNTRY = "IL";
 
@@ -333,6 +338,7 @@ export default function ClientDialog({
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const name = String(formData.name ?? "").trim();
     const email = String(formData.email ?? "").trim();
+    const phone = String((formData as any).phone ?? "").trim();
 
     if (!name) {
       setValidationError("Full name is required");
@@ -349,6 +355,11 @@ export default function ClientDialog({
       return;
     }
 
+    if (!phone) {
+      setValidationError("Phone is required");
+      return;
+    }
+
     const normalized = normalizeStatus(formData.status);
     if (!normalized) {
       setValidationError("Status is required");
@@ -357,6 +368,7 @@ export default function ClientDialog({
 
     const next = {
       ...formData,
+      phone,
       status: normalized,
       goal: normalizeGoal((formData as any).goal) || "",
       activityLevel:
@@ -472,27 +484,12 @@ export default function ClientDialog({
               <Input type="email" {...getInputProps("email")} />
             </div>
 
-            {/* STATUS */}
+            {/* PHONE */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Status {isRequired("status") && "*"}
+                Phone {isRequired("phone") && "*"}
               </label>
-              <Select
-                value={formData.status}
-                onValueChange={(v) => {
-                  if (validationError) setValidationError(null);
-                  setFormData({ ...formData, status: v });
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ACTIVE">Active</SelectItem>
-                  <SelectItem value="PENDING">Pending</SelectItem>
-                  <SelectItem value="INACTIVE">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
+              <Input type="tel" {...getInputProps("phone")} />
             </div>
 
             {/* BIRTH DATE */}
@@ -711,6 +708,29 @@ export default function ClientDialog({
                   </div>
                 </PopoverContent>
               </Popover>
+            </div>
+
+            {/* STATUS */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Status {isRequired("status") && "*"}
+              </label>
+              <Select
+                value={formData.status}
+                onValueChange={(v) => {
+                  if (validationError) setValidationError(null);
+                  setFormData({ ...formData, status: v });
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="INACTIVE">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* NOTES (NOT REQUIRED) */}

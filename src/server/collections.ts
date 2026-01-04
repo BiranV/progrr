@@ -10,7 +10,8 @@ export type AdminDoc = {
   _id?: ObjectId;
   ownerId: ObjectId;
   email: string;
-  passwordHash: string;
+  // Legacy (password-based auth removed); kept optional for existing data.
+  passwordHash?: string;
   createdAt: Date;
   fullName?: string;
   role: "admin";
@@ -53,6 +54,7 @@ export type EntityDoc = {
 
 export type OtpPurpose =
   | "client_login"
+  | "admin_login"
   | "admin_signup"
   | "admin_password_reset"
   | "client_password_reset"
@@ -66,6 +68,15 @@ export type OtpDoc = {
   expiresAt: Date;
   attempts: number;
   createdAt: Date;
+  sentAt?: Date;
+};
+
+export type RateLimitDoc = {
+  _id?: ObjectId;
+  key: string;
+  count: number;
+  expiresAt: Date;
+  createdAt: Date;
 };
 
 export async function collections() {
@@ -76,6 +87,7 @@ export async function collections() {
     clients: db.collection<ClientDoc>("clients"),
     entities: db.collection<EntityDoc>("entities"),
     otps: db.collection<OtpDoc>("otps"),
+    rateLimits: db.collection<RateLimitDoc>("rate_limits"),
   };
 }
 
@@ -105,4 +117,7 @@ export async function ensureIndexes() {
 
   await c.otps.createIndex({ key: 1, purpose: 1 }, { unique: true });
   await c.otps.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+  await c.rateLimits.createIndex({ key: 1 }, { unique: true });
+  await c.rateLimits.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 }

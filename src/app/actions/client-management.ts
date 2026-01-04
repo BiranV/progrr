@@ -79,9 +79,15 @@ export async function createClientAction(data: ClientFormData) {
   const c = await collections();
 
   const adminId = new ObjectId(adminUser.id);
+  const phone = String((data as any).phone ?? "").trim();
   const name = String(data.name ?? "").trim();
   const email = normalizeEmail(data.email);
   const status = normalizeClientStatus(data.status);
+
+  if (!name) throw new Error("Client name is required");
+  if (!email) throw new Error("Client email is required");
+  if (!phone) throw new Error("Client phone is required");
+  if (!status) throw new Error("Client status is required");
 
   const adminEmail = normalizeEmail(adminUser.email);
   await assertClientNotSameAsAdminIdentity({
@@ -90,9 +96,13 @@ export async function createClientAction(data: ClientFormData) {
     clientEmail: email,
   });
 
-  if (!name) throw new Error("Client name is required");
-  if (!email) throw new Error("Client email is required");
-  if (!status) throw new Error("Client status is required");
+  // Global uniqueness: prevent admin+client sharing the same email.
+  const adminWithEmail = await c.admins.findOne({
+    email: { $regex: new RegExp(`^${escapeRegExp(email)}$`, "i") },
+  });
+  if (adminWithEmail) {
+    throw new Error("This email is already registered as an admin");
+  }
 
   assertBirthDateNotFuture((data as any).birthDate);
 
@@ -137,6 +147,7 @@ export async function createClientAction(data: ClientFormData) {
       adminId,
       name,
       email,
+      phone,
       theme: "light",
       role: "client",
     });
@@ -150,6 +161,7 @@ export async function createClientAction(data: ClientFormData) {
   const clientEntityData: any = {
     ...data,
     email: email ?? "",
+    phone,
     name,
     status,
     userId: clientAuthIdStr,
@@ -211,6 +223,7 @@ export async function createClientAction(data: ClientFormData) {
           expiresAt,
           attempts: 0,
           createdAt: new Date(),
+          sentAt: new Date(),
         },
       },
       { upsert: true }
@@ -263,6 +276,7 @@ export async function updateClientAction(id: string, data: ClientFormData) {
   const email = normalizeEmail(data.email);
   if (!name) throw new Error("Client name is required");
   if (!email) throw new Error("Client email is required");
+  if (!phone) throw new Error("Client phone is required");
 
   const adminEmail = normalizeEmail(adminUser.email);
   await assertClientNotSameAsAdminIdentity({
@@ -270,6 +284,14 @@ export async function updateClientAction(id: string, data: ClientFormData) {
     adminEmail,
     clientEmail: email,
   });
+
+  // Global uniqueness: prevent admin+client sharing the same email.
+  const adminWithEmail = await c.admins.findOne({
+    email: { $regex: new RegExp(`^${escapeRegExp(email)}$`, "i") },
+  });
+  if (adminWithEmail) {
+    throw new Error("This email is already registered as an admin");
+  }
 
   assertBirthDateNotFuture((data as any).birthDate);
 
@@ -313,7 +335,7 @@ export async function updateClientAction(id: string, data: ClientFormData) {
       email,
       theme: "light",
       role: "client",
-      ...(phone ? { phone } : {}),
+      phone,
     });
     clientAuthId = insert.insertedId;
   }
@@ -335,31 +357,16 @@ export async function updateClientAction(id: string, data: ClientFormData) {
   }
 
   try {
-    if (phone) {
-      await c.clients.updateOne(
-        { _id: clientAuthId, adminId },
-        {
-          $set: {
-            phone,
-            name,
-            email,
-          },
-        }
-      );
-    } else {
-      await c.clients.updateOne(
-        { _id: clientAuthId, adminId },
-        {
-          $set: {
-            name,
-            email,
-          },
-          $unset: {
-            phone: "",
-          },
-        }
-      );
-    }
+    await c.clients.updateOne(
+      { _id: clientAuthId, adminId },
+      {
+        $set: {
+          phone,
+          name,
+          email,
+        },
+      }
+    );
   } catch (e: any) {
     if (e?.code === 11000) {
       throw new Error("A client with this email already exists");
@@ -372,7 +379,7 @@ export async function updateClientAction(id: string, data: ClientFormData) {
     ...(oldData as any),
     ...data,
     email: email ?? "",
-    ...(phone ? { phone } : {}),
+    phone,
     name,
     status: normalizedStatus,
     userId: clientAuthIdStr,

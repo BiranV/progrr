@@ -4,9 +4,10 @@ import { ObjectId } from "mongodb";
 import { collections, ensureIndexes } from "@/server/collections";
 import { verifyOtp } from "@/server/otp";
 import { requireOwner } from "@/server/owner";
-import { hashPassword } from "@/server/password";
 import { signAuthToken } from "@/server/jwt";
 import { setAuthCookie } from "@/server/auth-cookie";
+import { getDb } from "@/server/mongo";
+import { checkRateLimit } from "@/server/rate-limit";
 
 function normalizeEmail(input: unknown): string {
   return String(input ?? "")
@@ -26,7 +27,6 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}));
     const email = normalizeEmail(body?.email);
     const code = String(body?.code ?? "").trim();
-    const password = String(body?.password ?? "");
     const fullName = String(body?.full_name ?? body?.fullName ?? "").trim();
 
     if (!email) {
@@ -44,24 +44,31 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    if (!password) {
-      return NextResponse.json(
-        { error: "Password is required" },
-        { status: 400 }
-      );
-    }
-
     const c = await collections();
 
-    const existing = await c.admins.findOne({ email });
-    if (existing) {
+    const db = await getDb();
+    await checkRateLimit({
+      db,
+      req,
+      purpose: "otp_verify_admin",
+      email,
+      perIp: { windowMs: 60_000, limit: 30 },
+      perEmail: { windowMs: 600_000, limit: 10 },
+    });
+
+    // Enforce global uniqueness: an email cannot be both admin and client.
+    const clientWithEmail = await c.clients.findOne({ email });
+    if (clientWithEmail) {
       return NextResponse.json(
-        { error: "This email is already registered. Please log in instead." },
+        { error: "This email is registered as a client" },
         { status: 409 }
       );
     }
 
-    const otp = await c.otps.findOne({ key: email, purpose: "admin_signup" });
+    const existing = await c.admins.findOne({ email });
+    const purpose = existing ? "admin_login" : "admin_signup";
+
+    const otp = await c.otps.findOne({ key: email, purpose });
     if (!otp) {
       return NextResponse.json(
         { error: "Code expired or not requested" },
@@ -70,39 +77,41 @@ export async function POST(req: Request) {
     }
 
     if (otp.expiresAt.getTime() < Date.now()) {
-      await c.otps.deleteOne({ key: email, purpose: "admin_signup" });
+      await c.otps.deleteOne({ key: email, purpose });
       return NextResponse.json({ error: "Code expired" }, { status: 400 });
     }
 
     if (otp.attempts >= 5) {
-      await c.otps.deleteOne({ key: email, purpose: "admin_signup" });
+      await c.otps.deleteOne({ key: email, purpose });
       return NextResponse.json({ error: "Too many attempts" }, { status: 429 });
     }
 
     const ok = verifyOtp(code, otp.codeHash);
     if (!ok) {
       await c.otps.updateOne(
-        { key: email, purpose: "admin_signup" },
+        { key: email, purpose },
         { $inc: { attempts: 1 } }
       );
       return NextResponse.json({ error: "Invalid code" }, { status: 401 });
     }
 
-    await c.otps.deleteOne({ key: email, purpose: "admin_signup" });
+    await c.otps.deleteOne({ key: email, purpose });
 
-    const owner = await requireOwner();
-    const passwordHash = await hashPassword(password);
+    let adminId: string;
+    if (existing) {
+      adminId = existing._id!.toHexString();
+    } else {
+      const owner = await requireOwner();
+      const insert = await c.admins.insertOne({
+        ownerId: new ObjectId(owner._id),
+        email,
+        createdAt: new Date(),
+        fullName: fullName || undefined,
+        role: "admin",
+      } as any);
+      adminId = insert.insertedId.toHexString();
+    }
 
-    const insert = await c.admins.insertOne({
-      ownerId: new ObjectId(owner._id),
-      email,
-      passwordHash,
-      createdAt: new Date(),
-      fullName: fullName || undefined,
-      role: "admin",
-    } as any);
-
-    const adminId = insert.insertedId.toHexString();
     const token = await signAuthToken({ sub: adminId, role: "admin", adminId });
 
     const res = NextResponse.json({ ok: true });

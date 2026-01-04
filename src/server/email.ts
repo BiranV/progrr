@@ -24,6 +24,10 @@ function normalizeEmail(email: string) {
     .toLowerCase();
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function sendEmail(args: SendEmailArgs): Promise<void> {
   const apiKey = requireEnv("RESEND_API_KEY");
 
@@ -59,20 +63,54 @@ export async function sendEmail(args: SendEmailArgs): Promise<void> {
     });
   }
 
-  const res = await fetch("https://api.resend.com/emails", {
+  const payload = {
+    from,
+    to: [to],
+    subject,
+    text: finalText,
+    ...(finalHtml ? { html: finalHtml } : {}),
+  };
+
+  const url = "https://api.resend.com/emails";
+  const init: RequestInit = {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      from,
-      to: [to],
-      subject,
-      text: finalText,
-      ...(finalHtml ? { html: finalHtml } : {}),
-    }),
-  });
+    body: JSON.stringify(payload),
+  };
+
+  // Controlled retries for transient failures only (no infinite retries).
+  const backoffsMs = [0, 250, 750];
+  let res: Response | null = null;
+  let lastErr: any = null;
+
+  for (let i = 0; i < backoffsMs.length; i++) {
+    if (backoffsMs[i] > 0) await sleep(backoffsMs[i]);
+    try {
+      res = await fetch(url, init);
+      if (res.ok) break;
+
+      // Retry only for transient upstream issues.
+      if (res.status === 502 || res.status === 503 || res.status === 504) {
+        continue;
+      }
+
+      break;
+    } catch (e: any) {
+      lastErr = e;
+      // Retry network errors.
+      continue;
+    }
+  }
+
+  if (!res) {
+    throw Object.assign(new Error("Failed to send email"), {
+      status: 502,
+      cause: lastErr,
+    });
+  }
 
   if (!res.ok) {
     const raw = await res.text().catch(() => "");

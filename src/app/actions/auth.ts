@@ -1,13 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { ObjectId } from "mongodb";
 
-import { collections, ensureIndexes } from "@/server/collections";
-import { requireOwner } from "@/server/owner";
-import { hashPassword, verifyPassword } from "@/server/password";
-import { signAuthToken } from "@/server/jwt";
-import { setAuthCookieInAction } from "@/server/auth-cookie";
+// Password-based auth has been removed (OTP-only).
 
 function getString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -22,31 +17,12 @@ function normalizeEmail(input: string) {
 }
 
 export async function signInWithPassword(formData: FormData) {
-  const email = normalizeEmail(getString(formData, "email"));
-  const password = getString(formData, "password");
-
-  try {
-    await ensureIndexes();
-    const c = await collections();
-
-    const admin = await c.admins.findOne({ email });
-    if (!admin) {
-      throw new Error("Invalid credentials");
-    }
-
-    const ok = await verifyPassword(password, admin.passwordHash);
-    if (!ok) {
-      throw new Error("Invalid credentials");
-    }
-
-    const adminId = admin._id.toHexString();
-    const token = await signAuthToken({ sub: adminId, role: "admin", adminId });
-    await setAuthCookieInAction(token);
-  } catch (e: any) {
-    redirect(`/?authError=${encodeURIComponent(e?.message || "Login failed")}`);
-  }
-
-  redirect("/dashboard");
+  void formData;
+  redirect(
+    `/?tab=login&authError=${encodeURIComponent(
+      "Password login has been removed. Please use the email code (OTP) login flow."
+    )}`
+  );
 }
 
 export async function signUpWithPassword(formData: FormData) {

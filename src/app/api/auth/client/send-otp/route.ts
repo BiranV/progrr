@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { collections, ensureIndexes } from "@/server/collections";
 import { generateOtp } from "@/server/otp";
 import { sendEmail } from "@/server/email";
+import { getDb } from "@/server/mongo";
+import { checkRateLimit } from "@/server/rate-limit";
 
 function normalizeEmail(input: unknown): string {
   return String(input ?? "")
@@ -35,11 +37,50 @@ export async function POST(req: Request) {
     }
 
     const c = await collections();
+    const db = await getDb();
+
+    await checkRateLimit({
+      db,
+      req,
+      purpose: "otp_request_client",
+      email,
+      perIp: { windowMs: 60_000, limit: 10 },
+      perEmail: { windowMs: 60_000, limit: 5 },
+    });
+
+    // Enforce global uniqueness: an email cannot be both admin and client.
+    const adminWithEmail = await c.admins.findOne({ email });
+    if (adminWithEmail) {
+      return NextResponse.json(
+        { error: "This email is registered as an admin" },
+        { status: 409 }
+      );
+    }
 
     // Hard rule: do not create users during login.
     const client = await c.clients.findOne({ email });
     if (!client) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
+    }
+
+    // Cooldown to prevent rapid resend loops.
+    const existingOtp = await c.otps.findOne({
+      key: email,
+      purpose: "client_login",
+    });
+    const lastSentAt = existingOtp?.sentAt || existingOtp?.createdAt;
+    const cooldownMs = 30_000;
+    if (lastSentAt && Date.now() - lastSentAt.getTime() < cooldownMs) {
+      const retryAfterSeconds = Math.max(
+        1,
+        Math.ceil((cooldownMs - (Date.now() - lastSentAt.getTime())) / 1000)
+      );
+      return NextResponse.json(
+        {
+          error: `Please wait ${retryAfterSeconds} seconds before requesting another code.`,
+        },
+        { status: 429, headers: { "Retry-After": String(retryAfterSeconds) } }
+      );
     }
 
     const { code, hash } = generateOtp(6);
@@ -55,6 +96,7 @@ export async function POST(req: Request) {
           expiresAt,
           attempts: 0,
           createdAt: new Date(),
+          sentAt: new Date(),
         },
       },
       { upsert: true }

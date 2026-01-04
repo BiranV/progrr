@@ -3,7 +3,8 @@ import { collections, ensureIndexes } from "@/server/collections";
 import { verifyOtp } from "@/server/otp";
 import { signAuthToken } from "@/server/jwt";
 import { setAuthCookie } from "@/server/auth-cookie";
-import { hashPassword } from "@/server/password";
+import { getDb } from "@/server/mongo";
+import { checkRateLimit } from "@/server/rate-limit";
 
 export async function POST(req: Request) {
   try {
@@ -15,7 +16,6 @@ export async function POST(req: Request) {
       .trim()
       .toLowerCase();
     const code = String(body?.code ?? "").trim();
-    const password = String(body?.password ?? "");
 
     if (!email) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
@@ -28,21 +28,20 @@ export async function POST(req: Request) {
     }
 
     const c = await collections();
+    const db = await getDb();
+
+    await checkRateLimit({
+      db,
+      req,
+      purpose: "otp_verify_client",
+      email,
+      perIp: { windowMs: 60_000, limit: 30 },
+      perEmail: { windowMs: 600_000, limit: 10 },
+    });
 
     const client = await c.clients.findOne({ email });
     if (!client) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
-    }
-
-    // Require setting a password during the first verified email-OTP flow.
-    if (!client.passwordHash && !password) {
-      return NextResponse.json(
-        {
-          error: "Password is required to finish setup",
-          requiresPassword: true,
-        },
-        { status: 409 }
-      );
     }
 
     const otp = await c.otps.findOne({ key: email, purpose: "client_login" });
@@ -73,14 +72,6 @@ export async function POST(req: Request) {
     }
 
     await c.otps.deleteOne({ key: email, purpose: "client_login" });
-
-    if (!client.passwordHash && password) {
-      const passwordHash = await hashPassword(password);
-      await c.clients.updateOne(
-        { _id: client._id },
-        { $set: { passwordHash } }
-      );
-    }
 
     const clientId = client._id.toHexString();
     const adminId = client.adminId.toHexString();
