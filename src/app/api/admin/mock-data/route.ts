@@ -615,42 +615,58 @@ export async function POST(req: Request) {
     });
 
     // --- Clients (auth + entity) ---
-    const phones = await generateUniquePhones(adminId, 10);
+    const FIXED_CLIENT = {
+      name: "Biran Varon",
+      phone: "+972507780228",
+      email: "biraniv@gmail.com",
+    } as const;
+
+    const generatedPhones = await generateUniquePhones(adminId, 25);
+    const phones = [
+      FIXED_CLIENT.phone,
+      ...generatedPhones.filter((p) => p !== FIXED_CLIENT.phone).slice(0, 9),
+    ];
 
     const clientAuthDocs = phones.map((phone, i) => {
-      const createdAt = daysAgo(14 - (i % 7));
-      const first = [
-        "Noa",
-        "Liam",
-        "Maya",
-        "Daniel",
-        "Yael",
-        "Omer",
-        "Shira",
-        "Eitan",
-        "Tamar",
-        "Amit",
-      ][i % 10];
-      const last = [
-        "Cohen",
-        "Levi",
-        "Mizrahi",
-        "Peretz",
-        "Biton",
-        "Friedman",
-        "Mor",
-        "Avraham",
-        "Dayan",
-        "Shavit",
-      ][(i * 3) % 10];
-      const name = `${first} ${last}`;
+      const createdAt = i === 0 ? daysAgo(0) : daysAgo(14 - (i % 7));
+
+      const name =
+        i === 0
+          ? FIXED_CLIENT.name
+          : `${
+              [
+                "Noa",
+                "Liam",
+                "Maya",
+                "Daniel",
+                "Yael",
+                "Omer",
+                "Shira",
+                "Eitan",
+                "Tamar",
+                "Amit",
+              ][i % 10]
+            } ${
+              [
+                "Cohen",
+                "Levi",
+                "Mizrahi",
+                "Peretz",
+                "Biton",
+                "Friedman",
+                "Mor",
+                "Avraham",
+                "Dayan",
+                "Shavit",
+              ][(i * 3) % 10]
+            }`;
 
       return {
         _id: new ObjectId(),
         adminId,
         phone,
         name,
-        email: `demo.client${i + 1}@progrr.test`,
+        email: i === 0 ? FIXED_CLIENT.email : `demo.client${i + 1}@progrr.test`,
         theme: i % 3 === 0 ? "dark" : "light",
         role: "client" as const,
         mockSeedId: MOCK_SEED_ID,
@@ -683,13 +699,20 @@ export async function POST(req: Request) {
       );
       const birthDate = isoDateOnly(birth);
 
-      const assignedPlanIds = [
-        workoutPlanIds[i % workoutPlanIds.length],
-        workoutPlanIds[(i + 3) % workoutPlanIds.length],
-      ];
-      const assignedMealPlanIds = [mealPlanIds[i % mealPlanIds.length]];
+      const assignedPlanIds =
+        i === 0
+          ? workoutPlanIds.slice(0, 2)
+          : [
+              workoutPlanIds[i % workoutPlanIds.length],
+              workoutPlanIds[(i + 3) % workoutPlanIds.length],
+            ];
 
-      const createdAt = daysAgo(14 - (i % 7));
+      const assignedMealPlanIds =
+        i === 0
+          ? mealPlanIds.slice(0, 2)
+          : [mealPlanIds[i % mealPlanIds.length]];
+
+      const createdAt = i === 0 ? daysAgo(0) : daysAgo(14 - (i % 7));
 
       return {
         _id: new ObjectId(),
@@ -700,10 +723,10 @@ export async function POST(req: Request) {
           email: clientAuthDocs[i].email,
           phone,
           birthDate,
-          gender: pickDeterministic(
-            ["male", "female", "other"] as const,
-            i + 17
-          ),
+          gender:
+            i === 0
+              ? "male"
+              : pickDeterministic(["male", "female", "other"] as const, i + 17),
           height: `${160 + (i % 25)} cm`,
           weight: `${55 + (i % 40)} kg`,
           goal: [
@@ -721,10 +744,13 @@ export async function POST(req: Request) {
             "Very Active",
           ][i % 5],
           subscription: ["Starter", "Premium", "VIP"][i % 3],
-          status: pickDeterministic(
-            ["ACTIVE", "PENDING", "INACTIVE"] as const,
-            i + 101
-          ),
+          status:
+            i === 0
+              ? "ACTIVE"
+              : pickDeterministic(
+                  ["ACTIVE", "PENDING", "INACTIVE"] as const,
+                  i + 101
+                ),
           notes:
             "Initial intake completed. Tracking adherence, sleep, steps, and weekly check-ins. Adjust plan based on recovery and progress.",
           userId: authIdStr,
@@ -761,7 +787,6 @@ export async function POST(req: Request) {
         scheduledAt: hoursFromNow(26).toISOString(),
         durationMinutes: 30,
         location: "+97250 123 4567",
-        locationKind: "phone",
         clientId: clientEntityId0,
         notes: "Discuss goals, schedule, and onboarding.",
       },
@@ -772,8 +797,7 @@ export async function POST(req: Request) {
         scheduledAt: hoursFromNow(72).toISOString(),
         durationMinutes: 20,
         location: "https://zoom.us/j/1234567890",
-        locationKind: "link",
-        clientId: clientEntityId1 ?? clientEntityId0,
+        clientId: clientEntityId0,
         notes: "Answer questions about process and payment.",
       },
       {
@@ -783,7 +807,6 @@ export async function POST(req: Request) {
         scheduledAt: hoursFromNow(120).toISOString(),
         durationMinutes: 25,
         location: "https://zoom.us/j/5556667777",
-        locationKind: "link",
         clientId: clientEntityId0,
         notes: "Review last week's adherence and adjust targets.",
       },
@@ -794,7 +817,6 @@ export async function POST(req: Request) {
         scheduledAt: daysAgo(3).toISOString(),
         durationMinutes: 30,
         location: "https://zoom.us/j/9876543210",
-        locationKind: "link",
         clientId: clientEntityId0,
         notes: "Review squat and hinge cues.",
       },
@@ -805,8 +827,7 @@ export async function POST(req: Request) {
         scheduledAt: daysAgo(10).toISOString(),
         durationMinutes: 15,
         location: "+97252 987 6543",
-        locationKind: "phone",
-        clientId: clientEntityId1 ?? clientEntityId0,
+        clientId: clientEntityId0,
         notes: "Quick recap and next-week focus.",
       },
     ].map((m, i) => {

@@ -75,33 +75,18 @@ export default function MeetingDetailsDialog({
     : null;
   const isPast = scheduledAt ? scheduledAt.getTime() < Date.now() : false;
 
-  const isLikelyUrl = (value: unknown) => {
-    const s = String(value ?? "").trim();
-    if (!s) return false;
-    if (/^https?:\/\//i.test(s)) return true;
-    if (/^www\./i.test(s)) return true;
-    if (s.includes(" ")) return false;
-    return /^[^\s]+\.[^\s]+/i.test(s);
-  };
-
-  const locationKind = React.useMemo<
-    "link" | "location" | "phone" | null
-  >(() => {
-    const explicit = String((meeting as any)?.locationKind ?? "").trim();
-    if (
-      explicit === "link" ||
-      explicit === "location" ||
-      explicit === "phone"
-    ) {
-      return explicit;
-    }
-
-    const loc = String((meeting as any)?.location ?? "").trim();
-    if (!loc) return null;
-    if (isLikelyUrl(loc)) return "link";
-    if (/^\+?[0-9().\-\s]{6,}$/.test(loc) && /\d/.test(loc)) return "phone";
-    return "location";
-  }, [meeting]);
+  const typeBasedKind = React.useMemo<"link" | "location" | "phone" | null>(
+    () => {
+      const t = String((meeting as any)?.type ?? "")
+        .trim()
+        .toLowerCase();
+      if (!t) return null;
+      if (t === "call") return "phone";
+      if (t === "zoom") return "link";
+      return "location";
+    },
+    [meeting]
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -190,16 +175,16 @@ export default function MeetingDetailsDialog({
             {meeting.location ? (
               <div>
                 <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-                  {locationKind === "phone"
+                  {typeBasedKind === "phone"
                     ? "Phone"
-                    : locationKind === "link"
+                    : typeBasedKind === "link"
                     ? "Link"
                     : "Location"}
                 </div>
                 <div className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300 break-words">
-                  {locationKind === "phone" ? (
+                  {typeBasedKind === "phone" ? (
                     <Phone className="w-4 h-4 mt-0.5 shrink-0 text-gray-500 dark:text-gray-400" />
-                  ) : locationKind === "link" ? (
+                  ) : typeBasedKind === "link" ? (
                     <LinkIcon className="w-4 h-4 mt-0.5 shrink-0 text-gray-500 dark:text-gray-400" />
                   ) : (
                     <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-gray-500 dark:text-gray-400" />

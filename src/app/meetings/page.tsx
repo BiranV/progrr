@@ -253,16 +253,6 @@ export default function MeetingsPage() {
                             const location = rawLocation;
                             const locationLower = rawLocation.toLowerCase();
 
-                            const isLikelyUrl = (v: string) => {
-                              const s = String(v ?? "").trim();
-                              if (!s) return false;
-                              if (/^https?:\/\//i.test(s)) return true;
-                              if (/^www\./i.test(s)) return true;
-                              // Heuristic for urls without protocol (e.g. zoom.us/j/..)
-                              if (s.includes(" ")) return false;
-                              return /^[^\s]+\.[^\s]+/i.test(s);
-                            };
-
                             // Avoid duplicate "Zoom"/"Phone" when type already conveys it.
                             const redundant =
                               !location ||
@@ -272,34 +262,26 @@ export default function MeetingsPage() {
 
                             if (redundant) return null;
 
-                            const explicitKind = String(
-                              (meeting as any)?.locationKind ?? ""
-                            ).trim();
-                            const inferredKind: "link" | "location" | "phone" =
-                              explicitKind === "link" ||
-                              explicitKind === "location" ||
-                              explicitKind === "phone"
-                                ? (explicitKind as any)
-                                : isLikelyUrl(location)
-                                ? "link"
-                                : /^\+?[0-9().\-\s]{6,}$/.test(location) &&
-                                  /\d/.test(location)
+                            const typeBasedKind: "link" | "location" | "phone" =
+                              type === "call"
                                 ? "phone"
+                                : type === "zoom"
+                                ? "link"
                                 : "location";
 
                             return (
                               <div className="flex items-center gap-2 truncate col-span-2">
-                                {inferredKind === "phone" ? (
+                                {typeBasedKind === "phone" ? (
                                   <Phone className="w-4 h-4 shrink-0 text-gray-500 dark:text-gray-400" />
-                                ) : inferredKind === "link" ? (
+                                ) : typeBasedKind === "link" ? (
                                   <LinkIcon className="w-4 h-4 shrink-0 text-gray-500 dark:text-gray-400" />
                                 ) : (
                                   <MapPin className="w-4 h-4 shrink-0 text-gray-500 dark:text-gray-400" />
                                 )}
                                 <span className="truncate">
-                                  {inferredKind === "phone"
+                                  {typeBasedKind === "phone"
                                     ? "Phone"
-                                    : inferredKind === "link"
+                                    : typeBasedKind === "link"
                                     ? "Link"
                                     : "Location"}
                                   : {location}
