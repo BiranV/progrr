@@ -177,7 +177,7 @@ export default function Home() {
           <div className="w-full max-w-[360px] sm:max-w-md mx-auto">
             <Card className="backdrop-blur-lg bg-white/80 dark:bg-gray-800/80 shadow-2xl border-0 overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600"></div>
-              <CardContent className="pt-6 pb-5 px-5 sm:px-6 lg:pt-8 lg:pb-6 lg:px-8 h-[440px] overflow-y-auto sm:h-auto sm:min-h-[460px] sm:overflow-visible lg:min-h-[500px] flex flex-col">
+              <CardContent className="pt-6 pb-5 px-5 sm:px-6 lg:pt-8 lg:pb-6 lg:px-8 h-[406px] overflow-y-auto sm:h-auto sm:min-h-[460px] sm:overflow-visible lg:min-h-[500px] flex flex-col">
                 <Tabs
                   value={tab}
                   onValueChange={(value) => {
