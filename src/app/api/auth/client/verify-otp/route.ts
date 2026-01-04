@@ -3,20 +3,22 @@ import { collections, ensureIndexes } from "@/server/collections";
 import { verifyOtp } from "@/server/otp";
 import { signAuthToken } from "@/server/jwt";
 import { setAuthCookie } from "@/server/auth-cookie";
+import { hashPassword } from "@/server/password";
 
 export async function POST(req: Request) {
   try {
     await ensureIndexes();
 
     const body = await req.json().catch(() => ({}));
-    const phone = String(body?.phone ?? "").trim();
+    const email = String(body?.email ?? "")
+      .replace(/[\s\u200B\u200C\u200D\uFEFF]/g, "")
+      .trim()
+      .toLowerCase();
     const code = String(body?.code ?? "").trim();
+    const password = String(body?.password ?? "");
 
-    if (!phone) {
-      return NextResponse.json(
-        { error: "Phone number is required" },
-        { status: 400 }
-      );
+    if (!email) {
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
     if (!code) {
       return NextResponse.json(
@@ -27,12 +29,23 @@ export async function POST(req: Request) {
 
     const c = await collections();
 
-    const client = await c.clients.findOne({ phone });
+    const client = await c.clients.findOne({ email });
     if (!client) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
     }
 
-    const otp = await c.otps.findOne({ phone });
+    // Require setting a password during the first verified email-OTP flow.
+    if (!client.passwordHash && !password) {
+      return NextResponse.json(
+        {
+          error: "Password is required to finish setup",
+          requiresPassword: true,
+        },
+        { status: 409 }
+      );
+    }
+
+    const otp = await c.otps.findOne({ key: email, purpose: "client_login" });
     if (!otp) {
       return NextResponse.json(
         { error: "Code expired or not requested" },
@@ -41,22 +54,33 @@ export async function POST(req: Request) {
     }
 
     if (otp.expiresAt.getTime() < Date.now()) {
-      await c.otps.deleteOne({ phone });
+      await c.otps.deleteOne({ key: email, purpose: "client_login" });
       return NextResponse.json({ error: "Code expired" }, { status: 400 });
     }
 
     if (otp.attempts >= 5) {
-      await c.otps.deleteOne({ phone });
+      await c.otps.deleteOne({ key: email, purpose: "client_login" });
       return NextResponse.json({ error: "Too many attempts" }, { status: 429 });
     }
 
     const ok = verifyOtp(code, otp.codeHash);
     if (!ok) {
-      await c.otps.updateOne({ phone }, { $inc: { attempts: 1 } });
+      await c.otps.updateOne(
+        { key: email, purpose: "client_login" },
+        { $inc: { attempts: 1 } }
+      );
       return NextResponse.json({ error: "Invalid code" }, { status: 401 });
     }
 
-    await c.otps.deleteOne({ phone });
+    await c.otps.deleteOne({ key: email, purpose: "client_login" });
+
+    if (!client.passwordHash && password) {
+      const passwordHash = await hashPassword(password);
+      await c.clients.updateOne(
+        { _id: client._id },
+        { $set: { passwordHash } }
+      );
+    }
 
     const clientId = client._id.toHexString();
     const adminId = client.adminId.toHexString();
@@ -70,6 +94,27 @@ export async function POST(req: Request) {
 
     const res = NextResponse.json({ ok: true });
     setAuthCookie(res, token);
+
+    // If invited (PENDING), promote to ACTIVE only after a successful email OTP.
+    const now = new Date();
+    const escaped = email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    await c.entities.updateOne(
+      {
+        entity: "Client",
+        adminId: client.adminId,
+        $or: [
+          { "data.userId": clientId },
+          { "data.clientAuthId": clientId },
+          { "data.email": { $regex: new RegExp(`^${escaped}$`, "i") } },
+        ],
+      },
+      {
+        $set: {
+          "data.status": "ACTIVE",
+          updatedAt: now,
+        },
+      }
+    );
     return res;
   } catch (error: any) {
     const status = typeof error?.status === "number" ? error.status : 500;

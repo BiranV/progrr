@@ -9,11 +9,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { XCircle } from "lucide-react";
 import {
-  getCountries,
-  getCountryCallingCode,
-  parsePhoneNumberFromString,
-} from "libphonenumber-js";
-import {
   createClientAction,
   updateClientAction,
   ClientFormData,
@@ -44,12 +39,7 @@ import { Checkbox } from "@/components/ui/checkbox";
    REQUIRED FIELDS – single source of truth
    (Notes is intentionally NOT here)
    ====================================================== */
-const REQUIRED_FIELDS: Array<keyof Client> = [
-  "name",
-  "email",
-  "phone",
-  "status",
-];
+const REQUIRED_FIELDS: Array<keyof Client> = ["name", "email", "status"];
 
 const DEFAULT_COUNTRY = "IL";
 
@@ -124,74 +114,6 @@ function normalizeActivityLevel(
   if (v.includes("very")) return "very";
 
   return "";
-}
-
-function getDialCode(country: string): string {
-  try {
-    return `+${getCountryCallingCode(country as any)}`;
-  } catch {
-    return "+972";
-  }
-}
-
-function getLocale(): string {
-  if (typeof navigator !== "undefined" && navigator.language) {
-    return navigator.language;
-  }
-  return "en";
-}
-
-function getCountryLabel(country: string): string {
-  const locale = getLocale();
-  try {
-    const dn = new Intl.DisplayNames([locale], { type: "region" });
-    return dn.of(country) || country;
-  } catch {
-    return country;
-  }
-}
-
-function splitPhoneForUi(raw: unknown): {
-  country: string;
-  national: string;
-} {
-  const v = String(raw ?? "").trim();
-  const digitsOnly = (s: string) => s.replace(/\D/g, "");
-
-  if (!v) return { country: DEFAULT_COUNTRY, national: "" };
-
-  // If user pasted an international number, try to parse it and infer country.
-  if (v.startsWith("+") || v.startsWith("00")) {
-    const formatted = v.startsWith("00") ? `+${digitsOnly(v).slice(2)}` : v;
-    const pn = parsePhoneNumberFromString(formatted);
-    if (pn) {
-      return {
-        country: (pn.country as string) || DEFAULT_COUNTRY,
-        national: pn.nationalNumber || "",
-      };
-    }
-
-    // Fallback: keep default country, strip any obvious dial-code prefix.
-    const digits = digitsOnly(formatted);
-    if (digits.startsWith("972")) {
-      let national = digits.slice(3);
-      if (national.startsWith("0")) national = national.slice(1);
-      return { country: DEFAULT_COUNTRY, national };
-    }
-    return { country: DEFAULT_COUNTRY, national: digits };
-  }
-
-  // Local format fallback (keeps existing IL behavior)
-  let national = digitsOnly(v);
-  if (national.startsWith("0")) national = national.slice(1);
-  return { country: DEFAULT_COUNTRY, national };
-}
-
-function buildPhoneValue(country: string, nationalInput: string): string {
-  const countryCode = getDialCode(country);
-  const digits = String(nationalInput ?? "").replace(/\D/g, "");
-  const normalized = digits.startsWith("0") ? digits.slice(1) : digits;
-  return normalized ? `${countryCode}${normalized}` : "";
 }
 
 interface ClientDialogProps {
@@ -270,33 +192,16 @@ export default function ClientDialog({
     return Array.from(new Set(merged));
   };
 
-  const [phoneCountry, setPhoneCountry] = React.useState(DEFAULT_COUNTRY);
-  const [phoneNational, setPhoneNational] = React.useState("");
-
-  const countryOptions = React.useMemo(() => {
-    const items = getCountries().map((c) => ({
-      country: c,
-      label: getCountryLabel(c),
-      dial: getDialCode(c),
-    }));
-    items.sort((a, b) => a.label.localeCompare(b.label));
-    return items;
-  }, []);
-
   /* ======================================================
      Init / Reset
      ====================================================== */
   React.useEffect(() => {
     setValidationError(null);
     if (client) {
-      const split = splitPhoneForUi(client.phone);
-      setPhoneCountry(split.country);
-      setPhoneNational(split.national);
-
       setFormData({
         name: client.name || "",
         email: client.email || "",
-        phone: buildPhoneValue(split.country, split.national) || "",
+        phone: client.phone || "",
         avatarDataUrl: (client as any).avatarDataUrl ?? null,
         birthDate: client.birthDate || "",
         gender: client.gender || "",
@@ -329,9 +234,6 @@ export default function ClientDialog({
         ),
       });
     } else {
-      setPhoneCountry(DEFAULT_COUNTRY);
-      setPhoneNational("");
-
       setFormData({
         name: "",
         email: "",
@@ -431,15 +333,9 @@ export default function ClientDialog({
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const name = String(formData.name ?? "").trim();
     const email = String(formData.email ?? "").trim();
-    const phone = String(formData.phone ?? "").trim();
 
     if (!name) {
       setValidationError("Full name is required");
-      return;
-    }
-
-    if (!phone) {
-      setValidationError("Phone is required");
       return;
     }
 
@@ -565,67 +461,6 @@ export default function ClientDialog({
                     </div>
                   ) : null}
                 </div>
-              </div>
-            </div>
-
-            {/* PHONE */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Phone {isRequired("phone") && "*"}
-              </label>
-              <div className="flex gap-2">
-                <Select
-                  value={phoneCountry}
-                  onValueChange={(v) => {
-                    setPhoneCountry(v);
-                    const nextPhone = buildPhoneValue(v, phoneNational);
-                    setFormData({ ...formData, phone: nextPhone });
-                  }}
-                >
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[320px]">
-                    {countryOptions.map((c) => (
-                      <SelectItem key={c.country} value={c.country}>
-                        {c.label} ({c.dial})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Input
-                  value={phoneNational}
-                  inputMode="tel"
-                  autoComplete="tel"
-                  placeholder="Phone number"
-                  onChange={(e) => {
-                    if (validationError) setValidationError(null);
-                    const raw = e.target.value;
-
-                    // If user pasted a full number, split it.
-                    if (
-                      raw.includes("+") ||
-                      raw.startsWith("00") ||
-                      /^(\d{1,4})/.test(raw)
-                    ) {
-                      const split = splitPhoneForUi(raw);
-                      setPhoneCountry(split.country);
-                      setPhoneNational(split.national);
-                      setFormData({
-                        ...formData,
-                        phone: buildPhoneValue(split.country, split.national),
-                      });
-                      return;
-                    }
-
-                    setPhoneNational(raw);
-                    setFormData({
-                      ...formData,
-                      phone: buildPhoneValue(phoneCountry, raw),
-                    });
-                  }}
-                />
               </div>
             </div>
 

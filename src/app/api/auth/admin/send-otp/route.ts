@@ -24,33 +24,32 @@ export async function POST(req: Request) {
     if (!email) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
     }
-
     if (!isValidEmail(email)) {
       return NextResponse.json(
-        {
-          error: "Please enter a valid email address",
-        },
+        { error: "Please enter a valid email address" },
         { status: 400 }
       );
     }
 
     const c = await collections();
 
-    // Hard rule: do not create users during login.
-    const client = await c.clients.findOne({ email });
-    if (!client) {
-      return NextResponse.json({ error: "Client not found" }, { status: 404 });
+    const existing = await c.admins.findOne({ email });
+    if (existing) {
+      return NextResponse.json(
+        { error: "This email is already registered. Please log in instead." },
+        { status: 409 }
+      );
     }
 
     const { code, hash } = generateOtp(6);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     await c.otps.updateOne(
-      { key: email, purpose: "client_login" },
+      { key: email, purpose: "admin_signup" },
       {
         $set: {
           key: email,
-          purpose: "client_login",
+          purpose: "admin_signup",
           codeHash: hash,
           expiresAt,
           attempts: 0,
@@ -62,8 +61,8 @@ export async function POST(req: Request) {
 
     await sendEmail({
       to: email,
-      subject: "Your Progrr verification code",
-      text: `Your Progrr verification code is: ${code}. This code expires in 10 minutes.`,
+      subject: "Your Progrr admin signup code",
+      text: `Your Progrr admin signup code is: ${code}. This code expires in 10 minutes.`,
     });
 
     return NextResponse.json({ ok: true, delivery: "email" });

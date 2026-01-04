@@ -1,7 +1,8 @@
 import crypto from "crypto";
 
 export type OtpRecord = {
-  phone: string;
+  key: string;
+  purpose: string;
   codeHash: string;
   expiresAt: Date;
   attempts: number;

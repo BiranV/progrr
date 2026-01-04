@@ -30,12 +30,14 @@ export type AdminDoc = {
 export type ClientDoc = {
   _id?: ObjectId;
   adminId: ObjectId;
-  phone: string;
+  email: string;
   name: string;
   theme: "light" | "dark";
   role: "client";
-  // Optional legacy/extra fields (kept for UI continuity)
-  email?: string;
+  // Optional login fields
+  passwordHash?: string;
+  // Optional legacy field (kept for existing data)
+  phone?: string;
   // Optional: used by Settings "mock data" tools
   mockSeedId?: string;
 };
@@ -49,9 +51,17 @@ export type EntityDoc = {
   updatedAt: Date;
 };
 
+export type OtpPurpose =
+  | "client_login"
+  | "admin_signup"
+  | "admin_password_reset"
+  | "client_password_reset"
+  | "client_onboarding";
+
 export type OtpDoc = {
   _id?: ObjectId;
-  phone: string;
+  key: string; // normalized email
+  purpose: OtpPurpose;
   codeHash: string;
   expiresAt: Date;
   attempts: number;
@@ -74,12 +84,25 @@ export async function ensureIndexes() {
 
   await c.owners.createIndex({ email: 1 }, { unique: true });
   await c.admins.createIndex({ email: 1 }, { unique: true });
-  await c.clients.createIndex({ phone: 1 }, { unique: true });
+  // Drop legacy unique phone indexes to allow email-only auth.
+  // (A non-sparse unique index would block multiple docs with missing phone.)
+  try {
+    await c.clients.dropIndex("phone_1");
+  } catch {
+    // ignore
+  }
+  try {
+    await c.otps.dropIndex("phone_1");
+  } catch {
+    // ignore
+  }
+
+  await c.clients.createIndex({ email: 1 }, { unique: true });
   await c.clients.createIndex({ adminId: 1 });
 
   await c.entities.createIndex({ entity: 1, adminId: 1 });
   await c.entities.createIndex({ adminId: 1 });
 
-  await c.otps.createIndex({ phone: 1 }, { unique: true });
+  await c.otps.createIndex({ key: 1, purpose: 1 }, { unique: true });
   await c.otps.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 }

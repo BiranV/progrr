@@ -12,11 +12,11 @@ export type AppUser =
     }
   | {
       id: string;
-      email: string; // clients don't use email; kept for UI compatibility
+      email: string;
       full_name: string | null;
       role: "client";
       adminId: string;
-      phone: string;
+      phone?: string;
       theme: "light" | "dark";
     };
 
@@ -52,7 +52,7 @@ export async function requireAppUser(): Promise<AppUser> {
 
   return {
     id: client._id.toHexString(),
-    email: client.email ?? "",
+    email: client.email,
     full_name: client.name ?? null,
     role: "client",
     adminId: client.adminId.toHexString(),

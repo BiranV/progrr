@@ -57,7 +57,7 @@ export interface Client {
   id: string;
   name: string;
   email: string;
-  phone: string;
+  phone?: string;
   avatarDataUrl?: string | null;
   birthDate: string;
   gender: string;

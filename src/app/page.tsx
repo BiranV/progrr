@@ -251,9 +251,28 @@ function LoginForm({
   const [loginAs, setLoginAs] = useState<"admin" | "client">("admin");
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
-  const [clientStep, setClientStep] = useState<"phone" | "code">("phone");
-  const [clientPhone, setClientPhone] = useState("");
+  const [adminFlow, setAdminFlow] = useState<
+    "login" | "reset_request" | "reset_verify"
+  >("login");
+  const [adminResetCode, setAdminResetCode] = useState("");
+  const [adminResetNewPassword, setAdminResetNewPassword] = useState("");
+  const [adminResetInfo, setAdminResetInfo] = useState<string | null>(null);
+  const [adminResetError, setAdminResetError] = useState<string | null>(null);
+  const [adminResetLoading, setAdminResetLoading] = useState(false);
+
+  const [clientMethod, setClientMethod] = useState<"code" | "password">("code");
+  const [clientStep, setClientStep] = useState<"email" | "code">("email");
+  const [clientEmail, setClientEmail] = useState("");
   const [clientCode, setClientCode] = useState("");
+  const [clientPassword, setClientPassword] = useState("");
+  const [clientNeedsPassword, setClientNeedsPassword] = useState(false);
+  const [clientPasswordLogin, setClientPasswordLogin] = useState("");
+
+  const [clientResetFlow, setClientResetFlow] = useState<
+    "none" | "reset_request" | "reset_verify"
+  >("none");
+  const [clientResetCode, setClientResetCode] = useState("");
+  const [clientResetNewPassword, setClientResetNewPassword] = useState("");
   const [clientError, setClientError] = useState<string | null>(null);
   const [clientInfo, setClientInfo] = useState<string | null>(null);
   const [clientLoading, setClientLoading] = useState(false);
@@ -267,16 +286,117 @@ function LoginForm({
     clearBanner();
     setAdminEmail("");
     setAdminPassword("");
+    setAdminFlow("login");
+    setAdminResetCode("");
+    setAdminResetNewPassword("");
+    setAdminResetInfo(null);
+    setAdminResetError(null);
+    setAdminResetLoading(false);
 
     setClientError(null);
     setClientInfo(null);
-    setClientPhone("");
+    setClientEmail("");
     setClientCode("");
-    setClientStep("phone");
+    setClientPassword("");
+    setClientNeedsPassword(false);
+    setClientPasswordLogin("");
+    setClientMethod("code");
+    setClientStep("email");
     setClientLoading(false);
+    setClientResetFlow("none");
+    setClientResetCode("");
+    setClientResetNewPassword("");
 
     setAdminValidationError(null);
   }, [loginAs]);
+
+  const handleAdminSendResetCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    clearBanner();
+    setAdminResetError(null);
+    setAdminResetInfo(null);
+
+    const email = adminEmail.trim();
+    if (!email) {
+      setAdminResetError("Email is required");
+      return;
+    }
+
+    setAdminResetLoading(true);
+    try {
+      const res = await fetch("/api/auth/password/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, role: "admin" }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setAdminResetError(
+          data?.error || `Failed to send code (${res.status})`
+        );
+        return;
+      }
+
+      setAdminResetInfo("Password reset code sent to your email.");
+      setAdminFlow("reset_verify");
+    } catch (err: any) {
+      setAdminResetError(err?.message || "Failed to send code");
+    } finally {
+      setAdminResetLoading(false);
+    }
+  };
+
+  const handleAdminResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    clearBanner();
+    setAdminResetError(null);
+    setAdminResetInfo(null);
+
+    const email = adminEmail.trim();
+    const code = adminResetCode.trim();
+    const password = adminResetNewPassword;
+
+    if (!email) {
+      setAdminResetError("Email is required");
+      return;
+    }
+    if (!code) {
+      setAdminResetError("Verification code is required");
+      return;
+    }
+    if (!password) {
+      setAdminResetError("New password is required");
+      return;
+    }
+
+    setAdminResetLoading(true);
+    try {
+      const res = await fetch("/api/auth/password/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, role: "admin", code, password }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setAdminResetError(
+          data?.error || `Failed to reset password (${res.status})`
+        );
+        return;
+      }
+
+      setAdminResetInfo("Password updated. You can log in now.");
+      setAdminFlow("login");
+      setAdminPassword("");
+      setAdminResetCode("");
+      setAdminResetNewPassword("");
+    } catch (err: any) {
+      setAdminResetError(err?.message || "Failed to reset password");
+    } finally {
+      setAdminResetLoading(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     clearBanner();
@@ -314,9 +434,9 @@ function LoginForm({
     setClientError(null);
     setClientInfo(null);
 
-    const phone = clientPhone.trim();
-    if (!phone) {
-      setClientError("Phone number is required");
+    const email = clientEmail.trim();
+    if (!email) {
+      setClientError("Email is required");
       return;
     }
 
@@ -325,7 +445,7 @@ function LoginForm({
       const res = await fetch("/api/auth/client/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone }),
+        body: JSON.stringify({ email }),
       });
 
       if (!res.ok) {
@@ -334,14 +454,8 @@ function LoginForm({
         return;
       }
 
-      const data = await res.json().catch(() => ({} as { delivery?: string }));
-      if (data?.delivery === "dev_log") {
-        setClientInfo(
-          "Verification code generated (check server logs in your dev terminal)."
-        );
-      } else {
-        setClientInfo("Verification code sent.");
-      }
+      await res.json().catch(() => ({}));
+      setClientInfo("Verification code sent to your email.");
       setClientStep("code");
     } catch (err: any) {
       setClientError(err?.message || "Failed to send verification code");
@@ -356,11 +470,11 @@ function LoginForm({
     setClientError(null);
     setClientInfo(null);
 
-    const phone = clientPhone.trim();
+    const email = clientEmail.trim();
     const token = clientCode.trim();
 
-    if (!phone) {
-      setClientError("Phone number is required");
+    if (!email) {
+      setClientError("Email is required");
       return;
     }
 
@@ -374,11 +488,18 @@ function LoginForm({
       const res = await fetch("/api/auth/client/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone, code: token }),
+        body: JSON.stringify({
+          email,
+          code: token,
+          ...(clientPassword ? { password: clientPassword } : {}),
+        }),
       });
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        if (res.status === 409 && data?.requiresPassword) {
+          setClientNeedsPassword(true);
+        }
         setClientError(data?.error || `Failed to verify code (${res.status})`);
         return;
       }
@@ -387,6 +508,132 @@ function LoginForm({
       router.refresh();
     } catch (err: any) {
       setClientError(err?.message || "Failed to verify code");
+    } finally {
+      setClientLoading(false);
+    }
+  };
+
+  const handleClientPasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    clearBanner();
+    setClientError(null);
+    setClientInfo(null);
+
+    const email = clientEmail.trim();
+    const password = clientPasswordLogin;
+    if (!email) {
+      setClientError("Email is required");
+      return;
+    }
+    if (!password) {
+      setClientError("Password is required");
+      return;
+    }
+
+    setClientLoading(true);
+    try {
+      const res = await fetch("/api/auth/client/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setClientError(data?.error || `Login failed (${res.status})`);
+        return;
+      }
+
+      router.replace(nextPath || "/dashboard");
+      router.refresh();
+    } catch (err: any) {
+      setClientError(err?.message || "Login failed");
+    } finally {
+      setClientLoading(false);
+    }
+  };
+
+  const handleClientSendResetCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    clearBanner();
+    setClientError(null);
+    setClientInfo(null);
+
+    const email = clientEmail.trim();
+    if (!email) {
+      setClientError("Email is required");
+      return;
+    }
+
+    setClientLoading(true);
+    try {
+      const res = await fetch("/api/auth/password/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, role: "client" }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setClientError(data?.error || `Failed to send code (${res.status})`);
+        return;
+      }
+
+      setClientInfo("Password reset code sent to your email.");
+      setClientResetFlow("reset_verify");
+    } catch (err: any) {
+      setClientError(err?.message || "Failed to send code");
+    } finally {
+      setClientLoading(false);
+    }
+  };
+
+  const handleClientResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    clearBanner();
+    setClientError(null);
+    setClientInfo(null);
+
+    const email = clientEmail.trim();
+    const code = clientResetCode.trim();
+    const password = clientResetNewPassword;
+    if (!email) {
+      setClientError("Email is required");
+      return;
+    }
+    if (!code) {
+      setClientError("Verification code is required");
+      return;
+    }
+    if (!password) {
+      setClientError("New password is required");
+      return;
+    }
+
+    setClientLoading(true);
+    try {
+      const res = await fetch("/api/auth/password/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, role: "client", code, password }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setClientError(
+          data?.error || `Failed to reset password (${res.status})`
+        );
+        return;
+      }
+
+      setClientInfo("Password updated. You can log in now.");
+      setClientResetFlow("none");
+      setClientMethod("password");
+      setClientPasswordLogin("");
+      setClientResetCode("");
+      setClientResetNewPassword("");
+    } catch (err: any) {
+      setClientError(err?.message || "Failed to reset password");
     } finally {
       setClientLoading(false);
     }
@@ -484,87 +731,480 @@ function LoginForm({
       </div>
 
       {loginAs === "admin" ? (
-        <form
-          action={signInWithPassword}
-          onSubmit={handleSubmit}
-          noValidate
-          className="space-y-3 sm:space-y-4 flex-1 flex flex-col"
-        >
-          <div className="space-y-4">
+        adminFlow === "login" ? (
+          <form
+            action={signInWithPassword}
+            onSubmit={handleSubmit}
+            noValidate
+            className="space-y-3 sm:space-y-4 flex-1 flex flex-col"
+          >
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label
+                  htmlFor="login_email"
+                  className="text-gray-700 dark:text-gray-200"
+                >
+                  Email Address
+                </Label>
+                <Input
+                  id="login_email"
+                  name="email"
+                  type="email"
+                  placeholder="coach@example.com"
+                  autoComplete="email"
+                  value={adminEmail}
+                  onChange={(e) => {
+                    clearBanner();
+                    if (adminValidationError) setAdminValidationError(null);
+                    setAdminEmail(e.target.value);
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label
+                  htmlFor="login_password"
+                  className="text-gray-700 dark:text-gray-200"
+                >
+                  Password
+                </Label>
+                <Input
+                  id="login_password"
+                  name="password"
+                  type="password"
+                  placeholder=""
+                  autoComplete="current-password"
+                  value={adminPassword}
+                  onChange={(e) => {
+                    clearBanner();
+                    if (adminValidationError) setAdminValidationError(null);
+                    setAdminPassword(e.target.value);
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="link"
+                className="px-0 h-auto text-xs"
+                onClick={() => {
+                  setAdminFlow("reset_request");
+                  setAdminResetError(null);
+                  setAdminResetInfo(null);
+                }}
+              >
+                Forgot password?
+              </Button>
+            </div>
+
+            <SubmitButton
+              pendingText="Signing in..."
+              text="Login to your account"
+            />
+          </form>
+        ) : adminFlow === "reset_request" ? (
+          <form
+            onSubmit={handleAdminSendResetCode}
+            className="space-y-3 sm:space-y-4 flex-1 flex flex-col"
+          >
+            {adminResetError ? (
+              <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-3 sm:px-4 h-10 sm:h-12">
+                <div className="inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
+                  <XCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 break-words">
+                    {adminResetError}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {adminResetInfo ? (
+              <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-50 dark:bg-slate-900/60 px-3 sm:px-4 h-10 sm:h-12">
+                <div className="inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                  <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 break-words">
+                    {adminResetInfo}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             <div className="space-y-2">
               <Label
-                htmlFor="login_email"
+                htmlFor="admin_reset_email"
                 className="text-gray-700 dark:text-gray-200"
               >
                 Email Address
               </Label>
               <Input
-                id="login_email"
-                name="email"
+                id="admin_reset_email"
                 type="email"
-                placeholder="coach@example.com"
                 autoComplete="email"
                 value={adminEmail}
                 onChange={(e) => {
                   clearBanner();
-                  if (adminValidationError) setAdminValidationError(null);
+                  setAdminResetError(null);
                   setAdminEmail(e.target.value);
                 }}
               />
             </div>
+
+            <div className="mt-auto space-y-2">
+              <Button
+                type="submit"
+                className="w-full h-10 sm:h-11 lg:h-12 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed"
+                disabled={adminResetLoading}
+              >
+                {adminResetLoading ? "Sending..." : "Send reset code"}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-10 sm:h-11 lg:h-12 text-sm rounded-xl dark:bg-transparent dark:text-white dark:border-gray-600 dark:hover:bg-gray-800"
+                onClick={() => {
+                  setAdminFlow("login");
+                  setAdminResetCode("");
+                  setAdminResetNewPassword("");
+                  setAdminResetInfo(null);
+                  setAdminResetError(null);
+                }}
+                disabled={adminResetLoading}
+              >
+                Back
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <form
+            onSubmit={handleAdminResetPassword}
+            className="space-y-3 sm:space-y-4 flex-1 flex flex-col"
+          >
+            {adminResetError ? (
+              <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-3 sm:px-4 h-10 sm:h-12">
+                <div className="inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
+                  <XCircle className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 break-words">
+                    {adminResetError}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {adminResetInfo ? (
+              <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-50 dark:bg-slate-900/60 px-3 sm:px-4 h-10 sm:h-12">
+                <div className="inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+                  <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 break-words">
+                    {adminResetInfo}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             <div className="space-y-2">
               <Label
-                htmlFor="login_password"
+                htmlFor="admin_reset_email_confirm"
                 className="text-gray-700 dark:text-gray-200"
               >
-                Password
+                Email Address
               </Label>
               <Input
-                id="login_password"
-                name="password"
-                type="password"
-                placeholder=""
-                autoComplete="current-password"
-                value={adminPassword}
+                id="admin_reset_email_confirm"
+                type="email"
+                autoComplete="email"
+                value={adminEmail}
                 onChange={(e) => {
                   clearBanner();
-                  if (adminValidationError) setAdminValidationError(null);
-                  setAdminPassword(e.target.value);
+                  setAdminResetError(null);
+                  setAdminEmail(e.target.value);
                 }}
               />
             </div>
-          </div>
 
-          <SubmitButton
-            pendingText="Signing in..."
-            text="Login to your account"
-          />
-        </form>
-      ) : clientStep === "phone" ? (
+            <div className="space-y-2">
+              <Label
+                htmlFor="admin_reset_code"
+                className="text-gray-700 dark:text-gray-200"
+              >
+                Verification Code
+              </Label>
+              <OtpInput
+                id="admin_reset_code"
+                name="code"
+                value={adminResetCode}
+                onChange={(next) => {
+                  clearBanner();
+                  setAdminResetError(null);
+                  setAdminResetCode(next);
+                }}
+                length={6}
+                disabled={adminResetLoading}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="admin_reset_new_password"
+                className="text-gray-700 dark:text-gray-200"
+              >
+                New Password
+              </Label>
+              <Input
+                id="admin_reset_new_password"
+                type="password"
+                autoComplete="new-password"
+                value={adminResetNewPassword}
+                onChange={(e) => {
+                  clearBanner();
+                  setAdminResetError(null);
+                  setAdminResetNewPassword(e.target.value);
+                }}
+              />
+            </div>
+
+            <div className="mt-auto space-y-2">
+              <Button
+                type="submit"
+                className="w-full h-10 sm:h-11 lg:h-12 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed"
+                disabled={adminResetLoading}
+              >
+                {adminResetLoading ? "Resetting..." : "Reset password"}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-10 sm:h-11 lg:h-12 text-sm rounded-xl dark:bg-transparent dark:text-white dark:border-gray-600 dark:hover:bg-gray-800"
+                onClick={handleAdminSendResetCode as any}
+                disabled={adminResetLoading}
+              >
+                Resend code
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-10 sm:h-11 lg:h-12 text-sm rounded-xl dark:bg-transparent dark:text-white dark:border-gray-600 dark:hover:bg-gray-800"
+                onClick={() => {
+                  setAdminFlow("login");
+                  setAdminResetCode("");
+                  setAdminResetNewPassword("");
+                  setAdminResetInfo(null);
+                  setAdminResetError(null);
+                }}
+                disabled={adminResetLoading}
+              >
+                Back
+              </Button>
+            </div>
+          </form>
+        )
+      ) : clientResetFlow !== "none" ? (
+        clientResetFlow === "reset_request" ? (
+          <form
+            onSubmit={handleClientSendResetCode}
+            className="space-y-3 sm:space-y-4 flex-1 flex flex-col"
+          >
+            <div className="space-y-2">
+              <Label
+                htmlFor="client_reset_email"
+                className="text-gray-700 dark:text-gray-200"
+              >
+                Email Address
+              </Label>
+              <Input
+                id="client_reset_email"
+                type="email"
+                autoComplete="email"
+                value={clientEmail}
+                onChange={(e) => {
+                  clearBanner();
+                  if (clientError) setClientError(null);
+                  setClientEmail(e.target.value);
+                }}
+              />
+            </div>
+
+            <div className="mt-auto space-y-2">
+              <Button
+                type="submit"
+                className="w-full h-10 sm:h-11 lg:h-12 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed"
+                disabled={clientLoading}
+              >
+                {clientLoading ? "Sending..." : "Send reset code"}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-10 sm:h-11 lg:h-12 text-sm rounded-xl dark:bg-transparent dark:text-white dark:border-gray-600 dark:hover:bg-gray-800"
+                onClick={() => setClientResetFlow("none")}
+                disabled={clientLoading}
+              >
+                Back
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <form
+            onSubmit={handleClientResetPassword}
+            className="space-y-3 sm:space-y-4 flex-1 flex flex-col"
+          >
+            <div className="space-y-2">
+              <Label
+                htmlFor="client_reset_code"
+                className="text-gray-700 dark:text-gray-200"
+              >
+                Verification Code
+              </Label>
+              <OtpInput
+                id="client_reset_code"
+                name="code"
+                value={clientResetCode}
+                onChange={(next) => {
+                  clearBanner();
+                  if (clientError) setClientError(null);
+                  setClientResetCode(next);
+                }}
+                length={6}
+                disabled={clientLoading}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label
+                htmlFor="client_reset_new_password"
+                className="text-gray-700 dark:text-gray-200"
+              >
+                New Password
+              </Label>
+              <Input
+                id="client_reset_new_password"
+                type="password"
+                autoComplete="new-password"
+                value={clientResetNewPassword}
+                onChange={(e) => {
+                  clearBanner();
+                  if (clientError) setClientError(null);
+                  setClientResetNewPassword(e.target.value);
+                }}
+              />
+            </div>
+
+            <div className="mt-auto space-y-2">
+              <Button
+                type="submit"
+                className="w-full h-10 sm:h-11 lg:h-12 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed"
+                disabled={clientLoading}
+              >
+                {clientLoading ? "Resetting..." : "Reset password"}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-10 sm:h-11 lg:h-12 text-sm rounded-xl dark:bg-transparent dark:text-white dark:border-gray-600 dark:hover:bg-gray-800"
+                onClick={handleClientSendResetCode as any}
+                disabled={clientLoading}
+              >
+                Resend code
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-10 sm:h-11 lg:h-12 text-sm rounded-xl dark:bg-transparent dark:text-white dark:border-gray-600 dark:hover:bg-gray-800"
+                onClick={() => setClientResetFlow("none")}
+                disabled={clientLoading}
+              >
+                Back
+              </Button>
+            </div>
+          </form>
+        )
+      ) : clientMethod === "password" ? (
         <form
-          onSubmit={handleClientSendCode}
+          onSubmit={handleClientPasswordLogin}
           className="space-y-3 sm:space-y-4 flex-1 flex flex-col"
         >
           <div className="space-y-2">
             <Label
-              htmlFor="client_phone"
+              htmlFor="client_password_email"
               className="text-gray-700 dark:text-gray-200"
             >
-              Phone Number
+              Email Address
             </Label>
             <Input
-              id="client_phone"
-              name="phone"
-              type="tel"
-              placeholder="+1 555 555 5555"
-              autoComplete="tel"
-              value={clientPhone}
+              id="client_password_email"
+              type="email"
+              autoComplete="email"
+              value={clientEmail}
               onChange={(e) => {
                 clearBanner();
                 if (clientError) setClientError(null);
-                setClientPhone(e.target.value);
+                setClientEmail(e.target.value);
               }}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label
+              htmlFor="client_password"
+              className="text-gray-700 dark:text-gray-200"
+            >
+              Password
+            </Label>
+            <Input
+              id="client_password"
+              type="password"
+              autoComplete="current-password"
+              value={clientPasswordLogin}
+              onChange={(e) => {
+                clearBanner();
+                if (clientError) setClientError(null);
+                setClientPasswordLogin(e.target.value);
+              }}
+            />
+          </div>
+
+          <div className="flex justify-between">
+            <Button
+              type="button"
+              variant="link"
+              className="px-0 h-auto text-xs"
+              onClick={() => {
+                setClientMethod("code");
+                setClientStep("email");
+                setClientPasswordLogin("");
+                setClientError(null);
+                setClientInfo(null);
+              }}
+            >
+              Use email code
+            </Button>
+
+            <Button
+              type="button"
+              variant="link"
+              className="px-0 h-auto text-xs"
+              onClick={() => {
+                setClientResetFlow("reset_request");
+                setClientError(null);
+                setClientInfo(null);
+              }}
+            >
+              Forgot password?
+            </Button>
           </div>
 
           <Button
@@ -572,7 +1212,57 @@ function LoginForm({
             className="w-full h-10 sm:h-11 lg:h-12 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] mt-auto disabled:opacity-70 disabled:cursor-not-allowed"
             disabled={clientLoading}
           >
-            {clientLoading ? "Sending..." : "Send verification code"}
+            {clientLoading ? "Signing in..." : "Login"}
+          </Button>
+        </form>
+      ) : clientStep === "email" ? (
+        <form
+          onSubmit={handleClientSendCode}
+          className="space-y-3 sm:space-y-4 flex-1 flex flex-col"
+        >
+          <div className="space-y-2">
+            <Label
+              htmlFor="client_email"
+              className="text-gray-700 dark:text-gray-200"
+            >
+              Email Address
+            </Label>
+            <Input
+              id="client_email"
+              name="email"
+              type="email"
+              placeholder="you@example.com"
+              autoComplete="email"
+              value={clientEmail}
+              onChange={(e) => {
+                clearBanner();
+                if (clientError) setClientError(null);
+                setClientEmail(e.target.value);
+              }}
+            />
+          </div>
+
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="link"
+              className="px-0 h-auto text-xs"
+              onClick={() => {
+                setClientMethod("password");
+                setClientError(null);
+                setClientInfo(null);
+              }}
+            >
+              Use password instead
+            </Button>
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full h-10 sm:h-11 lg:h-12 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] mt-auto disabled:opacity-70 disabled:cursor-not-allowed"
+            disabled={clientLoading}
+          >
+            {clientLoading ? "Sending..." : "Send email code"}
           </Button>
         </form>
       ) : (
@@ -582,20 +1272,20 @@ function LoginForm({
         >
           <div className="space-y-2">
             <Label
-              htmlFor="client_phone_confirm"
+              htmlFor="client_email_confirm"
               className="text-gray-700 dark:text-gray-200"
             >
-              Phone Number
+              Email Address
             </Label>
             <Input
-              id="client_phone_confirm"
-              name="phone"
-              type="tel"
-              value={clientPhone}
+              id="client_email_confirm"
+              name="email"
+              type="email"
+              value={clientEmail}
               onChange={(e) => {
                 clearBanner();
                 if (clientError) setClientError(null);
-                setClientPhone(e.target.value);
+                setClientEmail(e.target.value);
               }}
             />
           </div>
@@ -621,6 +1311,29 @@ function LoginForm({
             />
           </div>
 
+          {clientNeedsPassword ? (
+            <div className="space-y-2">
+              <Label
+                htmlFor="client_set_password"
+                className="text-gray-700 dark:text-gray-200"
+              >
+                Set Password
+              </Label>
+              <Input
+                id="client_set_password"
+                type="password"
+                autoComplete="new-password"
+                value={clientPassword}
+                onChange={(e) => {
+                  clearBanner();
+                  if (clientError) setClientError(null);
+                  setClientPassword(e.target.value);
+                }}
+                disabled={clientLoading}
+              />
+            </div>
+          ) : null}
+
           <div className="mt-auto space-y-2">
             <Button
               type="submit"
@@ -634,8 +1347,18 @@ function LoginForm({
               type="button"
               variant="outline"
               className="w-full h-10 sm:h-11 lg:h-12 text-sm rounded-xl dark:bg-transparent dark:text-white dark:border-gray-600 dark:hover:bg-gray-800"
+              onClick={handleClientSendCode as any}
+              disabled={clientLoading}
+            >
+              Resend code
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-10 sm:h-11 lg:h-12 text-sm rounded-xl dark:bg-transparent dark:text-white dark:border-gray-600 dark:hover:bg-gray-800"
               onClick={() => {
-                setClientStep("phone");
+                setClientStep("email");
                 setClientCode("");
                 setClientError(null);
                 setClientInfo(null);
@@ -802,11 +1525,17 @@ function RegisterForm({
   const [registerFullName, setRegisterFullName] = useState("");
   const [registerEmail, setRegisterEmail] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
+  const [registerStep, setRegisterStep] = useState<"details" | "code">(
+    "details"
+  );
+  const [registerCode, setRegisterCode] = useState("");
+  const [registerInfo, setRegisterInfo] = useState<string | null>(null);
+  const [registerLoading, setRegisterLoading] = useState(false);
   const [registerValidationError, setRegisterValidationError] = useState<
     string | null
   >(null);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const validateDetails = () => {
     clearBanner();
     const fullName = registerFullName;
     const email = registerEmail;
@@ -840,12 +1569,99 @@ function RegisterForm({
     }
 
     if (Object.keys(newErrors).length > 0) {
-      e.preventDefault();
       const firstError =
         newErrors.full_name || newErrors.email || newErrors.password;
       setRegisterValidationError(firstError || "Please check your details");
-    } else {
-      setRegisterValidationError(null);
+      return false;
+    }
+
+    setRegisterValidationError(null);
+    return true;
+  };
+
+  const handleSendSignupCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRegisterInfo(null);
+
+    // Validate full name + email + password before sending code.
+    // (Password will only be stored after OTP verification.)
+    const ok = validateDetails();
+    if (!ok) return;
+
+    setRegisterLoading(true);
+    try {
+      const res = await fetch("/api/auth/admin/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: registerEmail }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setRegisterValidationError(
+          data?.error || `Failed to send code (${res.status})`
+        );
+        return;
+      }
+
+      setRegisterInfo("Verification code sent to your email.");
+      setRegisterStep("code");
+    } catch (err: any) {
+      setRegisterValidationError(err?.message || "Failed to send code");
+    } finally {
+      setRegisterLoading(false);
+    }
+  };
+
+  const handleVerifySignupCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    clearBanner();
+    setRegisterValidationError(null);
+    setRegisterInfo(null);
+
+    const email = registerEmail.trim();
+    const code = registerCode.trim();
+    const password = registerPassword;
+
+    if (!email) {
+      setRegisterValidationError("Email is required");
+      return;
+    }
+    if (!code) {
+      setRegisterValidationError("Verification code is required");
+      return;
+    }
+    if (!password) {
+      setRegisterValidationError("Password is required");
+      return;
+    }
+
+    setRegisterLoading(true);
+    try {
+      const res = await fetch("/api/auth/admin/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          code,
+          password,
+          full_name: registerFullName,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setRegisterValidationError(
+          data?.error || `Failed to verify code (${res.status})`
+        );
+        return;
+      }
+
+      window.location.href = "/dashboard";
+    } catch (err: any) {
+      setRegisterValidationError(err?.message || "Failed to verify code");
+    } finally {
+      setRegisterLoading(false);
     }
   };
 
@@ -890,9 +1706,25 @@ function RegisterForm({
         </div>
       ) : null}
 
+      {registerInfo ? (
+        <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-50 dark:bg-slate-900/60 px-3 sm:px-4 h-10 sm:h-12">
+          <div className="inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+            <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-200 break-words">
+              {registerInfo}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <form
-        action={signUpWithPassword}
-        onSubmit={handleSubmit}
+        onSubmit={
+          registerStep === "details"
+            ? handleSendSignupCode
+            : handleVerifySignupCode
+        }
         noValidate
         className="space-y-3 sm:space-y-4 flex-1 flex flex-col"
       >
@@ -960,9 +1792,75 @@ function RegisterForm({
               }}
             />
           </div>
+
+          {registerStep === "code" ? (
+            <div className="space-y-2">
+              <Label
+                htmlFor="register_code"
+                className="text-gray-700 dark:text-gray-200"
+              >
+                Verification Code
+              </Label>
+              <OtpInput
+                id="register_code"
+                name="code"
+                value={registerCode}
+                onChange={(next) => {
+                  clearBanner();
+                  if (registerValidationError) setRegisterValidationError(null);
+                  setRegisterCode(next);
+                }}
+                length={6}
+                disabled={registerLoading}
+              />
+            </div>
+          ) : null}
         </div>
 
-        <SubmitButton pendingText="Creating..." text="Continue" />
+        {registerStep === "details" ? (
+          <Button
+            type="submit"
+            className="w-full h-10 sm:h-11 lg:h-12 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] mt-auto disabled:opacity-70 disabled:cursor-not-allowed"
+            disabled={registerLoading}
+          >
+            {registerLoading ? "Sending..." : "Send email code"}
+          </Button>
+        ) : (
+          <div className="mt-auto space-y-2">
+            <Button
+              type="submit"
+              className="w-full h-10 sm:h-11 lg:h-12 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed"
+              disabled={registerLoading}
+            >
+              {registerLoading ? "Verifying..." : "Verify & create account"}
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-10 sm:h-11 lg:h-12 text-sm rounded-xl dark:bg-transparent dark:text-white dark:border-gray-600 dark:hover:bg-gray-800"
+              onClick={handleSendSignupCode as any}
+              disabled={registerLoading}
+            >
+              Resend code
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-10 sm:h-11 lg:h-12 text-sm rounded-xl dark:bg-transparent dark:text-white dark:border-gray-600 dark:hover:bg-gray-800"
+              onClick={() => {
+                setRegisterStep("details");
+                setRegisterCode("");
+                setRegisterInfo(null);
+                setRegisterValidationError(null);
+              }}
+              disabled={registerLoading}
+            >
+              Back
+            </Button>
+          </div>
+        )}
       </form>
     </div>
   );

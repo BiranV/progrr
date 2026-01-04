@@ -50,49 +50,14 @@ export async function signInWithPassword(formData: FormData) {
 }
 
 export async function signUpWithPassword(formData: FormData) {
-  const fullName = getString(formData, "full_name");
-  const email = normalizeEmail(getString(formData, "email"));
-  const password = getString(formData, "password");
-
-  if (!fullName) {
-    redirect(
-      `/?tab=signup&authError=${encodeURIComponent("Full name is required.")}`
-    );
-  }
-
-  try {
-    await ensureIndexes();
-    const owner = await requireOwner();
-    const c = await collections();
-
-    const existing = await c.admins.findOne({ email });
-    if (existing) {
-      throw new Error(
-        "This email is already registered. Please log in instead."
-      );
-    }
-
-    const passwordHash = await hashPassword(password);
-
-    const insert = await c.admins.insertOne({
-      ownerId: new ObjectId(owner._id),
-      email,
-      passwordHash,
-      createdAt: new Date(),
-      fullName: fullName || undefined,
-      role: "admin",
-    } as any);
-
-    const adminId = insert.insertedId.toHexString();
-    const token = await signAuthToken({ sub: adminId, role: "admin", adminId });
-    await setAuthCookieInAction(token);
-  } catch (e: any) {
-    redirect(
-      `/?tab=signup&authError=${encodeURIComponent(
-        e?.message || "Signup failed"
-      )}`
-    );
-  }
-
-  redirect("/dashboard");
+  // Hard requirement: email OTP only (no direct signup without verification).
+  // Signup is now handled by the client-side flow calling:
+  // - /api/auth/admin/send-otp
+  // - /api/auth/admin/verify-otp
+  void formData;
+  redirect(
+    `/?tab=signup&authError=${encodeURIComponent(
+      "Email verification is required. Please use the email code flow."
+    )}`
+  );
 }

@@ -2,6 +2,20 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+## Environment variables
+
+This app uses email-only OTP (no SMS). To run password reset and OTP flows you must configure:
+
+- `RESEND_API_KEY` - Resend API key
+- `EMAIL_FROM` - from address, e.g. `Progrr <no-reply@yourdomain.com>`
+- `OTP_SECRET` - secret used to hash OTPs (long random string)
+- `AUTH_JWT_SECRET` - secret used to sign auth cookies (long random string)
+- `MONGODB_URI` - Mongo connection string
+
+Local development: set these in `.env.local` and restart `npm run dev` after changing env vars.
+
+Production (e.g. Vercel): `.env.local` is not used; set the same variables in your hosting provider's environment settings.
+
 First, run the development server:
 
 ```bash
