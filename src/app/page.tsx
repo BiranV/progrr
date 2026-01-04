@@ -149,7 +149,7 @@ export default function Home() {
               <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent pb-1 lg:pb-2">
                 progrr
               </h1>
-              <p className="text-base sm:text-lg lg:text-xl text-gray-600 dark:text-gray-300 max-w-md">
+              <p className="text-sm sm:text-lg lg:text-xl text-gray-600 dark:text-gray-300 max-w-md">
                 Transform your coaching business with intelligent client
                 management
               </p>
@@ -174,7 +174,7 @@ export default function Home() {
           </div>
 
           {/* Right Side - Auth Form */}
-          <div className="w-full max-w-md mx-auto">
+          <div className="w-full max-w-[360px] sm:max-w-md mx-auto">
             <Card className="backdrop-blur-lg bg-white/80 dark:bg-gray-800/80 shadow-2xl border-0 overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600"></div>
               <CardContent className="pt-6 pb-5 px-5 sm:px-6 lg:pt-8 lg:pb-6 lg:px-8 min-h-[420px] sm:min-h-[460px] lg:min-h-[500px] flex flex-col">
