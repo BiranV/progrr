@@ -28,14 +28,16 @@ import {
   Copy as CopyIcon,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   ArrowLeft,
+  RotateCcw,
   Flame,
   Beef,
   Wheat,
   Droplets,
 } from "lucide-react";
 import { format } from "date-fns";
-import { Calendar as DatePickerCalendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
@@ -786,6 +788,52 @@ function ClientDashboard({ user }: { user: any }) {
     }
     return days;
   }, [weekStartDate]);
+
+  const shiftWeeklyAnchorDays = (deltaDays: number) => {
+    setWeeklyAnchorDate((prev) => {
+      const next = new Date(prev);
+      next.setDate(next.getDate() + deltaDays);
+      return next;
+    });
+  };
+
+  const [weekListYear, setWeekListYear] = React.useState<number>(() =>
+    new Date().getFullYear()
+  );
+
+  React.useEffect(() => {
+    setWeekListYear(weekStartDate.getFullYear());
+  }, [weekStartDate]);
+
+  const weekListTouchStartX = React.useRef<number | null>(null);
+
+  const yearWeekOptions = React.useMemo(() => {
+    const yearStart = new Date(weekListYear, 0, 1);
+    yearStart.setHours(0, 0, 0, 0);
+    const yearEnd = new Date(weekListYear + 1, 0, 1);
+    yearEnd.setHours(0, 0, 0, 0);
+
+    const firstWeekStart = startOfWeek(yearStart, weekStart);
+    const options: Array<{ key: string; start: Date; label: string }> = [];
+
+    for (let i = 0; i < 60; i++) {
+      const start = new Date(firstWeekStart);
+      start.setDate(start.getDate() + i * 7);
+
+      const end = new Date(start);
+      end.setDate(end.getDate() + 6);
+
+      // Include weeks that intersect this year.
+      if (end < yearStart) continue;
+      if (start >= yearEnd) break;
+
+      const key = toLocalDateKey(start);
+      const label = `${format(start, "MMM d")} – ${format(end, "MMM d")}`;
+      options.push({ key, start, label });
+    }
+
+    return options;
+  }, [weekListYear, weekStart]);
 
   const updateDaySchedule = (dateKey: string, patch: Partial<DaySchedule>) => {
     setWeeklySchedule((prev) => {
@@ -1591,33 +1639,132 @@ function ClientDashboard({ user }: { user: any }) {
                       </div>
 
                       <Popover>
-                        <PopoverTrigger asChild>
+                        <div className="flex items-center gap-2">
                           <Button
                             type="button"
                             variant="outline"
-                            className="gap-2 text-gray-900 dark:text-gray-100"
+                            size="icon"
+                            onClick={() => shiftWeeklyAnchorDays(-7)}
+                            aria-label="Previous week"
+                            title="Previous week"
+                            className="text-gray-900 dark:text-gray-100"
                           >
-                            <Calendar className="w-4 h-4 text-gray-700 dark:text-gray-200" />
-                            {format(weekStartDate, "MMM d")} –{" "}
-                            {format(
-                              new Date(
-                                new Date(weekStartDate).setDate(
-                                  weekStartDate.getDate() + 6
-                                )
-                              ),
-                              "MMM d"
-                            )}
+                            <ChevronLeft className="w-4 h-4 text-gray-700 dark:text-gray-200" />
                           </Button>
-                        </PopoverTrigger>
-                        <PopoverContent align="end" className="p-0">
-                          <DatePickerCalendar
-                            mode="single"
-                            selected={weeklyAnchorDate}
-                            onSelect={(d) => {
-                              if (d) setWeeklyAnchorDate(d);
-                            }}
-                            weekStartsOn={weekStart === "mon" ? 1 : 0}
-                          />
+
+                          <PopoverTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="gap-2 text-gray-900 dark:text-gray-100"
+                            >
+                              <Calendar className="w-4 h-4 text-gray-700 dark:text-gray-200" />
+                              {format(weekStartDate, "MMM d")} –{" "}
+                              {format(
+                                new Date(
+                                  new Date(weekStartDate).setDate(
+                                    weekStartDate.getDate() + 6
+                                  )
+                                ),
+                                "MMM d"
+                              )}
+                            </Button>
+                          </PopoverTrigger>
+
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => shiftWeeklyAnchorDays(7)}
+                            aria-label="Next week"
+                            title="Next week"
+                            className="text-gray-900 dark:text-gray-100"
+                          >
+                            <ChevronRight className="w-4 h-4 text-gray-700 dark:text-gray-200" />
+                          </Button>
+
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setWeeklyAnchorDate(new Date())}
+                            aria-label="Go to current week"
+                            title="Go to current week"
+                            className="text-gray-900 dark:text-gray-100"
+                          >
+                            <RotateCcw className="w-4 h-4 text-gray-700 dark:text-gray-200" />
+                          </Button>
+                        </div>
+
+                        <PopoverContent
+                          align="end"
+                          className="p-2 w-72"
+                          onTouchStart={(e) => {
+                            weekListTouchStartX.current =
+                              e.touches?.[0]?.clientX ?? null;
+                          }}
+                          onTouchEnd={(e) => {
+                            const startX = weekListTouchStartX.current;
+                            const endX = e.changedTouches?.[0]?.clientX;
+                            weekListTouchStartX.current = null;
+                            if (
+                              typeof startX !== "number" ||
+                              typeof endX !== "number"
+                            )
+                              return;
+                            const delta = endX - startX;
+                            if (Math.abs(delta) < 50) return;
+                            setWeekListYear((y) => (delta > 0 ? y - 1 : y + 1));
+                          }}
+                        >
+                          <div className="flex items-center justify-between px-1 py-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => setWeekListYear((y) => y - 1)}
+                              aria-label="Previous year"
+                              title="Previous year"
+                            >
+                              <ChevronLeft className="w-4 h-4" />
+                            </Button>
+                            <div className="text-sm font-medium text-gray-900 dark:text-white">
+                              {weekListYear}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => setWeekListYear((y) => y + 1)}
+                              aria-label="Next year"
+                              title="Next year"
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </Button>
+                          </div>
+
+                          <div className="mt-1 max-h-80 overflow-auto">
+                            {yearWeekOptions.map((opt) => {
+                              const selected =
+                                opt.key === toLocalDateKey(weekStartDate);
+                              return (
+                                <button
+                                  key={opt.key}
+                                  type="button"
+                                  onClick={() =>
+                                    setWeeklyAnchorDate(new Date(opt.start))
+                                  }
+                                  className={`w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${
+                                    selected
+                                      ? "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-medium"
+                                      : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                  }`}
+                                >
+                                  {opt.label}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </PopoverContent>
                       </Popover>
                     </div>
