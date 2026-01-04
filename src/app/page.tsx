@@ -135,7 +135,7 @@ export default function Home() {
       </div>
 
       <div className="relative min-h-screen flex items-center justify-center px-4 py-8 sm:py-12">
-        <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-12 items-center">
+        <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-6 sm:gap-10 lg:gap-12 items-center">
           {/* Left Side - Branding */}
           <div className="flex flex-col items-center justify-center text-center space-y-0">
             <div className="relative">
@@ -153,19 +153,19 @@ export default function Home() {
                 Transform your coaching business with intelligent client
                 management
               </p>
-              <div className="flex flex-wrap justify-center gap-2 sm:gap-3 lg:gap-4 pt-2 sm:pt-3 lg:pt-4">
-                <div className="px-3 py-1.5 sm:px-4 sm:py-2 bg-white dark:bg-gray-800 rounded-full shadow-md">
-                  <span className="text-xs sm:text-sm font-semibold text-purple-600 dark:text-purple-400">
+              <div className="flex flex-nowrap sm:flex-wrap justify-center gap-1.5 sm:gap-3 lg:gap-4 pt-2 sm:pt-3 lg:pt-4">
+                <div className="px-2.5 py-1 sm:px-4 sm:py-2 bg-white dark:bg-gray-800 rounded-full shadow-md">
+                  <span className="text-xs sm:text-sm font-semibold leading-none text-purple-600 dark:text-purple-400 whitespace-nowrap">
                     📊 Track Progress
                   </span>
                 </div>
-                <div className="px-3 py-1.5 sm:px-4 sm:py-2 bg-white dark:bg-gray-800 rounded-full shadow-md">
-                  <span className="text-xs sm:text-sm font-semibold text-indigo-600 dark:text-indigo-400">
+                <div className="px-2.5 py-1 sm:px-4 sm:py-2 bg-white dark:bg-gray-800 rounded-full shadow-md">
+                  <span className="text-xs sm:text-sm font-semibold leading-none text-indigo-600 dark:text-indigo-400 whitespace-nowrap">
                     💪 Build Plans
                   </span>
                 </div>
-                <div className="px-3 py-1.5 sm:px-4 sm:py-2 bg-white dark:bg-gray-800 rounded-full shadow-md">
-                  <span className="text-xs sm:text-sm font-semibold text-purple-600 dark:text-purple-400">
+                <div className="px-2.5 py-1 sm:px-4 sm:py-2 bg-white dark:bg-gray-800 rounded-full shadow-md">
+                  <span className="text-xs sm:text-sm font-semibold leading-none text-purple-600 dark:text-purple-400 whitespace-nowrap">
                     🎯 Achieve Goals
                   </span>
                 </div>
@@ -466,16 +466,16 @@ function LoginForm({
           onValueChange={(v) => setLoginAs(v === "client" ? "client" : "admin")}
           className="w-full"
         >
-          <TabsList className="grid w-full grid-cols-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-0 rounded-md h-8 sm:h-9">
+          <TabsList className="grid w-full grid-cols-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-0 rounded-md h-7 sm:h-9">
             <TabsTrigger
               value="admin"
-              className="rounded-md h-8 sm:h-9 text-sm cursor-pointer text-gray-600 dark:text-gray-300 data-[state=active]:bg-gray-200 data-[state=active]:text-gray-900 dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white transition-all"
+              className="rounded-md h-7 sm:h-9 text-xs sm:text-sm cursor-pointer text-gray-600 dark:text-gray-300 data-[state=active]:bg-gray-200 data-[state=active]:text-gray-900 dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white transition-all"
             >
               Admin
             </TabsTrigger>
             <TabsTrigger
               value="client"
-              className="rounded-md h-8 sm:h-9 text-sm cursor-pointer text-gray-600 dark:text-gray-300 data-[state=active]:bg-gray-200 data-[state=active]:text-gray-900 dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white transition-all"
+              className="rounded-md h-7 sm:h-9 text-xs sm:text-sm cursor-pointer text-gray-600 dark:text-gray-300 data-[state=active]:bg-gray-200 data-[state=active]:text-gray-900 dark:data-[state=active]:bg-gray-700 dark:data-[state=active]:text-white transition-all"
             >
               Client
             </TabsTrigger>
