@@ -177,7 +177,7 @@ export default function Home() {
           <div className="w-full max-w-[360px] sm:max-w-md mx-auto">
             <Card className="backdrop-blur-lg bg-white/80 dark:bg-gray-800/80 shadow-2xl border-0 overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600"></div>
-              <CardContent className="pt-6 pb-5 px-5 sm:px-6 lg:pt-8 lg:pb-6 lg:px-8 min-h-[420px] sm:min-h-[460px] lg:min-h-[500px] flex flex-col">
+              <CardContent className="pt-6 pb-5 px-5 sm:px-6 lg:pt-8 lg:pb-6 lg:px-8 min-h-[360px] sm:min-h-[460px] lg:min-h-[500px] flex flex-col">
                 <Tabs
                   value={tab}
                   onValueChange={(value) => {
@@ -488,7 +488,7 @@ function LoginForm({
           action={signInWithPassword}
           onSubmit={handleSubmit}
           noValidate
-          className="space-y-4 flex-1 flex flex-col"
+          className="space-y-3 sm:space-y-4 flex-1 flex flex-col"
         >
           <div className="space-y-4">
             <div className="space-y-2">
@@ -543,7 +543,7 @@ function LoginForm({
       ) : clientStep === "phone" ? (
         <form
           onSubmit={handleClientSendCode}
-          className="space-y-4 flex-1 flex flex-col"
+          className="space-y-3 sm:space-y-4 flex-1 flex flex-col"
         >
           <div className="space-y-2">
             <Label
@@ -569,7 +569,7 @@ function LoginForm({
 
           <Button
             type="submit"
-            className="w-full h-10 sm:h-11 lg:h-12 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] mt-auto disabled:opacity-70 disabled:cursor-not-allowed"
+            className="w-full h-10 sm:h-11 lg:h-12 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] mt-2 sm:mt-auto disabled:opacity-70 disabled:cursor-not-allowed"
             disabled={clientLoading}
           >
             {clientLoading ? "Sending..." : "Send verification code"}
@@ -578,7 +578,7 @@ function LoginForm({
       ) : (
         <form
           onSubmit={handleClientVerifyCode}
-          className="space-y-4 flex-1 flex flex-col"
+          className="space-y-3 sm:space-y-4 flex-1 flex flex-col"
         >
           <div className="space-y-2">
             <Label
@@ -623,7 +623,7 @@ function LoginForm({
 
           <Button
             type="submit"
-            className="w-full h-10 sm:h-11 lg:h-12 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] mt-auto disabled:opacity-70 disabled:cursor-not-allowed"
+            className="w-full h-10 sm:h-11 lg:h-12 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] mt-2 sm:mt-auto disabled:opacity-70 disabled:cursor-not-allowed"
             disabled={clientLoading}
           >
             {clientLoading ? "Verifying..." : "Verify & login"}
@@ -661,7 +661,7 @@ function SubmitButton({
   return (
     <Button
       type="submit"
-      className="w-full h-10 sm:h-11 lg:h-12 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] mt-auto disabled:opacity-70 disabled:cursor-not-allowed"
+      className="w-full h-10 sm:h-11 lg:h-12 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02] mt-2 sm:mt-auto disabled:opacity-70 disabled:cursor-not-allowed"
       disabled={pending}
     >
       {pending ? (
@@ -892,7 +892,7 @@ function RegisterForm({
         action={signUpWithPassword}
         onSubmit={handleSubmit}
         noValidate
-        className="space-y-4 flex-1 flex flex-col"
+        className="space-y-3 sm:space-y-4 flex-1 flex flex-col"
       >
         <div className="space-y-4">
           <div className="space-y-2">
