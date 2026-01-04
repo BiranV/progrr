@@ -1568,7 +1568,7 @@ function ClientDashboard({ user }: { user: any }) {
                                         key={ex.id || `${planId}-${idx}`}
                                         className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2"
                                       >
-                                        <div className="flex items-start justify-between gap-3">
+                                        <div>
                                           <div className="min-w-0">
                                             <div className="font-medium text-gray-900 dark:text-white truncate">
                                               {ex.name || "-"}
@@ -1579,6 +1579,32 @@ function ClientDashboard({ user }: { user: any }) {
                                             ).trim() ? (
                                               <div className="mt-1 text-xs text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
                                                 {String(ex.guidelines)}
+                                              </div>
+                                            ) : null}
+
+                                            {String(ex.sets ?? "").trim() ||
+                                            String(ex.reps ?? "").trim() ||
+                                            restText ? (
+                                              <div className="mt-2 text-sm text-gray-700 dark:text-gray-200 leading-5">
+                                                {String(
+                                                  ex.sets ?? ""
+                                                ).trim() ? (
+                                                  <div>
+                                                    {String(ex.sets).trim()}{" "}
+                                                    Sets
+                                                  </div>
+                                                ) : null}
+                                                {String(
+                                                  ex.reps ?? ""
+                                                ).trim() ? (
+                                                  <div>
+                                                    {String(ex.reps).trim()}{" "}
+                                                    Reps
+                                                  </div>
+                                                ) : null}
+                                                {restText ? (
+                                                  <div>{restText} Rest</div>
+                                                ) : null}
                                               </div>
                                             ) : null}
 
@@ -1631,31 +1657,22 @@ function ClientDashboard({ user }: { user: any }) {
                                                 "upload" &&
                                               String(videoUrlRaw).trim() ? (
                                               <div className="mt-2">
-                                                <video
-                                                  className="w-full rounded-lg"
-                                                  controls
-                                                  preload="metadata"
-                                                  src={String(
-                                                    videoUrlRaw
-                                                  ).trim()}
-                                                />
+                                                <div
+                                                  className="relative w-full overflow-hidden rounded-lg bg-black"
+                                                  style={{
+                                                    paddingTop: "56.25%",
+                                                  }}
+                                                >
+                                                  <video
+                                                    className="absolute inset-0 h-full w-full object-contain"
+                                                    controls
+                                                    preload="metadata"
+                                                    src={String(
+                                                      videoUrlRaw
+                                                    ).trim()}
+                                                  />
+                                                </div>
                                               </div>
-                                            ) : null}
-                                          </div>
-
-                                          <div className="shrink-0 text-sm text-gray-700 dark:text-gray-200 text-right leading-5">
-                                            {String(ex.sets ?? "").trim() ? (
-                                              <div>
-                                                {String(ex.sets).trim()} Sets
-                                              </div>
-                                            ) : null}
-                                            {String(ex.reps ?? "").trim() ? (
-                                              <div>
-                                                {String(ex.reps).trim()} Reps
-                                              </div>
-                                            ) : null}
-                                            {restText ? (
-                                              <div>{restText} Rest</div>
                                             ) : null}
                                           </div>
                                         </div>

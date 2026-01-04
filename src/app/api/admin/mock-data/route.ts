@@ -159,7 +159,7 @@ export async function POST(req: Request) {
     const c = await collections();
 
     // --- Plans ---
-    const workoutPlans = Array.from({ length: 10 }, (_, i) => {
+    const workoutPlans = Array.from({ length: 5 }, (_, i) => {
       const planId = new ObjectId();
       const createdAt = daysAgo(30 - i * 2);
       return {
@@ -174,11 +174,6 @@ export async function POST(req: Request) {
               "Athletic Performance",
               "Beginner Foundation",
               "Body Recomposition",
-              "Home Dumbbell",
-              "Glutes + Legs Focus",
-              "Upper Body Strength",
-              "Fat Loss Conditioning",
-              "Mobility + Core",
             ][i]
           }`,
           difficulty: ["beginner", "intermediate", "advanced"][i % 3],
@@ -203,54 +198,85 @@ export async function POST(req: Request) {
       };
     });
 
-    const exercises = workoutPlans.flatMap((planDoc, planIndex) => {
-      const planId = planDoc._id.toHexString();
+    // --- Exercises (Library + PlanExercise) ---
+    const exerciseTemplates: Array<{
+      name: string;
+      sets: string;
+      reps: string;
+    }> = [
+      { name: "Back Squat", sets: "4", reps: "5" },
+      { name: "Romanian Deadlift", sets: "3", reps: "8" },
+      { name: "Bench Press", sets: "4", reps: "6" },
+      { name: "Lat Pulldown", sets: "3", reps: "10" },
+      { name: "Deadlift", sets: "3", reps: "3" },
+      { name: "Incline Dumbbell Press", sets: "4", reps: "8" },
+      { name: "Seated Row", sets: "4", reps: "10" },
+      { name: "Overhead Press", sets: "3", reps: "8" },
+      { name: "Goblet Squat", sets: "4", reps: "12" },
+      { name: "Push-ups", sets: "4", reps: "AMRAP" },
+    ];
+
+    const sampleUploadVideos = [
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+    ] as const;
+
+    // Exactly 10 exercises in the library
+    const exerciseLibraryDocs = exerciseTemplates.slice(0, 10).map((ex, i) => {
+      const createdAt = daysAgo(35 - i);
+      return {
+        _id: new ObjectId(),
+        entity: "ExerciseLibrary",
+        adminId,
+        data: withMock({
+          name: ex.name,
+          guidelines:
+            "Focus on controlled form, full range of motion, and consistent tempo. Progress weekly when reps/effort are stable.",
+          videoKind: "upload",
+          videoUrl: sampleUploadVideos[i % sampleUploadVideos.length],
+        }),
+        createdAt,
+        updatedAt: createdAt,
+      };
+    });
+
+    const exerciseLibraryIdByName = new Map<string, string>();
+    exerciseLibraryDocs.forEach((d) => {
+      exerciseLibraryIdByName.set(
+        String((d.data as any)?.name),
+        d._id.toHexString()
+      );
+    });
+
+    // 2 exercises per plan (5 plans => 10 PlanExercise rows)
+    const planExercises = workoutPlans.flatMap((planDoc, planIndex) => {
+      const workoutPlanId = planDoc._id.toHexString();
       const createdAt = planDoc.createdAt;
 
-      const template: Array<{ name: string; sets: string; reps: string }> =
-        planIndex % 3 === 0
-          ? [
-              { name: "Back Squat", sets: "4", reps: "5" },
-              { name: "Romanian Deadlift", sets: "3", reps: "8" },
-              { name: "Bench Press", sets: "4", reps: "6" },
-              { name: "Lat Pulldown", sets: "3", reps: "10" },
-              { name: "Plank", sets: "3", reps: "45s" },
-              { name: "Walking Lunges", sets: "3", reps: "12/leg" },
-            ]
-          : planIndex % 3 === 1
-          ? [
-              { name: "Deadlift", sets: "3", reps: "3" },
-              { name: "Incline Dumbbell Press", sets: "4", reps: "8" },
-              { name: "Seated Row", sets: "4", reps: "10" },
-              { name: "Overhead Press", sets: "3", reps: "8" },
-              { name: "Hip Thrust", sets: "4", reps: "10" },
-              { name: "Hanging Knee Raises", sets: "3", reps: "12" },
-            ]
-          : [
-              { name: "Goblet Squat", sets: "4", reps: "12" },
-              { name: "Push-ups", sets: "4", reps: "AMRAP" },
-              { name: "One-arm Dumbbell Row", sets: "4", reps: "12/side" },
-              { name: "Dumbbell Shoulder Press", sets: "3", reps: "10" },
-              { name: "Step-ups", sets: "3", reps: "10/leg" },
-              { name: "Dead Bug", sets: "3", reps: "10/side" },
-            ];
+      const pickA =
+        exerciseTemplates[(planIndex * 2) % exerciseTemplates.length];
+      const pickB =
+        exerciseTemplates[(planIndex * 2 + 1) % exerciseTemplates.length];
 
-      return template.map((ex, idx) => {
-        const exId = new ObjectId();
+      const picks = [pickA, pickB];
+
+      return picks.map((ex, idx) => {
+        const exerciseLibraryId = exerciseLibraryIdByName.get(ex.name);
+        if (!exerciseLibraryId) {
+          throw new Error(`Missing ExerciseLibrary for ${ex.name}`);
+        }
+
         return {
-          _id: exId,
-          entity: "Exercise",
+          _id: new ObjectId(),
+          entity: "PlanExercise",
           adminId,
           data: withMock({
-            workoutPlanId: planId,
-            name: ex.name,
+            workoutPlanId,
+            exerciseLibraryId,
             sets: ex.sets,
             reps: ex.reps,
             order: idx,
             restSeconds: [60, 90, 120][idx % 3],
-            tempo: ["2-0-2", "3-1-1", "2-1-2"][idx % 3],
-            coachingNotes:
-              "Focus on controlled eccentric, full range of motion, and stable bracing. Stop set if form breaks.",
           }),
           createdAt,
           updatedAt: createdAt,
@@ -258,7 +284,7 @@ export async function POST(req: Request) {
       });
     });
 
-    const mealPlans = Array.from({ length: 10 }, (_, i) => {
+    const mealPlans = Array.from({ length: 5 }, (_, i) => {
       const planId = new ObjectId();
       const createdAt = daysAgo(25 - i);
       return {
@@ -273,11 +299,6 @@ export async function POST(req: Request) {
               "Muscle Gain",
               "Mediterranean Style",
               "Low Carb",
-              "Plant Forward",
-              "Gluten-Free Focus",
-              "Busy Schedule",
-              "Performance Fuel",
-              "Simple Starter",
             ][i]
           }`,
           goal: [
@@ -301,7 +322,7 @@ export async function POST(req: Request) {
       };
     });
 
-    // Exactly 10 Meal entities total: 1 meal per plan
+    // Exactly 5 Meal entities total: 1 meal per plan
     const meals = mealPlans.map((planDoc, i) => {
       const mealId = new ObjectId();
       const mealPlanId = planDoc._id.toHexString();
@@ -330,7 +351,8 @@ export async function POST(req: Request) {
       };
     });
 
-    const foods = meals.flatMap((mealDoc) => {
+    // --- Foods (FoodLibrary + PlanFood) ---
+    const mealsWithBaseFoods = meals.map((mealDoc) => {
       const mealId = mealDoc._id.toHexString();
       const createdAt = mealDoc.createdAt;
       const mealName = String((mealDoc.data ?? {}).name ?? "").toLowerCase();
@@ -342,7 +364,7 @@ export async function POST(req: Request) {
         protein: string;
         carbs: string;
         fat: string;
-      }> | null = mealName.includes("yogurt")
+      }> = mealName.includes("yogurt")
         ? [
             {
               name: "Greek yogurt (2%)",
@@ -482,30 +504,89 @@ export async function POST(req: Request) {
             },
           ];
 
-      return baseFoods.map((f, idx) => {
-        const foodId = new ObjectId();
+      return { mealId, createdAt, baseFoods };
+    });
+
+    // Keep seed lightweight: 2 foods assigned per meal (5 meals => 10 PlanFood rows)
+    const planFoodNames = Array.from(
+      new Set(
+        mealsWithBaseFoods
+          .flatMap((m) => m.baseFoods.slice(0, 2).map((f) => f.name))
+          .map((n) => String(n).trim())
+          .filter(Boolean)
+      )
+    );
+
+    const additionalFoodNames = Array.from(
+      new Set(
+        mealsWithBaseFoods
+          .flatMap((m) => m.baseFoods.map((f) => f.name))
+          .map((n) => String(n).trim())
+          .filter(Boolean)
+      )
+    ).filter((n) => !planFoodNames.includes(n));
+
+    const libraryFoodNames = [...planFoodNames, ...additionalFoodNames].slice(
+      0,
+      10
+    );
+
+    const foodLibraryDocs = libraryFoodNames.map((name, i) => {
+      const createdAt = daysAgo(20 - i);
+
+      const sample = mealsWithBaseFoods
+        .flatMap((m) => m.baseFoods)
+        .find((f) => f.name === name);
+
+      return {
+        _id: new ObjectId(),
+        entity: "FoodLibrary",
+        adminId,
+        data: withMock({
+          name,
+          calories: sample?.calories ?? "",
+          protein: sample?.protein ?? "",
+          carbs: sample?.carbs ?? "",
+          fat: sample?.fat ?? "",
+        }),
+        createdAt,
+        updatedAt: createdAt,
+      };
+    });
+
+    const foodLibraryIdByName = new Map<string, string>();
+    foodLibraryDocs.forEach((d) => {
+      foodLibraryIdByName.set(
+        String((d.data as any)?.name),
+        d._id.toHexString()
+      );
+    });
+
+    const planFoods = mealsWithBaseFoods.flatMap((m) => {
+      return m.baseFoods.slice(0, 2).map((f, idx) => {
+        const foodLibraryId = foodLibraryIdByName.get(f.name);
+        if (!foodLibraryId) {
+          throw new Error(`Missing FoodLibrary for ${f.name}`);
+        }
+
         return {
-          _id: foodId,
-          entity: "Food",
+          _id: new ObjectId(),
+          entity: "PlanFood",
           adminId,
           data: withMock({
-            mealId,
-            name: f.name,
+            mealId: m.mealId,
+            foodLibraryId,
             amount: f.amount,
-            calories: f.calories,
-            protein: f.protein,
-            carbs: f.carbs,
-            fat: f.fat,
             order: idx,
           }),
-          createdAt,
-          updatedAt: createdAt,
+          createdAt: m.createdAt,
+          updatedAt: m.createdAt,
         };
       });
     });
 
     // --- Clients (auth + entity) ---
-    const phones = await generateUniquePhones(adminId, 20);
+    const phones = await generateUniquePhones(adminId, 10);
 
     const clientAuthDocs = phones.map((phone, i) => {
       const createdAt = daysAgo(14 - (i % 7));
@@ -641,73 +722,66 @@ export async function POST(req: Request) {
     });
 
     // --- Meetings ---
-    const clientEntityIds = clientEntityDocs.map((d) => d._id.toHexString());
-
-    const meetings = Array.from({ length: 15 }, (_, i) => {
-      const createdAt = daysAgo(3);
-      const scheduledAt = hoursFromNow(24 + i * 6); // all future
-
+    const clientEntityId0 = clientEntityDocs[0]?._id?.toHexString();
+    const clientEntityId1 = clientEntityDocs[1]?._id?.toHexString();
+    const meetings = [
+      {
+        title: "Intro call",
+        type: "call",
+        status: "scheduled",
+        scheduledAt: hoursFromNow(26).toISOString(),
+        durationMinutes: 30,
+        location: "+97250 123 4567",
+        clientId: clientEntityId0,
+        notes: "Discuss goals, schedule, and onboarding.",
+      },
+      {
+        title: "Check-in",
+        type: "zoom",
+        status: "scheduled",
+        scheduledAt: hoursFromNow(72).toISOString(),
+        durationMinutes: 20,
+        location: "https://zoom.us/j/1234567890",
+        clientId: clientEntityId1 ?? clientEntityId0,
+        notes: "Answer questions about process and payment.",
+      },
+      {
+        title: "Nutrition review",
+        type: "zoom",
+        status: "scheduled",
+        scheduledAt: hoursFromNow(120).toISOString(),
+        durationMinutes: 25,
+        location: "https://zoom.us/j/5556667777",
+        clientId: clientEntityId0,
+        notes: "Review last week's adherence and adjust targets.",
+      },
+      {
+        title: "Form review",
+        type: "zoom",
+        status: "completed",
+        scheduledAt: daysAgo(3).toISOString(),
+        durationMinutes: 30,
+        location: "https://zoom.us/j/9876543210",
+        clientId: clientEntityId0,
+        notes: "Review squat and hinge cues.",
+      },
+      {
+        title: "Weekly recap",
+        type: "call",
+        status: "completed",
+        scheduledAt: daysAgo(10).toISOString(),
+        durationMinutes: 15,
+        location: "+97252 987 6543",
+        clientId: clientEntityId1 ?? clientEntityId0,
+        notes: "Quick recap and next-week focus.",
+      },
+    ].map((m, i) => {
+      const createdAt = daysAgo(10 - i);
       return {
         _id: new ObjectId(),
         entity: "Meeting",
         adminId,
-        data: withMock({
-          title: [
-            "Weekly Check-in",
-            "Program Review",
-            "Technique Review",
-            "Nutrition Adjustments",
-            "Progress & Next Steps",
-          ][i % 5],
-          type: ["zoom", "call", "in-person"][i % 3],
-          status: ["scheduled", "scheduled", "cancelled", "no-show"][i % 4],
-          scheduledAt: scheduledAt.toISOString(),
-          durationMinutes: [30, 45, 60][i % 3],
-          location:
-            i % 3 === 0
-              ? "Zoom link will be sent before the call"
-              : i % 3 === 1
-              ? "Phone"
-              : "Office / Gym meeting point",
-          clientId: clientEntityIds[i % clientEntityIds.length],
-          notes:
-            "Agenda: wins, adherence review, weight trend, training performance, and next-week focus. Prepare questions in advance.",
-        }),
-        createdAt,
-        updatedAt: createdAt,
-      };
-    });
-
-    // --- Messages ---
-    const messages = Array.from({ length: 12 }, (_, i) => {
-      const createdAt = hoursFromNow(-36 + i * 3);
-      const clientId = clientEntityIds[i % Math.min(clientEntityIds.length, 6)];
-      const senderRole = i % 3 === 0 ? "client" : "admin";
-
-      return {
-        _id: new ObjectId(),
-        entity: "Message",
-        adminId,
-        data: withMock({
-          clientId,
-          text:
-            senderRole === "client"
-              ? [
-                  "Hey! Quick question — should I increase weight if the last set feels easy?",
-                  "I hit my protein target but felt hungry at night. Any tips?",
-                  "Knee felt a bit tight on lunges. Should I swap the movement?",
-                  "I missed one workout this week — should I add an extra session?",
-                ][i % 4]
-              : [
-                  "Great work. If you can keep 1–2 reps in reserve with good form, add a small load next session.",
-                  "Try adding volume via veggies + a higher fiber snack; keep calories consistent.",
-                  "Yes — swap to split squats or step-ups and keep pain-free range. We’ll reassess next check-in.",
-                  "No need to overcompensate. Just continue with the plan and focus on consistency.",
-                ][i % 4],
-          senderRole,
-          readByAdmin: senderRole === "admin",
-          readByClient: senderRole === "client",
-        }),
+        data: withMock(m),
         createdAt,
         updatedAt: createdAt,
       };
@@ -716,13 +790,14 @@ export async function POST(req: Request) {
     // Insert all entity docs
     const entityDocs = [
       ...workoutPlans,
-      ...exercises,
+      ...exerciseLibraryDocs,
+      ...planExercises,
       ...mealPlans,
       ...meals,
-      ...foods,
+      ...foodLibraryDocs,
+      ...planFoods,
       ...clientEntityDocs,
       ...meetings,
-      ...messages,
     ];
 
     await c.entities.insertMany(entityDocs);
@@ -734,12 +809,12 @@ export async function POST(req: Request) {
       counts: {
         clients: clientEntityDocs.length,
         workoutPlans: workoutPlans.length,
-        exercises: exercises.length,
+        exercises: exerciseLibraryDocs.length,
         mealPlans: mealPlans.length,
         meals: meals.length,
-        foods: foods.length,
+        foods: foodLibraryDocs.length,
         meetings: meetings.length,
-        messages: messages.length,
+        messages: 0,
       },
     });
   } catch (error: any) {

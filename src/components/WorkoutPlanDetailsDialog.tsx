@@ -262,7 +262,7 @@ export default function WorkoutPlanDetailsDialog({
                         key={e.id || idx}
                         className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2"
                       >
-                        <div className="flex items-start justify-between gap-3">
+                        <div>
                           <div className="min-w-0">
                             <div className="font-medium text-gray-900 dark:text-white truncate">
                               {e.name || "-"}
@@ -271,6 +271,20 @@ export default function WorkoutPlanDetailsDialog({
                             {String(e.guidelines ?? "").trim() ? (
                               <div className="mt-1 text-xs text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
                                 {String(e.guidelines)}
+                              </div>
+                            ) : null}
+
+                            {String(e.sets ?? "").trim() ||
+                            String(e.reps ?? "").trim() ||
+                            restText ? (
+                              <div className="mt-2 text-sm text-gray-700 dark:text-gray-200 leading-5">
+                                {String(e.sets ?? "").trim() ? (
+                                  <div>{String(e.sets).trim()} Sets</div>
+                                ) : null}
+                                {String(e.reps ?? "").trim() ? (
+                                  <div>{String(e.reps).trim()} Reps</div>
+                                ) : null}
+                                {restText ? <div>{restText} Rest</div> : null}
                               </div>
                             ) : null}
 
@@ -319,24 +333,19 @@ export default function WorkoutPlanDetailsDialog({
                             ) : String(e.videoKind ?? "") === "upload" &&
                               String(e.videoUrl ?? "").trim() ? (
                               <div className="mt-2">
-                                <video
-                                  className="w-full rounded-lg"
-                                  controls
-                                  preload="metadata"
-                                  src={String(e.videoUrl ?? "").trim()}
-                                />
+                                <div
+                                  className="relative w-full overflow-hidden rounded-lg bg-black"
+                                  style={{ paddingTop: "56.25%" }}
+                                >
+                                  <video
+                                    className="absolute inset-0 h-full w-full object-contain"
+                                    controls
+                                    preload="metadata"
+                                    src={String(e.videoUrl ?? "").trim()}
+                                  />
+                                </div>
                               </div>
                             ) : null}
-                          </div>
-
-                          <div className="shrink-0 text-sm text-gray-700 dark:text-gray-200 text-right leading-5">
-                            {String(e.sets ?? "").trim() ? (
-                              <div>{String(e.sets).trim()} Sets</div>
-                            ) : null}
-                            {String(e.reps ?? "").trim() ? (
-                              <div>{String(e.reps).trim()} Reps</div>
-                            ) : null}
-                            {restText ? <div>{restText} Rest</div> : null}
                           </div>
                         </div>
                       </div>

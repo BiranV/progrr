@@ -219,7 +219,7 @@ export default function MeetingsPage() {
                     <CardContent className="px-5 py-2 flex flex-col flex-1">
                       <div className="space-y-3 text-sm text-gray-600 dark:text-gray-300">
                         <div className="grid grid-cols-2 gap-4">
-                          <div className="flex items-center gap-2 truncate">
+                          <div className="flex items-center gap-2 truncate col-span-2">
                             <span className="shrink-0">
                               {getMeetingIcon(meeting.type)}
                             </span>
@@ -233,20 +233,40 @@ export default function MeetingsPage() {
                           </div>
 
                           {meeting.clientId ? (
-                            <div className="flex items-center gap-2 truncate">
+                            <div className="flex items-center gap-2 truncate col-span-2">
                               <span className="truncate">
                                 With: {getClientName(meeting.clientId)}
                               </span>
                             </div>
                           ) : null}
 
-                          {meeting.location ? (
-                            <div className="flex items-center gap-2 truncate col-span-2">
-                              <span className="truncate">
-                                {meeting.location}
-                              </span>
-                            </div>
-                          ) : null}
+                          {(() => {
+                            const type = String(meeting.type ?? "")
+                              .trim()
+                              .toLowerCase();
+                            const rawLocation = String(
+                              (meeting as any).location ?? ""
+                            ).trim();
+                            const location = rawLocation;
+                            const locationLower = rawLocation.toLowerCase();
+
+                            // Avoid duplicate "Zoom"/"Phone" when type already conveys it.
+                            const redundant =
+                              !location ||
+                              (type === "zoom" && locationLower === "zoom") ||
+                              (type === "call" && locationLower === "phone") ||
+                              locationLower === type;
+
+                            if (redundant) return null;
+
+                            return (
+                              <div className="flex items-center gap-2 truncate col-span-2">
+                                <span className="truncate">
+                                  Location / Link: {location}
+                                </span>
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
 

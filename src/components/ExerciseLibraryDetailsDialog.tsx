@@ -235,12 +235,17 @@ export default function ExerciseLibraryDetailsDialog({
                 <div className="text-sm font-medium text-gray-900 dark:text-white mb-2">
                   Video
                 </div>
-                <video
-                  className="w-full rounded-lg"
-                  controls
-                  preload="metadata"
-                  src={videoUrl}
-                />
+                <div
+                  className="relative w-full overflow-hidden rounded-lg bg-black"
+                  style={{ paddingTop: "56.25%" }}
+                >
+                  <video
+                    className="absolute inset-0 h-full w-full object-contain"
+                    controls
+                    preload="metadata"
+                    src={videoUrl}
+                  />
+                </div>
               </div>
             ) : null}
 
