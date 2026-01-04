@@ -20,6 +20,40 @@ function normalizeEmail(email: unknown): string | undefined {
   return v ? v : undefined;
 }
 
+async function assertClientNotSameAsAdminIdentity(args: {
+  c: Awaited<ReturnType<typeof collections>>;
+  adminEmail: string | undefined;
+  clientEmail: string | undefined;
+  clientPhone: string;
+  phoneCandidates: string[];
+}) {
+  const { c, adminEmail, clientEmail, clientPhone, phoneCandidates } = args;
+
+  if (!adminEmail || !clientEmail) return;
+  if (adminEmail !== clientEmail) return;
+  if (!clientPhone) return;
+
+  // Admins don't have a phone field today, so infer "your phone" from an
+  // existing client-auth record that already uses your email.
+  const existingClientWithSameEmail = await c.clients.findOne({
+    email: {
+      $regex: new RegExp(`^${escapeRegExp(adminEmail)}$`, "i"),
+    },
+  });
+
+  if (!existingClientWithSameEmail) {
+    // Can't prove this is the same person; allow.
+    return;
+  }
+
+  const inferredPhone = normalizePhone(existingClientWithSameEmail.phone);
+  if (inferredPhone && phoneCandidates.includes(inferredPhone)) {
+    throw new Error(
+      "You cannot create/update a client with the same email and phone as your own account"
+    );
+  }
+}
+
 function normalizePhone(phone: unknown): string {
   const raw = String(phone ?? "").trim();
   if (!raw) return "";
@@ -125,9 +159,13 @@ export async function createClientAction(data: ClientFormData) {
   const status = normalizeClientStatus(data.status);
 
   const adminEmail = normalizeEmail(adminUser.email);
-  if (email && adminEmail && email === adminEmail) {
-    throw new Error("Client email cannot be the same as your admin email");
-  }
+  await assertClientNotSameAsAdminIdentity({
+    c,
+    adminEmail,
+    clientEmail: email,
+    clientPhone: phone,
+    phoneCandidates,
+  });
 
   if (!name) throw new Error("Client name is required");
   if (!email) throw new Error("Client email is required");
@@ -268,9 +306,13 @@ export async function updateClientAction(id: string, data: ClientFormData) {
   if (!phone) throw new Error("Client phone is required");
 
   const adminEmail = normalizeEmail(adminUser.email);
-  if (adminEmail && email === adminEmail) {
-    throw new Error("Client email cannot be the same as your admin email");
-  }
+  await assertClientNotSameAsAdminIdentity({
+    c,
+    adminEmail,
+    clientEmail: email,
+    clientPhone: phone,
+    phoneCandidates,
+  });
 
   assertBirthDateNotFuture((data as any).birthDate);
 
