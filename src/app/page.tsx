@@ -153,19 +153,19 @@ export default function Home() {
                 Transform your coaching business with intelligent client
                 management
               </p>
-              <div className="flex flex-nowrap sm:flex-wrap justify-center gap-1.5 sm:gap-3 lg:gap-4 pt-2 sm:pt-3 lg:pt-4">
-                <div className="px-2.5 py-1 sm:px-4 sm:py-2 bg-white dark:bg-gray-800 rounded-full shadow-md">
-                  <span className="text-xs sm:text-sm font-semibold leading-none text-purple-600 dark:text-purple-400 whitespace-nowrap">
+              <div className="flex flex-nowrap sm:flex-wrap justify-center gap-1 sm:gap-3 lg:gap-4 pt-2 sm:pt-3 lg:pt-4">
+                <div className="px-2 py-0.5 sm:px-4 sm:py-2 bg-white dark:bg-gray-800 rounded-full shadow-md">
+                  <span className="text-[11px] sm:text-sm font-semibold leading-none text-purple-600 dark:text-purple-400 whitespace-nowrap">
                     📊 Track Progress
                   </span>
                 </div>
-                <div className="px-2.5 py-1 sm:px-4 sm:py-2 bg-white dark:bg-gray-800 rounded-full shadow-md">
-                  <span className="text-xs sm:text-sm font-semibold leading-none text-indigo-600 dark:text-indigo-400 whitespace-nowrap">
+                <div className="px-2 py-0.5 sm:px-4 sm:py-2 bg-white dark:bg-gray-800 rounded-full shadow-md">
+                  <span className="text-[11px] sm:text-sm font-semibold leading-none text-indigo-600 dark:text-indigo-400 whitespace-nowrap">
                     💪 Build Plans
                   </span>
                 </div>
-                <div className="px-2.5 py-1 sm:px-4 sm:py-2 bg-white dark:bg-gray-800 rounded-full shadow-md">
-                  <span className="text-xs sm:text-sm font-semibold leading-none text-purple-600 dark:text-purple-400 whitespace-nowrap">
+                <div className="px-2 py-0.5 sm:px-4 sm:py-2 bg-white dark:bg-gray-800 rounded-full shadow-md">
+                  <span className="text-[11px] sm:text-sm font-semibold leading-none text-purple-600 dark:text-purple-400 whitespace-nowrap">
                     🎯 Achieve Goals
                   </span>
                 </div>
