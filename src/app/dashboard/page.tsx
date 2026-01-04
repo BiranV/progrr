@@ -12,6 +12,7 @@ import {
   Dumbbell,
   UtensilsCrossed,
   Calendar,
+  CalendarDays,
   MessageSquare,
   Mail,
   Phone,
@@ -34,6 +35,7 @@ import {
   Droplets,
 } from "lucide-react";
 import { format } from "date-fns";
+import { Calendar as DatePickerCalendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
@@ -43,9 +45,24 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import ClientAvatar from "@/components/ClientAvatar";
 import { extractYouTubeVideoId, toYouTubeEmbedUrl } from "@/lib/youtube";
+import { getCookie, setCookie } from "@/lib/client-cookies";
 import {
   copyTextToClipboard,
   downloadPdfFile,
@@ -382,7 +399,7 @@ function ClientDashboard({ user }: { user: any }) {
   const { darkMode, toggleDarkMode } = useTheme();
   const queryClient = useQueryClient();
   const [activeSection, setActiveSection] = React.useState<
-    "menu" | "profile" | "meetings" | "workouts" | "meals"
+    "menu" | "profile" | "meetings" | "workouts" | "meals" | "weekly"
   >("menu");
   const [messagesOpen, setMessagesOpen] = React.useState(false);
   const [newMessage, setNewMessage] = React.useState("");
@@ -581,7 +598,9 @@ function ClientDashboard({ user }: { user: any }) {
         );
         return plans.filter(Boolean);
       },
-      enabled: activeSection === "workouts" && assignedPlanIds.length > 0,
+      enabled:
+        (activeSection === "workouts" || activeSection === "weekly") &&
+        assignedPlanIds.length > 0,
     });
 
   const {
@@ -676,6 +695,104 @@ function ClientDashboard({ user }: { user: any }) {
       },
       enabled: activeSection === "meals" && assignedMealPlanIds.length > 0,
     });
+
+  type WeekStart = "sun" | "mon";
+  type DaySchedule = {
+    workoutPlanId?: string;
+    workoutTime?: string;
+    notes?: string;
+  };
+
+  const WEEK_START_COOKIE = "progrr_week_start";
+  const [weekStart, setWeekStartState] = React.useState<WeekStart>(() => {
+    const raw = String(getCookie(WEEK_START_COOKIE) ?? "").trim();
+    return raw === "mon" ? "mon" : "sun";
+  });
+
+  React.useEffect(() => {
+    setCookie(WEEK_START_COOKIE, weekStart, {
+      maxAgeSeconds: 60 * 60 * 24 * 365,
+    });
+  }, [weekStart]);
+
+  const [weeklyAnchorDate, setWeeklyAnchorDate] = React.useState<Date>(
+    () => new Date()
+  );
+
+  const scheduleStorageKey = React.useMemo(() => {
+    const id = String(myClient?.id ?? "").trim();
+    return id ? `progrr_weekly_schedule_${id}` : "";
+  }, [myClient?.id]);
+
+  const [weeklySchedule, setWeeklySchedule] = React.useState<
+    Record<string, DaySchedule>
+  >({});
+
+  React.useEffect(() => {
+    if (!scheduleStorageKey) return;
+    try {
+      const raw = window.localStorage.getItem(scheduleStorageKey);
+      if (!raw) {
+        setWeeklySchedule({});
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        setWeeklySchedule(parsed);
+      } else {
+        setWeeklySchedule({});
+      }
+    } catch {
+      setWeeklySchedule({});
+    }
+  }, [scheduleStorageKey]);
+
+  React.useEffect(() => {
+    if (!scheduleStorageKey) return;
+    try {
+      window.localStorage.setItem(
+        scheduleStorageKey,
+        JSON.stringify(weeklySchedule ?? {})
+      );
+    } catch {
+      // ignore
+    }
+  }, [scheduleStorageKey, weeklySchedule]);
+
+  const pad2 = (n: number) => String(n).padStart(2, "0");
+  const toLocalDateKey = (d: Date) => {
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  };
+  const startOfWeek = (d: Date, startsOn: WeekStart) => {
+    const date = new Date(d);
+    date.setHours(0, 0, 0, 0);
+    const day = date.getDay();
+    const weekStartsOn = startsOn === "mon" ? 1 : 0;
+    const diff = (day - weekStartsOn + 7) % 7;
+    date.setDate(date.getDate() - diff);
+    return date;
+  };
+
+  const weekStartDate = React.useMemo(
+    () => startOfWeek(weeklyAnchorDate, weekStart),
+    [weeklyAnchorDate, weekStart]
+  );
+  const weekDays = React.useMemo(() => {
+    const days: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekStartDate);
+      d.setDate(d.getDate() + i);
+      days.push(d);
+    }
+    return days;
+  }, [weekStartDate]);
+
+  const updateDaySchedule = (dateKey: string, patch: Partial<DaySchedule>) => {
+    setWeeklySchedule((prev) => {
+      const current = prev?.[dateKey] ?? {};
+      return { ...prev, [dateKey]: { ...current, ...patch } };
+    });
+  };
 
   const {
     data: mealPlanMealsByPlanId = {},
@@ -888,6 +1005,27 @@ function ClientDashboard({ user }: { user: any }) {
     queryFn: () => db.entities.Meeting.filter({ clientId: myClient.id }),
     enabled: !!myClient,
   });
+
+  const meetingsByDayKey = React.useMemo(() => {
+    const map = new Map<string, any[]>();
+    for (const m of meetings as any[]) {
+      const scheduledAt = m?.scheduledAt ? new Date(m.scheduledAt) : null;
+      if (!scheduledAt || Number.isNaN(scheduledAt.getTime())) continue;
+      const key = toLocalDateKey(scheduledAt);
+      const arr = map.get(key) ?? [];
+      arr.push(m);
+      map.set(key, arr);
+    }
+    for (const [k, arr] of map.entries()) {
+      arr.sort((a: any, b: any) => {
+        const at = new Date(a?.scheduledAt || 0).getTime();
+        const bt = new Date(b?.scheduledAt || 0).getTime();
+        return at - bt;
+      });
+      map.set(k, arr);
+    }
+    return map;
+  }, [meetings]);
 
   const now = new Date();
   const sortedMeetings = [...meetings].sort((a: any, b: any) => {
@@ -1123,6 +1261,16 @@ function ClientDashboard({ user }: { user: any }) {
               <CardTitle className="text-base">Meal Plans</CardTitle>
             </CardHeader>
           </Card>
+
+          <Card
+            className="h-32 md:h-36 dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
+            onClick={() => setActiveSection("weekly")}
+          >
+            <CardHeader className="h-full flex flex-col items-center justify-center text-center gap-2">
+              <CalendarDays className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+              <CardTitle className="text-base">Weekly Calendar</CardTitle>
+            </CardHeader>
+          </Card>
         </div>
       ) : (
         <div className="space-y-4">
@@ -1143,7 +1291,9 @@ function ClientDashboard({ user }: { user: any }) {
                 ? "Meetings"
                 : activeSection === "workouts"
                 ? "Workout Plans"
-                : "Meal Plans"}
+                : activeSection === "meals"
+                ? "Meal Plans"
+                : "Weekly Calendar"}
             </div>
           </div>
 
@@ -1404,6 +1554,230 @@ function ClientDashboard({ user }: { user: any }) {
                         ))}
                       </div>
                     )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          {activeSection === "weekly" ? (
+            <div className="space-y-4">
+              {!myClient ? (
+                <div className="py-10 text-center text-gray-500 dark:text-gray-400">
+                  No client profile found
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <CalendarDays className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                      <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                        Weekly
+                      </h2>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm text-gray-700 dark:text-gray-200">
+                          Week starts Monday
+                        </div>
+                        <Switch
+                          checked={weekStart === "mon"}
+                          onCheckedChange={(checked) =>
+                            setWeekStartState(checked ? "mon" : "sun")
+                          }
+                          aria-label="Week starts Monday"
+                        />
+                      </div>
+
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="gap-2 text-gray-900 dark:text-gray-100"
+                          >
+                            <Calendar className="w-4 h-4 text-gray-700 dark:text-gray-200" />
+                            {format(weekStartDate, "MMM d")} –{" "}
+                            {format(
+                              new Date(
+                                new Date(weekStartDate).setDate(
+                                  weekStartDate.getDate() + 6
+                                )
+                              ),
+                              "MMM d"
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="p-0">
+                          <DatePickerCalendar
+                            mode="single"
+                            selected={weeklyAnchorDate}
+                            onSelect={(d) => {
+                              if (d) setWeeklyAnchorDate(d);
+                            }}
+                            weekStartsOn={weekStart === "mon" ? 1 : 0}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {weekDays.map((d) => {
+                      const key = toLocalDateKey(d);
+                      const daySchedule = weeklySchedule?.[key] ?? {};
+                      const dayMeetings = meetingsByDayKey.get(key) ?? [];
+                      const isToday = key === toLocalDateKey(new Date());
+
+                      return (
+                        <div
+                          key={key}
+                          className={`rounded-xl border p-4 dark:border-gray-700 bg-white dark:bg-gray-900/30 flex flex-col ${
+                            isToday
+                              ? "border-indigo-200 dark:border-indigo-800"
+                              : "border-gray-200"
+                          }`}
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-baseline justify-between gap-2">
+                              <div className="min-w-0">
+                                <div className="font-semibold text-gray-900 dark:text-white">
+                                  {format(d, "EEE")}
+                                  {isToday ? (
+                                    <span className="ml-2 text-xs font-medium text-indigo-700 dark:text-indigo-300">
+                                      Today
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  {format(d, "PPP")}
+                                </div>
+                              </div>
+                              <div className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
+                                {dayMeetings.length
+                                  ? `${dayMeetings.length} meeting${
+                                      dayMeetings.length === 1 ? "" : "s"
+                                    }`
+                                  : ""}
+                              </div>
+                            </div>
+
+                            {dayMeetings.length ? (
+                              <div className="mt-3 space-y-2">
+                                {dayMeetings.map((m: any) => {
+                                  const t = m?.scheduledAt
+                                    ? new Date(m.scheduledAt)
+                                    : null;
+                                  return (
+                                    <div
+                                      key={m.id}
+                                      className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2"
+                                    >
+                                      <div className="flex items-center justify-between gap-2">
+                                        <div className="min-w-0 font-medium text-sm text-gray-900 dark:text-white truncate">
+                                          {String(
+                                            m.title ?? "Meeting"
+                                          ).trim() || "Meeting"}
+                                        </div>
+                                        <div className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
+                                          {t && !Number.isNaN(t.getTime())
+                                            ? format(t, "HH:mm")
+                                            : ""}
+                                        </div>
+                                      </div>
+                                      {String(m.type ?? "").trim() ? (
+                                        <div className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 capitalize">
+                                          {String(m.type).replace(/[-_]/g, " ")}
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : null}
+
+                            <div className="mt-4 space-y-3">
+                              <div className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                                Workout
+                              </div>
+
+                              {assignedPlansLoading ? (
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  Loading workout plans...
+                                </div>
+                              ) : assignedPlans.length === 0 ? (
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  No workout plans assigned
+                                </div>
+                              ) : (
+                                <div className="grid grid-cols-2 gap-2">
+                                  <Select
+                                    value={String(
+                                      daySchedule.workoutPlanId ?? ""
+                                    )}
+                                    onValueChange={(v) =>
+                                      updateDaySchedule(key, {
+                                        workoutPlanId: v,
+                                      })
+                                    }
+                                  >
+                                    <SelectTrigger className="w-full">
+                                      <SelectValue placeholder="Plan" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {assignedPlans.map((p: any) => (
+                                        <SelectItem
+                                          key={String(p.id)}
+                                          value={String(p.id)}
+                                        >
+                                          {String(
+                                            p.name ?? "Workout Plan"
+                                          ).trim() || "Workout Plan"}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+
+                                  <Input
+                                    type="time"
+                                    value={String(
+                                      daySchedule.workoutTime ?? ""
+                                    )}
+                                    onChange={(e) =>
+                                      updateDaySchedule(key, {
+                                        workoutTime: e.target.value,
+                                      })
+                                    }
+                                    placeholder="Time"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="mt-4 space-y-2">
+                            <div className="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                              Notes
+                            </div>
+                            <Textarea
+                              value={String(daySchedule.notes ?? "")}
+                              onChange={(e) =>
+                                updateDaySchedule(key, {
+                                  notes: e.target.value,
+                                })
+                              }
+                              rows={3}
+                              placeholder="Custom text for this day"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    Saved on this device for your account.
                   </div>
                 </div>
               )}
