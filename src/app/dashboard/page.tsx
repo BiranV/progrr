@@ -721,45 +721,95 @@ function ClientDashboard({ user }: { user: any }) {
     () => new Date()
   );
 
-  const scheduleStorageKey = React.useMemo(() => {
-    const id = String(myClient?.id ?? "").trim();
-    return id ? `progrr_weekly_schedule_${id}` : "";
-  }, [myClient?.id]);
-
   const [weeklySchedule, setWeeklySchedule] = React.useState<
     Record<string, DaySchedule>
   >({});
 
-  React.useEffect(() => {
-    if (!scheduleStorageKey) return;
-    try {
-      const raw = window.localStorage.getItem(scheduleStorageKey);
-      if (!raw) {
-        setWeeklySchedule({});
-        return;
-      }
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === "object") {
-        setWeeklySchedule(parsed);
-      } else {
-        setWeeklySchedule({});
-      }
-    } catch {
-      setWeeklySchedule({});
-    }
-  }, [scheduleStorageKey]);
+  const { data: weeklyScheduleDocs = [] } = useQuery({
+    queryKey: ["clientWeeklySchedule", myClient?.id ?? ""],
+    queryFn: async () => {
+      const clientId = String(myClient?.id ?? "").trim();
+      if (!clientId) return [];
+      return db.entities.ClientWeeklySchedule.filter({ clientId });
+    },
+    enabled: activeSection === "weekly" && !!String(myClient?.id ?? "").trim(),
+  });
+
+  const weeklyScheduleDoc = (weeklyScheduleDocs as any[])?.[0] ?? null;
+  const weeklyScheduleDocId = String(weeklyScheduleDoc?.id ?? "").trim();
+
+  const didInitWeeklyScheduleRef = React.useRef(false);
+  const lastSavedWeeklyScheduleJsonRef = React.useRef<string>("");
+  const saveWeeklyScheduleTimerRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
-    if (!scheduleStorageKey) return;
-    try {
-      window.localStorage.setItem(
-        scheduleStorageKey,
-        JSON.stringify(weeklySchedule ?? {})
-      );
-    } catch {
-      // ignore
+    didInitWeeklyScheduleRef.current = false;
+    lastSavedWeeklyScheduleJsonRef.current = "";
+  }, [myClient?.id]);
+
+  React.useEffect(() => {
+    if (activeSection !== "weekly") return;
+    if (didInitWeeklyScheduleRef.current) return;
+
+    const days = (weeklyScheduleDoc?.days ?? {}) as Record<string, DaySchedule>;
+    if (days && typeof days === "object") {
+      setWeeklySchedule(days);
+      lastSavedWeeklyScheduleJsonRef.current = JSON.stringify(days);
+    } else {
+      setWeeklySchedule({});
+      lastSavedWeeklyScheduleJsonRef.current = "{}";
     }
-  }, [scheduleStorageKey, weeklySchedule]);
+
+    didInitWeeklyScheduleRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSection, weeklyScheduleDocId]);
+
+  const saveWeeklyScheduleMutation = useMutation({
+    mutationFn: async (days: Record<string, DaySchedule>) => {
+      const clientId = String(myClient?.id ?? "").trim();
+      if (!clientId) throw new Error("Client profile not found");
+
+      const payload = { clientId, days };
+      if (weeklyScheduleDocId) {
+        return db.entities.ClientWeeklySchedule.update(
+          weeklyScheduleDocId,
+          payload
+        );
+      }
+      return db.entities.ClientWeeklySchedule.create(payload);
+    },
+    onSuccess: () => {
+      const clientId = String(myClient?.id ?? "").trim();
+      queryClient.invalidateQueries({
+        queryKey: ["clientWeeklySchedule", clientId],
+      });
+    },
+  });
+
+  React.useEffect(() => {
+    if (activeSection !== "weekly") return;
+    if (!didInitWeeklyScheduleRef.current) return;
+    if (!String(myClient?.id ?? "").trim()) return;
+
+    const nextJson = JSON.stringify(weeklySchedule ?? {});
+    if (nextJson === lastSavedWeeklyScheduleJsonRef.current) return;
+
+    if (saveWeeklyScheduleTimerRef.current) {
+      window.clearTimeout(saveWeeklyScheduleTimerRef.current);
+    }
+
+    saveWeeklyScheduleTimerRef.current = window.setTimeout(() => {
+      saveWeeklyScheduleMutation.mutate(weeklySchedule ?? {});
+      lastSavedWeeklyScheduleJsonRef.current = nextJson;
+    }, 500);
+
+    return () => {
+      if (saveWeeklyScheduleTimerRef.current) {
+        window.clearTimeout(saveWeeklyScheduleTimerRef.current);
+        saveWeeklyScheduleTimerRef.current = null;
+      }
+    };
+  }, [activeSection, myClient?.id, weeklySchedule, saveWeeklyScheduleMutation]);
 
   const pad2 = (n: number) => String(n).padStart(2, "0");
   const toLocalDateKey = (d: Date) => {

@@ -124,6 +124,25 @@ export async function POST(
         return NextResponse.json(filterRecords(records, criteria));
       }
 
+      // Weekly schedule: only their own record(s)
+      if (entity === "ClientWeeklySchedule") {
+        if (criteria.clientId !== myClientId) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        const docs = await c.entities
+          .find({
+            entity: "ClientWeeklySchedule",
+            adminId,
+            "data.clientId": myClientId,
+          })
+          .sort({ updatedAt: -1 })
+          .toArray();
+
+        const records = docs.map(toPublicEntityDoc);
+        return NextResponse.json(filterRecords(records, criteria));
+      }
+
       // Exercises: only those belonging to the client's assigned workout plan
       if (entity === "Exercise") {
         const workoutPlanId = String(criteria.workoutPlanId ?? "").trim();

@@ -282,6 +282,31 @@ export async function GET(
         return NextResponse.json(toPublicEntityDoc(row));
       }
 
+      if (entity === "ClientWeeklySchedule") {
+        if (!myClient) {
+          return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
+
+        if (!ObjectId.isValid(id)) {
+          return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
+
+        const row = await c.entities.findOne({
+          _id: new ObjectId(id),
+          entity: "ClientWeeklySchedule",
+          adminId,
+        });
+        if (!row) {
+          return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
+
+        if (((row.data ?? {}) as any).clientId !== myClient._id.toHexString()) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        return NextResponse.json(toPublicEntityDoc(row));
+      }
+
       if (entity === "WorkoutPlan" || entity === "MealPlan") {
         if (!myClient) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -497,7 +522,7 @@ export async function PATCH(
 
     // CLIENT ACCESS CONTROL
     if (user.role === "client") {
-      if (entity !== "Message") {
+      if (entity !== "Message" && entity !== "ClientWeeklySchedule") {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
 
@@ -513,7 +538,7 @@ export async function PATCH(
 
       const existing = await c.entities.findOne({
         _id: new ObjectId(id),
-        entity: "Message",
+        entity,
         adminId,
       });
       if (!existing) {
@@ -526,6 +551,17 @@ export async function PATCH(
       }
 
       const patch = patchBodySchema.parse(await req.json());
+
+      if (entity === "ClientWeeklySchedule") {
+        if (Object.prototype.hasOwnProperty.call(patch, "clientId")) {
+          if (
+            String((patch as any).clientId ?? "").trim() !==
+            myClient._id.toHexString()
+          ) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+          }
+        }
+      }
 
       await c.entities.updateOne(
         { _id: new ObjectId(id) },

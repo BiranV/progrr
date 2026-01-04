@@ -156,6 +156,29 @@ export async function GET(
         return NextResponse.json(sortRecords(mine, sort));
       }
 
+      // 4) Weekly schedule: only their own schedule
+      if (entity === "ClientWeeklySchedule") {
+        const myClient = await c.entities.findOne({
+          entity: "Client",
+          adminId,
+          $or: [{ "data.userId": user.id }, { "data.clientAuthId": user.id }],
+        });
+        if (!myClient) return NextResponse.json([]);
+
+        const clientEntityId = myClient._id.toHexString();
+        const docs = await c.entities
+          .find({
+            entity: "ClientWeeklySchedule",
+            adminId,
+            "data.clientId": clientEntityId,
+          })
+          .sort({ updatedAt: -1 })
+          .toArray();
+
+        const mine = docs.map(toPublicEntityDoc);
+        return NextResponse.json(sortRecords(mine, sort));
+      }
+
       // Everything else is admin-only
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -195,7 +218,7 @@ export async function POST(
 
     // CLIENT ACCESS CONTROL
     if (user.role === "client") {
-      if (entity !== "Message") {
+      if (entity !== "Message" && entity !== "ClientWeeklySchedule") {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
 
@@ -213,15 +236,27 @@ export async function POST(
       }
 
       const clientEntityId = myClient._id.toHexString();
-      if (body?.clientId && body.clientId !== clientEntityId) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+      if (entity === "Message") {
+        if (body?.clientId && body.clientId !== clientEntityId) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+      }
+
+      if (entity === "ClientWeeklySchedule") {
+        if (String(body?.clientId ?? "").trim() !== clientEntityId) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
       }
 
       const now = new Date();
       const insert = await c.entities.insertOne({
         entity,
         adminId,
-        data: { ...body, clientId: clientEntityId },
+        data:
+          entity === "ClientWeeklySchedule"
+            ? { ...body, clientId: clientEntityId }
+            : { ...body, clientId: clientEntityId },
         createdAt: now,
         updatedAt: now,
       });

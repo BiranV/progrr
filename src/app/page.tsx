@@ -137,16 +137,16 @@ export default function Home() {
       <div className="relative min-h-screen flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-12 items-center">
           {/* Left Side - Branding */}
-          <div className="hidden lg:flex flex-col items-center justify-center text-center space-y-0">
+          <div className="flex flex-col items-center justify-center text-center space-y-0">
             <div className="relative">
               <img
                 src="/logo.png"
                 alt="Progrr Logo"
-                className="relative w-64 h-64 object-contain drop-shadow-2xl"
+                className="relative w-36 h-36 sm:w-52 sm:h-52 lg:w-64 lg:h-64 object-contain drop-shadow-2xl"
               />
             </div>
-            <div className="space-y-4 -mt-8">
-              <h1 className="text-6xl font-black bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent pb-2">
+            <div className="space-y-4 -mt-4 sm:-mt-6 lg:-mt-8">
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent pb-2">
                 progrr
               </h1>
               <p className="text-xl text-gray-600 dark:text-gray-300 max-w-md">
@@ -175,21 +175,6 @@ export default function Home() {
 
           {/* Right Side - Auth Form */}
           <div className="w-full max-w-md mx-auto">
-            {/* Mobile Logo */}
-            <div className="lg:hidden text-center mb-8">
-              <img
-                src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/69538c86530afecdd4f04cee/9d28c112f_ChatGPTImageDec30202506_28_18PM-Photoroom.png"
-                alt="Progrr Logo"
-                className="w-32 h-32 mx-auto object-contain mb-4"
-              />
-              <h1 className="text-4xl font-black bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent mb-2">
-                Progrr
-              </h1>
-              <p className="text-gray-600 dark:text-gray-300">
-                Your coaching companion
-              </p>
-            </div>
-
             <Card className="backdrop-blur-lg bg-white/80 dark:bg-gray-800/80 shadow-2xl border-0 overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600"></div>
               <CardContent className="pt-8 pb-6 px-8 min-h-[500px] flex flex-col">
