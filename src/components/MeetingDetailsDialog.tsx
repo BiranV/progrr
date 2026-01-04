@@ -75,18 +75,17 @@ export default function MeetingDetailsDialog({
     : null;
   const isPast = scheduledAt ? scheduledAt.getTime() < Date.now() : false;
 
-  const typeBasedKind = React.useMemo<"link" | "location" | "phone" | null>(
-    () => {
-      const t = String((meeting as any)?.type ?? "")
-        .trim()
-        .toLowerCase();
-      if (!t) return null;
-      if (t === "call") return "phone";
-      if (t === "zoom") return "link";
-      return "location";
-    },
-    [meeting]
-  );
+  const typeBasedKind = React.useMemo<
+    "link" | "location" | "phone" | null
+  >(() => {
+    const t = String((meeting as any)?.type ?? "")
+      .trim()
+      .toLowerCase();
+    if (!t) return null;
+    if (t === "call") return "phone";
+    if (t === "zoom") return "link";
+    return "location";
+  }, [meeting]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
