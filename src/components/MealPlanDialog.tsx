@@ -23,7 +23,6 @@ import { X, Plus, Trash2, XCircle } from "lucide-react";
 import { MealPlan, Meal, Food, FoodLibrary, PlanFood } from "@/types";
 
 const EMPTY_FOOD_LIBRARY: FoodLibrary[] = [];
-const EMPTY_APP_SETTINGS: any[] = [];
 const EMPTY_MEALS: any[] = [];
 
 interface MealPlanDialogProps {
@@ -65,14 +64,6 @@ export default function MealPlanDialog({
   });
 
   const foodLibrary = (foodLibraryData ?? EMPTY_FOOD_LIBRARY) as FoodLibrary[];
-
-  const { data: appSettingsData } = useQuery({
-    queryKey: ["appSettings"],
-    queryFn: () => db.entities.AppSettings.list(),
-    enabled: open,
-  });
-
-  const appSettings = (appSettingsData ?? EMPTY_APP_SETTINGS) as any[];
 
   const planId = String(plan?.id ?? "").trim();
 
@@ -186,18 +177,13 @@ export default function MealPlanDialog({
       "Supper",
     ];
 
-    const fromSettingsRaw = (appSettings?.[0] as any)?.mealTypes;
-    const custom = Array.isArray(fromSettingsRaw)
-      ? fromSettingsRaw.map((x: any) => String(x ?? "").trim()).filter(Boolean)
-      : [];
-
     const existing = meals
       .map((m) => normalizeMealType((m as any)?.type))
       .map((x) => String(x ?? "").trim())
       .filter(Boolean);
 
-    return Array.from(new Set([...defaults, ...custom, ...existing]));
-  }, [appSettings, meals, normalizeMealType]);
+    return Array.from(new Set([...defaults, ...existing]));
+  }, [meals, normalizeMealType]);
 
   React.useEffect(() => {
     setValidationError(null);
