@@ -811,11 +811,32 @@ function OtpInput({
   disabled?: boolean;
 }) {
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
+  const didAutoFocusRef = useRef(false);
 
   const digits = useMemo(() => {
     const sanitized = (value || "").replace(/\D/g, "").slice(0, length);
     return Array.from({ length }, (_, i) => sanitized[i] ?? "");
   }, [value, length]);
+
+  useEffect(() => {
+    if (didAutoFocusRef.current) return;
+    if (disabled) return;
+
+    const sanitized = (value || "").replace(/\D/g, "").slice(0, length);
+    if (sanitized.length > 0) return;
+
+    const first = inputsRef.current[0];
+    if (!first) return;
+
+    didAutoFocusRef.current = true;
+    requestAnimationFrame(() => {
+      try {
+        first.focus();
+      } catch {
+        // ignore
+      }
+    });
+  }, [disabled, length, value]);
 
   const setAtIndex = useCallback(
     (index: number, digit: string) => {
