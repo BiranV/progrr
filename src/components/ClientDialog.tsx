@@ -212,6 +212,8 @@ export default function ClientDialog({
     },
     onSuccess: () => {
       toast.success("Client access blocked");
+      setFormData((prev) => ({ ...prev, status: "BLOCKED" }));
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
       accessQuery.refetch();
     },
     onError: (e: any) => {
@@ -235,6 +237,15 @@ export default function ClientDialog({
     },
     onSuccess: () => {
       toast.success("Client access unblocked");
+      setBlockReason("");
+      setFormData((prev) =>
+        String(prev.status ?? "")
+          .trim()
+          .toUpperCase() === "BLOCKED"
+          ? { ...prev, status: "ACTIVE" }
+          : prev
+      );
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
       accessQuery.refetch();
     },
     onError: (e: any) => {
@@ -817,7 +828,12 @@ export default function ClientDialog({
                 Status {isRequired("status") && "*"}
               </label>
               {isBlockedStatus ? (
-                <Input value="BLOCKED" readOnly />
+                <>
+                  <Input value="Blocked" readOnly />
+                  <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    This client is blocked. Unblock the client to change status.
+                  </div>
+                </>
               ) : (
                 <Select
                   value={formData.status}

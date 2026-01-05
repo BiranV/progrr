@@ -152,6 +152,8 @@ export async function POST(
         {
           $set: {
             "data.status": "ACTIVE",
+            "data.blockReason": null,
+            "data.blockedUntil": null,
             updatedAt: new Date(),
           },
         }
@@ -196,6 +198,8 @@ export async function POST(
       {
         $set: {
           "data.status": "BLOCKED",
+          "data.blockReason": reason || null,
+          "data.blockedUntil": safeIso(blockedUntil),
           updatedAt: new Date(),
         },
       }

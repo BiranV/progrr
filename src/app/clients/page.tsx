@@ -7,6 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -390,7 +395,21 @@ export default function ClientsPage() {
                             <VenusAndMars className="w-4 h-4 text-purple-500 shrink-0" />
                           ) : null}
                           {status === "BLOCKED" ? (
-                            <Ban className="w-4 h-4 text-red-600 dark:text-red-300 shrink-0" />
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span
+                                  className="inline-flex shrink-0"
+                                  aria-label="Blocked"
+                                >
+                                  <Ban className="w-4 h-4 text-red-600 dark:text-red-300" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent sideOffset={6}>
+                                {String(
+                                  (client as any).blockReason ?? ""
+                                ).trim() || "Blocked"}
+                              </TooltipContent>
+                            </Tooltip>
                           ) : null}
                           <span className="font-medium truncate">
                             {client.name}
@@ -409,11 +428,27 @@ export default function ClientsPage() {
                   </td>
 
                   <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex items-center justify-center w-20 h-7 px-3 rounded-md text-xs font-medium ${statusConfig[status]}`}
-                    >
-                      {status}
-                    </span>
+                    {status === "BLOCKED" ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span
+                            className={`inline-flex items-center justify-center w-20 h-7 px-3 rounded-md text-xs font-medium ${statusConfig[status]}`}
+                          >
+                            {status}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent sideOffset={6}>
+                          {String((client as any).blockReason ?? "").trim() ||
+                            "Blocked"}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <span
+                        className={`inline-flex items-center justify-center w-20 h-7 px-3 rounded-md text-xs font-medium ${statusConfig[status]}`}
+                      >
+                        {status}
+                      </span>
+                    )}
                   </td>
 
                   <td className="px-4 py-3 capitalize">

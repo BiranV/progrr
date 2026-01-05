@@ -8,7 +8,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import ClientAvatar from "@/components/ClientAvatar";
-import { Mars, Venus, VenusAndMars } from "lucide-react";
+import { Ban, Mars, Venus, VenusAndMars } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Client } from "@/types";
 
 interface ClientDetailsDialogProps {
@@ -51,6 +56,10 @@ export default function ClientDetailsDialog({
   workoutPlanNameById,
   mealPlanNameById,
 }: ClientDetailsDialogProps) {
+  const isBlocked =
+    String((client as any)?.status ?? "")
+      .trim()
+      .toUpperCase() === "BLOCKED";
   const gender = String((client as any)?.gender ?? "")
     .trim()
     .toLowerCase();
@@ -100,6 +109,22 @@ export default function ClientDetailsDialog({
                       <VenusAndMars className="w-5 h-5 text-purple-500 shrink-0" />
                     ) : null}
                     <span className="truncate">{client.name || "-"}</span>
+                    {isBlocked ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span
+                            className="inline-flex shrink-0"
+                            aria-label="Blocked"
+                          >
+                            <Ban className="w-4 h-4 text-red-600 dark:text-red-300" />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent sideOffset={6}>
+                          {String((client as any).blockReason ?? "").trim() ||
+                            "Blocked"}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : null}
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-300 truncate">
                     {client.email ? (
