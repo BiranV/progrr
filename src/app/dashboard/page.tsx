@@ -1365,25 +1365,23 @@ function ClientDashboard({ user }: { user: any }) {
   };
 
   return (
-    <div
-      className={`p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen ${
-        coachLogoUrl || coachBusinessName ? "pt-28" : ""
-      }`}
-    >
+    <div className="p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
       {coachLogoUrl || coachBusinessName ? (
-        <div className="fixed top-4 left-4 z-50 flex items-center gap-3">
-          {coachLogoUrl ? (
-            <img
-              src={coachLogoUrl}
-              alt="Coach logo"
-              className="h-12 w-12 rounded-md object-contain"
-            />
-          ) : null}
-          {coachBusinessName ? (
-            <div className="max-w-[260px] truncate text-base font-semibold text-gray-900 dark:text-gray-100">
-              {coachBusinessName}
-            </div>
-          ) : null}
+        <div className="mb-6">
+          <div className="flex items-center gap-3 min-w-0 pr-24 md:pr-0">
+            {coachLogoUrl ? (
+              <img
+                src={coachLogoUrl}
+                alt="Coach logo"
+                className="h-12 w-12 rounded-md object-contain shrink-0"
+              />
+            ) : null}
+            {coachBusinessName ? (
+              <div className="min-w-0 truncate text-base font-semibold text-gray-900 dark:text-gray-100">
+                {coachBusinessName}
+              </div>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
