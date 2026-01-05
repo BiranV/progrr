@@ -35,6 +35,11 @@ export type ClientDoc = {
   name: string;
   theme: "light" | "dark";
   role: "client";
+
+  // Access control
+  isBlocked?: boolean;
+  blockedUntil?: Date | null;
+  blockReason?: string | null;
   // Optional login fields
   passwordHash?: string;
   // Optional legacy field (kept for existing data)

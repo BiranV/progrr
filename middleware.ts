@@ -56,6 +56,40 @@ export async function middleware(request: NextRequest) {
 
   // Role-Based Routing
   if (isAuthed && claims) {
+    // Blocked-client enforcement (server-side). Middleware runs on Edge and cannot
+    // query Mongo directly, so we validate via a nodejs API route.
+    if (claims.role === "client" && !isPublicPath(pathname)) {
+      try {
+        const statusUrl = new URL("/api/auth/client/status", request.url);
+        const cookie = request.headers.get("cookie") || "";
+        const statusRes = await fetch(statusUrl, {
+          method: "GET",
+          headers: { cookie },
+          cache: "no-store",
+        });
+
+        if (statusRes.status === 403) {
+          const data = await statusRes.json().catch(() => ({}));
+          const msg =
+            typeof data?.error === "string" && data.error.trim()
+              ? data.error
+              : "Your account has been temporarily restricted. Please contact support or your administrator.";
+
+          const url = request.nextUrl.clone();
+          url.pathname = "/";
+          url.searchParams.set("tab", "login");
+          url.searchParams.set("authError", msg);
+
+          const res = NextResponse.redirect(url);
+          // Clear auth cookie so the client doesn't keep bouncing.
+          res.cookies.set(AUTH_COOKIE_NAME, "", { path: "/", maxAge: 0 });
+          return res;
+        }
+      } catch {
+        // If status check fails, fall back to normal auth behavior.
+      }
+    }
+
     // Client Protection: Block access to Admin routes
     if (claims.role === "client") {
       const adminOnlyPrefixes = [

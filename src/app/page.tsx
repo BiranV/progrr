@@ -377,6 +377,14 @@ function LoginForm({
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        if (data?.code === "CLIENT_BLOCKED") {
+          setClientError(
+            data?.error ||
+              "Your account has been temporarily restricted. Please contact support or your administrator."
+          );
+          setClientStep("email");
+          return;
+        }
         setClientError(data?.error || `Failed to send code (${res.status})`);
         return;
       }
@@ -423,6 +431,15 @@ function LoginForm({
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        if (data?.code === "CLIENT_BLOCKED") {
+          setClientError(
+            data?.error ||
+              "Your account has been temporarily restricted. Please contact support or your administrator."
+          );
+          setClientStep("email");
+          setClientCode("");
+          return;
+        }
         setClientError(data?.error || `Failed to verify code (${res.status})`);
         return;
       }
@@ -778,8 +795,6 @@ function LoginForm({
   );
 }
 
-
-
 function OtpInput({
   id,
   name,
@@ -936,8 +951,7 @@ function RegisterForm({
     }
 
     if (Object.keys(newErrors).length > 0) {
-      const firstError =
-        newErrors.full_name || newErrors.email;
+      const firstError = newErrors.full_name || newErrors.email;
       setRegisterValidationError(firstError || "Please check your details");
       return false;
     }

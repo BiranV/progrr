@@ -4,6 +4,12 @@ import { generateOtp } from "@/server/otp";
 import { sendEmail } from "@/server/email";
 import { getDb } from "@/server/mongo";
 import { checkRateLimit } from "@/server/rate-limit";
+import {
+  clearExpiredClientBlock,
+  CLIENT_BLOCKED_CODE,
+  CLIENT_BLOCKED_MESSAGE,
+  computeClientBlockState,
+} from "@/server/client-block";
 
 function normalizeEmail(input: unknown): string {
   return String(input ?? "")
@@ -61,6 +67,21 @@ export async function POST(req: Request) {
     const client = await c.clients.findOne({ email });
     if (!client) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
+    }
+
+    const blockState = computeClientBlockState(client);
+    if (!blockState.blocked && blockState.shouldClear && client._id) {
+      await clearExpiredClientBlock({ c, clientId: client._id });
+    } else if (blockState.blocked) {
+      return NextResponse.json(
+        {
+          code: CLIENT_BLOCKED_CODE,
+          blockType: blockState.blockType,
+          blockedUntil: blockState.blockedUntil,
+          error: CLIENT_BLOCKED_MESSAGE,
+        },
+        { status: 403 }
+      );
     }
 
     // Cooldown to prevent rapid resend loops.

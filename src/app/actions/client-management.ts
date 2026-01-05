@@ -37,13 +37,30 @@ async function assertClientNotSameAsAdminIdentity(args: {
   );
 }
 
-function normalizeClientStatus(
+function normalizeClientStatusForWrite(
   status: unknown
 ): "ACTIVE" | "PENDING" | "INACTIVE" | undefined {
   const v = String(status ?? "")
     .trim()
     .toUpperCase();
   if (v === "ACTIVE" || v === "PENDING" || v === "INACTIVE") return v;
+  return undefined;
+}
+
+function normalizeClientStatusAllowBlocked(
+  status: unknown
+): "ACTIVE" | "PENDING" | "INACTIVE" | "BLOCKED" | undefined {
+  const v = String(status ?? "")
+    .trim()
+    .toUpperCase();
+  if (
+    v === "ACTIVE" ||
+    v === "PENDING" ||
+    v === "INACTIVE" ||
+    v === "BLOCKED"
+  ) {
+    return v;
+  }
   return undefined;
 }
 
@@ -82,7 +99,7 @@ export async function createClientAction(data: ClientFormData) {
   const phone = String((data as any).phone ?? "").trim();
   const name = String(data.name ?? "").trim();
   const email = normalizeEmail(data.email);
-  const status = normalizeClientStatus(data.status);
+  const status = normalizeClientStatusForWrite(data.status);
 
   if (!name) throw new Error("Client name is required");
   if (!email) throw new Error("Client email is required");
@@ -319,8 +336,8 @@ export async function updateClientAction(id: string, data: ClientFormData) {
 
   const oldData = (existing.data ?? {}) as any;
   const normalizedStatus =
-    normalizeClientStatus(data.status) ??
-    normalizeClientStatus(oldData.status) ??
+    normalizeClientStatusForWrite(data.status) ??
+    normalizeClientStatusAllowBlocked(oldData.status) ??
     "ACTIVE";
   const authIdStr = String(oldData.clientAuthId ?? oldData.userId ?? "");
 

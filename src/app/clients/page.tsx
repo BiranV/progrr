@@ -21,6 +21,7 @@ import {
   Mars,
   Venus,
   VenusAndMars,
+  Ban,
   Trash2,
   Edit,
   ArrowUpDown,
@@ -170,7 +171,12 @@ export default function ClientsPage() {
     const v = String(value ?? "")
       .trim()
       .toUpperCase();
-    return v === "ACTIVE" || v === "PENDING" || v === "INACTIVE" ? v : "";
+    return v === "ACTIVE" ||
+      v === "PENDING" ||
+      v === "INACTIVE" ||
+      v === "BLOCKED"
+      ? v
+      : "";
   };
 
   const statusConfig: Record<string, string> = {
@@ -180,6 +186,7 @@ export default function ClientsPage() {
       "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/25 dark:text-yellow-200",
     INACTIVE:
       "bg-gray-100 text-gray-700 dark:bg-gray-800/60 dark:text-gray-200",
+    BLOCKED: "bg-red-100 text-red-800 dark:bg-red-900/25 dark:text-red-200",
   };
 
   const inactiveClients = sortedClients.filter(
@@ -381,6 +388,9 @@ export default function ClientsPage() {
                             <Mars className="w-4 h-4 text-blue-500 shrink-0" />
                           ) : gender === "other" ? (
                             <VenusAndMars className="w-4 h-4 text-purple-500 shrink-0" />
+                          ) : null}
+                          {status === "BLOCKED" ? (
+                            <Ban className="w-4 h-4 text-red-600 dark:text-red-300 shrink-0" />
                           ) : null}
                           <span className="font-medium truncate">
                             {client.name}

@@ -141,6 +141,17 @@ export default function ClientDialog({
     null
   );
 
+  const clientAuthId = React.useMemo(() => {
+    const raw = (client as any)?.clientAuthId ?? (client as any)?.userId;
+    const v = typeof raw === "string" ? raw.trim() : "";
+    return v || null;
+  }, [client]);
+
+  const [blockDuration, setBlockDuration] = React.useState<"24h" | "unlimited">(
+    "24h"
+  );
+  const [blockReason, setBlockReason] = React.useState<string>("");
+
   const { data: workoutPlans = [] } = useQuery({
     queryKey: ["workoutPlans"],
     queryFn: () => db.entities.WorkoutPlan.list(),
@@ -151,11 +162,96 @@ export default function ClientDialog({
     queryFn: () => db.entities.MealPlan.list(),
   });
 
+  const accessQuery = useQuery({
+    queryKey: ["clientAccess", clientAuthId],
+    enabled: Boolean(open && clientAuthId),
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/clients/${clientAuthId}/access`, {
+        method: "GET",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          data?.error || `Failed to load access status (${res.status})`
+        );
+      }
+      return data as {
+        blocked: boolean;
+        blockType: "temporary" | "permanent" | null;
+        blockedUntil: string | null;
+        blockReason: string | null;
+      };
+    },
+  });
+
+  React.useEffect(() => {
+    if (!open) return;
+    const reason = accessQuery.data?.blockReason;
+    if (typeof reason === "string") {
+      setBlockReason(reason);
+    }
+  }, [open, accessQuery.data?.blockReason]);
+
+  const blockMutation = useMutation({
+    mutationFn: async (payload: {
+      action: "block";
+      duration: "24h" | "unlimited";
+      reason?: string;
+    }) => {
+      if (!clientAuthId) throw new Error("Client login record missing");
+      const res = await fetch(`/api/admin/clients/${clientAuthId}/access`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error || `Failed to block (${res.status})`);
+      }
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Client access blocked");
+      accessQuery.refetch();
+    },
+    onError: (e: any) => {
+      toast.error(e?.message || "Failed to block client");
+    },
+  });
+
+  const unblockMutation = useMutation({
+    mutationFn: async () => {
+      if (!clientAuthId) throw new Error("Client login record missing");
+      const res = await fetch(`/api/admin/clients/${clientAuthId}/access`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "unblock" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error || `Failed to unblock (${res.status})`);
+      }
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Client access unblocked");
+      accessQuery.refetch();
+    },
+    onError: (e: any) => {
+      toast.error(e?.message || "Failed to unblock client");
+    },
+  });
+
   const normalizeStatus = (value: unknown) => {
     const v = String(value ?? "")
       .trim()
       .toUpperCase();
-    return v === "ACTIVE" || v === "PENDING" || v === "INACTIVE" ? v : "";
+    return v === "ACTIVE" ||
+      v === "PENDING" ||
+      v === "INACTIVE" ||
+      v === "BLOCKED"
+      ? v
+      : "";
   };
 
   const todayDateInputValue = React.useMemo(() => {
@@ -184,6 +280,11 @@ export default function ClientDialog({
     assignedPlanIds: [],
     assignedMealPlanIds: [],
   });
+
+  const isBlockedStatus =
+    String(formData.status ?? "")
+      .trim()
+      .toUpperCase() === "BLOCKED";
 
   const normalizeIdArray = (value: any, fallbackSingle?: any): string[] => {
     const fromArray = Array.isArray(value) ? value : [];
@@ -715,23 +816,136 @@ export default function ClientDialog({
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Status {isRequired("status") && "*"}
               </label>
-              <Select
-                value={formData.status}
-                onValueChange={(v) => {
-                  if (validationError) setValidationError(null);
-                  setFormData({ ...formData, status: v });
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ACTIVE">Active</SelectItem>
-                  <SelectItem value="PENDING">Pending</SelectItem>
-                  <SelectItem value="INACTIVE">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
+              {isBlockedStatus ? (
+                <Input value="BLOCKED" readOnly />
+              ) : (
+                <Select
+                  value={formData.status}
+                  onValueChange={(v) => {
+                    if (validationError) setValidationError(null);
+                    setFormData({ ...formData, status: v });
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ACTIVE">Active</SelectItem>
+                    <SelectItem value="PENDING">Pending</SelectItem>
+                    <SelectItem value="INACTIVE">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
+
+            {/* ACCESS CONTROL */}
+            {clientAuthId ? (
+              <div className="md:col-span-2">
+                <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                        Access
+                      </div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">
+                        Block this client from requesting OTP, logging in, or
+                        accessing protected routes.
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-700 dark:text-gray-300 whitespace-nowrap">
+                      {accessQuery.isLoading ? (
+                        "Loading…"
+                      ) : accessQuery.data?.blocked ? (
+                        <span className="text-red-700 dark:text-red-300">
+                          Blocked
+                        </span>
+                      ) : (
+                        <span className="text-emerald-700 dark:text-emerald-300">
+                          Allowed
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {accessQuery.data?.blocked ? (
+                    <div className="mt-2 text-xs text-gray-700 dark:text-gray-300">
+                      {accessQuery.data.blockType === "temporary" &&
+                      accessQuery.data.blockedUntil ? (
+                        <div>
+                          Temporary block until{" "}
+                          {new Date(
+                            accessQuery.data.blockedUntil
+                          ).toLocaleString()}
+                        </div>
+                      ) : (
+                        <div>Permanent block (until unblocked)</div>
+                      )}
+                    </div>
+                  ) : null}
+
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Block duration
+                      </label>
+                      <Select
+                        value={blockDuration}
+                        onValueChange={(v) => {
+                          const next = v === "unlimited" ? "unlimited" : "24h";
+                          setBlockDuration(next);
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select duration" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="24h">24 hours</SelectItem>
+                          <SelectItem value="unlimited">Unlimited</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Reason (optional)
+                      </label>
+                      <Input
+                        value={blockReason}
+                        onChange={(e) => setBlockReason(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex justify-end gap-2">
+                    {accessQuery.data?.blocked ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={unblockMutation.isPending}
+                        onClick={() => unblockMutation.mutate()}
+                      >
+                        {unblockMutation.isPending
+                          ? "Unblocking..."
+                          : "Unblock"}
+                      </Button>
+                    ) : null}
+                    <Button
+                      type="button"
+                      disabled={blockMutation.isPending}
+                      onClick={() =>
+                        blockMutation.mutate({
+                          action: "block",
+                          duration: blockDuration,
+                          reason: blockReason,
+                        })
+                      }
+                    >
+                      {blockMutation.isPending ? "Blocking..." : "Block"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             {/* NOTES (NOT REQUIRED) */}
             <div className="md:col-span-2">

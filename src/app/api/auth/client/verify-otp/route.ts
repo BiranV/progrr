@@ -5,6 +5,12 @@ import { signAuthToken } from "@/server/jwt";
 import { setAuthCookie } from "@/server/auth-cookie";
 import { getDb } from "@/server/mongo";
 import { checkRateLimit } from "@/server/rate-limit";
+import {
+  clearExpiredClientBlock,
+  CLIENT_BLOCKED_CODE,
+  CLIENT_BLOCKED_MESSAGE,
+  computeClientBlockState,
+} from "@/server/client-block";
 
 export async function POST(req: Request) {
   try {
@@ -42,6 +48,21 @@ export async function POST(req: Request) {
     const client = await c.clients.findOne({ email });
     if (!client) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
+    }
+
+    const blockState = computeClientBlockState(client);
+    if (!blockState.blocked && blockState.shouldClear && client._id) {
+      await clearExpiredClientBlock({ c, clientId: client._id });
+    } else if (blockState.blocked) {
+      return NextResponse.json(
+        {
+          code: CLIENT_BLOCKED_CODE,
+          blockType: blockState.blockType,
+          blockedUntil: blockState.blockedUntil,
+          error: CLIENT_BLOCKED_MESSAGE,
+        },
+        { status: 403 }
+      );
     }
 
     const otp = await c.otps.findOne({ key: email, purpose: "client_login" });

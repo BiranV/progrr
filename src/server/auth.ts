@@ -2,6 +2,12 @@ import { ObjectId } from "mongodb";
 import { readAuthCookie } from "@/server/auth-cookie";
 import { verifyAuthToken } from "@/server/jwt";
 import { collections } from "@/server/collections";
+import {
+  clearExpiredClientBlock,
+  CLIENT_BLOCKED_CODE,
+  CLIENT_BLOCKED_MESSAGE,
+  computeClientBlockState,
+} from "@/server/client-block";
 
 export type AppUser =
   | {
@@ -48,6 +54,21 @@ export async function requireAppUser(): Promise<AppUser> {
   const client = await c.clients.findOne({ _id: new ObjectId(claims.sub) });
   if (!client) {
     throw Object.assign(new Error("Not authenticated"), { status: 401 });
+  }
+
+  const clientId = client._id;
+  if (clientId) {
+    const blockState = computeClientBlockState(client);
+    if (!blockState.blocked && blockState.shouldClear) {
+      await clearExpiredClientBlock({ c, clientId });
+    } else if (blockState.blocked) {
+      throw Object.assign(new Error(CLIENT_BLOCKED_MESSAGE), {
+        status: 403,
+        code: CLIENT_BLOCKED_CODE,
+        blockType: blockState.blockType,
+        blockedUntil: blockState.blockedUntil,
+      });
+    }
   }
 
   return {
