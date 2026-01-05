@@ -616,9 +616,9 @@ export async function POST(req: Request) {
 
     // --- Clients (auth + entity) ---
     const FIXED_CLIENT = {
-      name: "Biran Varon",
+      name: "Biraniv Apps",
       phone: "+972507780228",
-      email: "biraniv@gmail.com",
+      email: "biranivapps@gmail.com",
     } as const;
 
     const generatedPhones = await generateUniquePhones(adminId, 25);
