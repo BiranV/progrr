@@ -33,11 +33,45 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const [hiddenMessageThreadClientIds, setHiddenMessageThreadClientIds] =
+    useState<Set<string>>(() => new Set());
+
   const { data: settings = [] } = useQuery({
     queryKey: ["appSettings"],
     queryFn: () => db.entities.AppSettings.list(),
     enabled: Boolean(user),
   });
+
+  const { data: allMessages = [] } = useQuery({
+    queryKey: ["messages"],
+    queryFn: () => db.entities.Message.list("-created_date"),
+    enabled: Boolean(user) && user?.role === "admin",
+  });
+
+  useEffect(() => {
+    if (!user || user.role !== "admin") return;
+    try {
+      const raw = localStorage.getItem("progrr_admin_hidden_message_threads");
+      const arr = raw ? (JSON.parse(raw) as unknown) : [];
+      const ids = Array.isArray(arr)
+        ? arr.map((v) => String(v ?? "").trim()).filter(Boolean)
+        : [];
+      setHiddenMessageThreadClientIds(new Set(ids));
+    } catch {
+      // ignore
+    }
+  }, [user]);
+
+  const unreadMessagesCount = React.useMemo(() => {
+    if (!user || user.role !== "admin") return 0;
+
+    return (allMessages as any[]).filter((m) => {
+      const clientId = String(m?.clientId ?? "");
+      if (!clientId || hiddenMessageThreadClientIds.has(clientId)) return false;
+      const isSystem = Boolean(m?.isSystemMessage);
+      return !m?.readByAdmin && (m?.senderRole === "client" || isSystem);
+    }).length;
+  }, [allMessages, hiddenMessageThreadClientIds, user]);
 
   // Filter out blob URLs that might cause errors
   const rawLogoUrl = settings.length > 0 ? (settings[0] as any).logoUrl : null;
@@ -258,7 +292,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     `}
                   >
                     <Icon className="w-5 h-5" />
-                    <span>{item.name}</span>
+                    <span className="flex-1">{item.name}</span>
+                    {item.href === "/messages" && unreadMessagesCount > 0 && (
+                      <span className="ml-2 inline-flex min-w-6 items-center justify-center rounded-full bg-indigo-600 px-2 py-0.5 text-xs font-semibold text-white">
+                        {unreadMessagesCount}
+                      </span>
+                    )}
                   </Link>
                 );
               })}

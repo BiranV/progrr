@@ -41,6 +41,8 @@ import { format } from "date-fns";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -403,6 +405,10 @@ function ClientDashboard({ user }: { user: any }) {
   const [activeSection, setActiveSection] = React.useState<
     "menu" | "profile" | "meetings" | "workouts" | "meals" | "weekly"
   >("menu");
+
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = React.useState("");
+  const [deletePending, setDeletePending] = React.useState(false);
   const [messagesOpen, setMessagesOpen] = React.useState(false);
   const [newMessage, setNewMessage] = React.useState("");
   const avatarInputRef = React.useRef<HTMLInputElement | null>(null);
@@ -559,6 +565,35 @@ function ClientDashboard({ user }: { user: any }) {
       setAvatarError(String(err?.message ?? "Failed to update avatar"));
     } finally {
       if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  };
+
+  const handleClientDeleteAccount = async () => {
+    if (deletePending) return;
+    if (deleteConfirmText.trim().toUpperCase() !== "DELETE") {
+      toast.error("Type DELETE to confirm.");
+      return;
+    }
+
+    setDeletePending(true);
+    try {
+      const res = await fetch("/api/me/delete-client", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ confirm: deleteConfirmText }),
+      });
+
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || `Request failed (${res.status})`);
+      }
+
+      window.location.href = "/goodbye";
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to delete account");
+    } finally {
+      setDeletePending(false);
     }
   };
 
@@ -1495,6 +1530,81 @@ function ClientDashboard({ user }: { user: any }) {
                       </div>
                     </div>
                   </div>
+
+                  <Card className="dark:bg-gray-800 dark:border-gray-700">
+                    <CardHeader>
+                      <CardTitle>Danger Zone</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        Permanently delete your account. This is irreversible.
+                      </p>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={() => {
+                          setDeleteConfirmText("");
+                          setDeleteOpen(true);
+                        }}
+                      >
+                        Delete Account
+                      </Button>
+                    </CardContent>
+                  </Card>
+
+                  <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+                    <DialogContent showCloseButton={!deletePending}>
+                      <DialogHeader>
+                        <DialogTitle>Delete your account?</DialogTitle>
+                        <DialogDescription>
+                          Deleting your account will permanently remove all your
+                          data and access to Progrr. This action cannot be
+                          undone.
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">
+                          Type DELETE to confirm
+                        </label>
+                        <Input
+                          value={deleteConfirmText}
+                          onChange={(e) => setDeleteConfirmText(e.target.value)}
+                          placeholder="DELETE"
+                          disabled={deletePending}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          For security, deletion requires recent authentication.
+                          If needed, log out and log back in, then retry within
+                          10 minutes.
+                        </p>
+                      </div>
+
+                      <DialogFooter>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setDeleteOpen(false)}
+                          disabled={deletePending}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          onClick={handleClientDeleteAccount}
+                          disabled={
+                            deletePending ||
+                            deleteConfirmText.trim().toUpperCase() !== "DELETE"
+                          }
+                        >
+                          {deletePending
+                            ? "Deleting..."
+                            : "Delete account permanently"}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               )}
             </div>

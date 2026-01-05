@@ -276,6 +276,35 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Prevent replying to deleted clients (server-side enforcement)
+    if (entity === "Message") {
+      const targetClientId = String((body as any)?.clientId ?? "").trim();
+      if (!ObjectId.isValid(targetClientId)) {
+        return NextResponse.json(
+          { error: "Client is required" },
+          { status: 400 }
+        );
+      }
+
+      const adminId = new ObjectId(user.id);
+      const clientDoc = await c.entities.findOne({
+        _id: new ObjectId(targetClientId),
+        entity: "Client",
+        adminId,
+      });
+
+      const clientData = (clientDoc?.data ?? {}) as any;
+      if (clientDoc && clientData?.isDeleted) {
+        return NextResponse.json(
+          {
+            error:
+              "This client has deleted their account. Replies are disabled.",
+          },
+          { status: 403 }
+        );
+      }
+    }
+
     if (entity === "Meeting") {
       validateMeetingScheduledAtOrThrow(body);
     }

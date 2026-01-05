@@ -11,8 +11,8 @@ export default function GoodbyePage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Your account has been permanently deleted. You no longer have access
-            to clients, programs, plans, or history.
+            Your account has been permanently deleted. This action cannot be
+            undone.
           </p>
           <Button asChild>
             <Link href="/">Return to home</Link>
