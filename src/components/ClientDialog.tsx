@@ -947,6 +947,8 @@ export default function ClientDialog({
                     ) : null}
                     <Button
                       type="button"
+                      variant="outline"
+                      className="border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive"
                       disabled={blockMutation.isPending}
                       onClick={() =>
                         blockMutation.mutate({
