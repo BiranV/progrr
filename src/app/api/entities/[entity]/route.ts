@@ -105,6 +105,16 @@ export async function GET(
     if (user.role === "client") {
       const adminId = new ObjectId(user.adminId);
 
+      // 0) App settings (read-only): allow clients to see their coach branding (logo, business name, etc.)
+      if (entity === "AppSettings") {
+        const docs = await c.entities
+          .find({ entity: "AppSettings", adminId })
+          .sort({ updatedAt: -1 })
+          .toArray();
+        const records = docs.map(toPublicEntityDoc);
+        return NextResponse.json(sortRecords(records, sort));
+      }
+
       // 1) Client profile: only their own record
       if (entity === "Client") {
         const myClient = await c.entities.findOne({

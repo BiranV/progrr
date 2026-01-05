@@ -39,12 +39,7 @@ import { Checkbox } from "@/components/ui/checkbox";
    REQUIRED FIELDS – single source of truth
    (Notes is intentionally NOT here)
    ====================================================== */
-const REQUIRED_FIELDS: Array<keyof Client> = [
-  "name",
-  "email",
-  "phone",
-  "status",
-];
+const REQUIRED_FIELDS: Array<keyof Client> = ["name", "email", "phone"];
 
 const DEFAULT_COUNTRY = "IL";
 
@@ -212,7 +207,6 @@ export default function ClientDialog({
     },
     onSuccess: () => {
       toast.success("Client access blocked");
-      setFormData((prev) => ({ ...prev, status: "BLOCKED" }));
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       accessQuery.refetch();
     },
@@ -238,13 +232,6 @@ export default function ClientDialog({
     onSuccess: () => {
       toast.success("Client access unblocked");
       setBlockReason("");
-      setFormData((prev) =>
-        String(prev.status ?? "")
-          .trim()
-          .toUpperCase() === "BLOCKED"
-          ? { ...prev, status: "ACTIVE" }
-          : prev
-      );
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       accessQuery.refetch();
     },
@@ -284,18 +271,13 @@ export default function ClientDialog({
     weight: "",
     goal: "",
     activityLevel: "",
-    status: "",
+    status: "PENDING",
     notes: "",
     assignedPlanId: "",
     assignedMealPlanId: "",
     assignedPlanIds: [],
     assignedMealPlanIds: [],
   });
-
-  const isBlockedStatus =
-    String(formData.status ?? "")
-      .trim()
-      .toUpperCase() === "BLOCKED";
 
   const normalizeIdArray = (value: any, fallbackSingle?: any): string[] => {
     const fromArray = Array.isArray(value) ? value : [];
@@ -362,7 +344,7 @@ export default function ClientDialog({
         weight: "",
         goal: "",
         activityLevel: "",
-        status: "",
+        status: "PENDING",
         notes: "",
         assignedPlanId: "",
         assignedMealPlanId: "",
@@ -472,16 +454,9 @@ export default function ClientDialog({
       return;
     }
 
-    const normalized = normalizeStatus(formData.status);
-    if (!normalized) {
-      setValidationError("Status is required");
-      return;
-    }
-
     const next = {
       ...formData,
       phone,
-      status: normalized,
       goal: normalizeGoal((formData as any).goal) || "",
       activityLevel:
         normalizeActivityLevel((formData as any).activityLevel) || "",
@@ -495,14 +470,17 @@ export default function ClientDialog({
       (next as any).assignedMealPlanId
     );
 
-    saveMutation.mutate({
+    const payload: any = {
       ...next,
       assignedPlanIds,
       assignedMealPlanIds,
       // Backward compatibility
       assignedPlanId: assignedPlanIds[0] ?? "",
       assignedMealPlanId: assignedMealPlanIds[0] ?? "",
-    });
+    };
+    // Status is system-controlled; never send from the form.
+    delete payload.status;
+    saveMutation.mutate(payload);
   };
 
   /* ======================================================
@@ -822,38 +800,6 @@ export default function ClientDialog({
               </Popover>
             </div>
 
-            {/* STATUS */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Status {isRequired("status") && "*"}
-              </label>
-              {isBlockedStatus ? (
-                <>
-                  <Input value="Blocked" readOnly />
-                  <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    This client is blocked. Unblock the client to change status.
-                  </div>
-                </>
-              ) : (
-                <Select
-                  value={formData.status}
-                  onValueChange={(v) => {
-                    if (validationError) setValidationError(null);
-                    setFormData({ ...formData, status: v });
-                  }}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ACTIVE">Active</SelectItem>
-                    <SelectItem value="PENDING">Pending</SelectItem>
-                    <SelectItem value="INACTIVE">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-
             {/* ACCESS CONTROL */}
             {clientAuthId ? (
               <div className="md:col-span-2">
@@ -933,32 +879,38 @@ export default function ClientDialog({
                   </div>
 
                   <div className="mt-3 flex justify-end gap-2">
-                    {accessQuery.data?.blocked ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={unblockMutation.isPending}
-                        onClick={() => unblockMutation.mutate()}
-                      >
-                        {unblockMutation.isPending
-                          ? "Unblocking..."
-                          : "Unblock"}
-                      </Button>
-                    ) : null}
                     <Button
                       type="button"
                       variant="outline"
-                      className="border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive"
-                      disabled={blockMutation.isPending}
-                      onClick={() =>
+                      className={
+                        accessQuery.data?.blocked
+                          ? ""
+                          : "border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      }
+                      disabled={
+                        accessQuery.data?.blocked
+                          ? unblockMutation.isPending
+                          : blockMutation.isPending
+                      }
+                      onClick={() => {
+                        if (accessQuery.data?.blocked) {
+                          unblockMutation.mutate();
+                          return;
+                        }
                         blockMutation.mutate({
                           action: "block",
                           duration: blockDuration,
                           reason: blockReason,
-                        })
-                      }
+                        });
+                      }}
                     >
-                      {blockMutation.isPending ? "Blocking..." : "Block"}
+                      {accessQuery.data?.blocked
+                        ? unblockMutation.isPending
+                          ? "Unblocking..."
+                          : "Unblock"
+                        : blockMutation.isPending
+                        ? "Blocking..."
+                        : "Block"}
                     </Button>
                   </div>
                 </div>

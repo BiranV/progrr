@@ -128,11 +128,37 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsAuthenticated(false);
       setUser(null);
 
-      if (error?.message === "Unauthorized" || error?.status === 401) {
+      const status = typeof error?.status === "number" ? error.status : null;
+
+      // If the session is invalid OR the server actively forbids access (blocked client),
+      // immediately clear the auth cookie and return the user to the login screen.
+      if (
+        error?.message === "Unauthorized" ||
+        status === 401 ||
+        status === 403
+      ) {
         setAuthError({
           type: "auth_required",
           message: "Authentication required",
         });
+
+        // For 403 (typically blocked client), we MUST clear the cookie and leave dashboard.
+        // Use POST so we can clear cookie without a navigation race, then push login.
+        if (status === 403 && typeof window !== "undefined") {
+          try {
+            await fetch("/api/auth/logout", {
+              method: "POST",
+              credentials: "include",
+            });
+          } catch {
+            // best effort
+          }
+
+          if (window.location.pathname !== "/") {
+            window.location.href = "/?authError=Please log in again.";
+          }
+          return;
+        }
 
         // Do NOT redirect if we are on the invite page or other public pages
         if (

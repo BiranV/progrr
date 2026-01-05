@@ -8,6 +8,7 @@ export const runtime = "nodejs";
 
 const bodySchema = z.object({
   fullName: z.string().trim().min(1).max(80),
+  phone: z.string().trim().max(30).optional(),
 });
 
 export async function POST(req: Request) {
@@ -19,10 +20,17 @@ export async function POST(req: Request) {
 
     const parsed = bodySchema.parse(await req.json().catch(() => ({})));
 
+    const phone =
+      typeof parsed.phone === "string" && parsed.phone.trim()
+        ? parsed.phone.trim()
+        : undefined;
+
     const c = await collections();
     await c.admins.updateOne(
       { _id: new ObjectId(user.id) },
-      { $set: { fullName: parsed.fullName } }
+      phone
+        ? { $set: { fullName: parsed.fullName, phone } }
+        : { $set: { fullName: parsed.fullName }, $unset: { phone: "" } }
     );
 
     return NextResponse.json({ ok: true });

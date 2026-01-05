@@ -452,6 +452,24 @@ function ClientDashboard({ user }: { user: any }) {
     ? coachMenuData.coaches
     : [];
 
+  const { data: appSettings = [] } = useQuery({
+    queryKey: ["appSettings", "client", String(user?.adminId ?? "")],
+    queryFn: () => db.entities.AppSettings.list(),
+  });
+
+  const coachLogoUrl =
+    appSettings.length > 0 &&
+    typeof (appSettings[0] as any)?.logoUrl === "string"
+      ? String((appSettings[0] as any).logoUrl).trim()
+      : "";
+
+  const coachBusinessName =
+    appSettings.length > 0 &&
+    typeof (appSettings[0] as any)?.businessName === "string" &&
+    String((appSettings[0] as any).businessName).trim()
+      ? String((appSettings[0] as any).businessName).trim()
+      : "";
+
   const switchCoachMutation = useMutation({
     mutationFn: async (adminId: string) => {
       const res = await fetch("/api/auth/client/select-coach", {
@@ -691,7 +709,9 @@ function ClientDashboard({ user }: { user: any }) {
         return plans.filter(Boolean);
       },
       enabled:
-        (activeSection === "workouts" || activeSection === "weekly") &&
+        (activeSection === "workouts" ||
+          activeSection === "weekly" ||
+          activeSection === "profile") &&
         assignedPlanIds.length > 0,
     });
 
@@ -785,7 +805,9 @@ function ClientDashboard({ user }: { user: any }) {
         );
         return plans.filter(Boolean);
       },
-      enabled: activeSection === "meals" && assignedMealPlanIds.length > 0,
+      enabled:
+        (activeSection === "meals" || activeSection === "profile") &&
+        assignedMealPlanIds.length > 0,
     });
 
   type WeekStart = "sun" | "mon";
@@ -1287,7 +1309,28 @@ function ClientDashboard({ user }: { user: any }) {
   };
 
   return (
-    <div className="p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
+    <div
+      className={`p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen ${
+        coachLogoUrl || coachBusinessName ? "pt-28" : ""
+      }`}
+    >
+      {coachLogoUrl || coachBusinessName ? (
+        <div className="fixed top-4 left-4 z-50 flex items-center gap-3">
+          {coachLogoUrl ? (
+            <img
+              src={coachLogoUrl}
+              alt="Coach logo"
+              className="h-12 w-12 rounded-md object-contain"
+            />
+          ) : null}
+          {coachBusinessName ? (
+            <div className="max-w-[260px] truncate text-base font-semibold text-gray-900 dark:text-gray-100">
+              {coachBusinessName}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
         <Dialog open={messagesOpen} onOpenChange={setMessagesOpen}>
           <DialogTrigger asChild>
@@ -1631,7 +1674,142 @@ function ClientDashboard({ user }: { user: any }) {
                         {myClient.email || user.email || ""}
                       </div>
                     </div>
+                    <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Status
+                      </div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {toTitleCase(String((myClient as any).status ?? "")) ||
+                          "-"}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Goal
+                      </div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {toTitleCase(String((myClient as any).goal ?? "")) ||
+                          "-"}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Activity level
+                      </div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {toTitleCase(
+                          String((myClient as any).activityLevel ?? "")
+                        ) || "-"}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Birth date
+                      </div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {String((myClient as any).birthDate ?? "").trim() ||
+                          "-"}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Height
+                      </div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {String((myClient as any).height ?? "").trim() || "-"}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Weight
+                      </div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {String((myClient as any).weight ?? "").trim() || "-"}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg sm:col-span-2">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Assigned workout plans
+                      </div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        {assignedPlansLoading
+                          ? "Loading…"
+                          : assignedPlans.length
+                          ? (assignedPlans as any[])
+                              .map(
+                                (p) => String((p as any)?.name ?? "-") || "-"
+                              )
+                              .join(", ")
+                          : "-"}
+                      </div>
+                    </div>
+                    <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg sm:col-span-2">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Assigned meal plans
+                      </div>
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        {assignedMealPlansLoading
+                          ? "Loading…"
+                          : assignedMealPlans.length
+                          ? (assignedMealPlans as any[])
+                              .map(
+                                (p) => String((p as any)?.name ?? "-") || "-"
+                              )
+                              .join(", ")
+                          : "-"}
+                      </div>
+                    </div>
+                    {String((myClient as any).notes ?? "").trim() ? (
+                      <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg sm:col-span-2">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Notes
+                        </div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white whitespace-pre-wrap">
+                          {String((myClient as any).notes ?? "").trim()}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
+
+                  <Card className="dark:bg-gray-800 dark:border-gray-700">
+                    <CardHeader>
+                      <CardTitle>Coach</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Name
+                        </div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {toTitleCase(
+                            String(
+                              (user as any)?.admin?.full_name ??
+                                (user as any)?.admin?.email ??
+                                ""
+                            )
+                          ) || "-"}
+                        </div>
+                      </div>
+                      <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Email
+                        </div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {String((user as any)?.admin?.email ?? "").trim() ||
+                            "-"}
+                        </div>
+                      </div>
+                      <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Phone
+                        </div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {String((user as any)?.admin?.phone ?? "").trim() ||
+                            "-"}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
 
                   <Card className="dark:bg-gray-800 dark:border-gray-700">
                     <CardHeader>

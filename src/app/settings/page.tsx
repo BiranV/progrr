@@ -89,6 +89,7 @@ export default function SettingsPage() {
   const [deletePending, setDeletePending] = React.useState(false);
 
   const [profileFullName, setProfileFullName] = React.useState("");
+  const [profilePhone, setProfilePhone] = React.useState("");
 
   React.useEffect(() => {
     const next =
@@ -97,6 +98,14 @@ export default function SettingsPage() {
         : "";
     setProfileFullName(next || "");
   }, [user?.role, user?.full_name]);
+
+  React.useEffect(() => {
+    const next =
+      user?.role === "admin" && typeof (user as any)?.phone === "string"
+        ? String((user as any).phone)
+        : "";
+    setProfilePhone(next || "");
+  }, [user?.role, (user as any)?.phone]);
 
   const { data: settings = [] } = useQuery({
     queryKey: ["appSettings"],
@@ -301,20 +310,25 @@ export default function SettingsPage() {
   });
 
   const saveProfileMutation = useMutation({
-    mutationFn: async (fullName: string) => {
+    mutationFn: async (payload: { fullName: string; phone: string }) => {
       const res = await fetch("/api/me/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ fullName }),
+        body: JSON.stringify({
+          fullName: payload.fullName,
+          phone: payload.phone,
+        }),
       });
 
-      const payload = await res.json().catch(() => ({}));
+      const response = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(payload?.error || `Request failed (${res.status})`);
+        throw new Error(
+          (response as any)?.error || `Request failed (${res.status})`
+        );
       }
 
-      return payload;
+      return response;
     },
     onSuccess: async () => {
       toast.success("Profile updated");
@@ -355,17 +369,36 @@ export default function SettingsPage() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
-                      saveProfileMutation.mutate(profileFullName);
+                      saveProfileMutation.mutate({
+                        fullName: profileFullName,
+                        phone: profilePhone,
+                      });
                     }
                   }}
                   placeholder="Your name"
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Phone
+                </label>
+                <Input
+                  value={profilePhone}
+                  onChange={(e) => setProfilePhone(e.target.value)}
+                  placeholder="Your phone"
+                />
+              </div>
+
               <div className="flex justify-end">
                 <Button
                   type="button"
-                  onClick={() => saveProfileMutation.mutate(profileFullName)}
+                  onClick={() =>
+                    saveProfileMutation.mutate({
+                      fullName: profileFullName,
+                      phone: profilePhone,
+                    })
+                  }
                   disabled={saveProfileMutation.isPending}
                   className="flex items-center gap-2"
                 >

@@ -9,6 +9,7 @@ export type AppUser =
       id: string;
       email: string;
       full_name: string | null;
+      phone?: string;
       role: "admin";
     }
   | {
@@ -20,6 +21,12 @@ export type AppUser =
       canSwitchCoach?: boolean;
       phone?: string;
       theme: "light" | "dark";
+      admin?: {
+        id: string;
+        email: string;
+        full_name: string | null;
+        phone?: string;
+      };
     };
 
 export async function requireAppUser(): Promise<AppUser> {
@@ -43,6 +50,11 @@ export async function requireAppUser(): Promise<AppUser> {
       id: admin._id.toHexString(),
       email: admin.email,
       full_name: admin.fullName ?? null,
+      phone:
+        typeof (admin as any).phone === "string" &&
+        String((admin as any).phone).trim()
+          ? String((admin as any).phone).trim()
+          : undefined,
       role: "admin",
     };
   }
@@ -73,6 +85,31 @@ export async function requireAppUser(): Promise<AppUser> {
   }
 
   const adminId = resolved.activeAdminId.toHexString();
+
+  // Attach coach contact details for the active admin.
+  let adminContact:
+    | {
+        id: string;
+        email: string;
+        full_name: string | null;
+        phone?: string;
+      }
+    | undefined;
+  {
+    const admin = await c.admins.findOne({ _id: resolved.activeAdminId });
+    if (admin) {
+      adminContact = {
+        id: admin._id?.toHexString?.() ? admin._id.toHexString() : adminId,
+        email: admin.email,
+        full_name: admin.fullName ?? null,
+        phone:
+          typeof (admin as any).phone === "string" &&
+          String((admin as any).phone).trim()
+            ? String((admin as any).phone).trim()
+            : undefined,
+      };
+    }
+  }
 
   const canSwitchCoach = resolved.activeRelations.length > 1;
 
@@ -120,5 +157,6 @@ export async function requireAppUser(): Promise<AppUser> {
     canSwitchCoach,
     phone: client.phone,
     theme: client.theme,
+    admin: adminContact,
   };
 }

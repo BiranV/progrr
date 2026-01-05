@@ -14,6 +14,7 @@ export type AdminDoc = {
   passwordHash?: string;
   createdAt: Date;
   fullName?: string;
+  phone?: string;
   role: "admin";
 
   // Optional billing fields (kept for compatibility with existing UI/actions)

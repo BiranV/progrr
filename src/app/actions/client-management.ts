@@ -99,12 +99,13 @@ export async function createClientAction(data: ClientFormData) {
   const phone = String((data as any).phone ?? "").trim();
   const name = String(data.name ?? "").trim();
   const email = normalizeEmail(data.email);
-  const status = normalizeClientStatusForWrite(data.status);
+  // Hard rule: clients created by admins always start as PENDING.
+  // They become ACTIVE automatically after the client successfully logs in.
+  const status: "PENDING" = "PENDING";
 
   if (!name) throw new Error("Client name is required");
   if (!email) throw new Error("Client email is required");
   if (!phone) throw new Error("Client phone is required");
-  if (!status) throw new Error("Client status is required");
 
   const adminEmail = normalizeEmail(adminUser.email);
   await assertClientNotSameAsAdminIdentity({
@@ -347,10 +348,13 @@ export async function updateClientAction(id: string, data: ClientFormData) {
   }
 
   const oldData = (existing.data ?? {}) as any;
+  // Status is system-controlled:
+  // - starts as PENDING on admin invite
+  // - becomes ACTIVE on first successful client login
+  // - becomes BLOCKED only via the admin access endpoint
+  // Admin updates should not be able to change status.
   const normalizedStatus =
-    normalizeClientStatusForWrite(data.status) ??
-    normalizeClientStatusAllowBlocked(oldData.status) ??
-    "ACTIVE";
+    normalizeClientStatusAllowBlocked(oldData.status) ?? "ACTIVE";
   const authIdStr = String(oldData.clientAuthId ?? oldData.userId ?? "");
 
   let clientAuthId: ObjectId;
