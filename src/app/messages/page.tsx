@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useRefetchOnVisible } from "@/hooks/use-refetch-on-visible";
 
 export default function MessagesPage() {
   const { user, isLoadingAuth } = useAuth();
@@ -64,6 +65,11 @@ function AdminMessages({ user }: { user: any }) {
   const { data: allMessages = [] } = useQuery({
     queryKey: ["messages"],
     queryFn: () => db.entities.Message.list("-created_date"),
+  });
+
+  useRefetchOnVisible(() => {
+    queryClient.invalidateQueries({ queryKey: ["messages"] });
+    queryClient.invalidateQueries({ queryKey: ["clients"] });
   });
 
   const broadcastMutation = useMutation({
@@ -315,11 +321,26 @@ function AdminMessages({ user }: { user: any }) {
 }
 
 function ClientMessages({ user }: { user: any }) {
+  const queryClient = useQueryClient();
   const { data: clients = [] } = useQuery({
-    queryKey: ["myClient"],
+    queryKey: ["myClient", String(user?.adminId ?? "")],
     queryFn: async () => {
       const allClients = await db.entities.Client.list();
-      return allClients.filter((c: Client) => c.userId === user.id);
+
+      const normalizePhone = (phone: any) =>
+        String(phone ?? "")
+          .trim()
+          .replace(/\s+/g, "");
+
+      const userPhone = normalizePhone(user.phone);
+
+      return allClients.filter((c: any) => {
+        if (c.userId && c.userId === user.id) return true;
+        if (c.clientAuthId && c.clientAuthId === user.id) return true;
+        const clientPhone = normalizePhone(c.phone);
+        if (clientPhone && userPhone && clientPhone === userPhone) return true;
+        return false;
+      });
     },
   });
 
@@ -329,6 +350,18 @@ function ClientMessages({ user }: { user: any }) {
     queryKey: ["myMessages", myClient?.id],
     queryFn: () => db.entities.Message.filter({ clientId: myClient.id }),
     enabled: !!myClient,
+  });
+
+  useRefetchOnVisible(() => {
+    const adminId = String(user?.adminId ?? "").trim();
+    if (adminId) {
+      queryClient.invalidateQueries({ queryKey: ["myClient", adminId] });
+    }
+
+    const clientId = String(myClient?.id ?? "").trim();
+    if (clientId) {
+      queryClient.invalidateQueries({ queryKey: ["myMessages", clientId] });
+    }
   });
 
   if (!myClient) {

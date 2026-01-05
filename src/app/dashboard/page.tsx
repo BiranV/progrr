@@ -82,6 +82,7 @@ import {
   formatMealPlanText,
   formatWorkoutPlanText,
 } from "@/lib/plan-export";
+import { useRefetchOnVisible } from "@/hooks/use-refetch-on-visible";
 import { toast } from "sonner";
 
 export default function DashboardPage() {
@@ -407,7 +408,7 @@ function AdminDashboard({ user }: { user: any }) {
 }
 
 function ClientDashboard({ user }: { user: any }) {
-  const { logout } = useAuth();
+  const { logout, refreshUser } = useAuth();
   const { darkMode, toggleDarkMode } = useTheme();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -484,9 +485,24 @@ function ClientDashboard({ user }: { user: any }) {
       }
       return payload;
     },
-    onSuccess: () => {
-      // Hard reload to avoid showing stale cached data from the previous coach.
-      window.location.href = window.location.pathname + window.location.search;
+    onSuccess: async () => {
+      // Refresh auth state (cookie includes the selected adminId).
+      await refreshUser({ force: true });
+
+      // One-shot refetch of coach-scoped resources.
+      await queryClient.invalidateQueries({
+        queryKey: ["appSettings", "client"],
+      });
+      await queryClient.invalidateQueries({ queryKey: ["myClient"] });
+      await queryClient.invalidateQueries({ queryKey: ["assignedPlans"] });
+      await queryClient.invalidateQueries({ queryKey: ["assignedMealPlans"] });
+      await queryClient.invalidateQueries({ queryKey: ["myMeetings"] });
+      await queryClient.invalidateQueries({ queryKey: ["myMessages"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["clientWeeklySchedule"],
+      });
+
+      toast.success("Coach updated");
     },
     onError: (err: any) => {
       toast.error(err?.message || "Failed to switch coach");
@@ -534,7 +550,7 @@ function ClientDashboard({ user }: { user: any }) {
   };
 
   const { data: clients = [] } = useQuery({
-    queryKey: ["myClient"],
+    queryKey: ["myClient", String(user?.adminId ?? "")],
     queryFn: async () => {
       const allClients = await db.entities.Client.list();
 
@@ -555,6 +571,50 @@ function ClientDashboard({ user }: { user: any }) {
   });
 
   const myClient = clients[0];
+
+  // Refetch coach-scoped data only when tab becomes visible.
+  useRefetchOnVisible(
+    async () => {
+      const adminId = String(user?.adminId ?? "").trim();
+      if (!adminId) return;
+
+      // Always refresh client profile + branding on tab return.
+      await queryClient.invalidateQueries({
+        queryKey: ["appSettings", "client", adminId],
+      });
+      await queryClient.invalidateQueries({ queryKey: ["myClient", adminId] });
+
+      const clientId = String(myClient?.id ?? "").trim();
+      if (clientId) {
+        await queryClient.invalidateQueries({
+          queryKey: ["myMeetings", clientId],
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["myMessages", clientId],
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["clientWeeklySchedule", clientId],
+        });
+      }
+
+      if (activeSection === "workouts") {
+        await queryClient.invalidateQueries({ queryKey: ["assignedPlans"] });
+        await queryClient.invalidateQueries({
+          queryKey: ["planExercisesByPlanId"],
+        });
+      }
+
+      if (activeSection === "meals") {
+        await queryClient.invalidateQueries({
+          queryKey: ["assignedMealPlans"],
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["mealPlanMealsByPlanId"],
+        });
+      }
+    },
+    { enabled: Boolean(user) }
+  );
 
   const uploadAvatarMutation = useMutation({
     mutationFn: async (dataUrl: string | null) => {
@@ -1208,10 +1268,6 @@ function ClientDashboard({ user }: { user: any }) {
     queryKey: ["myMessages", myClient?.id],
     queryFn: () => db.entities.Message.filter({ clientId: myClient.id }),
     enabled: !!myClient,
-    // Poll so the unread badge updates when the admin sends messages.
-    refetchInterval: messagesOpen ? 2000 : 8000,
-    refetchIntervalInBackground: false,
-    refetchOnWindowFocus: true,
     staleTime: 0,
   });
 

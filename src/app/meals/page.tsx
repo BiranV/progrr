@@ -27,6 +27,7 @@ import MealPlanDialog from "@/components/MealPlanDialog";
 import MealPlanDetailsDialog from "@/components/MealPlanDetailsDialog";
 import { MealPlan, Meal, Food, PlanFood, FoodLibrary } from "@/types";
 import { toast } from "sonner";
+import { useRefetchOnVisible } from "@/hooks/use-refetch-on-visible";
 
 export default function MealsPage() {
   const [search, setSearch] = React.useState("");
@@ -39,6 +40,10 @@ export default function MealsPage() {
   const { data: mealPlans = [], isLoading } = useQuery({
     queryKey: ["mealPlans"],
     queryFn: () => db.entities.MealPlan.list("-created_date"),
+  });
+
+  useRefetchOnVisible(() => {
+    queryClient.invalidateQueries({ queryKey: ["mealPlans"] });
   });
 
   const deletePlanMutation = useMutation({

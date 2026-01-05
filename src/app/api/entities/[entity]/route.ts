@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { collections } from "@/server/collections";
 import { requireAppUser } from "@/server/auth";
+import { getMessageHub } from "@/server/realtime/messageHub";
 
 export const runtime = "nodejs";
 
@@ -221,6 +222,8 @@ export async function POST(
   try {
     const user = await requireAppUser();
 
+    const hub = getMessageHub();
+
     const c = await collections();
 
     const { entity } = await ctx.params;
@@ -279,6 +282,14 @@ export async function POST(
         );
       }
 
+      if (entity === "Message") {
+        hub.publishMessageChanged({
+          adminId: adminId.toHexString(),
+          clientId: clientEntityId,
+          messageId: insert.insertedId.toHexString(),
+        });
+      }
+
       return NextResponse.json(toPublicEntityDoc(created));
     }
 
@@ -335,6 +346,17 @@ export async function POST(
         { error: "Internal Server Error" },
         { status: 500 }
       );
+    }
+
+    if (entity === "Message") {
+      const clientId = String((body as any)?.clientId ?? "").trim();
+      if (clientId) {
+        hub.publishMessageChanged({
+          adminId: adminId.toHexString(),
+          clientId,
+          messageId: insert.insertedId.toHexString(),
+        });
+      }
     }
 
     return NextResponse.json(toPublicEntityDoc(created));

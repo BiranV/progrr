@@ -26,6 +26,7 @@ import {
 import PlanDialog from "@/components/PlanDialog";
 import WorkoutPlanDetailsDialog from "@/components/WorkoutPlanDetailsDialog";
 import { WorkoutPlan } from "@/types";
+import { useRefetchOnVisible } from "@/hooks/use-refetch-on-visible";
 
 export default function PlansPage() {
   const queryClient = useQueryClient();
@@ -42,6 +43,11 @@ export default function PlansPage() {
   const { data: plans = [], isLoading } = useQuery({
     queryKey: ["workoutPlans"],
     queryFn: () => db.entities.WorkoutPlan.list("-created_date"),
+  });
+
+  useRefetchOnVisible(() => {
+    queryClient.invalidateQueries({ queryKey: ["workoutPlans"] });
+    queryClient.invalidateQueries({ queryKey: ["workoutPlanExerciseCounts"] });
   });
 
   const { data: exerciseCountByPlanId = {} } = useQuery({

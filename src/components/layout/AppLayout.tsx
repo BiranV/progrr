@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -9,6 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { db } from "@/lib/db";
 import NavigationTracker from "@/lib/NavigationTracker";
 import VisualEditAgent from "@/lib/VisualEditAgent";
+import MessagesRealtime from "@/components/messages/MessagesRealtime";
 import {
   LayoutDashboard,
   Users,
@@ -33,10 +34,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const settingsOwnerId =
+    user?.role === "client"
+      ? String(user?.adminId ?? "")
+      : String(user?.id ?? "");
+
   const { data: settings = [] } = useQuery({
-    queryKey: ["appSettings"],
+    queryKey: ["appSettings", settingsOwnerId],
     queryFn: () => db.entities.AppSettings.list(),
-    enabled: Boolean(user),
+    enabled: Boolean(user) && Boolean(settingsOwnerId),
   });
 
   const { data: allMessages = [] } = useQuery({
@@ -176,6 +182,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+      {(user?.role === "admin" || user?.role === "client") && (
+        <MessagesRealtime />
+      )}
       <NavigationTracker />
       <VisualEditAgent />
       {/* Mobile header */}

@@ -89,13 +89,6 @@ export default function BoardHeader({
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setLastSaved(new Date());
-    }, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
     if (board?.title) {
       setEditedTitle(board.title);
     }
@@ -105,6 +98,7 @@ export default function BoardHeader({
 
   const handleSaveTitle = () => {
     setIsEditing(false);
+    setLastSaved(new Date());
     console.log("Saving title:", editedTitle);
   };
 

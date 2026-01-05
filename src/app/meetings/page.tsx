@@ -28,6 +28,7 @@ import MeetingDialog from "@/components/MeetingDialog";
 import MeetingDetailsDialog from "@/components/MeetingDetailsDialog";
 import { format } from "date-fns";
 import { Meeting, Client } from "@/types";
+import { useRefetchOnVisible } from "@/hooks/use-refetch-on-visible";
 
 const PROSPECT_CLIENT_ID = "__PROSPECT__";
 const PROSPECT_CLIENT_LABEL = "Prospect (Process / Payment questions)";
@@ -46,6 +47,10 @@ export default function MeetingsPage() {
   const { data: meetings = [], isLoading } = useQuery({
     queryKey: ["meetings"],
     queryFn: () => db.entities.Meeting.list("-scheduledAt"),
+  });
+
+  useRefetchOnVisible(() => {
+    queryClient.invalidateQueries({ queryKey: ["meetings"] });
   });
 
   const { data: clients = [] } = useQuery({

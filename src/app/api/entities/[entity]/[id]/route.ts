@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { collections } from "@/server/collections";
 import { requireAppUser } from "@/server/auth";
+import { getMessageHub } from "@/server/realtime/messageHub";
 
 export const runtime = "nodejs";
 
@@ -514,6 +515,8 @@ export async function PATCH(
     const user = await requireAppUser();
     const { entity, id } = await ctx.params;
 
+    const hub = getMessageHub();
+
     const c = await collections();
 
     if (!ObjectId.isValid(id)) {
@@ -579,6 +582,18 @@ export async function PATCH(
       const row = await c.entities.findOne({ _id: new ObjectId(id) });
       if (!row) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+
+      if (entity === "Message") {
+        const data = (row.data ?? {}) as any;
+        const clientId = String(data.clientId ?? "").trim();
+        if (clientId) {
+          hub.publishMessageChanged({
+            adminId: adminId.toHexString(),
+            clientId,
+            messageId: id,
+          });
+        }
       }
 
       return NextResponse.json(toPublicEntityDoc(row));
@@ -657,6 +672,18 @@ export async function PATCH(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    if (entity === "Message") {
+      const data = (row.data ?? {}) as any;
+      const clientId = String(data.clientId ?? "").trim();
+      if (clientId) {
+        hub.publishMessageChanged({
+          adminId: adminId.toHexString(),
+          clientId,
+          messageId: id,
+        });
+      }
+    }
+
     return NextResponse.json(toPublicEntityDoc(row));
   } catch (error: any) {
     const status = typeof error?.status === "number" ? error.status : 500;
@@ -680,6 +707,8 @@ export async function DELETE(
     const user = await requireAppUser();
     const { entity, id } = await ctx.params;
 
+    const hub = getMessageHub();
+
     const c = await collections();
 
     if (!ObjectId.isValid(id)) {
@@ -701,6 +730,18 @@ export async function DELETE(
       adminId,
     });
     if (!existing) return NextResponse.json({ ok: true });
+
+    if (entity === "Message") {
+      const data = (existing.data ?? {}) as any;
+      const clientId = String(data.clientId ?? "").trim();
+      if (clientId) {
+        hub.publishMessageChanged({
+          adminId: adminId.toHexString(),
+          clientId,
+          messageId: id,
+        });
+      }
+    }
 
     await c.entities.deleteOne({ _id: new ObjectId(id) });
 
