@@ -33,9 +33,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const [hiddenMessageThreadClientIds, setHiddenMessageThreadClientIds] =
-    useState<Set<string>>(() => new Set());
-
   const { data: settings = [] } = useQuery({
     queryKey: ["appSettings"],
     queryFn: () => db.entities.AppSettings.list(),
@@ -48,30 +45,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     enabled: Boolean(user) && user?.role === "admin",
   });
 
-  useEffect(() => {
-    if (!user || user.role !== "admin") return;
-    try {
-      const raw = localStorage.getItem("progrr_admin_hidden_message_threads");
-      const arr = raw ? (JSON.parse(raw) as unknown) : [];
-      const ids = Array.isArray(arr)
-        ? arr.map((v) => String(v ?? "").trim()).filter(Boolean)
-        : [];
-      setHiddenMessageThreadClientIds(new Set(ids));
-    } catch {
-      // ignore
-    }
-  }, [user]);
-
   const unreadMessagesCount = React.useMemo(() => {
     if (!user || user.role !== "admin") return 0;
 
     return (allMessages as any[]).filter((m) => {
-      const clientId = String(m?.clientId ?? "");
-      if (!clientId || hiddenMessageThreadClientIds.has(clientId)) return false;
       const isSystem = Boolean(m?.isSystemMessage);
       return !m?.readByAdmin && (m?.senderRole === "client" || isSystem);
     }).length;
-  }, [allMessages, hiddenMessageThreadClientIds, user]);
+  }, [allMessages, user]);
 
   // Filter out blob URLs that might cause errors
   const rawLogoUrl = settings.length > 0 ? (settings[0] as any).logoUrl : null;

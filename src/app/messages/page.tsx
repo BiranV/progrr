@@ -10,6 +10,14 @@ import { Send, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/context/AuthContext";
 import { Client, Message } from "@/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function MessagesPage() {
   const { user, isLoadingAuth } = useAuth();
@@ -41,56 +49,12 @@ function AdminMessages({ user }: { user: any }) {
     null
   );
 
-  const swipeRef = React.useRef<{
-    clientId: string;
-    startX: number;
-    startY: number;
-    swiping: boolean;
-    preventClick: boolean;
-  } | null>(null);
-
-  const [hiddenClientIds, setHiddenClientIds] = React.useState<Set<string>>(
-    () => new Set()
-  );
-
-  React.useEffect(() => {
-    try {
-      const raw = localStorage.getItem("progrr_admin_hidden_message_threads");
-      const arr = raw ? (JSON.parse(raw) as unknown) : [];
-      const ids = Array.isArray(arr)
-        ? arr.map((v) => String(v ?? "").trim()).filter(Boolean)
-        : [];
-      setHiddenClientIds(new Set(ids));
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  const persistHidden = React.useCallback((next: Set<string>) => {
-    try {
-      localStorage.setItem(
-        "progrr_admin_hidden_message_threads",
-        JSON.stringify(Array.from(next))
-      );
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  const hideThread = React.useCallback(
-    (clientId: string) => {
-      setHiddenClientIds((prev) => {
-        const next = new Set(prev);
-        next.add(clientId);
-        persistHidden(next);
-        if (selectedClientId === clientId) {
-          setSelectedClientId(null);
-        }
-        return next;
-      });
-    },
-    [persistHidden, selectedClientId]
-  );
+  const [broadcastOpen, setBroadcastOpen] = React.useState(false);
+  const [broadcastText, setBroadcastText] = React.useState("");
+  const [broadcastAll, setBroadcastAll] = React.useState(true);
+  const [broadcastSelectedIds, setBroadcastSelectedIds] = React.useState<
+    Set<string>
+  >(() => new Set());
 
   const { data: clients = [] } = useQuery({
     queryKey: ["clients"],
@@ -102,10 +66,41 @@ function AdminMessages({ user }: { user: any }) {
     queryFn: () => db.entities.Message.list("-created_date"),
   });
 
-  const visibleClients = React.useMemo(
-    () => clients.filter((c: Client) => !hiddenClientIds.has(c.id)),
-    [clients, hiddenClientIds]
-  );
+  const broadcastMutation = useMutation({
+    mutationFn: async () => {
+      const text = broadcastText.trim();
+      if (!text) return;
+
+      const targets = broadcastAll
+        ? clients
+        : clients.filter((c: Client) => broadcastSelectedIds.has(c.id));
+
+      const allowedTargets = targets.filter(
+        (c: Client) => !(c as any)?.isDeleted
+      );
+
+      await Promise.all(
+        allowedTargets.map((c: Client) =>
+          db.entities.Message.create({
+            clientId: c.id,
+            text,
+            senderRole: "admin",
+            readByAdmin: true,
+            readByClient: false,
+          })
+        )
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["messages"] });
+      setBroadcastText("");
+      setBroadcastAll(true);
+      setBroadcastSelectedIds(new Set());
+      setBroadcastOpen(false);
+    },
+  });
+
+  const visibleClients = clients;
 
   // Group messages by client
   const messagesByClient = React.useMemo(() => {
@@ -140,9 +135,14 @@ function AdminMessages({ user }: { user: any }) {
     <div className="p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
       <div className="h-[calc(100vh-8rem)] flex flex-col bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
         <div className="p-6 border-b border-gray-200 dark:border-gray-800">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Messages
-          </h1>
+          <div className="flex items-center justify-between gap-3">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Messages
+            </h1>
+            <Button type="button" onClick={() => setBroadcastOpen(true)}>
+              Broadcast
+            </Button>
+          </div>
         </div>
 
         <div className="flex-1 flex overflow-hidden">
@@ -160,70 +160,15 @@ function AdminMessages({ user }: { user: any }) {
                   return (
                     <button
                       key={client.id}
-                      onClick={() => {
-                        const s = swipeRef.current;
-                        if (s?.clientId === client.id && s.preventClick) {
-                          swipeRef.current = null;
-                          return;
-                        }
-                        setSelectedClientId(client.id);
-                      }}
-                      onPointerDown={(e) => {
-                        if (e.pointerType !== "touch") return;
-                        swipeRef.current = {
-                          clientId: client.id,
-                          startX: e.clientX,
-                          startY: e.clientY,
-                          swiping: false,
-                          preventClick: false,
-                        };
-                      }}
-                      onPointerMove={(e) => {
-                        const s = swipeRef.current;
-                        if (!s || s.clientId !== client.id) return;
-
-                        const dx = e.clientX - s.startX;
-                        const dy = e.clientY - s.startY;
-
-                        // If user scrolls vertically, do nothing.
-                        if (!s.swiping) {
-                          if (
-                            Math.abs(dy) > 10 &&
-                            Math.abs(dy) > Math.abs(dx)
-                          ) {
-                            swipeRef.current = null;
-                            return;
-                          }
-                          if (dx < -10) {
-                            s.swiping = true;
-                            s.preventClick = true;
-                          }
-                        }
-
-                        if (s.swiping && dx < -80) {
-                          hideThread(client.id);
-                          swipeRef.current = null;
-                        }
-                      }}
-                      onPointerUp={() => {
-                        // keep preventClick for the click that may follow
-                        setTimeout(() => {
-                          if (swipeRef.current?.clientId === client.id) {
-                            swipeRef.current = null;
-                          }
-                        }, 0);
-                      }}
-                      onPointerCancel={() => {
-                        swipeRef.current = null;
-                      }}
+                      type="button"
+                      onClick={() => setSelectedClientId(client.id)}
                       className={`w-full p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
                         selectedClientId === client.id
                           ? "bg-indigo-50 dark:bg-indigo-900/20"
                           : ""
                       }`}
-                      title="Swipe left to hide"
                     >
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3">
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-gray-900 dark:text-white truncate">
                             {client.name}
@@ -232,8 +177,9 @@ function AdminMessages({ user }: { user: any }) {
                             {client.email}
                           </p>
                         </div>
+
                         {threadData?.unread > 0 && (
-                          <span className="ml-2 px-2 py-1 bg-indigo-600 text-white text-xs rounded-full">
+                          <span className="px-2 py-1 bg-indigo-600 text-white text-xs rounded-full">
                             {threadData.unread}
                           </span>
                         )}
@@ -264,6 +210,106 @@ function AdminMessages({ user }: { user: any }) {
           </div>
         </div>
       </div>
+
+      <Dialog open={broadcastOpen} onOpenChange={setBroadcastOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Broadcast message</DialogTitle>
+            <DialogDescription>
+              Send one message to all clients, or select specific clients.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+              <input
+                type="checkbox"
+                checked={broadcastAll}
+                onChange={(e) => setBroadcastAll(e.target.checked)}
+              />
+              Send to all clients
+            </label>
+
+            {!broadcastAll ? (
+              <div className="max-h-56 overflow-y-auto rounded-md border border-gray-200 dark:border-gray-800">
+                {clients.length === 0 ? (
+                  <div className="p-3 text-sm text-gray-500 dark:text-gray-400">
+                    No clients
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-200 dark:divide-gray-800">
+                    {clients.map((c: Client) => {
+                      const checked = broadcastSelectedIds.has(c.id);
+                      return (
+                        <label
+                          key={c.id}
+                          className="flex items-center gap-3 p-3 text-sm"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              setBroadcastSelectedIds((prev) => {
+                                const next = new Set(prev);
+                                if (e.target.checked) next.add(c.id);
+                                else next.delete(c.id);
+                                return next;
+                              });
+                            }}
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="block font-medium text-gray-900 dark:text-gray-100 truncate">
+                              {c.name}
+                            </span>
+                            <span className="block text-gray-500 dark:text-gray-400 truncate">
+                              {c.email}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : null}
+
+            <div className="space-y-1">
+              <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                Message
+              </div>
+              <textarea
+                className="w-full min-h-24 rounded-md border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-3 text-sm"
+                value={broadcastText}
+                onChange={(e) => setBroadcastText(e.target.value)}
+                placeholder="Type your message..."
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setBroadcastOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                broadcastMutation.mutate();
+              }}
+              disabled={
+                broadcastMutation.isPending ||
+                !broadcastText.trim() ||
+                (!broadcastAll && broadcastSelectedIds.size === 0)
+              }
+            >
+              Send
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -421,7 +467,9 @@ function MessageThread({
             return (
               <div
                 key={message.id}
-                className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+                className={`flex w-full items-end ${
+                  isMe ? "justify-end" : "justify-start"
+                }`}
               >
                 <div
                   className={`max-w-md px-4 py-2 rounded-lg ${
