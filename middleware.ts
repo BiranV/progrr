@@ -10,6 +10,7 @@ function isPublicPath(pathname: string) {
   if (pathname.startsWith("/pricing")) return true;
   if (pathname.startsWith("/public")) return true;
   if (pathname.startsWith("/invite")) return true;
+  if (pathname.startsWith("/goodbye")) return true;
   return false;
 }
 

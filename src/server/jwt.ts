@@ -7,6 +7,7 @@ export type AuthClaims = {
   role: AuthRole;
   adminId?: string;
   clientId?: string;
+  iat?: number;
 };
 
 function requireEnv(name: string): string {
@@ -55,11 +56,13 @@ export async function verifyAuthToken(token: string): Promise<AuthClaims> {
     typeof payload.adminId === "string" ? payload.adminId : undefined;
   const clientId =
     typeof payload.clientId === "string" ? payload.clientId : undefined;
+  const iat = typeof payload.iat === "number" ? payload.iat : undefined;
 
   return {
     sub,
     role,
     adminId,
     clientId,
+    iat,
   };
 }

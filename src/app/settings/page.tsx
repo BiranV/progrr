@@ -18,6 +18,14 @@ import { Save, Upload, Link2, Download } from "lucide-react";
 import { AppSettings } from "@/types";
 import { toast } from "sonner";
 import { getAllCookies, setCookie } from "@/lib/client-cookies";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 async function runMockDataAction(action: "seed" | "clear") {
   const res = await fetch("/api/admin/mock-data", {
@@ -74,6 +82,10 @@ export default function SettingsPage() {
     instagramUrl: "",
   });
 
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = React.useState("");
+  const [deletePending, setDeletePending] = React.useState(false);
+
   const { data: settings = [] } = useQuery({
     queryKey: ["appSettings"],
     queryFn: () => db.entities.AppSettings.list(),
@@ -129,31 +141,37 @@ export default function SettingsPage() {
   };
 
   const handleExportData = () => {
-    const all = getAllCookies();
-    const data: Record<string, any> = {};
-    Object.keys(all).forEach((key) => {
-      if (key.startsWith("progrr_")) {
-        const value = all[key];
-        try {
-          data[key] = JSON.parse(value);
-        } catch {
-          data[key] = value;
-        }
-      }
-    });
+    // Server-side export (ZIP containing JSON + CSV)
+    window.location.href = "/api/me/export";
+  };
 
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `progrr-backup-${new Date().toISOString().split("T")[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success("Data exported successfully");
+  const handleDeleteAccount = async () => {
+    if (deletePending) return;
+    if (deleteConfirmText.trim().toUpperCase() !== "DELETE") {
+      toast.error("Type DELETE to confirm.");
+      return;
+    }
+
+    setDeletePending(true);
+    try {
+      const res = await fetch("/api/me/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ confirm: deleteConfirmText }),
+      });
+
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || `Request failed (${res.status})`);
+      }
+
+      window.location.href = "/goodbye";
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to delete account");
+    } finally {
+      setDeletePending(false);
+    }
   };
 
   const handleImportData = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -549,8 +567,8 @@ export default function SettingsPage() {
           <CardContent className="space-y-4">
             <div className="flex flex-col gap-2">
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Export your data to a JSON file for backup, or import a
-                previously saved backup.
+                Export your account data as a ZIP archive (JSON + CSV), or
+                import a previously saved legacy JSON backup.
               </p>
               <div className="flex gap-4">
                 <Button
@@ -559,7 +577,7 @@ export default function SettingsPage() {
                   onClick={handleExportData}
                 >
                   <Download className="w-4 h-4 mr-2" />
-                  Export Data
+                  Export Data (ZIP)
                 </Button>
                 <div className="relative">
                   <input
@@ -578,6 +596,28 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
+        {/* Danger Zone */}
+        <Card className="dark:bg-gray-800 dark:border-gray-700">
+          <CardHeader>
+            <CardTitle>Danger Zone</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Permanently delete your admin account. This is irreversible.
+            </p>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                setDeleteConfirmText("");
+                setDeleteOpen(true);
+              }}
+            >
+              Delete Account
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Save Button */}
         <div className="flex justify-end">
           <Button
@@ -590,6 +630,84 @@ export default function SettingsPage() {
           </Button>
         </div>
       </form>
+
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent showCloseButton={!deletePending}>
+          <DialogHeader>
+            <DialogTitle>Delete your account?</DialogTitle>
+            <DialogDescription>
+              Deleting your account will permanently remove all your data,
+              including access to all clients, programs, and history. This
+              action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="text-sm">
+              <div className="font-medium">You will lose:</div>
+              <ul className="list-disc pl-5 text-muted-foreground">
+                <li>Access to the system</li>
+                <li>All managed clients</li>
+                <li>All programs, plans, and data</li>
+              </ul>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-sm font-medium">
+                Strongly recommended: export your data first
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  window.location.href = "/api/me/export";
+                }}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export Data (ZIP)
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Type DELETE to confirm
+              </label>
+              <Input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE"
+                disabled={deletePending}
+              />
+              <p className="text-xs text-muted-foreground">
+                For security, deletion requires recent authentication (log in
+                again if needed).
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteOpen(false)}
+              disabled={deletePending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDeleteAccount}
+              disabled={
+                deletePending ||
+                deleteConfirmText.trim().toUpperCase() !== "DELETE"
+              }
+            >
+              {deletePending ? "Deleting..." : "Delete account permanently"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
