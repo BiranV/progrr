@@ -18,6 +18,7 @@ import { Save, Upload, Link2, Download } from "lucide-react";
 import { AppSettings } from "@/types";
 import { toast } from "sonner";
 import { getAllCookies, setCookie } from "@/lib/client-cookies";
+import { useAuth } from "@/context/AuthContext";
 import {
   Dialog,
   DialogContent,
@@ -65,6 +66,7 @@ const uploadFile = async (file: File): Promise<{ file_url: string }> => {
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
+  const { user, refreshUser } = useAuth();
   const [uploadMethod, setUploadMethod] = React.useState<"url" | "upload">(
     "upload"
   );
@@ -85,6 +87,16 @@ export default function SettingsPage() {
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = React.useState("");
   const [deletePending, setDeletePending] = React.useState(false);
+
+  const [profileFullName, setProfileFullName] = React.useState("");
+
+  React.useEffect(() => {
+    const next =
+      user?.role === "admin" && typeof user?.full_name === "string"
+        ? user.full_name
+        : "";
+    setProfileFullName(next || "");
+  }, [user?.role, user?.full_name]);
 
   const { data: settings = [] } = useQuery({
     queryKey: ["appSettings"],
@@ -288,6 +300,31 @@ export default function SettingsPage() {
     },
   });
 
+  const saveProfileMutation = useMutation({
+    mutationFn: async (fullName: string) => {
+      const res = await fetch("/api/me/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ fullName }),
+      });
+
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || `Request failed (${res.status})`);
+      }
+
+      return payload;
+    },
+    onSuccess: async () => {
+      toast.success("Profile updated");
+      await refreshUser({ force: true });
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to update profile");
+    },
+  });
+
   return (
     <div className="p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
       <div className="flex items-center justify-between mb-8">
@@ -302,6 +339,44 @@ export default function SettingsPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {user?.role === "admin" ? (
+          <Card className="dark:bg-gray-800 dark:border-gray-700">
+            <CardHeader>
+              <CardTitle>Profile</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Full name
+                </label>
+                <Input
+                  value={profileFullName}
+                  onChange={(e) => setProfileFullName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      saveProfileMutation.mutate(profileFullName);
+                    }
+                  }}
+                  placeholder="Your name"
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  onClick={() => saveProfileMutation.mutate(profileFullName)}
+                  disabled={saveProfileMutation.isPending}
+                  className="flex items-center gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  {saveProfileMutation.isPending ? "Saving..." : "Save Profile"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
+
         {/* Business Information */}
         <Card className="dark:bg-gray-800 dark:border-gray-700">
           <CardHeader>

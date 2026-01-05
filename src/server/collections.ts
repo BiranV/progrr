@@ -30,22 +30,46 @@ export type AdminDoc = {
 
 export type ClientDoc = {
   _id?: ObjectId;
-  adminId: ObjectId;
   email: string;
   name: string;
   theme: "light" | "dark";
   role: "client";
 
-  // Access control
+  // Legacy: previous model stored a single adminId on the client record.
+  // New model stores admin association in client_admin_relations.
+  adminId?: ObjectId;
+
+  // Persisted coach selection
+  lastActiveAdminId?: ObjectId;
+  lastSelectedAt?: Date;
+
+  // Legacy global block fields (deprecated; use client_admin_relations per coach)
   isBlocked?: boolean;
   blockedUntil?: Date | null;
   blockReason?: string | null;
+
   // Optional login fields
   passwordHash?: string;
   // Optional legacy field (kept for existing data)
   phone?: string;
   // Optional: used by Settings "mock data" tools
   mockSeedId?: string;
+};
+
+export type ClientAdminRelationStatus = "ACTIVE" | "BLOCKED";
+
+export type ClientAdminRelationDoc = {
+  _id?: ObjectId;
+  userId: ObjectId; // client user id (global)
+  adminId: ObjectId;
+  status: ClientAdminRelationStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  lastSelectedAt?: Date;
+
+  // Optional block metadata (only meaningful when status === "BLOCKED")
+  blockedUntil?: Date | null;
+  blockReason?: string | null;
 };
 
 export type EntityDoc = {
@@ -90,6 +114,9 @@ export async function collections() {
     owners: db.collection<OwnerDoc>("owners"),
     admins: db.collection<AdminDoc>("admins"),
     clients: db.collection<ClientDoc>("clients"),
+    clientAdminRelations: db.collection<ClientAdminRelationDoc>(
+      "client_admin_relations"
+    ),
     entities: db.collection<EntityDoc>("entities"),
     otps: db.collection<OtpDoc>("otps"),
     rateLimits: db.collection<RateLimitDoc>("rate_limits"),
@@ -116,6 +143,13 @@ export async function ensureIndexes() {
 
   await c.clients.createIndex({ email: 1 }, { unique: true });
   await c.clients.createIndex({ adminId: 1 });
+
+  await c.clientAdminRelations.createIndex(
+    { userId: 1, adminId: 1 },
+    { unique: true }
+  );
+  await c.clientAdminRelations.createIndex({ userId: 1 });
+  await c.clientAdminRelations.createIndex({ adminId: 1 });
 
   await c.entities.createIndex({ entity: 1, adminId: 1 });
   await c.entities.createIndex({ adminId: 1 });

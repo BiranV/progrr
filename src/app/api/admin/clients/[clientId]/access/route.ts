@@ -3,10 +3,6 @@ import { ObjectId } from "mongodb";
 import { z } from "zod";
 import { collections, ensureIndexes } from "@/server/collections";
 import { requireAppUser } from "@/server/auth";
-import {
-  clearExpiredClientBlock,
-  computeClientBlockState,
-} from "@/server/client-block";
 
 export const runtime = "nodejs";
 
@@ -45,34 +41,47 @@ export async function GET(
     const c = await collections();
     const adminId = new ObjectId(user.id);
 
-    const client = await c.clients.findOne({
-      _id: new ObjectId(clientId),
-      adminId,
-    });
+    const userId = new ObjectId(clientId);
 
-    if (!client || !client._id) {
+    const client = await c.clients.findOne({ _id: userId });
+    if (!client) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
     }
 
-    const blockState = computeClientBlockState(client);
-    if (!blockState.blocked && blockState.shouldClear) {
-      await clearExpiredClientBlock({ c, clientId: client._id });
-      return NextResponse.json({
-        ok: true,
-        blocked: false,
-        blockType: null,
-        blockedUntil: null,
-        blockReason: null,
-      });
+    const rel = await c.clientAdminRelations.findOne({ userId, adminId });
+    if (!rel) {
+      return NextResponse.json({ error: "Client not found" }, { status: 404 });
     }
 
-    if (blockState.blocked) {
+    if (rel.status === "BLOCKED") {
+      const until = rel.blockedUntil ?? null;
+      if (until instanceof Date && until.getTime() <= Date.now()) {
+        await c.clientAdminRelations.updateOne(
+          { _id: rel._id },
+          {
+            $set: {
+              status: "ACTIVE",
+              blockedUntil: null,
+              blockReason: null,
+              updatedAt: new Date(),
+            },
+          }
+        );
+        return NextResponse.json({
+          ok: true,
+          blocked: false,
+          blockType: null,
+          blockedUntil: null,
+          blockReason: null,
+        });
+      }
+
       return NextResponse.json({
         ok: true,
         blocked: true,
-        blockType: blockState.blockType,
-        blockedUntil: safeIso(blockState.blockedUntil),
-        blockReason: blockState.blockReason,
+        blockType: until ? "temporary" : "permanent",
+        blockedUntil: until ? safeIso(until) : null,
+        blockReason: rel.blockReason ?? null,
       });
     }
 
@@ -113,27 +122,36 @@ export async function POST(
 
     const c = await collections();
     const adminId = new ObjectId(user.id);
-    const _id = new ObjectId(clientId);
+    const userId = new ObjectId(clientId);
 
-    const existing = await c.clients.findOne({ _id, adminId });
-    if (!existing) {
+    const existingUser = await c.clients.findOne({ _id: userId });
+    if (!existingUser) {
+      return NextResponse.json({ error: "Client not found" }, { status: 404 });
+    }
+
+    const existingRel = await c.clientAdminRelations.findOne({
+      userId,
+      adminId,
+    });
+    if (!existingRel) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
     }
 
     if (body.action === "unblock") {
-      await c.clients.updateOne(
-        { _id, adminId },
+      await c.clientAdminRelations.updateOne(
+        { userId, adminId },
         {
           $set: {
-            isBlocked: false,
+            status: "ACTIVE",
             blockedUntil: null,
             blockReason: null,
+            updatedAt: new Date(),
           },
         }
       );
 
       // Keep admin-facing entity status in sync.
-      const clientIdStr = _id.toHexString();
+      const clientIdStr = userId.toHexString();
       await c.entities.updateMany(
         {
           adminId,
@@ -144,7 +162,10 @@ export async function POST(
             { "data.userId": clientIdStr },
             {
               "data.email": {
-                $regex: new RegExp(`^${escapeRegExp(existing.email)}$`, "i"),
+                $regex: new RegExp(
+                  `^${escapeRegExp(existingUser.email)}$`,
+                  "i"
+                ),
               },
             },
           ],
@@ -168,19 +189,20 @@ export async function POST(
       duration === "24h" ? new Date(Date.now() + 24 * 60 * 60 * 1000) : null;
     const reason = typeof body.reason === "string" ? body.reason.trim() : "";
 
-    await c.clients.updateOne(
-      { _id, adminId },
+    await c.clientAdminRelations.updateOne(
+      { userId, adminId },
       {
         $set: {
-          isBlocked: true,
+          status: "BLOCKED",
           blockedUntil,
           blockReason: reason || null,
+          updatedAt: new Date(),
         },
       }
     );
 
     // Keep admin-facing entity status in sync.
-    const clientIdStr = _id.toHexString();
+    const clientIdStr = userId.toHexString();
     await c.entities.updateMany(
       {
         adminId,
@@ -190,7 +212,7 @@ export async function POST(
           { "data.userId": clientIdStr },
           {
             "data.email": {
-              $regex: new RegExp(`^${escapeRegExp(existing.email)}$`, "i"),
+              $regex: new RegExp(`^${escapeRegExp(existingUser.email)}$`, "i"),
             },
           },
         ],

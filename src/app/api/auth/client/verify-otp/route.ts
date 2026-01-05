@@ -6,11 +6,9 @@ import { setAuthCookie } from "@/server/auth-cookie";
 import { getDb } from "@/server/mongo";
 import { checkRateLimit } from "@/server/rate-limit";
 import {
-  clearExpiredClientBlock,
-  CLIENT_BLOCKED_CODE,
-  CLIENT_BLOCKED_MESSAGE,
-  computeClientBlockState,
-} from "@/server/client-block";
+  resolveClientAdminContext,
+  setLastActiveAdmin,
+} from "@/server/client-relations";
 
 export async function POST(req: Request) {
   try {
@@ -50,21 +48,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
     }
 
-    const blockState = computeClientBlockState(client);
-    if (!blockState.blocked && blockState.shouldClear && client._id) {
-      await clearExpiredClientBlock({ c, clientId: client._id });
-    } else if (blockState.blocked) {
-      return NextResponse.json(
-        {
-          code: CLIENT_BLOCKED_CODE,
-          blockType: blockState.blockType,
-          blockedUntil: blockState.blockedUntil,
-          error: CLIENT_BLOCKED_MESSAGE,
-        },
-        { status: 403 }
-      );
-    }
-
     const otp = await c.otps.findOne({ key: email, purpose: "client_login" });
     if (!otp) {
       return NextResponse.json(
@@ -95,7 +78,32 @@ export async function POST(req: Request) {
     await c.otps.deleteOne({ key: email, purpose: "client_login" });
 
     const clientId = client._id.toHexString();
-    const adminId = client.adminId.toHexString();
+
+    const resolved = await resolveClientAdminContext({
+      c,
+      user: client,
+      claimedAdminId:
+        typeof body?.adminId === "string" ? String(body.adminId) : undefined,
+    });
+
+    if (resolved.needsSelection) {
+      return NextResponse.json(
+        {
+          error:
+            "Your account no longer has access to this platform. Please contact your coach.",
+          code: "CLIENT_BLOCKED",
+        },
+        { status: 403 }
+      );
+    }
+
+    const adminId = resolved.activeAdminId.toHexString();
+
+    await setLastActiveAdmin({
+      c,
+      userId: client._id,
+      adminId: resolved.activeAdminId,
+    });
 
     const token = await signAuthToken({
       sub: clientId,
@@ -113,7 +121,7 @@ export async function POST(req: Request) {
     await c.entities.updateOne(
       {
         entity: "Client",
-        adminId: client.adminId,
+        adminId: resolved.activeAdminId,
         $or: [
           { "data.userId": clientId },
           { "data.clientAuthId": clientId },
@@ -127,6 +135,7 @@ export async function POST(req: Request) {
         },
       }
     );
+
     return res;
   } catch (error: any) {
     const status = typeof error?.status === "number" ? error.status : 500;

@@ -709,8 +709,20 @@ export async function DELETE(
     if (entity === "Client") {
       const d = (existing.data ?? {}) as any;
       const authId = String(d.clientAuthId ?? d.userId ?? "");
+      const email = String(d.email ?? "")
+        .trim()
+        .toLowerCase();
+
+      let userId: ObjectId | null = null;
       if (ObjectId.isValid(authId)) {
-        await c.clients.deleteOne({ _id: new ObjectId(authId), adminId });
+        userId = new ObjectId(authId);
+      } else if (email) {
+        const client = await c.clients.findOne({ email });
+        if (client?._id) userId = client._id;
+      }
+
+      if (userId) {
+        await c.clientAdminRelations.deleteOne({ userId, adminId });
       }
     }
 

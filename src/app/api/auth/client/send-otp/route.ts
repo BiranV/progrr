@@ -5,11 +5,9 @@ import { sendEmail } from "@/server/email";
 import { getDb } from "@/server/mongo";
 import { checkRateLimit } from "@/server/rate-limit";
 import {
-  clearExpiredClientBlock,
-  CLIENT_BLOCKED_CODE,
-  CLIENT_BLOCKED_MESSAGE,
-  computeClientBlockState,
-} from "@/server/client-block";
+  ensureLegacySingleRelation,
+  resolveClientAdminContext,
+} from "@/server/client-relations";
 
 function normalizeEmail(input: unknown): string {
   return String(input ?? "")
@@ -69,16 +67,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
     }
 
-    const blockState = computeClientBlockState(client);
-    if (!blockState.blocked && blockState.shouldClear && client._id) {
-      await clearExpiredClientBlock({ c, clientId: client._id });
-    } else if (blockState.blocked) {
+    // Lazily migrate legacy single-admin clients into the relation model.
+    await ensureLegacySingleRelation({ c, user: client });
+
+    // If the client has no active coaches (all deleted/blocked), do not send OTP.
+    const resolved = await resolveClientAdminContext({ c, user: client });
+    if (resolved.needsSelection) {
       return NextResponse.json(
         {
-          code: CLIENT_BLOCKED_CODE,
-          blockType: blockState.blockType,
-          blockedUntil: blockState.blockedUntil,
-          error: CLIENT_BLOCKED_MESSAGE,
+          error:
+            "Your account no longer has access to this platform. Please contact your coach.",
+          code: "CLIENT_BLOCKED",
         },
         { status: 403 }
       );

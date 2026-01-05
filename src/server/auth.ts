@@ -2,12 +2,7 @@ import { ObjectId } from "mongodb";
 import { readAuthCookie } from "@/server/auth-cookie";
 import { verifyAuthToken } from "@/server/jwt";
 import { collections } from "@/server/collections";
-import {
-  clearExpiredClientBlock,
-  CLIENT_BLOCKED_CODE,
-  CLIENT_BLOCKED_MESSAGE,
-  computeClientBlockState,
-} from "@/server/client-block";
+import { resolveClientAdminContext } from "@/server/client-relations";
 
 export type AppUser =
   | {
@@ -21,7 +16,8 @@ export type AppUser =
       email: string;
       full_name: string | null;
       role: "client";
-      adminId: string;
+      adminId?: string;
+      canSwitchCoach?: boolean;
       phone?: string;
       theme: "light" | "dark";
     };
@@ -56,27 +52,72 @@ export async function requireAppUser(): Promise<AppUser> {
     throw Object.assign(new Error("Not authenticated"), { status: 401 });
   }
 
-  const clientId = client._id;
-  if (clientId) {
-    const blockState = computeClientBlockState(client);
-    if (!blockState.blocked && blockState.shouldClear) {
-      await clearExpiredClientBlock({ c, clientId });
-    } else if (blockState.blocked) {
-      throw Object.assign(new Error(CLIENT_BLOCKED_MESSAGE), {
+  // Resolve the active coach/admin context for this client.
+  // If not resolved, we still treat the session as authenticated but require selection.
+  const resolved = await resolveClientAdminContext({
+    c,
+    user: client,
+    claimedAdminId: claims.adminId,
+  });
+
+  if (resolved.needsSelection) {
+    throw Object.assign(
+      new Error(
+        "Your account no longer has access to this platform. Please contact your coach."
+      ),
+      {
         status: 403,
-        code: CLIENT_BLOCKED_CODE,
-        blockType: blockState.blockType,
-        blockedUntil: blockState.blockedUntil,
-      });
+        code: "CLIENT_BLOCKED",
+      }
+    );
+  }
+
+  const adminId = resolved.activeAdminId.toHexString();
+
+  const canSwitchCoach = resolved.activeRelations.length > 1;
+
+  // Prefer the admin-scoped client profile name for the active coach.
+  // This keeps the UI consistent when different coaches created different profile names.
+  let preferredFullName: string | null = (client.name ?? null) as any;
+  {
+    const clientIdStr = client._id.toHexString();
+    const escapedEmail = String(client.email || "").replace(
+      /[.*+?^${}()|[\]\\]/g,
+      "\\$&"
+    );
+    const clientEntity = await c.entities.findOne({
+      entity: "Client",
+      adminId: resolved.activeAdminId,
+      $or: [
+        { "data.userId": clientIdStr },
+        { "data.clientAuthId": clientIdStr },
+        {
+          "data.email": {
+            $regex: new RegExp(`^${escapedEmail}$`, "i"),
+          },
+        },
+      ],
+    });
+
+    const entityName =
+      clientEntity &&
+      typeof (clientEntity as any)?.data?.name === "string" &&
+      String((clientEntity as any).data.name).trim()
+        ? String((clientEntity as any).data.name).trim()
+        : null;
+
+    if (entityName) {
+      preferredFullName = entityName;
     }
   }
 
   return {
     id: client._id.toHexString(),
     email: client.email,
-    full_name: client.name ?? null,
+    full_name: preferredFullName,
     role: "client",
-    adminId: client.adminId.toHexString(),
+    adminId,
+    canSwitchCoach,
     phone: client.phone,
     theme: client.theme,
   };

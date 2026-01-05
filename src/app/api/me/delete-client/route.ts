@@ -5,6 +5,7 @@ import { z } from "zod";
 import { collections } from "@/server/collections";
 import { clearAuthCookie, readAuthCookie } from "@/server/auth-cookie";
 import { verifyAuthToken } from "@/server/jwt";
+import { ensureLegacySingleRelation } from "@/server/client-relations";
 
 export const runtime = "nodejs";
 
@@ -55,11 +56,6 @@ export async function POST(req: Request) {
     }
 
     const clientAuthId = new ObjectId(claims.sub);
-    const adminIdStr = String(claims.adminId || "").trim();
-    if (!ObjectId.isValid(adminIdStr)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const adminId = new ObjectId(adminIdStr);
 
     const c = await collections();
 
@@ -70,26 +66,73 @@ export async function POST(req: Request) {
       return res;
     }
 
-    // Locate the client profile entity used by the app UI
-    const clientEntity = await c.entities.findOne({
-      entity: "Client",
-      adminId,
-      $or: [
-        { "data.userId": clientAuthId.toHexString() },
-        { "data.clientAuthId": clientAuthId.toHexString() },
-      ],
-    });
+    // Ensure legacy relation exists so we can delete/notify ALL admins.
+    await ensureLegacySingleRelation({ c, user: clientAuth });
 
-    const clientEntityId = clientEntity?._id?.toHexString();
-    const clientData = (clientEntity?.data ?? {}) as any;
-    const clientName = String(clientData?.name ?? "").trim();
-    const clientEmail = String(clientData?.email ?? clientAuth.email ?? "")
+    const relations = await c.clientAdminRelations
+      .find({ userId: clientAuthId })
+      .toArray();
+
+    const globalEmail = String(clientAuth.email ?? "")
       .trim()
       .toLowerCase();
+    const globalName = String((clientAuth as any)?.name ?? "").trim();
 
-    // Delete client-linked data (progress/logs/etc) by clientId field when present.
-    if (clientEntity && clientEntityId) {
-      // Remove all messages first (privacy), then we will insert a system notification.
+    // Delete/anonymize PER ADMIN so no coach retains client data.
+    for (const rel of relations) {
+      const adminId = rel.adminId;
+
+      // Locate the client profile entity used by the app UI for this admin
+      let clientEntity = await c.entities.findOne({
+        entity: "Client",
+        adminId,
+        $or: [
+          { "data.userId": clientAuthId.toHexString() },
+          { "data.clientAuthId": clientAuthId.toHexString() },
+          globalEmail
+            ? {
+                "data.email": {
+                  $regex: new RegExp(
+                    `^${globalEmail.replace(
+                      /[.*+?^${}()|[\\]\\\\]/g,
+                      "\\$&"
+                    )}$`,
+                    "i"
+                  ),
+                },
+              }
+            : { "data.email": "__never__" },
+        ],
+      });
+
+      const now = new Date();
+
+      if (!clientEntity) {
+        // Create a minimal placeholder client so the admin can see the system message.
+        const insert = await c.entities.insertOne({
+          entity: "Client",
+          adminId,
+          data: {
+            name: "Deleted client",
+            email: "",
+            phone: "",
+            status: "INACTIVE",
+            isDeleted: true,
+            deletedAt: now.toISOString(),
+          },
+          createdAt: now,
+          updatedAt: now,
+        });
+        clientEntity = await c.entities.findOne({ _id: insert.insertedId });
+      }
+
+      const clientEntityId = clientEntity?._id?.toHexString();
+      if (!clientEntity || !clientEntityId) continue;
+
+      const clientData = (clientEntity?.data ?? {}) as any;
+      const clientName = String(clientData?.name ?? "").trim() || globalName;
+
+      // Remove all messages first (privacy), then insert a system notification.
       await c.entities.deleteMany({
         adminId,
         entity: "Message",
@@ -99,8 +142,7 @@ export async function POST(req: Request) {
       // Remove other client-scoped entities (meetings, schedules, etc).
       await c.entities.deleteMany({ adminId, "data.clientId": clientEntityId });
 
-      // Anonymize client profile record while keeping a placeholder so admins
-      // can still see the notification thread.
+      // Anonymize client profile record while keeping a placeholder.
       await c.entities.updateOne(
         { _id: clientEntity._id, entity: "Client", adminId },
         {
@@ -114,23 +156,21 @@ export async function POST(req: Request) {
               userId: null,
               clientAuthId: null,
               isDeleted: true,
-              deletedAt: new Date().toISOString(),
+              deletedAt: now.toISOString(),
             },
-            updatedAt: new Date(),
+            updatedAt: now,
           },
         }
       );
 
-      // Send system-generated notification to admin
       const labelParts = [
         clientName ? `Client ${clientName}` : "Client",
-        clientEmail ? `(${clientEmail})` : "",
+        globalEmail ? `(${globalEmail})` : "",
       ].filter(Boolean);
       const text = `${labelParts.join(
         " "
       )} has permanently deleted their account.`;
 
-      const now = new Date();
       await c.entities.insertOne({
         entity: "Message",
         adminId,
@@ -150,7 +190,6 @@ export async function POST(req: Request) {
         updatedAt: now,
       });
 
-      // Audit log entry (server-side, admin-scoped)
       await c.entities.insertOne({
         entity: "AuditLog",
         adminId,
@@ -164,6 +203,9 @@ export async function POST(req: Request) {
         updatedAt: now,
       });
     }
+
+    // Remove all relations and the global auth user.
+    await c.clientAdminRelations.deleteMany({ userId: clientAuthId });
 
     // Remove auth client profile and invalidate session
     await c.clients.deleteOne({ _id: clientAuthId });

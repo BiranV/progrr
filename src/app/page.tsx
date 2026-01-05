@@ -93,7 +93,7 @@ export default function Home() {
       // כולם (Admin / Client / Owner) אחרי התחברות → Dashboard
       router.replace(nextPath || "/dashboard");
     }
-  }, [isAuthenticated, isLoadingAuth, nextPath, router]);
+  }, [isAuthenticated, isLoadingAuth, nextPath, router, user]);
 
   if (isLoadingAuth) {
     return (
@@ -444,6 +444,7 @@ function LoginForm({
         return;
       }
 
+      const data = await res.json().catch(() => ({}));
       router.replace(nextPath || "/dashboard");
       router.refresh();
     } catch (err: any) {

@@ -4,11 +4,9 @@ import { ensureIndexes, collections } from "@/server/collections";
 import { readAuthCookie } from "@/server/auth-cookie";
 import { verifyAuthToken } from "@/server/jwt";
 import {
-  clearExpiredClientBlock,
-  CLIENT_BLOCKED_CODE,
-  CLIENT_BLOCKED_MESSAGE,
-  computeClientBlockState,
-} from "@/server/client-block";
+  ensureLegacySingleRelation,
+  resolveClientAdminContext,
+} from "@/server/client-relations";
 
 export const runtime = "nodejs";
 
@@ -38,23 +36,43 @@ export async function GET() {
       );
     }
 
-    const blockState = computeClientBlockState(client);
-    if (!blockState.blocked && blockState.shouldClear && client._id) {
-      await clearExpiredClientBlock({ c, clientId: client._id });
-      return NextResponse.json({ ok: true, blocked: false });
-    }
+    await ensureLegacySingleRelation({ c, user: client });
 
-    if (blockState.blocked) {
+    const resolved = await resolveClientAdminContext({
+      c,
+      user: client,
+      claimedAdminId: claims.adminId,
+    });
+
+    if (resolved.needsSelection) {
       return NextResponse.json(
         {
           ok: false,
           blocked: true,
-          code: CLIENT_BLOCKED_CODE,
-          blockType: blockState.blockType,
-          blockedUntil: blockState.blockedUntil,
-          error: CLIENT_BLOCKED_MESSAGE,
+          code: "CLIENT_BLOCKED",
+          error:
+            "Your account no longer has access to this platform. Please contact your coach.",
         },
         { status: 403 }
+      );
+    }
+
+    // Auto-clear expired blocks for the active relation.
+    if (
+      resolved.activeRelation.status === "BLOCKED" &&
+      resolved.activeRelation.blockedUntil instanceof Date &&
+      resolved.activeRelation.blockedUntil.getTime() <= Date.now()
+    ) {
+      await c.clientAdminRelations.updateOne(
+        { _id: resolved.activeRelation._id },
+        {
+          $set: {
+            status: "ACTIVE",
+            blockedUntil: null,
+            blockReason: null,
+            updatedAt: new Date(),
+          },
+        }
       );
     }
 

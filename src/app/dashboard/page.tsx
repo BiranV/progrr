@@ -13,6 +13,7 @@ import {
   UtensilsCrossed,
   Calendar,
   CalendarDays,
+  Repeat,
   MessageSquare,
   Mail,
   Phone,
@@ -63,6 +64,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import ClientAvatar from "@/components/ClientAvatar";
 import { extractYouTubeVideoId, toYouTubeEmbedUrl } from "@/lib/youtube";
@@ -401,6 +409,7 @@ function AdminDashboard({ user }: { user: any }) {
 function ClientDashboard({ user }: { user: any }) {
   const { logout } = useAuth();
   const { darkMode, toggleDarkMode } = useTheme();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [activeSection, setActiveSection] = React.useState<
     "menu" | "profile" | "meetings" | "workouts" | "meals" | "weekly"
@@ -419,6 +428,52 @@ function ClientDashboard({ user }: { user: any }) {
   const [expandedMealPlanIds, setExpandedMealPlanIds] = React.useState<
     Record<string, boolean>
   >({});
+
+  const { data: coachMenuData } = useQuery({
+    queryKey: ["clientCoaches"],
+    enabled: !!user?.canSwitchCoach,
+    queryFn: async () => {
+      const res = await fetch("/api/auth/client/coaches", {
+        method: "GET",
+        credentials: "include",
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || "Failed to load coaches");
+      }
+      return payload as {
+        ok: boolean;
+        coaches?: { adminId: string; label: string }[];
+      };
+    },
+  });
+
+  const coaches = Array.isArray(coachMenuData?.coaches)
+    ? coachMenuData.coaches
+    : [];
+
+  const switchCoachMutation = useMutation({
+    mutationFn: async (adminId: string) => {
+      const res = await fetch("/api/auth/client/select-coach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ adminId }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || `Request failed (${res.status})`);
+      }
+      return payload;
+    },
+    onSuccess: () => {
+      // Hard reload to avoid showing stale cached data from the previous coach.
+      window.location.href = window.location.pathname + window.location.search;
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Failed to switch coach");
+    },
+  });
 
   const toTitleCase = (value: any) => {
     const raw = String(value ?? "").trim();
@@ -1131,6 +1186,11 @@ function ClientDashboard({ user }: { user: any }) {
     queryKey: ["myMessages", myClient?.id],
     queryFn: () => db.entities.Message.filter({ clientId: myClient.id }),
     enabled: !!myClient,
+    // Poll so the unread badge updates when the admin sends messages.
+    refetchInterval: messagesOpen ? 2000 : 8000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
 
   const { data: meetings = [] } = useQuery({
@@ -1320,6 +1380,48 @@ function ClientDashboard({ user }: { user: any }) {
             )}
           </DialogContent>
         </Dialog>
+
+        {user?.canSwitchCoach ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                aria-label="Switch coach"
+                title="Switch coach"
+              >
+                <Repeat className="w-6 h-6 text-gray-700 dark:text-gray-200" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[220px]">
+              <DropdownMenuLabel>Switch coach</DropdownMenuLabel>
+              {coaches.length ? (
+                coaches.map((c) => {
+                  const isActive =
+                    typeof user?.adminId === "string" &&
+                    user.adminId === c.adminId;
+                  return (
+                    <DropdownMenuItem
+                      key={c.adminId}
+                      onSelect={() => {
+                        if (isActive) return;
+                        switchCoachMutation.mutate(c.adminId);
+                      }}
+                      className={
+                        isActive
+                          ? "bg-accent text-accent-foreground"
+                          : undefined
+                      }
+                    >
+                      {c.label}
+                    </DropdownMenuItem>
+                  );
+                })
+              ) : (
+                <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
 
         <button
           onClick={toggleDarkMode}

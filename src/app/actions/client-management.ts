@@ -153,15 +153,9 @@ export async function createClientAction(data: ClientFormData) {
 
   let clientAuthId: ObjectId;
   if (existingAuthClient) {
-    if (!existingAuthClient.adminId.equals(adminId)) {
-      throw new Error(
-        "A client with this email already belongs to another admin"
-      );
-    }
-    throw new Error("A client with this email already exists");
+    clientAuthId = existingAuthClient._id;
   } else {
     const insert = await c.clients.insertOne({
-      adminId,
       name,
       email,
       phone,
@@ -169,6 +163,24 @@ export async function createClientAction(data: ClientFormData) {
       role: "client",
     });
     clientAuthId = insert.insertedId;
+  }
+
+  // Ensure the client<->admin relation exists (multi-admin model).
+  {
+    const now = new Date();
+    await c.clientAdminRelations.updateOne(
+      { userId: clientAuthId, adminId },
+      {
+        $setOnInsert: {
+          userId: clientAuthId,
+          adminId,
+          status: "ACTIVE",
+          createdAt: now,
+          updatedAt: now,
+        },
+      },
+      { upsert: true }
+    );
   }
 
   const clientAuthIdStr = clientAuthId.toHexString();
@@ -347,7 +359,6 @@ export async function updateClientAction(id: string, data: ClientFormData) {
   } else {
     // Legacy recovery: if the entity didn't have a login record, create one.
     const insert = await c.clients.insertOne({
-      adminId,
       name,
       email,
       theme: "light",
@@ -365,17 +376,12 @@ export async function updateClientAction(id: string, data: ClientFormData) {
     _id: { $ne: clientAuthId },
   });
   if (existingAuthDup) {
-    if (!existingAuthDup.adminId.equals(adminId)) {
-      throw new Error(
-        "A client with this email already belongs to another admin"
-      );
-    }
     throw new Error("A client with this email already exists");
   }
 
   try {
     await c.clients.updateOne(
-      { _id: clientAuthId, adminId },
+      { _id: clientAuthId },
       {
         $set: {
           phone,
@@ -412,6 +418,24 @@ export async function updateClientAction(id: string, data: ClientFormData) {
       },
     }
   );
+
+  // Ensure the client<->admin relation exists (multi-admin model).
+  {
+    const now = new Date();
+    await c.clientAdminRelations.updateOne(
+      { userId: clientAuthId, adminId },
+      {
+        $setOnInsert: {
+          userId: clientAuthId,
+          adminId,
+          status: "ACTIVE",
+          createdAt: now,
+          updatedAt: now,
+        },
+      },
+      { upsert: true }
+    );
+  }
 
   revalidatePath("/clients");
   return { success: true };

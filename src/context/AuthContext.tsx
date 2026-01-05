@@ -29,6 +29,7 @@ interface AuthContextType {
   register: () => Promise<void>;
   logout: (shouldRedirect?: boolean) => void;
   navigateToLogin: () => void;
+  refreshUser: (options?: { force?: boolean }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -186,6 +187,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         register,
         logout,
         navigateToLogin,
+        refreshUser: (options?: { force?: boolean }) =>
+          checkUserAuthRef.current(options),
       }}
     >
       {children}
