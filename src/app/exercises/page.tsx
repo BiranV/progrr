@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import ExerciseLibraryDialog from "@/components/ExerciseLibraryDialog";
 import ExerciseLibraryDetailsDialog from "@/components/ExerciseLibraryDetailsDialog";
+import ConfirmModal from "@/components/ui/confirm-modal";
 import { toast } from "sonner";
 
 export default function ExercisesPage() {
@@ -37,6 +38,12 @@ export default function ExercisesPage() {
   const [detailsExercise, setDetailsExercise] = React.useState<any | null>(
     null
   );
+
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
+  const [deleteTarget, setDeleteTarget] = React.useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   const { data: exercises = [], isLoading } = useQuery({
     queryKey: ["exerciseLibrary"],
@@ -89,9 +96,14 @@ export default function ExercisesPage() {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm("Delete this exercise from the library?")) {
-      deleteMutation.mutate(id);
-    }
+    const found = (exercises as any[]).find(
+      (x) => String(x?.id) === String(id)
+    );
+    setDeleteTarget({
+      id,
+      name: String(found?.name ?? "").trim() || "this exercise",
+    });
+    setDeleteConfirmOpen(true);
   };
 
   return (
@@ -266,6 +278,29 @@ export default function ExercisesPage() {
         onOpenChange={(open) => {
           setDetailsOpen(open);
           if (!open) setDetailsExercise(null);
+        }}
+      />
+
+      <ConfirmModal
+        open={deleteConfirmOpen}
+        onOpenChange={(next) => {
+          setDeleteConfirmOpen(next);
+          if (!next) setDeleteTarget(null);
+        }}
+        title="Delete exercise?"
+        description={
+          deleteTarget
+            ? `This will permanently delete ${deleteTarget.name}. This cannot be undone.`
+            : "This cannot be undone."
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmVariant="destructive"
+        confirmDisabled={!deleteTarget}
+        loading={deleteMutation.isPending}
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          deleteMutation.mutate(deleteTarget.id);
         }}
       />
     </div>

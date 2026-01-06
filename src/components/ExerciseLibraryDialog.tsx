@@ -3,17 +3,13 @@
 import React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/lib/db";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import SidePanel from "@/components/ui/side-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import ConfirmModal from "@/components/ui/confirm-modal";
 
 type VideoKind = "upload" | "youtube" | null;
 
@@ -35,6 +31,8 @@ export default function ExerciseLibraryDialog({
   const [youtubeUrl, setYoutubeUrl] = React.useState("");
   const [uploadFile, setUploadFile] = React.useState<File | null>(null);
   const [isRemovingVideo, setIsRemovingVideo] = React.useState(false);
+  const [removeVideoConfirmOpen, setRemoveVideoConfirmOpen] =
+    React.useState(false);
 
   React.useEffect(() => {
     if (!open) return;
@@ -169,15 +167,45 @@ export default function ExerciseLibraryDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {exercise ? "Edit Exercise" : "Create Exercise"}
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-6">
+    <>
+      <SidePanel
+        open={open}
+        onOpenChange={onOpenChange}
+        title={exercise ? "Edit Exercise" : "Create Exercise"}
+        description={exercise ? String(exercise?.name ?? "").trim() : undefined}
+        widthClassName="w-full sm:w-[520px] lg:w-[640px]"
+        footer={
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={saveMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="exercise-library-form"
+              disabled={saveMutation.isPending}
+            >
+              {saveMutation.isPending
+                ? "Saving..."
+                : exercise
+                ? "Update Exercise"
+                : "Create Exercise"}
+            </Button>
+          </div>
+        }
+      >
+        <form
+          id="exercise-library-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            saveMutation.mutate();
+          }}
+          className="space-y-6"
+        >
           <div className="space-y-2">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -212,15 +240,16 @@ export default function ExerciseLibraryDialog({
               lighting, stable camera, clear full body view.
             </div>
 
-            <div className="grid grid-cols-3 gap-3 items-center">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
               <Input
                 value={youtubeUrl}
                 onChange={(e) => setYoutubeUrl(e.target.value)}
                 placeholder="YouTube URL (optional)"
-                className="col-span-2"
+                className="sm:col-span-2"
               />
-              <div className="flex items-center justify-end gap-2">
+              <div className="flex items-center sm:justify-end gap-2">
                 <Input
+                  className="w-full"
                   type="file"
                   accept="video/*"
                   onChange={(e) => {
@@ -238,7 +267,7 @@ export default function ExerciseLibraryDialog({
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={handleRemoveVideo}
+                  onClick={() => setRemoveVideoConfirmOpen(true)}
                   disabled={isRemovingVideo}
                 >
                   {isRemovingVideo ? (
@@ -253,29 +282,20 @@ export default function ExerciseLibraryDialog({
               </div>
             ) : null}
           </div>
+        </form>
+      </SidePanel>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={() => saveMutation.mutate()}
-              disabled={saveMutation.isPending}
-            >
-              {saveMutation.isPending
-                ? "Saving..."
-                : exercise
-                ? "Update Exercise"
-                : "Create Exercise"}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+      <ConfirmModal
+        open={removeVideoConfirmOpen}
+        onOpenChange={setRemoveVideoConfirmOpen}
+        title="Remove video?"
+        description="This will remove the video from this exercise."
+        confirmText="Remove"
+        cancelText="Cancel"
+        confirmVariant="destructive"
+        loading={isRemovingVideo}
+        onConfirm={handleRemoveVideo}
+      />
+    </>
   );
 }
