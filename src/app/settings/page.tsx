@@ -418,14 +418,13 @@ export default function SettingsPage() {
           <CardContent className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Business Name *
+                Business Name
               </label>
               <Input
                 value={formData.businessName}
                 onChange={(e) =>
                   setFormData({ ...formData, businessName: e.target.value })
                 }
-                required
               />
             </div>
 

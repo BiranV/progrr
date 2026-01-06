@@ -257,7 +257,7 @@ export default function ExerciseLibraryDialog({
               />
               <div className="flex items-center sm:justify-end gap-2">
                 <Input
-                  className="w-full"
+                  className="w-full text-gray-900 dark:text-gray-100 file:text-gray-900 dark:file:text-gray-100 file:mr-3 file:rounded-md file:px-3 file:hover:opacity-90"
                   type="file"
                   accept="video/*"
                   onChange={(e) => {
