@@ -39,6 +39,8 @@ const REQUIRED_FIELDS: Array<keyof Client> = ["name", "email", "phone"];
 
 const DEFAULT_COUNTRY = "IL";
 
+const GENDER_VALUES = ["male", "female", "other"] as const;
+
 const GOAL_VALUES = [
   "weight_loss",
   "muscle_gain",
@@ -58,16 +60,106 @@ const ACTIVITY_VALUES = [
   "extra",
 ] as const;
 
+const GENDER_LABEL_BY_VALUE: Record<(typeof GENDER_VALUES)[number], string> = {
+  male: "Male",
+  female: "Female",
+  other: "Other",
+};
+
+const GOAL_LABEL_BY_VALUE: Record<(typeof GOAL_VALUES)[number], string> = {
+  weight_loss: "Fat Loss",
+  muscle_gain: "Muscle Gain",
+  maintenance: "Maintenance",
+  strength: "Strength",
+  endurance: "Endurance",
+  recomposition: "Recomposition",
+  better_habits: "Better Habits",
+};
+
+const ACTIVITY_LABEL_BY_VALUE: Record<
+  (typeof ACTIVITY_VALUES)[number],
+  string
+> = {
+  sedentary: "Sedentary",
+  light: "Light",
+  moderate: "Moderate",
+  active: "Active",
+  very: "Very Active",
+  extra: "Extra Active",
+};
+
+function resolveEnumRaw(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value).trim();
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const v = resolveEnumRaw(item);
+      if (v) return v;
+    }
+    return "";
+  }
+  if (typeof value === "object") {
+    const obj: any = value as any;
+    const candidate = obj?.value ?? obj?.label ?? obj?.name;
+    return resolveEnumRaw(candidate);
+  }
+  return "";
+}
+
+function normalizeGender(value: unknown): (typeof GENDER_VALUES)[number] | "" {
+  const raw = resolveEnumRaw(value);
+  if (!raw) return "";
+  const v = raw.toLowerCase().replace(/\s+/g, " ");
+
+  // Canonical values
+  if ((GENDER_VALUES as readonly string[]).includes(v)) return v as any;
+
+  // Legacy / label inputs
+  if (v === "male" || v === "m") return "male";
+  if (v === "female" || v === "f") return "female";
+  if (v === "other" || v === "nonbinary" || v === "non-binary") return "other";
+  if (v === "man") return "male";
+  if (v === "woman") return "female";
+
+  return "";
+}
+
 function normalizeGoal(value: unknown): (typeof GOAL_VALUES)[number] | "" {
-  const raw = String(value ?? "").trim();
+  const raw = resolveEnumRaw(value);
   if (!raw) return "";
 
-  const v = raw.toLowerCase().replace(/\s+/g, "_");
-  if ((GOAL_VALUES as readonly string[]).includes(v)) {
-    return v as any;
+  const rawTrim = raw.trim();
+
+  // Accept exact canonical values
+  if ((GOAL_VALUES as readonly string[]).includes(rawTrim as any)) {
+    return rawTrim as any;
   }
 
-  // Common legacy / human-friendly values
+  // Accept exact display labels
+  for (const key of GOAL_VALUES) {
+    if (GOAL_LABEL_BY_VALUE[key] === rawTrim) return key;
+  }
+
+  // Exact display values
+  if ((GOAL_VALUES as readonly string[]).includes(raw)) return raw as any;
+
+  const v = raw
+    .toLowerCase()
+    .replace(/[-\s]+/g, "_")
+    .replace(/_+/g, "_");
+
+  // Legacy canonical values
+  if (v === "weight_loss") return "weight_loss";
+  if (v === "muscle_gain") return "muscle_gain";
+  if (v === "maintenance") return "maintenance";
+  if (v === "strength") return "strength";
+  if (v === "endurance") return "endurance";
+  if (v === "recomposition") return "recomposition";
+  if (v === "better_habits") return "better_habits";
+
+  // Human-friendly / fuzzy inputs
   if (v.includes("loss") || v.includes("cut") || v.includes("fat"))
     return "weight_loss";
   if (v.includes("muscle") || v.includes("gain") || v.includes("bulk"))
@@ -75,14 +167,8 @@ function normalizeGoal(value: unknown): (typeof GOAL_VALUES)[number] | "" {
   if (v.includes("maint")) return "maintenance";
   if (v.includes("strength")) return "strength";
   if (v.includes("endur") || v.includes("cardio")) return "endurance";
-  if (v.includes("recomp") || v.includes("recomposition"))
-    return "recomposition";
-  if (
-    v.includes("habit") ||
-    v.includes("better_habits") ||
-    v.includes("lifestyle")
-  )
-    return "better_habits";
+  if (v.includes("recomp")) return "recomposition";
+  if (v.includes("habit") || v.includes("lifestyle")) return "better_habits";
 
   return "";
 }
@@ -90,24 +176,40 @@ function normalizeGoal(value: unknown): (typeof GOAL_VALUES)[number] | "" {
 function normalizeActivityLevel(
   value: unknown
 ): (typeof ACTIVITY_VALUES)[number] | "" {
-  const raw = String(value ?? "").trim();
+  const raw = resolveEnumRaw(value);
   if (!raw) return "";
 
-  const v = raw.toLowerCase().replace(/\s+/g, "_");
-  if ((ACTIVITY_VALUES as readonly string[]).includes(v)) {
-    return v as any;
+  const rawTrim = raw.trim();
+
+  // Exact canonical values
+  if ((ACTIVITY_VALUES as readonly string[]).includes(rawTrim as any)) {
+    return rawTrim as any;
   }
 
-  // Common legacy / human-friendly values
-  if (v.includes("sedent")) return "sedentary";
-  if (v.includes("light")) return "light";
-  if (v.includes("moderate")) return "moderate";
-  if (v === "active") return "active";
-  if (v.includes("active") && !v.includes("very") && !v.includes("extra")) {
-    return "active";
+  // Exact display labels
+  for (const key of ACTIVITY_VALUES) {
+    if (ACTIVITY_LABEL_BY_VALUE[key] === rawTrim) return key;
   }
-  if (v.includes("extra")) return "extra";
-  if (v.includes("very")) return "very";
+
+  // Handle common legacy camelCase / PascalCase values
+  // e.g. "veryActive", "VeryActive", "extraActive"
+  const deCamel = raw.replace(/([a-z])([A-Z])/g, "$1 $2");
+
+  const v = deCamel
+    .toLowerCase()
+    .trim()
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ");
+
+  if (v === "sedentary") return "sedentary";
+  if (v === "light") return "light";
+  if (v === "moderate") return "moderate";
+  if (v === "active") return "active";
+  if (v === "very" || v === "very active") return "very";
+  if (v === "extra" || v === "extra active") return "extra";
+
+  if (v === "veryactive") return "very";
+  if (v === "extraactive") return "extra";
 
   return "";
 }
@@ -294,38 +396,60 @@ export default function ClientDialog({
   React.useEffect(() => {
     setValidationError(null);
     if (client) {
+      const c: any = client as any;
+      const data: any = c?.data;
+      const hasProfileInData =
+        data &&
+        typeof data === "object" &&
+        ("gender" in data ||
+          "goal" in data ||
+          "activityLevel" in data ||
+          "birthDate" in data ||
+          "height" in data ||
+          "weight" in data ||
+          "notes" in data ||
+          "assignedPlanIds" in data ||
+          "assignedMealPlanIds" in data ||
+          "name" in data ||
+          "email" in data ||
+          "phone" in data);
+
+      const source: any = hasProfileInData ? data : c ?? {};
+
+      const rawGender = source.gender ?? "";
+      const rawGoal = source.goal ?? "";
+      const rawActivity = source.activityLevel ?? "";
+
       setFormData({
-        name: client.name || "",
-        email: client.email || "",
-        phone: client.phone || "",
-        avatarDataUrl: (client as any).avatarDataUrl ?? null,
-        birthDate: client.birthDate || "",
-        gender: client.gender || "",
-        height: client.height || "",
-        weight: client.weight || "",
-        goal: normalizeGoal(client.goal) || "",
-        activityLevel: normalizeActivityLevel(client.activityLevel) || "",
-        status: normalizeStatus(client.status) || "ACTIVE",
-        notes: client.notes || "",
+        name: String(source.name ?? ""),
+        email: String(source.email ?? ""),
+        phone: String(source.phone ?? ""),
+        avatarDataUrl: (c as any).avatarDataUrl ?? null,
+        birthDate: String(source.birthDate ?? ""),
+        gender: normalizeGender(rawGender) || "",
+        height: String(source.height ?? ""),
+        weight: String(source.weight ?? ""),
+        goal: normalizeGoal(rawGoal) || "",
+        activityLevel: normalizeActivityLevel(rawActivity) || "",
+        status: normalizeStatus(c.status) || "ACTIVE",
+        notes: String(source.notes ?? ""),
         assignedPlanIds: normalizeIdArray(
-          (client as any).assignedPlanIds,
-          (client as any).assignedPlanId
+          source.assignedPlanIds,
+          source.assignedPlanId
         ),
         assignedMealPlanIds: normalizeIdArray(
-          (client as any).assignedMealPlanIds,
-          (client as any).assignedMealPlanId
+          source.assignedMealPlanIds,
+          source.assignedMealPlanId
         ),
         // Keep legacy single-id fields aligned (first selected)
         assignedPlanId: String(
-          normalizeIdArray(
-            (client as any).assignedPlanIds,
-            (client as any).assignedPlanId
-          )[0] ?? ""
+          normalizeIdArray(source.assignedPlanIds, source.assignedPlanId)[0] ??
+            ""
         ),
         assignedMealPlanId: String(
           normalizeIdArray(
-            (client as any).assignedMealPlanIds,
-            (client as any).assignedMealPlanId
+            source.assignedMealPlanIds,
+            source.assignedMealPlanId
           )[0] ?? ""
         ),
       });
@@ -451,12 +575,43 @@ export default function ClientDialog({
       return;
     }
 
+    const c: any = client as any;
+    const data: any = c?.data;
+    const hasProfileInData =
+      data &&
+      typeof data === "object" &&
+      ("gender" in data ||
+        "goal" in data ||
+        "activityLevel" in data ||
+        "birthDate" in data ||
+        "height" in data ||
+        "weight" in data ||
+        "notes" in data ||
+        "assignedPlanIds" in data ||
+        "assignedMealPlanIds" in data ||
+        "name" in data ||
+        "email" in data ||
+        "phone" in data);
+
+    const source: any = hasProfileInData ? data : c ?? {};
+
+    const normalizedGender =
+      normalizeGender((formData as any).gender) ||
+      normalizeGender(source.gender) ||
+      "";
+    const normalizedGoal =
+      normalizeGoal((formData as any).goal) || normalizeGoal(source.goal) || "";
+    const normalizedActivity =
+      normalizeActivityLevel((formData as any).activityLevel) ||
+      normalizeActivityLevel(source.activityLevel) ||
+      "";
+
     const next = {
       ...formData,
       phone,
-      goal: normalizeGoal((formData as any).goal) || "",
-      activityLevel:
-        normalizeActivityLevel((formData as any).activityLevel) || "",
+      gender: normalizedGender,
+      goal: normalizedGoal,
+      activityLevel: normalizedActivity,
     };
     const assignedPlanIds = normalizeIdArray(
       (next as any).assignedPlanIds,
@@ -491,13 +646,48 @@ export default function ClientDialog({
       e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
     ) => {
       if (validationError) setValidationError(null);
-      setFormData({ ...formData, [field]: e.target.value });
+      const nextValue = e.target.value;
+      setFormData((prev) => ({ ...prev, [field]: nextValue }));
     },
   });
 
   /* ======================================================
      Render
      ====================================================== */
+  const selectSource = React.useMemo(() => {
+    const c: any = client as any;
+    const data: any = c?.data;
+    const hasProfileInData =
+      data &&
+      typeof data === "object" &&
+      ("gender" in data ||
+        "goal" in data ||
+        "activityLevel" in data ||
+        "birthDate" in data ||
+        "height" in data ||
+        "weight" in data ||
+        "notes" in data ||
+        "assignedPlanIds" in data ||
+        "assignedMealPlanIds" in data ||
+        "name" in data ||
+        "email" in data ||
+        "phone" in data);
+    return (hasProfileInData ? data : c) ?? {};
+  }, [client]);
+
+  const genderSelectValue =
+    normalizeGender((formData as any).gender) ||
+    normalizeGender(selectSource.gender) ||
+    "";
+  const goalSelectValue =
+    normalizeGoal((formData as any).goal) ||
+    normalizeGoal(selectSource.goal) ||
+    "";
+  const activitySelectValue =
+    normalizeActivityLevel((formData as any).activityLevel) ||
+    normalizeActivityLevel(selectSource.activityLevel) ||
+    "";
+
   return (
     <>
       <SidePanel
@@ -527,6 +717,11 @@ export default function ClientDialog({
         }
       >
         <form
+          key={
+            client
+              ? String((client as any).id ?? (client as any)._id ?? "")
+              : "new"
+          }
           id="client-form"
           onSubmit={handleSubmit}
           noValidate
@@ -617,10 +812,14 @@ export default function ClientDialog({
                 Gender {isRequired("gender") && "*"}
               </label>
               <Select
-                value={formData.gender}
+                value={genderSelectValue}
                 required={isRequired("gender")}
                 onValueChange={(v) => {
-                  setFormData({ ...formData, gender: v });
+                  if (validationError) setValidationError(null);
+                  setFormData((prev) => ({
+                    ...prev,
+                    gender: normalizeGender(v) || "",
+                  }));
                 }}
               >
                 <SelectTrigger className="w-full">
@@ -656,10 +855,14 @@ export default function ClientDialog({
                 Goal {isRequired("goal") && "*"}
               </label>
               <Select
-                value={formData.goal}
+                value={goalSelectValue}
                 required={isRequired("goal")}
                 onValueChange={(v) => {
-                  setFormData({ ...formData, goal: v });
+                  if (validationError) setValidationError(null);
+                  setFormData((prev) => ({
+                    ...prev,
+                    goal: normalizeGoal(v) || "",
+                  }));
                 }}
               >
                 <SelectTrigger className="w-full">
@@ -683,10 +886,14 @@ export default function ClientDialog({
                 Activity Level {isRequired("activityLevel") && "*"}
               </label>
               <Select
-                value={formData.activityLevel}
+                value={activitySelectValue}
                 required={isRequired("activityLevel")}
                 onValueChange={(v) => {
-                  setFormData({ ...formData, activityLevel: v });
+                  if (validationError) setValidationError(null);
+                  setFormData((prev) => ({
+                    ...prev,
+                    activityLevel: normalizeActivityLevel(v) || "",
+                  }));
                 }}
               >
                 <SelectTrigger className="w-full">

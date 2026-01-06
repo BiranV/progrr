@@ -31,6 +31,50 @@ function toTitleCase(value: any) {
     .join(" ");
 }
 
+function formatGoalLabel(value: any) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+
+  const v = raw
+    .toLowerCase()
+    .trim()
+    .replace(/[-\s]+/g, "_")
+    .replace(/_+/g, "_");
+
+  if (v === "weight_loss") return "Fat Loss";
+  if (v === "muscle_gain") return "Muscle Gain";
+  if (v === "maintenance") return "Maintenance";
+  if (v === "strength") return "Strength";
+  if (v === "endurance") return "Endurance";
+  if (v === "recomposition") return "Recomposition";
+  if (v === "better_habits") return "Better Habits";
+
+  return toTitleCase(raw);
+}
+
+function formatActivityLabel(value: any) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+
+  const deCamel = raw.replace(/([a-z])([A-Z])/g, "$1 $2");
+  const v = deCamel
+    .toLowerCase()
+    .trim()
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ");
+
+  if (v === "sedentary") return "Sedentary";
+  if (v === "light") return "Light";
+  if (v === "moderate") return "Moderate";
+  if (v === "active") return "Active";
+  if (v === "very" || v === "very active" || v === "veryactive")
+    return "Very Active";
+  if (v === "extra" || v === "extra active" || v === "extraactive")
+    return "Extra Active";
+
+  return toTitleCase(raw);
+}
+
 function normalizeIdList(value: any, fallbackSingle?: any): string[] {
   const arr = Array.isArray(value) ? value : [];
   const fallback = String(fallbackSingle ?? "").trim();
@@ -140,7 +184,7 @@ export default function ClientDetailsDialog({
             <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
               <div className="text-gray-500 dark:text-gray-400">Goal</div>
               <div className="font-medium text-gray-900 dark:text-white">
-                {toTitleCase((client as any)?.goal) || "-"}
+                {formatGoalLabel((client as any)?.goal) || "-"}
               </div>
             </div>
             <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
@@ -148,7 +192,7 @@ export default function ClientDetailsDialog({
                 Activity Level
               </div>
               <div className="font-medium text-gray-900 dark:text-white">
-                {toTitleCase((client as any)?.activityLevel) || "-"}
+                {formatActivityLabel((client as any)?.activityLevel) || "-"}
               </div>
             </div>
             <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">

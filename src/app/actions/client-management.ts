@@ -25,6 +25,93 @@ function normalizeEmail(email: unknown): string | undefined {
   return v ? v : undefined;
 }
 
+function normalizeClientGenderCanonical(
+  value: unknown
+): "male" | "female" | "other" | "" {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const v = raw.toLowerCase().replace(/\s+/g, " ");
+  if (v === "male" || v === "m" || v === "man") return "male";
+  if (v === "female" || v === "f" || v === "woman") return "female";
+  if (v === "other" || v === "nonbinary" || v === "non-binary") return "other";
+  return "";
+}
+
+function normalizeClientGoalCanonical(
+  value: unknown
+):
+  | "weight_loss"
+  | "muscle_gain"
+  | "maintenance"
+  | "strength"
+  | "endurance"
+  | "recomposition"
+  | "better_habits"
+  | "" {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  if (raw === "Fat Loss") return "weight_loss";
+  if (raw === "Muscle Gain") return "muscle_gain";
+  if (raw === "Maintenance") return "maintenance";
+  if (raw === "Strength") return "strength";
+  if (raw === "Endurance") return "endurance";
+  if (raw === "Recomposition") return "recomposition";
+  if (raw === "Better Habits") return "better_habits";
+
+  const v = raw
+    .toLowerCase()
+    .trim()
+    .replace(/[-\s]+/g, "_")
+    .replace(/_+/g, "_");
+  if (v === "weight_loss") return "weight_loss";
+  if (v === "muscle_gain") return "muscle_gain";
+  if (v === "maintenance") return "maintenance";
+  if (v === "strength") return "strength";
+  if (v === "endurance") return "endurance";
+  if (v === "recomposition") return "recomposition";
+  if (v === "better_habits") return "better_habits";
+
+  if (v.includes("loss") || v.includes("cut") || v.includes("fat"))
+    return "weight_loss";
+  if (v.includes("muscle") || v.includes("gain") || v.includes("bulk"))
+    return "muscle_gain";
+  if (v.includes("maint")) return "maintenance";
+  if (v.includes("strength")) return "strength";
+  if (v.includes("endur") || v.includes("cardio")) return "endurance";
+  if (v.includes("recomp")) return "recomposition";
+  if (v.includes("habit") || v.includes("lifestyle")) return "better_habits";
+  return "";
+}
+
+function normalizeClientActivityCanonical(
+  value: unknown
+): "sedentary" | "light" | "moderate" | "active" | "very" | "extra" | "" {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  if (raw === "Sedentary") return "sedentary";
+  if (raw === "Light") return "light";
+  if (raw === "Moderate") return "moderate";
+  if (raw === "Active") return "active";
+  if (raw === "Very Active") return "very";
+  if (raw === "Extra Active") return "extra";
+
+  const deCamel = raw.replace(/([a-z])([A-Z])/g, "$1 $2");
+  const v = deCamel
+    .toLowerCase()
+    .trim()
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ");
+
+  if (v === "sedentary") return "sedentary";
+  if (v === "light") return "light";
+  if (v === "moderate") return "moderate";
+  if (v === "active") return "active";
+  if (v === "very" || v === "very active" || v === "veryactive") return "very";
+  if (v === "extra" || v === "extra active" || v === "extraactive")
+    return "extra";
+  return "";
+}
+
 function resolveAppUrlFromEnvOrHeaders(h: Headers): string {
   const fromEnv = [
     process.env.APP_URL,
@@ -177,6 +264,20 @@ export async function createClientAction(data: ClientFormData) {
     userId: null,
     clientAuthId: null,
   };
+
+  // Enforce canonical enums (do not store labels)
+  clientEntityData.gender =
+    normalizeClientGenderCanonical((data as any).gender) ||
+    normalizeClientGenderCanonical((clientEntityData as any).gender) ||
+    "";
+  clientEntityData.goal =
+    normalizeClientGoalCanonical((data as any).goal) ||
+    normalizeClientGoalCanonical((clientEntityData as any).goal) ||
+    "";
+  clientEntityData.activityLevel =
+    normalizeClientActivityCanonical((data as any).activityLevel) ||
+    normalizeClientActivityCanonical((clientEntityData as any).activityLevel) ||
+    "";
 
   const now = new Date();
   const existingEntity = await c.entities.findOne({
@@ -422,6 +523,21 @@ export async function updateClientAction(id: string, data: ClientFormData) {
     userId: clientAuthIdStr,
     clientAuthId: clientAuthIdStr,
   };
+
+  // Enforce canonical enums (do not store labels)
+  nextData.gender =
+    normalizeClientGenderCanonical((data as any).gender) ||
+    normalizeClientGenderCanonical(oldData.gender) ||
+    "";
+  nextData.goal =
+    normalizeClientGoalCanonical((data as any).goal) ||
+    normalizeClientGoalCanonical(oldData.goal) ||
+    "";
+  nextData.activityLevel =
+    normalizeClientActivityCanonical((data as any).activityLevel) ||
+    normalizeClientActivityCanonical(oldData.activityLevel) ||
+    normalizeClientActivityCanonical((oldData as any).activity_level) ||
+    "";
 
   await c.entities.updateOne(
     { _id: entityId },

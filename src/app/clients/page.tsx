@@ -38,6 +38,7 @@ import ClientAvatar from "@/components/ClientAvatar";
 import ConfirmModal from "@/components/ui/confirm-modal";
 import { Client } from "@/types";
 import { getCookie, setCookie } from "@/lib/client-cookies";
+import { toast } from "sonner";
 
 export default function ClientsPage() {
   const [search, setSearch] = React.useState("");
@@ -152,8 +153,15 @@ export default function ClientsPage() {
     });
   };
 
-  const handleEdit = (client: Client) => {
-    setEditingClient(client);
+  const handleEdit = async (client: Client) => {
+    try {
+      const full = await db.entities.Client.get(String((client as any).id));
+      setEditingClient(full as any);
+    } catch (e: any) {
+      // Fallback: open with whatever we already have.
+      setEditingClient(client);
+      toast.error(e?.message || "Failed to load client for editing");
+    }
     setDialogOpen(true);
   };
 
