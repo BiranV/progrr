@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import PlanDialog from "@/components/PlanDialog";
 import WorkoutPlanDetailsDialog from "@/components/WorkoutPlanDetailsDialog";
+import ConfirmModal from "@/components/ui/confirm-modal";
 import { WorkoutPlan } from "@/types";
 import { useRefetchOnVisible } from "@/hooks/use-refetch-on-visible";
 
@@ -39,6 +40,11 @@ export default function PlansPage() {
   const [detailsPlan, setDetailsPlan] = React.useState<WorkoutPlan | null>(
     null
   );
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
+  const [deleteTarget, setDeleteTarget] = React.useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   const { data: plans = [], isLoading } = useQuery({
     queryKey: ["workoutPlans"],
@@ -125,9 +131,14 @@ export default function PlansPage() {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm("Are you sure you want to delete this workout plan?")) {
-      deleteMutation.mutate(id);
-    }
+    const found = (plans as WorkoutPlan[]).find(
+      (p) => String(p?.id) === String(id)
+    );
+    setDeleteTarget({
+      id,
+      name: String(found?.name ?? "").trim() || "this workout plan",
+    });
+    setDeleteConfirmOpen(true);
   };
 
   const formatDurationWeeks = (duration: any) => {
@@ -298,6 +309,29 @@ export default function PlansPage() {
           if (!open) setDetailsPlan(null);
         }}
         plan={detailsPlan}
+      />
+
+      <ConfirmModal
+        open={deleteConfirmOpen}
+        onOpenChange={(next) => {
+          setDeleteConfirmOpen(next);
+          if (!next) setDeleteTarget(null);
+        }}
+        title="Delete workout plan?"
+        description={
+          deleteTarget
+            ? `This will permanently delete ${deleteTarget.name}. This cannot be undone.`
+            : "This cannot be undone."
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmVariant="destructive"
+        confirmDisabled={!deleteTarget}
+        loading={deleteMutation.isPending}
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          deleteMutation.mutate(deleteTarget.id);
+        }}
       />
     </div>
   );

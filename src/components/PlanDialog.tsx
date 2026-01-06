@@ -13,12 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import SidePanel from "@/components/ui/side-panel";
 import { Plus, Trash2, XCircle } from "lucide-react";
 import { WorkoutPlan, PlanExercise, ExerciseLibrary } from "@/types";
 
@@ -241,224 +236,233 @@ export default function PlanDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {plan ? "Edit Workout Plan" : "Create Workout Plan"}
-          </DialogTitle>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} noValidate className="space-y-6">
-          {validationError ? (
-            <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-4 min-h-12 py-2">
-              <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
-                <XCircle className="h-3.5 w-3.5" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
-                  {validationError}
-                </div>
-              </div>
+    <SidePanel
+      open={open}
+      onOpenChange={onOpenChange}
+      title={plan ? "Edit Workout Plan" : "Create Workout Plan"}
+      description={plan ? String(plan?.name ?? "").trim() : undefined}
+      widthClassName="w-full sm:w-[560px] lg:w-[720px]"
+      footer={
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={saveMutation.isPending}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="workout-plan-form"
+            disabled={saveMutation.isPending}
+          >
+            {saveMutation.isPending
+              ? "Saving..."
+              : plan
+              ? "Update Plan"
+              : "Create Plan"}
+          </Button>
+        </div>
+      }
+    >
+      <form
+        id="workout-plan-form"
+        onSubmit={handleSubmit}
+        noValidate
+        className="space-y-6"
+      >
+        {validationError ? (
+          <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-4 min-h-12 py-2">
+            <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
+              <XCircle className="h-3.5 w-3.5" />
             </div>
-          ) : null}
-
-          {/* Plan Details */}
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Plan Name *
-              </label>
-              <Input
-                value={formData.name}
-                onChange={(e) => (
-                  validationError && setValidationError(null),
-                  setFormData({ ...formData, name: e.target.value })
-                )}
-                placeholder="e.g., Full Body Strength"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Difficulty *
-                </label>
-                <Select
-                  value={formData.difficulty}
-                  onValueChange={(value) => (
-                    validationError && setValidationError(null),
-                    setFormData({ ...formData, difficulty: value })
-                  )}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select difficulty" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="beginner">Beginner</SelectItem>
-                    <SelectItem value="intermediate">Intermediate</SelectItem>
-                    <SelectItem value="advanced">Advanced</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="min-w-0">
+              <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
+                {validationError}
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Duration *
-                </label>
-                <Input
-                  value={formData.duration}
-                  onChange={(e) => (
-                    validationError && setValidationError(null),
-                    setFormData({ ...formData, duration: e.target.value })
-                  )}
-                  placeholder="e.g., 8 weeks"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Goal *
-              </label>
-              <Input
-                value={formData.goal}
-                onChange={(e) => (
-                  validationError && setValidationError(null),
-                  setFormData({ ...formData, goal: e.target.value })
-                )}
-                placeholder="e.g., Build muscle, Lose fat"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Notes
-              </label>
-              <Textarea
-                value={formData.notes}
-                onChange={(e) =>
-                  setFormData({ ...formData, notes: e.target.value })
-                }
-                rows={3}
-                placeholder="Additional notes about this plan..."
-              />
             </div>
           </div>
+        ) : null}
 
-          {/* Exercises */}
-          <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Exercises
-              </h3>
-              <Button
-                type="button"
-                onClick={addExercise}
-                variant="outline"
-                size="sm"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Exercise
-              </Button>
-            </div>
-
-            <div className="space-y-3">
-              {planExercises.map((row, index) => (
-                <div
-                  key={index}
-                  className="flex gap-3 items-start p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
-                >
-                  <div className="flex-1 space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
-                      <div className="sm:col-span-3">
-                        <Select
-                          value={String((row as any).exerciseLibraryId ?? "")}
-                          onValueChange={(value) =>
-                            updatePlanExercise(index, {
-                              exerciseLibraryId: value,
-                            })
-                          }
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select exercise" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {exerciseLibrary.map((ex) => (
-                              <SelectItem key={ex.id} value={ex.id}>
-                                {ex.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <Input
-                        value={String((row as any).sets ?? "")}
-                        onChange={(e) =>
-                          updatePlanExercise(index, { sets: e.target.value })
-                        }
-                        placeholder="Sets"
-                        className="sm:col-span-1"
-                      />
-                      <Input
-                        value={String((row as any).reps ?? "")}
-                        onChange={(e) =>
-                          updatePlanExercise(index, { reps: e.target.value })
-                        }
-                        placeholder="Reps"
-                        className="sm:col-span-1"
-                      />
-
-                      <div className="sm:col-span-1">
-                        <Input
-                          type="text"
-                          inputMode="numeric"
-                          value={String((row as any).restSeconds ?? "")}
-                          onChange={(e) =>
-                            updateRestSeconds(index, e.target.value)
-                          }
-                          placeholder="Rest"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeExercise(index)}
-                    className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-
-              {planExercises.length === 0 && (
-                <p className="text-center text-gray-500 dark:text-gray-400 py-4">
-                  No exercises added yet. Click "Add Exercise" to get started.
-                </p>
+        {/* Plan Details */}
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Plan Name *
+            </label>
+            <Input
+              value={formData.name}
+              onChange={(e) => (
+                validationError && setValidationError(null),
+                setFormData({ ...formData, name: e.target.value })
               )}
+              placeholder="e.g., Full Body Strength"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Difficulty *
+              </label>
+              <Select
+                value={formData.difficulty}
+                onValueChange={(value) => (
+                  validationError && setValidationError(null),
+                  setFormData({ ...formData, difficulty: value })
+                )}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select difficulty" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="beginner">Beginner</SelectItem>
+                  <SelectItem value="intermediate">Intermediate</SelectItem>
+                  <SelectItem value="advanced">Advanced</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Duration *
+              </label>
+              <Input
+                value={formData.duration}
+                onChange={(e) => (
+                  validationError && setValidationError(null),
+                  setFormData({ ...formData, duration: e.target.value })
+                )}
+                placeholder="e.g., 8 weeks"
+              />
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Goal *
+            </label>
+            <Input
+              value={formData.goal}
+              onChange={(e) => (
+                validationError && setValidationError(null),
+                setFormData({ ...formData, goal: e.target.value })
+              )}
+              placeholder="e.g., Build muscle, Lose fat"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Notes
+            </label>
+            <Textarea
+              value={formData.notes}
+              onChange={(e) =>
+                setFormData({ ...formData, notes: e.target.value })
+              }
+              rows={3}
+              placeholder="Additional notes about this plan..."
+            />
+          </div>
+        </div>
+
+        {/* Exercises */}
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Exercises
+            </h3>
             <Button
               type="button"
+              onClick={addExercise}
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              size="sm"
             >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={saveMutation.isPending}>
-              {saveMutation.isPending
-                ? "Saving..."
-                : plan
-                ? "Update Plan"
-                : "Create Plan"}
+              <Plus className="w-4 h-4 mr-2" />
+              Add Exercise
             </Button>
           </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+
+          <div className="space-y-3">
+            {planExercises.map((row, index) => (
+              <div
+                key={index}
+                className="flex flex-col sm:flex-row gap-3 items-start p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
+              >
+                <div className="flex-1 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
+                    <div className="sm:col-span-3">
+                      <Select
+                        value={String((row as any).exerciseLibraryId ?? "")}
+                        onValueChange={(value) =>
+                          updatePlanExercise(index, {
+                            exerciseLibraryId: value,
+                          })
+                        }
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select exercise" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {exerciseLibrary.map((ex) => (
+                            <SelectItem key={ex.id} value={ex.id}>
+                              {ex.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <Input
+                      value={String((row as any).sets ?? "")}
+                      onChange={(e) =>
+                        updatePlanExercise(index, { sets: e.target.value })
+                      }
+                      placeholder="Sets"
+                      className="sm:col-span-1"
+                    />
+                    <Input
+                      value={String((row as any).reps ?? "")}
+                      onChange={(e) =>
+                        updatePlanExercise(index, { reps: e.target.value })
+                      }
+                      placeholder="Reps"
+                      className="sm:col-span-1"
+                    />
+
+                    <div className="sm:col-span-1">
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        value={String((row as any).restSeconds ?? "")}
+                        onChange={(e) =>
+                          updateRestSeconds(index, e.target.value)
+                        }
+                        placeholder="Rest"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeExercise(index)}
+                  className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors self-end sm:self-auto"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+
+            {planExercises.length === 0 && (
+              <p className="text-center text-gray-500 dark:text-gray-400 py-4">
+                No exercises added yet. Click "Add Exercise" to get started.
+              </p>
+            )}
+          </div>
+        </div>
+      </form>
+    </SidePanel>
   );
 }
