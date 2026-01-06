@@ -80,8 +80,17 @@ export default function ExercisesPage() {
       .includes(search.toLowerCase())
   );
 
-  const handleEdit = (exercise: any) => {
-    setEditingExercise(exercise);
+  const handleEdit = async (exercise: any) => {
+    try {
+      const full = await db.entities.ExerciseLibrary.get(
+        String((exercise as any)?.id)
+      );
+      setEditingExercise(full as any);
+    } catch (e: any) {
+      // Fallback: open with whatever we already have.
+      setEditingExercise(exercise);
+      toast.error(e?.message || "Failed to load exercise for editing");
+    }
     setDialogOpen(true);
   };
 

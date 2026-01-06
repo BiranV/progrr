@@ -16,6 +16,7 @@ import {
 import SidePanel from "@/components/ui/side-panel";
 import { Plus, Trash2, XCircle } from "lucide-react";
 import { WorkoutPlan, PlanExercise, ExerciseLibrary } from "@/types";
+import { toast } from "sonner";
 
 const DIFFICULTY_VALUES = ["beginner", "intermediate", "advanced"] as const;
 
@@ -195,9 +196,12 @@ export default function PlanDialog({
       queryClient.invalidateQueries({ queryKey: ["workoutPlans"] });
       queryClient.invalidateQueries({ queryKey: ["planExercises"] });
       onOpenChange(false);
+      toast.success(plan ? "Workout plan updated" : "Workout plan created");
     },
     onError: (error: any) => {
-      setValidationError(error?.message || "Failed to save workout plan");
+      const msg = error?.message || "Failed to save workout plan";
+      setValidationError(msg);
+      toast.error(String(msg));
     },
   });
 

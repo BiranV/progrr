@@ -105,6 +105,14 @@ export default function ExerciseLibraryDialog({
       if (yt) {
         data.videoKind = "youtube";
         data.videoUrl = yt;
+      } else if (
+        exercise?.id &&
+        String(exercise?.videoKind ?? "") === "youtube"
+      ) {
+        // User cleared the YouTube field: treat as removing the video.
+        // (Uploads require explicit removal via the "Remove Video" button.)
+        data.videoKind = null;
+        data.videoUrl = null;
       } else if (!uploadFile) {
         // Don't overwrite upload video unless explicitly removing.
         if (!exercise) {
