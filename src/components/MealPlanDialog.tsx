@@ -16,6 +16,7 @@ import {
 import SidePanel from "@/components/ui/side-panel";
 import { X, Plus, Trash2, XCircle } from "lucide-react";
 import { MealPlan, Meal, Food, FoodLibrary, PlanFood } from "@/types";
+import { toast } from "sonner";
 
 const EMPTY_FOOD_LIBRARY: FoodLibrary[] = [];
 const EMPTY_MEALS: any[] = [];
@@ -361,9 +362,12 @@ export default function MealPlanDialog({
       queryClient.invalidateQueries({ queryKey: ["foods"] });
       queryClient.invalidateQueries({ queryKey: ["planFoods"] });
       onOpenChange(false);
+      toast.success(plan ? "Meal plan updated" : "Meal plan created");
     },
     onError: (error: any) => {
-      setValidationError(error?.message || "Failed to save meal plan");
+      const msg = error?.message || "Failed to save meal plan";
+      setValidationError(msg);
+      toast.error(String(msg));
     },
   });
 

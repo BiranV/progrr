@@ -61,8 +61,15 @@ export default function FoodsPage() {
       .includes(search.toLowerCase())
   );
 
-  const handleEdit = (food: any) => {
-    setEditingFood(food);
+  const handleEdit = async (food: any) => {
+    try {
+      const full = await db.entities.FoodLibrary.get(String((food as any)?.id));
+      setEditingFood(full as any);
+    } catch (e: any) {
+      // Fallback: open with whatever we already have.
+      setEditingFood(food);
+      toast.error(e?.message || "Failed to load food for editing");
+    }
     setDialogOpen(true);
   };
 

@@ -79,8 +79,15 @@ export default function MealsPage() {
     plan.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleEdit = (plan: MealPlan) => {
-    setEditingPlan(plan);
+  const handleEdit = async (plan: MealPlan) => {
+    try {
+      const full = await db.entities.MealPlan.get(String((plan as any)?.id));
+      setEditingPlan(full as any);
+    } catch (e: any) {
+      // Fallback: open with whatever we already have.
+      setEditingPlan(plan);
+      toast.error(e?.message || "Failed to load meal plan for editing");
+    }
     setDialogOpen(true);
   };
 
