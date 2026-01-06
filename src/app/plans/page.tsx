@@ -28,6 +28,7 @@ import WorkoutPlanDetailsDialog from "@/components/WorkoutPlanDetailsDialog";
 import ConfirmModal from "@/components/ui/confirm-modal";
 import { WorkoutPlan } from "@/types";
 import { useRefetchOnVisible } from "@/hooks/use-refetch-on-visible";
+import { toast } from "sonner";
 
 export default function PlansPage() {
   const queryClient = useQueryClient();
@@ -120,8 +121,15 @@ export default function PlansPage() {
     plan.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleEdit = (plan: WorkoutPlan) => {
-    setEditingPlan(plan);
+  const handleEdit = async (plan: WorkoutPlan) => {
+    try {
+      const full = await db.entities.WorkoutPlan.get(String((plan as any).id));
+      setEditingPlan(full as any);
+    } catch (e: any) {
+      // Fallback: open with whatever we already have.
+      setEditingPlan(plan);
+      toast.error(e?.message || "Failed to load workout plan for editing");
+    }
     setDialogOpen(true);
   };
 

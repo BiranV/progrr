@@ -17,6 +17,29 @@ import SidePanel from "@/components/ui/side-panel";
 import { Plus, Trash2, XCircle } from "lucide-react";
 import { WorkoutPlan, PlanExercise, ExerciseLibrary } from "@/types";
 
+const DIFFICULTY_VALUES = ["beginner", "intermediate", "advanced"] as const;
+
+function normalizeDifficulty(
+  value: unknown
+): (typeof DIFFICULTY_VALUES)[number] | "" {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const v = raw.toLowerCase().replace(/\s+/g, " ");
+  if ((DIFFICULTY_VALUES as readonly string[]).includes(v)) return v as any;
+
+  // Accept common labels
+  if (v === "beginner" || v === "easy" || v === "starter") return "beginner";
+  if (v === "intermediate" || v === "medium") return "intermediate";
+  if (v === "advanced" || v === "hard") return "advanced";
+
+  // Accept title-case legacy values (e.g., "Beginner")
+  if (raw === "Beginner") return "beginner";
+  if (raw === "Intermediate") return "intermediate";
+  if (raw === "Advanced") return "advanced";
+
+  return "";
+}
+
 interface PlanDialogProps {
   plan: WorkoutPlan | null;
   open: boolean;
@@ -32,6 +55,10 @@ export default function PlanDialog({
   const [validationError, setValidationError] = React.useState<string | null>(
     null
   );
+  const planExercisesHydrationRef = React.useRef<{
+    planId: string | null;
+    applied: boolean;
+  }>({ planId: null, applied: false });
   const [formData, setFormData] = React.useState<Partial<WorkoutPlan>>({
     name: "",
     difficulty: "",
@@ -78,11 +105,18 @@ export default function PlanDialog({
     if (plan) {
       setFormData({
         name: plan.name || "",
-        difficulty: plan.difficulty || "",
+        difficulty: normalizeDifficulty(plan.difficulty) || "",
         duration: plan.duration || "",
         goal: plan.goal || "",
         notes: plan.notes || "",
       });
+      // Hydrate exercises once the query returns for this plan
+      planExercisesHydrationRef.current = {
+        planId: String(plan.id ?? "") || null,
+        applied: false,
+      };
+      // Clear while loading so we don't show stale rows from a previous plan
+      setPlanExercises([]);
     } else {
       setFormData({
         name: "",
@@ -92,21 +126,27 @@ export default function PlanDialog({
         notes: "",
       });
       setPlanExercises([]);
+      planExercisesHydrationRef.current = { planId: null, applied: false };
     }
   }, [plan, open]);
 
   React.useEffect(() => {
-    if (queryPlanExercises && queryPlanExercises.length > 0) {
-      setPlanExercises((prev) => {
-        if (JSON.stringify(prev) === JSON.stringify(queryPlanExercises)) {
-          return prev;
-        }
-        return queryPlanExercises;
-      });
-    } else if (!plan) {
-      setPlanExercises([]);
-    }
-  }, [queryPlanExercises, plan]);
+    if (!open) return;
+    if (!plan?.id) return;
+    if (!queryPlanExercises) return; // still loading
+
+    const expectedPlanId = planExercisesHydrationRef.current.planId;
+    const currentPlanId = String(plan.id ?? "");
+    if (!expectedPlanId || expectedPlanId !== currentPlanId) return;
+    if (planExercisesHydrationRef.current.applied) return;
+
+    // Apply exactly once per open/edit session so we don't overwrite user edits
+    setPlanExercises(queryPlanExercises);
+    planExercisesHydrationRef.current = {
+      planId: currentPlanId,
+      applied: true,
+    };
+  }, [queryPlanExercises, plan?.id, open]);
 
   const saveMutation = useMutation({
     mutationFn: async (data: Partial<WorkoutPlan>) => {
@@ -171,7 +211,7 @@ export default function PlanDialog({
       return;
     }
 
-    const difficulty = String(formData.difficulty ?? "").trim();
+    const difficulty = normalizeDifficulty(formData.difficulty);
     if (!difficulty) {
       setValidationError("Difficulty is required");
       return;
@@ -199,6 +239,11 @@ export default function PlanDialog({
 
     saveMutation.mutate({ ...formData, name, difficulty, duration, goal });
   };
+
+  const difficultySelectValue =
+    normalizeDifficulty((formData as any).difficulty) ||
+    normalizeDifficulty((plan as any)?.difficulty) ||
+    "";
 
   const addExercise = () => {
     setPlanExercises([
@@ -307,10 +352,13 @@ export default function PlanDialog({
                 Difficulty *
               </label>
               <Select
-                value={formData.difficulty}
+                value={difficultySelectValue}
                 onValueChange={(value) => (
                   validationError && setValidationError(null),
-                  setFormData({ ...formData, difficulty: value })
+                  setFormData({
+                    ...formData,
+                    difficulty: normalizeDifficulty(value) || "",
+                  })
                 )}
               >
                 <SelectTrigger className="w-full">
