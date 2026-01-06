@@ -3,12 +3,7 @@
 import React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/lib/db";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import SidePanel from "@/components/ui/side-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -73,89 +68,101 @@ export default function FoodLibraryDialog({
   });
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{food ? "Edit Food" : "Create Food"}</DialogTitle>
-        </DialogHeader>
+    <SidePanel
+      open={open}
+      onOpenChange={onOpenChange}
+      title={food ? "Edit Food" : "Create Food"}
+      widthClassName="w-full sm:w-[560px]"
+      footer={
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={() => onOpenChange(false)}
+            disabled={saveMutation.isPending}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="food-library-form"
+            className="w-full sm:w-auto"
+            disabled={saveMutation.isPending}
+          >
+            {saveMutation.isPending
+              ? "Saving..."
+              : food
+              ? "Update Food"
+              : "Create Food"}
+          </Button>
+        </div>
+      }
+    >
+      <form
+        id="food-library-form"
+        className="space-y-6"
+        onSubmit={(e) => {
+          e.preventDefault();
+          saveMutation.mutate();
+        }}
+      >
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Food Name *
+          </label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
 
-        <div className="space-y-6">
+        <div className="text-xs text-gray-600 dark:text-gray-400">
+          All values below are per 100g.
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Food Name *
+              Calories (per 100g)
             </label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} />
+            <Input
+              placeholder="e.g., 200 (kcal)"
+              value={calories}
+              onChange={(e) => setCalories(e.target.value)}
+            />
           </div>
-
-          <div className="text-xs text-gray-600 dark:text-gray-400">
-            All values below are per 100g.
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Protein (per 100g)
+            </label>
+            <Input
+              placeholder="e.g., 20 (g)"
+              value={protein}
+              onChange={(e) => setProtein(e.target.value)}
+            />
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Calories (per 100g)
-              </label>
-              <Input
-                placeholder="e.g., 200 (kcal)"
-                value={calories}
-                onChange={(e) => setCalories(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Protein (per 100g)
-              </label>
-              <Input
-                placeholder="e.g., 20 (g)"
-                value={protein}
-                onChange={(e) => setProtein(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Carbs (per 100g)
-              </label>
-              <Input
-                placeholder="e.g., 30 (g)"
-                value={carbs}
-                onChange={(e) => setCarbs(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Fat (per 100g)
-              </label>
-              <Input
-                placeholder="e.g., 10 (g)"
-                value={fat}
-                onChange={(e) => setFat(e.target.value)}
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Carbs (per 100g)
+            </label>
+            <Input
+              placeholder="e.g., 30 (g)"
+              value={carbs}
+              onChange={(e) => setCarbs(e.target.value)}
+            />
           </div>
-
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={() => saveMutation.mutate()}
-              disabled={saveMutation.isPending}
-            >
-              {saveMutation.isPending
-                ? "Saving..."
-                : food
-                ? "Update Food"
-                : "Create Food"}
-            </Button>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Fat (per 100g)
+            </label>
+            <Input
+              placeholder="e.g., 10 (g)"
+              value={fat}
+              onChange={(e) => setFat(e.target.value)}
+            />
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+
+        <div className="h-2" />
+      </form>
+    </SidePanel>
   );
 }

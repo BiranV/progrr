@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import FoodLibraryDialog from "@/components/FoodLibraryDialog";
 import FoodLibraryDetailsDialog from "@/components/FoodLibraryDetailsDialog";
+import ConfirmModal from "@/components/ui/confirm-modal";
 import { toast } from "sonner";
 
 export default function FoodsPage() {
@@ -34,6 +35,8 @@ export default function FoodsPage() {
   const [editingFood, setEditingFood] = React.useState<any | null>(null);
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   const [detailsFood, setDetailsFood] = React.useState<any | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
+  const [deleteTarget, setDeleteTarget] = React.useState<any | null>(null);
 
   const { data: foods = [], isLoading } = useQuery({
     queryKey: ["foodLibrary"],
@@ -74,9 +77,8 @@ export default function FoodsPage() {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm("Delete this food from the library?")) {
-      deleteMutation.mutate(id);
-    }
+    setDeleteTarget((foods as any[]).find((f) => f?.id === id) ?? { id });
+    setDeleteConfirmOpen(true);
   };
 
   return (
@@ -229,6 +231,30 @@ export default function FoodsPage() {
         onOpenChange={(open) => {
           setDetailsOpen(open);
           if (!open) setDetailsFood(null);
+        }}
+      />
+
+      <ConfirmModal
+        open={deleteConfirmOpen}
+        onOpenChange={(open) => {
+          setDeleteConfirmOpen(open);
+          if (!open) setDeleteTarget(null);
+        }}
+        title="Delete food?"
+        description={
+          <span>
+            This will remove{" "}
+            <strong>{String(deleteTarget?.name ?? "this food")}</strong> from
+            the library. This cannot be undone.
+          </span>
+        }
+        confirmText="Delete"
+        loading={deleteMutation.isPending}
+        confirmDisabled={!deleteTarget?.id}
+        onConfirm={async () => {
+          const id = String(deleteTarget?.id ?? "").trim();
+          if (!id) return;
+          await deleteMutation.mutateAsync(id);
         }}
       />
     </div>
