@@ -109,10 +109,10 @@ export const db = {
   auth: {
     me: async () => apiFetch<any>("/api/me"),
     login: async () => {
-      window.location.href = "/";
+      window.location.href = "/auth";
     },
     register: async () => {
-      window.location.href = "/";
+      window.location.href = "/auth";
     },
     logout: async () => {
       window.location.href = "/api/auth/logout";

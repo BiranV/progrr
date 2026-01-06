@@ -87,10 +87,14 @@ export async function POST(req: Request) {
     });
 
     if (resolved.needsSelection) {
+      const message =
+        resolved.reason === "NO_RELATIONS" ||
+        resolved.reason === "NO_ACTIVE_RELATIONS"
+          ? "Your account is not connected to any coach."
+          : "Your account no longer has access to this platform. Please contact your coach.";
       return NextResponse.json(
         {
-          error:
-            "Your account no longer has access to this platform. Please contact your coach.",
+          error: message,
           code: "CLIENT_BLOCKED",
         },
         { status: 403 }

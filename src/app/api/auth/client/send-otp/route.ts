@@ -52,15 +52,6 @@ export async function POST(req: Request) {
       perEmail: { windowMs: 60_000, limit: 5 },
     });
 
-    // Enforce global uniqueness: an email cannot be both admin and client.
-    const adminWithEmail = await c.admins.findOne({ email });
-    if (adminWithEmail) {
-      return NextResponse.json(
-        { error: "This email is registered as an admin" },
-        { status: 409 }
-      );
-    }
-
     // Hard rule: do not create users during login.
     const client = await c.clients.findOne({ email });
     if (!client) {
@@ -73,10 +64,14 @@ export async function POST(req: Request) {
     // If the client has no active coaches (all deleted/blocked), do not send OTP.
     const resolved = await resolveClientAdminContext({ c, user: client });
     if (resolved.needsSelection) {
+      const message =
+        resolved.reason === "NO_RELATIONS" ||
+        resolved.reason === "NO_ACTIVE_RELATIONS"
+          ? "Your account is not connected to any coach."
+          : "Your account no longer has access to this platform. Please contact your coach.";
       return NextResponse.json(
         {
-          error:
-            "Your account no longer has access to this platform. Please contact your coach.",
+          error: message,
           code: "CLIENT_BLOCKED",
         },
         { status: 403 }

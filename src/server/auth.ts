@@ -73,15 +73,15 @@ export async function requireAppUser(): Promise<AppUser> {
   });
 
   if (resolved.needsSelection) {
-    throw Object.assign(
-      new Error(
-        "Your account no longer has access to this platform. Please contact your coach."
-      ),
-      {
-        status: 403,
-        code: "CLIENT_BLOCKED",
-      }
-    );
+    const message =
+      resolved.reason === "NO_RELATIONS" ||
+      resolved.reason === "NO_ACTIVE_RELATIONS"
+        ? "Your account is not connected to any coach."
+        : "Your account no longer has access to this platform. Please contact your coach.";
+    throw Object.assign(new Error(message), {
+      status: 403,
+      code: "CLIENT_BLOCKED",
+    });
   }
 
   const adminId = resolved.activeAdminId.toHexString();

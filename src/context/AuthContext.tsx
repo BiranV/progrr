@@ -154,8 +154,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             // best effort
           }
 
-          if (window.location.pathname !== "/") {
-            window.location.href = "/?authError=Please log in again.";
+          if (!window.location.pathname.startsWith("/auth")) {
+            window.location.href =
+              "/auth/client?authError=" +
+              encodeURIComponent("Please log in again.");
           }
           return;
         }
@@ -167,7 +169,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           !pathname.startsWith("/public") &&
           !pathname.startsWith("/auth")
         ) {
-          router.replace("/");
+          router.replace("/auth");
         }
       }
     }
@@ -198,7 +200,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const navigateToLogin = () => {
-    router.push("/");
+    router.push("/auth");
   };
 
   return (

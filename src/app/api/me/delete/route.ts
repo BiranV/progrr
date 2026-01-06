@@ -85,7 +85,11 @@ export async function POST(req: Request) {
 
     // Delete associated data
     await c.entities.deleteMany({ adminId });
-    await c.clients.deleteMany({ adminId });
+    // Important: do NOT delete global Client auth accounts when an admin deletes themselves.
+    // Only remove relations and admin-scoped data.
+    await c.clientAdminRelations.deleteMany({ adminId });
+    await c.invites.deleteMany({ adminId });
+    await c.clients.updateMany({ adminId }, { $unset: { adminId: "" } });
     await c.admins.deleteOne({ _id: adminId });
 
     // Delete uploaded exercise videos for this admin

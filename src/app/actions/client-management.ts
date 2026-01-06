@@ -5,8 +5,11 @@ import { collections, ensureIndexes } from "@/server/collections";
 import { requireAppUser } from "@/server/auth";
 import { Client } from "@/types";
 import { revalidatePath } from "next/cache";
-import { generateOtp } from "@/server/otp";
 import { sendEmail } from "@/server/email";
+import { signClientInviteToken } from "@/server/invite-token";
+import { getDb } from "@/server/mongo";
+import { checkRateLimit } from "@/server/rate-limit";
+import { headers } from "next/headers";
 
 export type ClientFormData = Omit<
   Client,
@@ -20,6 +23,29 @@ function normalizeEmail(email: unknown): string | undefined {
     .trim()
     .toLowerCase();
   return v ? v : undefined;
+}
+
+function resolveAppUrlFromEnvOrHeaders(h: Headers): string {
+  const fromEnv = [
+    process.env.APP_URL,
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined,
+  ]
+    .map((v) => String(v ?? "").trim())
+    .find(Boolean);
+
+  if (fromEnv) return fromEnv.replace(/\/$/, "");
+
+  const forwardedProto =
+    h.get("x-forwarded-proto")?.split(",")[0]?.trim() || "";
+  const forwardedHost = h.get("x-forwarded-host")?.split(",")[0]?.trim() || "";
+  const host = h.get("host")?.trim() || "";
+
+  const proto = forwardedProto || "http";
+  const resolvedHost = forwardedHost || host;
+  if (resolvedHost) return `${proto}://${resolvedHost}`.replace(/\/$/, "");
+
+  return "http://localhost:3000";
 }
 
 async function assertClientNotSameAsAdminIdentity(args: {
@@ -114,14 +140,6 @@ export async function createClientAction(data: ClientFormData) {
     clientEmail: email,
   });
 
-  // Global uniqueness: prevent admin+client sharing the same email.
-  const adminWithEmail = await c.admins.findOne({
-    email: { $regex: new RegExp(`^${escapeRegExp(email)}$`, "i") },
-  });
-  if (adminWithEmail) {
-    throw new Error("This email is already registered as an admin");
-  }
-
   assertBirthDateNotFuture((data as any).birthDate);
 
   // Prevent duplicates within the same admin.
@@ -145,46 +163,8 @@ export async function createClientAction(data: ClientFormData) {
     throw new Error("A client with this email already exists");
   }
 
-  // Create the login record. Hard rule: email is the login key.
-  const existingAuthClient = await c.clients.findOne({
-    email: {
-      $regex: new RegExp(`^${escapeRegExp(email)}$`, "i"),
-    },
-  });
-
-  let clientAuthId: ObjectId;
-  if (existingAuthClient) {
-    clientAuthId = existingAuthClient._id;
-  } else {
-    const insert = await c.clients.insertOne({
-      name,
-      email,
-      phone,
-      theme: "light",
-      role: "client",
-    });
-    clientAuthId = insert.insertedId;
-  }
-
-  // Ensure the client<->admin relation exists (multi-admin model).
-  {
-    const now = new Date();
-    await c.clientAdminRelations.updateOne(
-      { userId: clientAuthId, adminId },
-      {
-        $setOnInsert: {
-          userId: clientAuthId,
-          adminId,
-          status: "ACTIVE",
-          createdAt: now,
-          updatedAt: now,
-        },
-      },
-      { upsert: true }
-    );
-  }
-
-  const clientAuthIdStr = clientAuthId.toHexString();
+  // Invite-based onboarding: do NOT create login users or relations yet.
+  // The client account + admin relation are created only after accepting the invite and verifying OTP.
 
   // Store full profile in the Entities collection to keep existing UI working.
   // Keep `userId` for backward UI compatibility.
@@ -194,8 +174,8 @@ export async function createClientAction(data: ClientFormData) {
     phone,
     name,
     status,
-    userId: clientAuthIdStr,
-    clientAuthId: clientAuthIdStr,
+    userId: null,
+    clientAuthId: null,
   };
 
   const now = new Date();
@@ -203,8 +183,6 @@ export async function createClientAction(data: ClientFormData) {
     entity: "Client",
     adminId,
     $or: [
-      { "data.userId": clientAuthIdStr },
-      { "data.clientAuthId": clientAuthIdStr },
       {
         "data.email": {
           $regex: new RegExp(`^${escapeRegExp(email)}$`, "i"),
@@ -227,53 +205,101 @@ export async function createClientAction(data: ClientFormData) {
       }
     );
   } else {
-    await c.entities.insertOne({
+    const insertEntity = await c.entities.insertOne({
       entity: "Client",
       adminId,
       data: clientEntityData,
       createdAt: now,
       updatedAt: now,
     });
+    // If we just created the entity, store it for invite linkage.
+    (clientEntityData as any).__entityId = insertEntity.insertedId;
   }
 
   revalidatePath("/clients");
 
-  // Onboarding email OTP for PENDING clients.
+  // Create/resend an invitation email for PENDING clients.
   if (status === "PENDING") {
-    const { code, hash } = generateOtp(6);
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+    const db = await getDb();
+    const h = await headers();
+    const req = new Request("http://internal/invite", { headers: h });
+    await checkRateLimit({
+      db,
+      req,
+      purpose: "invite_create",
+      email,
+      perIp: { windowMs: 60_000, limit: 10 },
+      perEmail: { windowMs: 60_000, limit: 5 },
+    });
 
-    await c.otps.updateOne(
-      { key: email, purpose: "client_login" },
-      {
-        $set: {
-          key: email,
-          purpose: "client_login",
-          codeHash: hash,
-          expiresAt,
-          attempts: 0,
-          createdAt: new Date(),
-          sentAt: new Date(),
-        },
-      },
-      { upsert: true }
-    );
+    const appUrl = resolveAppUrlFromEnvOrHeaders(h);
 
-    const appUrl = String(process.env.APP_URL || "")
-      .trim()
-      .replace(/\/$/, "");
-    const inviteLink = appUrl
-      ? `${appUrl}/invite?email=${encodeURIComponent(
-          email
-        )}&code=${encodeURIComponent(code)}`
-      : undefined;
+    const now = new Date();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    const entityId =
+      existingEntity?._id ??
+      ((clientEntityData as any).__entityId instanceof ObjectId
+        ? (clientEntityData as any).__entityId
+        : undefined);
+
+    const existingInvite = await c.invites.findOne({
+      email,
+      adminId,
+      status: "PENDING",
+      expiresAt: { $gt: now },
+    });
+
+    const inviteId = existingInvite?._id
+      ? existingInvite._id
+      : (
+          await c.invites.insertOne({
+            email,
+            adminId,
+            role: "client",
+            status: "PENDING",
+            expiresAt,
+            createdAt: now,
+            clientEntityId: entityId,
+          } as any)
+        ).insertedId;
+
+    // Best-effort: keep clientEntityId updated when reusing an invite.
+    if (existingInvite?._id && entityId instanceof ObjectId) {
+      await c.invites.updateOne(
+        { _id: existingInvite._id },
+        { $set: { clientEntityId: entityId } }
+      );
+    }
+
+    const inviteToken = await signClientInviteToken({
+      inviteId: inviteId.toHexString(),
+      adminId: adminId.toHexString(),
+      email,
+      expiresAt: existingInvite?.expiresAt ?? expiresAt,
+    });
+
+    const inviteLink = `${appUrl}/invite/${encodeURIComponent(inviteToken)}`;
 
     await sendEmail({
       to: email,
-      subject: "You have been invited to Progrr",
-      text: inviteLink
-        ? `You have been invited to Progrr. Click to verify and sign in: ${inviteLink}\n\nOr enter this code on the login screen: ${code}. This code expires in 10 minutes.`
-        : `You have been invited to Progrr. Your verification code is: ${code}. This code expires in 10 minutes.`,
+      subject: "You've been invited to Progrr",
+      text: `You've been invited to Progrr.\n\nAccept invitation: ${inviteLink}\n\nThis link expires in 7 days.`,
+      html: `
+        <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; line-height: 1.5;">
+          <h2 style="margin: 0 0 12px;">You've been invited to Progrr</h2>
+          <p style="margin: 0 0 16px;">Click the button below to accept your invitation and verify your email.</p>
+          <p style="margin: 0 0 20px;">
+            <a
+              href="${inviteLink}"
+              style="display: inline-block; padding: 10px 14px; background: #111827; color: #ffffff; text-decoration: none; border-radius: 8px;"
+            >
+              Accept Invitation
+            </a>
+          </p>
+          <p style="margin: 0; font-size: 12px; color: #6b7280;">This link expires in 7 days.</p>
+        </div>
+      `.trim(),
     });
   }
 
@@ -315,14 +341,6 @@ export async function updateClientAction(id: string, data: ClientFormData) {
     clientEmail: email,
   });
 
-  // Global uniqueness: prevent admin+client sharing the same email.
-  const adminWithEmail = await c.admins.findOne({
-    email: { $regex: new RegExp(`^${escapeRegExp(email)}$`, "i") },
-  });
-  if (adminWithEmail) {
-    throw new Error("This email is already registered as an admin");
-  }
-
   assertBirthDateNotFuture((data as any).birthDate);
 
   // Prevent duplicates within the same admin (excluding this client).
@@ -357,51 +375,43 @@ export async function updateClientAction(id: string, data: ClientFormData) {
     normalizeClientStatusAllowBlocked(oldData.status) ?? "ACTIVE";
   const authIdStr = String(oldData.clientAuthId ?? oldData.userId ?? "");
 
-  let clientAuthId: ObjectId;
-  if (ObjectId.isValid(authIdStr)) {
-    clientAuthId = new ObjectId(authIdStr);
-  } else {
-    // Legacy recovery: if the entity didn't have a login record, create one.
-    const insert = await c.clients.insertOne({
-      name,
-      email,
-      theme: "light",
-      role: "client",
-      phone,
+  // If the client already has a global auth record, keep it in sync.
+  const clientAuthIdStr = ObjectId.isValid(authIdStr)
+    ? new ObjectId(authIdStr).toHexString()
+    : null;
+
+  if (clientAuthIdStr) {
+    const authObjectId = new ObjectId(authIdStr);
+
+    // Prevent duplicate login emails across clients.
+    const existingAuthDup = await c.clients.findOne({
+      email: {
+        $regex: new RegExp(`^${escapeRegExp(email)}$`, "i"),
+      },
+      _id: { $ne: authObjectId },
     });
-    clientAuthId = insert.insertedId;
-  }
-
-  // Prevent duplicate login emails across clients.
-  const existingAuthDup = await c.clients.findOne({
-    email: {
-      $regex: new RegExp(`^${escapeRegExp(email)}$`, "i"),
-    },
-    _id: { $ne: clientAuthId },
-  });
-  if (existingAuthDup) {
-    throw new Error("A client with this email already exists");
-  }
-
-  try {
-    await c.clients.updateOne(
-      { _id: clientAuthId },
-      {
-        $set: {
-          phone,
-          name,
-          email,
-        },
-      }
-    );
-  } catch (e: any) {
-    if (e?.code === 11000) {
+    if (existingAuthDup) {
       throw new Error("A client with this email already exists");
     }
-    throw e;
-  }
 
-  const clientAuthIdStr = clientAuthId.toHexString();
+    try {
+      await c.clients.updateOne(
+        { _id: authObjectId },
+        {
+          $set: {
+            phone,
+            name,
+            email,
+          },
+        }
+      );
+    } catch (e: any) {
+      if (e?.code === 11000) {
+        throw new Error("A client with this email already exists");
+      }
+      throw e;
+    }
+  }
   const nextData: any = {
     ...(oldData as any),
     ...data,
@@ -423,17 +433,20 @@ export async function updateClientAction(id: string, data: ClientFormData) {
     }
   );
 
-  // Ensure the client<->admin relation exists (multi-admin model).
-  {
+  // Only ensure the client<->admin relation exists after the client has a global auth record.
+  if (clientAuthIdStr) {
     const now = new Date();
+    const authObjectId = new ObjectId(authIdStr);
     await c.clientAdminRelations.updateOne(
-      { userId: clientAuthId, adminId },
+      { userId: authObjectId, adminId },
       {
         $setOnInsert: {
-          userId: clientAuthId,
+          userId: authObjectId,
           adminId,
           status: "ACTIVE",
           createdAt: now,
+        },
+        $set: {
           updatedAt: now,
         },
       },

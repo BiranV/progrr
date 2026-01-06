@@ -56,15 +56,6 @@ export async function POST(req: Request) {
       perEmail: { windowMs: 600_000, limit: 10 },
     });
 
-    // Enforce global uniqueness: an email cannot be both admin and client.
-    const clientWithEmail = await c.clients.findOne({ email });
-    if (clientWithEmail) {
-      return NextResponse.json(
-        { error: "This email is registered as a client" },
-        { status: 409 }
-      );
-    }
-
     const existing = await c.admins.findOne({ email });
     const purpose = existing ? "admin_login" : "admin_signup";
 

@@ -59,6 +59,22 @@ export type ClientDoc = {
 
 export type ClientAdminRelationStatus = "ACTIVE" | "BLOCKED";
 
+export type InviteStatus = "PENDING" | "ACCEPTED" | "REVOKED";
+
+export type InviteDoc = {
+  _id?: ObjectId;
+  email: string; // normalized email
+  adminId: ObjectId;
+  role: "client";
+  status: InviteStatus;
+  expiresAt: Date;
+  createdAt: Date;
+  acceptedAt?: Date;
+  acceptedUserId?: ObjectId;
+  // Optional link to the admin-scoped Client entity created during invite.
+  clientEntityId?: ObjectId;
+};
+
 export type ClientAdminRelationDoc = {
   _id?: ObjectId;
   userId: ObjectId; // client user id (global)
@@ -119,6 +135,7 @@ export async function collections() {
       "client_admin_relations"
     ),
     entities: db.collection<EntityDoc>("entities"),
+    invites: db.collection<InviteDoc>("invites"),
     otps: db.collection<OtpDoc>("otps"),
     rateLimits: db.collection<RateLimitDoc>("rate_limits"),
   };
@@ -154,6 +171,10 @@ export async function ensureIndexes() {
 
   await c.entities.createIndex({ entity: 1, adminId: 1 });
   await c.entities.createIndex({ adminId: 1 });
+
+  await c.invites.createIndex({ email: 1, adminId: 1, status: 1 });
+  await c.invites.createIndex({ adminId: 1 });
+  await c.invites.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
   await c.otps.createIndex({ key: 1, purpose: 1 }, { unique: true });
   await c.otps.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });

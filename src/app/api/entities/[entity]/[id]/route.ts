@@ -764,6 +764,12 @@ export async function DELETE(
 
       if (userId) {
         await c.clientAdminRelations.deleteOne({ userId, adminId });
+
+        // Prevent legacy migration from re-creating the deleted relation.
+        await c.clients.updateOne(
+          { _id: userId, adminId },
+          { $unset: { adminId: "" } }
+        );
       }
     }
 

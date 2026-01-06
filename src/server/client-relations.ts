@@ -58,13 +58,28 @@ export async function ensureLegacySingleRelation(args: {
   const legacyAdminId = (user as any).adminId;
   if (!(legacyAdminId instanceof ObjectId)) return;
 
+  // Only migrate if the legacy admin still exists.
+  // Otherwise, drop the deprecated field to prevent resurrecting deleted/phantom relations.
+  const adminStillExists = await c.admins.findOne(
+    { _id: legacyAdminId },
+    { projection: { _id: 1 } }
+  );
+  if (!adminStillExists) {
+    await c.clients.updateOne({ _id: user._id }, { $unset: { adminId: "" } });
+    return;
+  }
+
   // If the user already has relations (e.g. a new coach added them under the new model),
   // we still must ensure the legacy coach relation exists as well.
   const alreadyHasLegacyRelation = await c.clientAdminRelations.findOne({
     userId: user._id,
     adminId: legacyAdminId,
   });
-  if (alreadyHasLegacyRelation) return;
+  if (alreadyHasLegacyRelation) {
+    // Prevent future re-migrations from resurrecting deleted relations.
+    await c.clients.updateOne({ _id: user._id }, { $unset: { adminId: "" } });
+    return;
+  }
 
   const now = new Date();
   await c.clientAdminRelations.updateOne(
@@ -80,6 +95,9 @@ export async function ensureLegacySingleRelation(args: {
     },
     { upsert: true }
   );
+
+  // Prevent future re-migrations from resurrecting deleted relations.
+  await c.clients.updateOne({ _id: user._id }, { $unset: { adminId: "" } });
 }
 
 export async function resolveClientAdminContext(args: {

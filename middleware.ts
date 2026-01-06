@@ -4,6 +4,7 @@ import { AUTH_COOKIE_NAME } from "@/server/auth-cookie";
 
 function isPublicPath(pathname: string) {
   if (pathname === "/") return true;
+  if (pathname.startsWith("/auth")) return true;
   if (pathname.startsWith("/api")) return true;
   if (pathname.startsWith("/_next")) return true;
   if (pathname === "/favicon.ico") return true;
@@ -77,8 +78,7 @@ export async function middleware(request: NextRequest) {
               : "Your account has been temporarily restricted. Please contact support or your administrator.";
 
           const url = request.nextUrl.clone();
-          url.pathname = "/";
-          url.searchParams.set("tab", "login");
+          url.pathname = "/auth/client";
           url.searchParams.set("authError", msg);
 
           const res = NextResponse.redirect(url);
@@ -122,8 +122,11 @@ export async function middleware(request: NextRequest) {
 
   if (!isPublicPath(pathname) && !isAuthed) {
     const url = request.nextUrl.clone();
-    url.pathname = "/";
-    url.searchParams.set("next", pathname);
+    url.pathname = "/auth";
+    url.searchParams.set(
+      "next",
+      request.nextUrl.pathname + request.nextUrl.search
+    );
     return NextResponse.redirect(url);
   }
 

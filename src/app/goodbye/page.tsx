@@ -15,7 +15,7 @@ export default function GoodbyePage() {
             undone.
           </p>
           <Button asChild>
-            <Link href="/">Return to home</Link>
+            <Link href="/auth">Return to home</Link>
           </Button>
         </CardContent>
       </Card>
