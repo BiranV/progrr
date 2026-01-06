@@ -1,12 +1,7 @@
 "use client";
 
 import React from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import SidePanel from "@/components/ui/side-panel";
 import { Button } from "@/components/ui/button";
 import {
   Calendar as CalendarIcon,
@@ -88,124 +83,123 @@ export default function MeetingDetailsDialog({
   }, [meeting]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-gray-800">
-        <DialogHeader>
-          <DialogTitle>Meeting Details</DialogTitle>
-        </DialogHeader>
-
-        {!meeting ? (
-          <div className="text-sm text-gray-600 dark:text-gray-300">
-            No meeting selected
-          </div>
-        ) : (
-          <div className="space-y-6">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-xl font-semibold text-gray-900 dark:text-white truncate">
-                  {meeting.title}
-                </div>
-                <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                  {scheduledAt && !Number.isNaN(scheduledAt.getTime())
-                    ? format(scheduledAt, "PPP p")
-                    : "-"}
-                </div>
+    <SidePanel
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Meeting Details"
+      widthClassName="w-full sm:w-[520px]"
+    >
+      {!meeting ? (
+        <div className="text-sm text-gray-600 dark:text-gray-300">
+          No meeting selected
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-xl font-semibold text-gray-900 dark:text-white truncate">
+                {meeting.title}
               </div>
-
-              <span
-                className={`inline-flex items-center h-7 px-3 rounded-md text-xs font-medium capitalize ${statusChipClasses(
-                  meeting.status
-                )}`}
-              >
-                {meeting.status?.replace(/[-_]/g, " ") || "unknown"}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-                <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                  {getMeetingIcon(meeting.type)}
-                  <span>Type</span>
-                </div>
-                <div className="mt-1 font-medium text-gray-900 dark:text-white capitalize">
-                  {String(meeting.type ?? "-").replace(/[-_]/g, " ")}
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-                <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                  {isPast ? (
-                    <History className="w-4 h-4" />
-                  ) : (
-                    <CalendarIcon className="w-4 h-4" />
-                  )}
-                  <span>When</span>
-                </div>
-                <div className="mt-1 font-medium text-gray-900 dark:text-white">
-                  {scheduledAt && !Number.isNaN(scheduledAt.getTime())
-                    ? format(scheduledAt, "PPP")
-                    : "-"}
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-                <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                  <Clock className="w-4 h-4" />
-                  <span>Duration</span>
-                </div>
-                <div className="mt-1 font-medium text-gray-900 dark:text-white">
-                  {String((meeting as any)?.durationMinutes ?? "").trim()
-                    ? `${String((meeting as any)?.durationMinutes).trim()} min`
-                    : "-"}
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-                <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                  <User className="w-4 h-4" />
-                  <span>With</span>
-                </div>
-                <div className="mt-1 font-medium text-gray-900 dark:text-white truncate">
-                  {meeting.clientId ? getClientName(meeting.clientId) : "-"}
-                </div>
+              <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                {scheduledAt && !Number.isNaN(scheduledAt.getTime())
+                  ? format(scheduledAt, "PPP p")
+                  : "-"}
               </div>
             </div>
 
-            {meeting.location ? (
-              <div>
-                <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-                  {typeBasedKind === "phone"
-                    ? "Phone"
-                    : typeBasedKind === "link"
-                    ? "Link"
-                    : "Location"}
-                </div>
-                <div className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300 break-words">
-                  {typeBasedKind === "phone" ? (
-                    <Phone className="w-4 h-4 mt-0.5 shrink-0 text-gray-500 dark:text-gray-400" />
-                  ) : typeBasedKind === "link" ? (
-                    <LinkIcon className="w-4 h-4 mt-0.5 shrink-0 text-gray-500 dark:text-gray-400" />
-                  ) : (
-                    <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-gray-500 dark:text-gray-400" />
-                  )}
-                  <span className="min-w-0">{meeting.location}</span>
-                </div>
-              </div>
-            ) : null}
-
-            {meeting.notes ? (
-              <div>
-                <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-                  Notes
-                </div>
-                <div className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
-                  {meeting.notes}
-                </div>
-              </div>
-            ) : null}
+            <span
+              className={`inline-flex items-center h-7 px-3 rounded-md text-xs font-medium capitalize ${statusChipClasses(
+                meeting.status
+              )}`}
+            >
+              {meeting.status?.replace(/[-_]/g, " ") || "unknown"}
+            </span>
           </div>
-        )}
-      </DialogContent>
-    </Dialog>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+              <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                {getMeetingIcon(meeting.type)}
+                <span>Type</span>
+              </div>
+              <div className="mt-1 font-medium text-gray-900 dark:text-white capitalize">
+                {String(meeting.type ?? "-").replace(/[-_]/g, " ")}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+              <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                {isPast ? (
+                  <History className="w-4 h-4" />
+                ) : (
+                  <CalendarIcon className="w-4 h-4" />
+                )}
+                <span>When</span>
+              </div>
+              <div className="mt-1 font-medium text-gray-900 dark:text-white">
+                {scheduledAt && !Number.isNaN(scheduledAt.getTime())
+                  ? format(scheduledAt, "PPP")
+                  : "-"}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+              <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                <Clock className="w-4 h-4" />
+                <span>Duration</span>
+              </div>
+              <div className="mt-1 font-medium text-gray-900 dark:text-white">
+                {String((meeting as any)?.durationMinutes ?? "").trim()
+                  ? `${String((meeting as any)?.durationMinutes).trim()} min`
+                  : "-"}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+              <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                <User className="w-4 h-4" />
+                <span>With</span>
+              </div>
+              <div className="mt-1 font-medium text-gray-900 dark:text-white truncate">
+                {meeting.clientId ? getClientName(meeting.clientId) : "-"}
+              </div>
+            </div>
+          </div>
+
+          {meeting.location ? (
+            <div>
+              <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                {typeBasedKind === "phone"
+                  ? "Phone"
+                  : typeBasedKind === "link"
+                  ? "Link"
+                  : "Location"}
+              </div>
+              <div className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300 break-words">
+                {typeBasedKind === "phone" ? (
+                  <Phone className="w-4 h-4 mt-0.5 shrink-0 text-gray-500 dark:text-gray-400" />
+                ) : typeBasedKind === "link" ? (
+                  <LinkIcon className="w-4 h-4 mt-0.5 shrink-0 text-gray-500 dark:text-gray-400" />
+                ) : (
+                  <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-gray-500 dark:text-gray-400" />
+                )}
+                <span className="min-w-0">{meeting.location}</span>
+              </div>
+            </div>
+          ) : null}
+
+          {meeting.notes ? (
+            <div>
+              <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                Notes
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
+                {meeting.notes}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      )}
+    </SidePanel>
   );
 }

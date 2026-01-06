@@ -14,12 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import SidePanel from "@/components/ui/side-panel";
 import { Meeting, Client } from "@/types";
 
 const PROSPECT_CLIENT_ID = "__PROSPECT__";
@@ -210,203 +205,217 @@ export default function MeetingDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl dark:bg-gray-800">
-        <DialogHeader>
-          <DialogTitle>
-            {meeting ? "Edit Meeting" : "Schedule Meeting"}
-          </DialogTitle>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} noValidate className="space-y-4">
-          {validationError ? (
-            <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-4 min-h-12 py-2">
-              <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
-                <XCircle className="h-3.5 w-3.5" />
+    <SidePanel
+      open={open}
+      onOpenChange={onOpenChange}
+      title={meeting ? "Edit Meeting" : "Schedule Meeting"}
+      widthClassName="w-full sm:w-[560px]"
+      footer={
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={() => onOpenChange(false)}
+            disabled={saveMutation.isPending}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="meeting-form"
+            className="w-full sm:w-auto"
+            disabled={saveMutation.isPending}
+          >
+            {saveMutation.isPending ? "Saving..." : "Save"}
+          </Button>
+        </div>
+      }
+    >
+      <form
+        id="meeting-form"
+        onSubmit={handleSubmit}
+        noValidate
+        className="space-y-4"
+      >
+        {validationError ? (
+          <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-4 min-h-12 py-2">
+            <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
+              <XCircle className="h-3.5 w-3.5" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
+                {validationError}
               </div>
-              <div className="min-w-0">
-                <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
-                  {validationError}
-                </div>
-              </div>
             </div>
-          ) : null}
+          </div>
+        ) : null}
 
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Title *
+          </label>
+          <Input
+            value={formData.title}
+            onChange={(e) => {
+              if (validationError) setValidationError(null);
+              setFormData({ ...formData, title: e.target.value });
+            }}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Title *
-            </label>
-            <Input
-              value={formData.title}
-              onChange={(e) => {
-                if (validationError) setValidationError(null);
-                setFormData({ ...formData, title: e.target.value });
-              }}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Type
-              </label>
-              <Select
-                value={formData.type}
-                onValueChange={(v) => setFormData({ ...formData, type: v })}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="zoom">Zoom</SelectItem>
-                  <SelectItem value="call">Call</SelectItem>
-                  <SelectItem value="in-person">In-Person</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                {String(formData.type ?? "")
-                  .trim()
-                  .toLowerCase() === "call"
-                  ? "Phone"
-                  : String(formData.type ?? "")
-                      .trim()
-                      .toLowerCase() === "in-person"
-                  ? "Location"
-                  : "Link"}
-              </label>
-              <Input
-                value={formData.location}
-                onChange={(e) =>
-                  setFormData({ ...formData, location: e.target.value })
-                }
-                placeholder={
-                  String(formData.type ?? "")
-                    .trim()
-                    .toLowerCase() === "call"
-                    ? "+1 202 555 0123"
-                    : String(formData.type ?? "")
-                        .trim()
-                        .toLowerCase() === "in-person"
-                    ? "Address / meeting point"
-                    : "https://..."
-                }
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Status
-              </label>
-              <Select
-                value={formData.status}
-                onValueChange={(v) => setFormData({ ...formData, status: v })}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="scheduled">Scheduled</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                  {canChooseNoShow ? (
-                    <SelectItem value="no-show">No Show</SelectItem>
-                  ) : null}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Date & Time *
-              </label>
-              <Input
-                type="datetime-local"
-                min={shouldEnforceMinDateTime ? minDateTimeLocal : undefined}
-                max="9999-12-31T23:59"
-                value={formData.scheduledAt}
-                onChange={(e) => {
-                  if (validationError) setValidationError(null);
-                  setFormData({ ...formData, scheduledAt: e.target.value });
-                }}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Duration (min)
-            </label>
-            <Input
-              type="number"
-              value={formData.durationMinutes}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  durationMinutes: parseInt(e.target.value),
-                })
-              }
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Client
+              Type
             </label>
             <Select
-              value={formData.clientId}
-              onValueChange={(v) => {
-                if (validationError) setValidationError(null);
-                setFormData({ ...formData, clientId: v });
-              }}
+              value={formData.type}
+              onValueChange={(v) => setFormData({ ...formData, type: v })}
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select client" />
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={PROSPECT_CLIENT_ID}>
-                  {PROSPECT_CLIENT_LABEL}
-                </SelectItem>
-                {clients.map((client) => (
-                  <SelectItem key={client.id} value={client.id}>
-                    {client.name}
-                  </SelectItem>
-                ))}
+                <SelectItem value="zoom">Zoom</SelectItem>
+                <SelectItem value="call">Call</SelectItem>
+                <SelectItem value="in-person">In-Person</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Notes
+              {String(formData.type ?? "")
+                .trim()
+                .toLowerCase() === "call"
+                ? "Phone"
+                : String(formData.type ?? "")
+                    .trim()
+                    .toLowerCase() === "in-person"
+                ? "Location"
+                : "Link"}
             </label>
-            <Textarea
-              value={formData.notes}
+            <Input
+              value={formData.location}
               onChange={(e) =>
-                setFormData({ ...formData, notes: e.target.value })
+                setFormData({ ...formData, location: e.target.value })
               }
-              rows={3}
+              placeholder={
+                String(formData.type ?? "")
+                  .trim()
+                  .toLowerCase() === "call"
+                  ? "+1 202 555 0123"
+                  : String(formData.type ?? "")
+                      .trim()
+                      .toLowerCase() === "in-person"
+                  ? "Address / meeting point"
+                  : "https://..."
+              }
             />
           </div>
+        </div>
 
-          <div className="flex justify-end gap-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Status
+            </label>
+            <Select
+              value={formData.status}
+              onValueChange={(v) => setFormData({ ...formData, status: v })}
             >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={saveMutation.isPending}>
-              {saveMutation.isPending ? "Saving..." : "Save"}
-            </Button>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="scheduled">Scheduled</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+                {canChooseNoShow ? (
+                  <SelectItem value="no-show">No Show</SelectItem>
+                ) : null}
+              </SelectContent>
+            </Select>
           </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Date & Time *
+            </label>
+            <Input
+              type="datetime-local"
+              min={shouldEnforceMinDateTime ? minDateTimeLocal : undefined}
+              max="9999-12-31T23:59"
+              value={formData.scheduledAt}
+              onChange={(e) => {
+                if (validationError) setValidationError(null);
+                setFormData({ ...formData, scheduledAt: e.target.value });
+              }}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Duration (min)
+          </label>
+          <Input
+            type="number"
+            value={formData.durationMinutes ?? ""}
+            onChange={(e) => {
+              if (validationError) setValidationError(null);
+              const parsed = Number.parseInt(e.target.value, 10);
+              setFormData({
+                ...formData,
+                durationMinutes: Number.isFinite(parsed) ? parsed : 0,
+              });
+            }}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Client
+          </label>
+          <Select
+            value={String(formData.clientId ?? "")}
+            onValueChange={(v) => {
+              if (validationError) setValidationError(null);
+              setFormData({ ...formData, clientId: v });
+            }}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select client" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={PROSPECT_CLIENT_ID}>
+                {PROSPECT_CLIENT_LABEL}
+              </SelectItem>
+              {clients.map((client) => (
+                <SelectItem key={client.id} value={client.id}>
+                  {client.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Notes
+          </label>
+          <Textarea
+            value={String(formData.notes ?? "")}
+            onChange={(e) =>
+              setFormData({ ...formData, notes: e.target.value })
+            }
+            rows={3}
+          />
+        </div>
+
+        <div className="h-2" />
+      </form>
+    </SidePanel>
   );
 }

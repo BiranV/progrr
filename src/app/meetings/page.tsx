@@ -26,9 +26,11 @@ import {
 } from "lucide-react";
 import MeetingDialog from "@/components/MeetingDialog";
 import MeetingDetailsDialog from "@/components/MeetingDetailsDialog";
+import ConfirmModal from "@/components/ui/confirm-modal";
 import { format } from "date-fns";
 import { Meeting, Client } from "@/types";
 import { useRefetchOnVisible } from "@/hooks/use-refetch-on-visible";
+import { toast } from "sonner";
 
 const PROSPECT_CLIENT_ID = "__PROSPECT__";
 const PROSPECT_CLIENT_LABEL = "Prospect (Process / Payment questions)";
@@ -42,6 +44,8 @@ export default function MeetingsPage() {
   const [detailsMeeting, setDetailsMeeting] = React.useState<Meeting | null>(
     null
   );
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
+  const [deleteTarget, setDeleteTarget] = React.useState<Meeting | null>(null);
   const queryClient = useQueryClient();
 
   const { data: meetings = [], isLoading } = useQuery({
@@ -61,6 +65,9 @@ export default function MeetingsPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => db.entities.Meeting.delete(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["meetings"] }),
+    onError: (err: any) => {
+      toast.error(String(err?.message ?? "Failed to delete"));
+    },
   });
 
   const getClientName = (clientId: string) => {
@@ -98,9 +105,9 @@ export default function MeetingsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this meeting?")) {
-      deleteMutation.mutate(id);
-    }
+    const meeting = (meetings as Meeting[]).find((m) => m.id === id) ?? null;
+    setDeleteTarget(meeting ?? ({ id } as any));
+    setDeleteConfirmOpen(true);
   };
 
   const handleCloseDialog = (open: boolean) => {
@@ -418,6 +425,30 @@ export default function MeetingsPage() {
         onOpenChange={(open) => {
           setDetailsOpen(open);
           if (!open) setDetailsMeeting(null);
+        }}
+      />
+
+      <ConfirmModal
+        open={deleteConfirmOpen}
+        onOpenChange={(open) => {
+          setDeleteConfirmOpen(open);
+          if (!open) setDeleteTarget(null);
+        }}
+        title="Delete meeting?"
+        description={
+          <span>
+            This will permanently delete{" "}
+            <strong>{String(deleteTarget?.title ?? "this meeting")}</strong>.
+            This cannot be undone.
+          </span>
+        }
+        confirmText="Delete"
+        loading={deleteMutation.isPending}
+        confirmDisabled={!deleteTarget?.id}
+        onConfirm={async () => {
+          const id = String(deleteTarget?.id ?? "").trim();
+          if (!id) return;
+          await deleteMutation.mutateAsync(id);
         }}
       />
     </div>
