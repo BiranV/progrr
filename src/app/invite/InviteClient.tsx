@@ -2,8 +2,11 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { useEffect, useMemo, useState } from "react";
+
+import AuthShell from "../auth/_components/AuthShell";
+import AuthBanner from "../auth/_components/AuthBanner";
+import OtpInput from "../auth/_components/OtpInput";
 
 export default function InviteClient({
   token: tokenFromPath,
@@ -98,8 +101,9 @@ export default function InviteClient({
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <Card className="w-full max-w-md shadow-lg">
+    <AuthShell>
+      <Card className="relative w-full border-0 overflow-hidden shadow-2xl bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl">
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-purple-600 to-indigo-600" />
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-center">
             {status === "loading"
@@ -109,52 +113,73 @@ export default function InviteClient({
               : "Accept invitation"}
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4 text-center">
+
+        <CardContent className="space-y-4">
+          <AuthBanner
+            banner={
+              error
+                ? { type: "error", text: error }
+                : status === "sending"
+                ? { type: "message", text: "Sending verification code..." }
+                : status === "verifying"
+                ? { type: "message", text: "Verifying code..." }
+                : null
+            }
+          />
+
           {status === "idle" ? (
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-gray-300 text-center">
               This invite link is missing required information.
             </p>
           ) : status === "loading" ? (
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-gray-300 text-center">
               Please wait while we validate your invitation.
             </p>
-          ) : status === "error" ? (
-            <p className="text-sm text-red-600">{error}</p>
           ) : status === "success" ? (
-            <p className="text-sm text-gray-600">Redirecting…</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300 text-center">
+              Redirecting…
+            </p>
+          ) : status === "error" ? (
+            <p className="text-sm text-gray-600 dark:text-gray-300 text-center">
+              Please review the error above.
+            </p>
           ) : (
-            <div className="space-y-3 text-left">
-              <div>
-                <div className="text-xs text-gray-500 mb-1">Email</div>
-                <div className="text-sm font-medium text-gray-900">{email}</div>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  Email
+                </div>
+                <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  {email}
+                </div>
               </div>
 
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  disabled={status === "sending"}
-                  onClick={() => void sendCode()}
-                >
-                  {status === "sending" ? "Sending..." : "Send code"}
-                </Button>
-              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full bg-white/70 dark:bg-gray-900/40"
+                disabled={status === "sending"}
+                onClick={() => void sendCode()}
+              >
+                {status === "sending" ? "Sending..." : "Send code"}
+              </Button>
 
-              <div>
-                <div className="text-xs text-gray-500 mb-1">
+              <div className="space-y-2">
+                <div className="text-xs text-gray-500 dark:text-gray-400">
                   Verification code
                 </div>
-                <Input
+                <OtpInput
+                  id="invite_code"
+                  name="invite_code"
+                  length={6}
                   value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  inputMode="numeric"
-                  placeholder="Enter the 6-digit code"
+                  onChange={setCode}
+                  disabled={status === "verifying"}
                 />
               </div>
 
               <Button
-                className="w-full"
+                className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg"
                 disabled={status === "verifying" || !String(code).trim()}
                 onClick={() => void verify()}
               >
@@ -162,14 +187,16 @@ export default function InviteClient({
               </Button>
             </div>
           )}
+
           <Button
-            className="w-full"
+            variant="outline"
+            className="w-full bg-white/70 dark:bg-gray-900/40"
             onClick={() => (window.location.href = "/auth")}
           >
             Go to Login
           </Button>
         </CardContent>
       </Card>
-    </div>
+    </AuthShell>
   );
 }
