@@ -507,7 +507,7 @@ export default function ClientDialog({
         description={client ? client.name : "Create a new client profile"}
         widthClassName="w-full sm:w-[520px] lg:w-[640px]"
         footer={
-          <div className="flex justify-end gap-3">
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
             <Button
               type="button"
               variant="outline"
@@ -724,7 +724,10 @@ export default function ClientDialog({
                       : "None"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align="start" className="w-[320px] p-3">
+                <PopoverContent
+                  align="start"
+                  className="w-[min(320px,calc(100vw-2rem))] p-3"
+                >
                   <div className="max-h-64 overflow-y-auto space-y-2">
                     {workoutPlans.map((plan: any) => {
                       const id = String(plan.id);
@@ -780,7 +783,10 @@ export default function ClientDialog({
                       : "None"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align="start" className="w-[320px] p-3">
+                <PopoverContent
+                  align="start"
+                  className="w-[min(320px,calc(100vw-2rem))] p-3"
+                >
                   <div className="max-h-64 overflow-y-auto space-y-2">
                     {mealPlans.map((plan: any) => {
                       const id = String(plan.id);

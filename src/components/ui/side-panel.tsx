@@ -46,12 +46,12 @@ export default function SidePanel({
   if (!open) return null;
 
   return (
-    <div className={cn("fixed inset-0 z-50", className)}>
+    <div className={cn("fixed inset-0 z-50 h-[100dvh]", className)}>
       {/* Backdrop (click to close) */}
       <button
         type="button"
         aria-label="Close panel"
-        className="absolute inset-0 bg-black/10 dark:bg-black/30"
+        className="absolute inset-0 bg-black/10 dark:bg-black/30 focus:outline-none"
         onClick={() => {
           if (closeOnOutsideClick) onOpenChange(false);
         }}
@@ -61,7 +61,7 @@ export default function SidePanel({
         role="dialog"
         aria-modal={false}
         className={cn(
-          "absolute inset-y-0 right-0 flex h-full flex-col border-l bg-background shadow-2xl",
+          "absolute inset-y-0 right-0 flex h-full max-h-[100dvh] flex-col border-l bg-background shadow-2xl",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
           "data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right",
           widthClassName ?? "w-full sm:w-[480px] lg:w-[560px]",
@@ -70,7 +70,7 @@ export default function SidePanel({
         )}
         data-state="open"
       >
-        <div className="flex items-start justify-between gap-3 border-b px-5 py-4">
+        <div className="flex items-start justify-between gap-3 border-b px-4 py-4 sm:px-5">
           <div className="min-w-0">
             {title ? (
               <div className="text-base font-semibold text-foreground truncate">
@@ -94,9 +94,15 @@ export default function SidePanel({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+          {children}
+        </div>
 
-        {footer ? <div className="border-t px-5 py-4">{footer}</div> : null}
+        {footer ? (
+          <div className="border-t px-4 pt-4 sm:px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+            {footer}
+          </div>
+        ) : null}
       </div>
     </div>
   );

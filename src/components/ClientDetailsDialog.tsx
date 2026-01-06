@@ -130,7 +130,7 @@ export default function ClientDetailsDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
             <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
               <div className="text-gray-500 dark:text-gray-400">Status</div>
               <div className="font-medium text-gray-900 dark:text-white">
@@ -187,7 +187,7 @@ export default function ClientDetailsDialog({
             </div>
 
             {String((client as any)?.notes ?? "").trim() ? (
-              <div className="col-span-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+              <div className="sm:col-span-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
                 <div className="text-gray-500 dark:text-gray-400">Notes</div>
                 <div className="mt-1 text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">
                   {String((client as any)?.notes ?? "").trim()}
