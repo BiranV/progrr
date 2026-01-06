@@ -20,12 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import SidePanel from "@/components/ui/side-panel";
 import { Client } from "@/types";
 import ClientAvatar from "@/components/ClientAvatar";
 import {
@@ -34,6 +29,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
+import ConfirmModal from "@/components/ui/confirm-modal";
 
 /* ======================================================
    REQUIRED FIELDS – single source of truth
@@ -135,6 +131,7 @@ export default function ClientDialog({
   const [validationError, setValidationError] = React.useState<string | null>(
     null
   );
+  const [removeImageOpen, setRemoveImageOpen] = React.useState(false);
 
   const clientAuthId = React.useMemo(() => {
     const raw = (client as any)?.clientAuthId ?? (client as any)?.userId;
@@ -502,13 +499,39 @@ export default function ClientDialog({
      Render
      ====================================================== */
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-gray-800">
-        <DialogHeader>
-          <DialogTitle>{client ? "Edit Client" : "Add New Client"}</DialogTitle>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} noValidate className="space-y-4">
+    <>
+      <SidePanel
+        open={open}
+        onOpenChange={onOpenChange}
+        title={client ? "Edit Client" : "Add New Client"}
+        description={client ? client.name : "Create a new client profile"}
+        widthClassName="w-full sm:w-[520px] lg:w-[640px]"
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={saveMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="client-form"
+              disabled={saveMutation.isPending}
+            >
+              {saveMutation.isPending ? "Saving..." : "Save Client"}
+            </Button>
+          </div>
+        }
+      >
+        <form
+          id="client-form"
+          onSubmit={handleSubmit}
+          noValidate
+          className="space-y-4"
+        >
           {validationError ? (
             <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-4 min-h-12 py-2">
               <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
@@ -547,13 +570,7 @@ export default function ClientDialog({
                         className="h-8"
                         disabled={removeAvatarMutation.isPending}
                         onClick={() => {
-                          if (
-                            confirm(
-                              "Remove this client's image? This cannot be undone."
-                            )
-                          ) {
-                            removeAvatarMutation.mutate();
-                          }
+                          setRemoveImageOpen(true);
                         }}
                       >
                         {removeAvatarMutation.isPending
@@ -925,22 +942,22 @@ export default function ClientDialog({
               <Textarea {...getInputProps("notes")} rows={3} />
             </div>
           </div>
-
-          {/* ACTIONS */}
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={saveMutation.isPending}>
-              {saveMutation.isPending ? "Saving..." : "Save Client"}
-            </Button>
-          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SidePanel>
+
+      <ConfirmModal
+        open={removeImageOpen}
+        onOpenChange={setRemoveImageOpen}
+        title="Remove client image?"
+        description="This cannot be undone."
+        confirmText="Remove"
+        cancelText="Cancel"
+        confirmVariant="destructive"
+        loading={removeAvatarMutation.isPending}
+        onConfirm={async () => {
+          await removeAvatarMutation.mutateAsync();
+        }}
+      />
+    </>
   );
 }

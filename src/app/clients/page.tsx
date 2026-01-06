@@ -35,6 +35,7 @@ import {
 import ClientDialog from "@/components/ClientDialog";
 import ClientDetailsDialog from "@/components/ClientDetailsDialog";
 import ClientAvatar from "@/components/ClientAvatar";
+import ConfirmModal from "@/components/ui/confirm-modal";
 import { Client } from "@/types";
 import { getCookie, setCookie } from "@/lib/client-cookies";
 
@@ -44,6 +45,11 @@ export default function ClientsPage() {
   const [editingClient, setEditingClient] = React.useState<Client | null>(null);
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   const [detailsClient, setDetailsClient] = React.useState<Client | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
+  const [deleteTarget, setDeleteTarget] = React.useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const [pageSize, setPageSize] = React.useState(() => {
     const PAGE_SIZE_OPTIONS = [5, 10, 25, 50, 100] as const;
     if (typeof window === "undefined") return 10;
@@ -157,9 +163,12 @@ export default function ClientsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this client?")) {
-      await deleteClientMutation.mutateAsync(id);
-    }
+    const c = clients.find((x: any) => String(x?.id) === String(id));
+    setDeleteTarget({
+      id,
+      name: String(c?.name ?? "").trim() || "this client",
+    });
+    setDeleteConfirmOpen(true);
   };
 
   const handleCloseDialog = (open: boolean) => {
@@ -648,6 +657,29 @@ export default function ClientsPage() {
         onOpenChange={handleCloseDetails}
         workoutPlanNameById={workoutPlanNameById}
         mealPlanNameById={mealPlanNameById}
+      />
+
+      <ConfirmModal
+        open={deleteConfirmOpen}
+        onOpenChange={(next) => {
+          setDeleteConfirmOpen(next);
+          if (!next) setDeleteTarget(null);
+        }}
+        title="Delete client?"
+        description={
+          deleteTarget
+            ? `This will permanently delete ${deleteTarget.name}. This cannot be undone.`
+            : "This cannot be undone."
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmVariant="destructive"
+        confirmDisabled={!deleteTarget}
+        loading={deleteClientMutation.isPending}
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          await deleteClientMutation.mutateAsync(deleteTarget.id);
+        }}
       />
     </div>
   );
