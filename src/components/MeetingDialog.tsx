@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import SidePanel from "@/components/ui/side-panel";
 import { Meeting, Client } from "@/types";
+import { toast } from "sonner";
 
 const PROSPECT_CLIENT_ID = "__PROSPECT__";
 const PROSPECT_CLIENT_LABEL = "Prospect (Process / Payment questions)";
@@ -173,9 +174,12 @@ export default function MeetingDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["meetings"] });
       onOpenChange(false);
+      toast.success(meeting ? "Meeting updated" : "Meeting scheduled");
     },
     onError: (error: any) => {
-      setValidationError(error?.message || "Failed to save meeting");
+      const msg = error?.message || "Failed to save meeting";
+      setValidationError(msg);
+      toast.error(String(msg));
     },
   });
 
