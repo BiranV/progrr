@@ -13,12 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import SidePanel from "@/components/ui/side-panel";
 import { X, Plus, Trash2, XCircle } from "lucide-react";
 import { MealPlan, Meal, Food, FoodLibrary, PlanFood } from "@/types";
 
@@ -465,198 +460,209 @@ export default function MealPlanDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto dark:bg-gray-800">
-        <DialogHeader>
-          <DialogTitle>
-            {plan ? "Edit Meal Plan" : "Create Meal Plan"}
-          </DialogTitle>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} noValidate className="space-y-6">
-          {validationError ? (
-            <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-4 min-h-12 py-2">
-              <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
-                <XCircle className="h-3.5 w-3.5" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
-                  {validationError}
-                </div>
-              </div>
+    <SidePanel
+      open={open}
+      onOpenChange={onOpenChange}
+      title={plan ? "Edit Meal Plan" : "Create Meal Plan"}
+      widthClassName="w-full sm:w-[560px] lg:w-[720px]"
+      footer={
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={() => onOpenChange(false)}
+            disabled={saveMutation.isPending}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="meal-plan-form"
+            className="w-full sm:w-auto"
+            disabled={saveMutation.isPending}
+          >
+            {saveMutation.isPending ? "Saving..." : "Save"}
+          </Button>
+        </div>
+      }
+    >
+      <form
+        id="meal-plan-form"
+        onSubmit={handleSubmit}
+        noValidate
+        className="space-y-6"
+      >
+        {validationError ? (
+          <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-4 min-h-12 py-2">
+            <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
+              <XCircle className="h-3.5 w-3.5" />
             </div>
-          ) : null}
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Plan Name *
-              </label>
-              <Input
-                value={formData.name}
-                onChange={(e) => (
-                  validationError && setValidationError(null),
-                  setFormData({ ...formData, name: e.target.value })
-                )}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Goal
-              </label>
-              <Input
-                placeholder="e.g., Weight Loss"
-                value={formData.goal}
-                onChange={(e) =>
-                  setFormData({ ...formData, goal: e.target.value })
-                }
-              />
+            <div className="min-w-0">
+              <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
+                {validationError}
+              </div>
             </div>
           </div>
+        ) : null}
 
-          <div className="rounded-xl border bg-white dark:bg-slate-900/30 px-4 py-3">
-            <div className="text-sm font-medium text-slate-700 dark:text-slate-200">
-              Calculated daily totals (from foods)
-            </div>
-            <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-              {Math.round(computedDailyTotals.calories)} kcal ·{" "}
-              {Number(computedDailyTotals.protein.toFixed(1))}g protein ·{" "}
-              {Number(computedDailyTotals.carbs.toFixed(1))}g carbs ·{" "}
-              {Number(computedDailyTotals.fat.toFixed(1))}g fat
-            </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Plan Name *
+            </label>
+            <Input
+              value={formData.name}
+              onChange={(e) => (
+                validationError && setValidationError(null),
+                setFormData({ ...formData, name: e.target.value })
+              )}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Goal
+            </label>
+            <Input
+              placeholder="e.g., Weight Loss"
+              value={formData.goal}
+              onChange={(e) =>
+                setFormData({ ...formData, goal: e.target.value })
+              }
+            />
+          </div>
+        </div>
+
+        <div className="rounded-xl border bg-white dark:bg-slate-900/30 px-4 py-3">
+          <div className="text-sm font-medium text-slate-700 dark:text-slate-200">
+            Calculated daily totals (from foods)
+          </div>
+          <div className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+            {Math.round(computedDailyTotals.calories)} kcal ·{" "}
+            {Number(computedDailyTotals.protein.toFixed(1))}g protein ·{" "}
+            {Number(computedDailyTotals.carbs.toFixed(1))}g carbs ·{" "}
+            {Number(computedDailyTotals.fat.toFixed(1))}g fat
+          </div>
+        </div>
+
+        <div className="border-t pt-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">Meals</h3>
+            <Button type="button" onClick={addMeal} variant="outline" size="sm">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Meal
+            </Button>
           </div>
 
-          <div className="border-t pt-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">Meals</h3>
-              <Button
-                type="button"
-                onClick={addMeal}
-                variant="outline"
-                size="sm"
+          <div className="space-y-4">
+            {meals.map((meal, mealIndex) => (
+              <div
+                key={mealIndex}
+                className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-3"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Meal
-              </Button>
-            </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Select
+                    value={normalizeMealType(meal.type)}
+                    onValueChange={(v) =>
+                      updateMeal(mealIndex, "type", normalizeMealType(v))
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {mealTypeOptions.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {t}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <button
+                    type="button"
+                    onClick={() => removeMeal(mealIndex)}
+                    className="self-start sm:self-auto p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors"
+                    aria-label="Remove meal"
+                    title="Remove meal"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
 
-            <div className="space-y-4">
-              {meals.map((meal, mealIndex) => (
-                <div
-                  key={mealIndex}
-                  className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-3"
-                >
-                  <div className="flex gap-3">
+                {(meal.planFoods || []).map((row, foodIndex) => (
+                  <div
+                    key={foodIndex}
+                    className="ml-4 flex flex-col sm:flex-row gap-2 items-start"
+                  >
                     <Select
-                      value={normalizeMealType(meal.type)}
+                      value={String((row as any).foodLibraryId ?? "")}
                       onValueChange={(v) =>
-                        updateMeal(mealIndex, "type", normalizeMealType(v))
+                        updatePlanFood(mealIndex, foodIndex, {
+                          foodLibraryId: v,
+                        })
                       }
                     >
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
+                      <SelectTrigger className="w-full sm:flex-1">
+                        <SelectValue
+                          placeholder={
+                            String((row as any)?.legacyName ?? "").trim() ||
+                            "Food"
+                          }
+                        />
                       </SelectTrigger>
                       <SelectContent>
-                        {mealTypeOptions.map((t) => (
-                          <SelectItem key={t} value={t}>
-                            {t}
+                        {foodLibrary.map((f) => (
+                          <SelectItem key={f.id} value={f.id}>
+                            {f.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    <Input
+                      value={String((row as any).amount ?? "")}
+                      onChange={(e) =>
+                        updatePlanFood(mealIndex, foodIndex, {
+                          amount: e.target.value,
+                        })
+                      }
+                      placeholder="Amount"
+                      className="w-full sm:w-24"
+                    />
                     <button
                       type="button"
-                      onClick={() => removeMeal(mealIndex)}
-                      className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors"
+                      onClick={() => removeFood(mealIndex, foodIndex)}
+                      className="p-2 self-start"
+                      aria-label="Remove food"
+                      title="Remove food"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
+                ))}
 
-                  {(meal.planFoods || []).map((row, foodIndex) => (
-                    <div
-                      key={foodIndex}
-                      className="ml-4 flex gap-2 items-start"
-                    >
-                      <Select
-                        value={String((row as any).foodLibraryId ?? "")}
-                        onValueChange={(v) =>
-                          updatePlanFood(mealIndex, foodIndex, {
-                            foodLibraryId: v,
-                          })
-                        }
-                      >
-                        <SelectTrigger className="flex-1">
-                          <SelectValue
-                            placeholder={
-                              String((row as any)?.legacyName ?? "").trim() ||
-                              "Food"
-                            }
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {foodLibrary.map((f) => (
-                            <SelectItem key={f.id} value={f.id}>
-                              {f.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Input
-                        value={String((row as any).amount ?? "")}
-                        onChange={(e) =>
-                          updatePlanFood(mealIndex, foodIndex, {
-                            amount: e.target.value,
-                          })
-                        }
-                        placeholder="Amount"
-                        className="w-24"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeFood(mealIndex, foodIndex)}
-                        className="p-2"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
+                <Button
+                  type="button"
+                  onClick={() => addFood(mealIndex)}
+                  variant="ghost"
+                  size="sm"
+                  className="ml-4"
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  Add Food
+                </Button>
+              </div>
+            ))}
 
-                  <Button
-                    type="button"
-                    onClick={() => addFood(mealIndex)}
-                    variant="ghost"
-                    size="sm"
-                    className="ml-4"
-                  >
-                    <Plus className="w-3 h-3 mr-1" />
-                    Add Food
-                  </Button>
-                </div>
-              ))}
-
-              {meals.length === 0 && (
-                <p className="text-center text-gray-500 dark:text-gray-400 py-4">
-                  No meals added yet. Click "Add Meal" to get started.
-                </p>
-              )}
-            </div>
+            {meals.length === 0 && (
+              <p className="text-center text-gray-500 dark:text-gray-400 py-4">
+                No meals added yet. Click "Add Meal" to get started.
+              </p>
+            )}
           </div>
+        </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={saveMutation.isPending}>
-              {saveMutation.isPending ? "Saving..." : "Save"}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+        <div className="h-2" />
+      </form>
+    </SidePanel>
   );
 }

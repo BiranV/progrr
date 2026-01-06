@@ -28,6 +28,7 @@ import MealPlanDetailsDialog from "@/components/MealPlanDetailsDialog";
 import { MealPlan, Meal, Food, PlanFood, FoodLibrary } from "@/types";
 import { toast } from "sonner";
 import { useRefetchOnVisible } from "@/hooks/use-refetch-on-visible";
+import ConfirmModal from "@/components/ui/confirm-modal";
 
 export default function MealsPage() {
   const [search, setSearch] = React.useState("");
@@ -35,6 +36,8 @@ export default function MealsPage() {
   const [editingPlan, setEditingPlan] = React.useState<MealPlan | null>(null);
   const [detailsOpen, setDetailsOpen] = React.useState(false);
   const [detailsPlan, setDetailsPlan] = React.useState<MealPlan | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
+  const [deleteTarget, setDeleteTarget] = React.useState<MealPlan | null>(null);
   const queryClient = useQueryClient();
 
   const { data: mealPlans = [], isLoading } = useQuery({
@@ -67,6 +70,9 @@ export default function MealsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mealPlans"] });
     },
+    onError: (err: any) => {
+      toast.error(String(err?.message ?? "Failed to delete"));
+    },
   });
 
   const filteredPlans = mealPlans.filter((plan: MealPlan) =>
@@ -84,9 +90,9 @@ export default function MealsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Delete this meal plan?")) {
-      deletePlanMutation.mutate(id);
-    }
+    const plan = (mealPlans as MealPlan[]).find((p) => p.id === id) ?? null;
+    setDeleteTarget(plan ?? ({ id } as any));
+    setDeleteConfirmOpen(true);
   };
 
   const handleCloseDialog = (open: boolean) => {
@@ -246,6 +252,30 @@ export default function MealsPage() {
         onOpenChange={(open) => {
           setDetailsOpen(open);
           if (!open) setDetailsPlan(null);
+        }}
+      />
+
+      <ConfirmModal
+        open={deleteConfirmOpen}
+        onOpenChange={(open) => {
+          setDeleteConfirmOpen(open);
+          if (!open) setDeleteTarget(null);
+        }}
+        title="Delete meal plan?"
+        description={
+          <span>
+            This will permanently delete{" "}
+            <strong>{String(deleteTarget?.name ?? "this meal plan")}</strong>
+            and all meals/foods inside it. This cannot be undone.
+          </span>
+        }
+        confirmText="Delete"
+        loading={deletePlanMutation.isPending}
+        confirmDisabled={!deleteTarget?.id}
+        onConfirm={async () => {
+          const id = String(deleteTarget?.id ?? "").trim();
+          if (!id) return;
+          await deletePlanMutation.mutateAsync(id);
         }}
       />
     </div>
