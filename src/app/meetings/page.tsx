@@ -94,8 +94,15 @@ export default function MeetingsPage() {
     (m: Meeting) => new Date(m.scheduledAt) < new Date()
   );
 
-  const handleEdit = (meeting: Meeting) => {
-    setEditingMeeting(meeting);
+  const handleEdit = async (meeting: Meeting) => {
+    try {
+      const full = await db.entities.Meeting.get(String((meeting as any).id));
+      setEditingMeeting(full as any);
+    } catch (e: any) {
+      // Fallback: open with whatever we already have.
+      setEditingMeeting(meeting);
+      toast.error(e?.message || "Failed to load meeting for editing");
+    }
     setDialogOpen(true);
   };
 

@@ -204,6 +204,30 @@ export default function MeetingDialog({
     saveMutation.mutate(formData);
   };
 
+  const clientSelectValue = React.useMemo(() => {
+    const fromForm = String((formData as any).clientId ?? "").trim();
+    if (fromForm) return fromForm;
+    const fromMeeting = String((meeting as any)?.clientId ?? "").trim();
+    return fromMeeting;
+  }, [formData, meeting]);
+
+  const hasClientOption = React.useMemo(() => {
+    if (!clientSelectValue) return true; // placeholder
+    if (clientSelectValue === PROSPECT_CLIENT_ID) return true;
+    return (clients ?? []).some(
+      (c) => String((c as any)?.id ?? "").trim() === clientSelectValue
+    );
+  }, [clients, clientSelectValue]);
+
+  const selectedClientName = React.useMemo(() => {
+    if (!clientSelectValue) return "";
+    if (clientSelectValue === PROSPECT_CLIENT_ID) return PROSPECT_CLIENT_LABEL;
+    const found = (clients ?? []).find(
+      (c) => String((c as any)?.id ?? "").trim() === clientSelectValue
+    );
+    return String((found as any)?.name ?? "").trim();
+  }, [clients, clientSelectValue]);
+
   return (
     <SidePanel
       open={open}
@@ -379,16 +403,21 @@ export default function MeetingDialog({
             Client
           </label>
           <Select
-            value={String(formData.clientId ?? "")}
+            value={clientSelectValue}
             onValueChange={(v) => {
               if (validationError) setValidationError(null);
-              setFormData({ ...formData, clientId: v });
+              setFormData({ ...formData, clientId: String(v ?? "").trim() });
             }}
           >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Select client" />
             </SelectTrigger>
             <SelectContent>
+              {clientSelectValue && !hasClientOption ? (
+                <SelectItem value={clientSelectValue}>
+                  {selectedClientName || `Client (${clientSelectValue})`}
+                </SelectItem>
+              ) : null}
               <SelectItem value={PROSPECT_CLIENT_ID}>
                 {PROSPECT_CLIENT_LABEL}
               </SelectItem>
