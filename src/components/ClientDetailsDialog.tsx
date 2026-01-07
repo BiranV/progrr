@@ -87,6 +87,9 @@ export default function ClientDetailsDialog({
     null
   );
   const [removeImageOpen, setRemoveImageOpen] = React.useState(false);
+  const [statusUpdating, setStatusUpdating] = React.useState<string | null>(
+    null
+  );
 
   // Reset editing state when dialog opens/closes or client changes
   React.useEffect(() => {
@@ -251,18 +254,28 @@ export default function ClientDetailsDialog({
     action: (id: string) => Promise<any>,
     label: string,
     targetStatus: string,
+    actionKey: string,
     confirmMsg?: string
   ) => {
     if (confirmMsg && !confirm(confirmMsg)) return;
+    setStatusUpdating(actionKey);
     try {
       await action(client!.id);
       toast.success(`Client ${label} successfully`);
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       onClientUpdate?.();
       router.refresh();
-      if (targetStatus === "DELETED") onOpenChange(false);
+      if (
+        targetStatus === "DELETED" ||
+        targetStatus === "BLOCKED" ||
+        targetStatus === "INACTIVE"
+      ) {
+        onOpenChange(false);
+      }
     } catch (err: any) {
       toast.error(err.message || "Failed to update status");
+    } finally {
+      setStatusUpdating(null);
     }
   };
 
@@ -406,17 +419,23 @@ export default function ClientDetailsDialog({
                 </div>
                 <Button
                   variant="outline"
-                  className="w-full justify-start h-auto py-2.5"
+                  className="w-full justify-start h-auto py-2.5 cursor-pointer"
+                  disabled={statusUpdating !== null}
                   onClick={() =>
                     handleStatusAction(
                       activateClientAction,
                       "restored",
                       "ACTIVE",
+                      "restore",
                       "Are you sure you want to restore this client? They will regain access immediately."
                     )
                   }
                 >
-                  <RotateCcw className="w-4 h-4 mr-2 text-green-600" />
+                  {statusUpdating === "restore" ? (
+                    <Loader2 className="w-4 h-4 mr-2 text-green-600 animate-spin" />
+                  ) : (
+                    <RotateCcw className="w-4 h-4 mr-2 text-green-600" />
+                  )}
                   <span>Restore Client</span>
                 </Button>
               </div>
@@ -438,63 +457,87 @@ export default function ClientDetailsDialog({
                     {status !== "ACTIVE" && (
                       <Button
                         variant="outline"
-                        className="justify-start h-auto py-2.5"
+                        className="justify-start h-auto py-2.5 cursor-pointer"
+                        disabled={statusUpdating !== null}
                         onClick={() =>
                           handleStatusAction(
                             activateClientAction,
                             "activated",
-                            "ACTIVE"
+                            "ACTIVE",
+                            "activate"
                           )
                         }
                       >
-                        <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                        {statusUpdating === "activate" ? (
+                          <Loader2 className="w-4 h-4 mr-2 text-green-600 animate-spin" />
+                        ) : (
+                          <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                        )}
                         <span>Activate Access</span>
                       </Button>
                     )}
                     {status === "ACTIVE" && (
                       <Button
                         variant="outline"
-                        className="justify-start h-auto py-2.5"
+                        className="justify-start h-auto py-2.5 cursor-pointer"
+                        disabled={statusUpdating !== null}
                         onClick={() =>
                           handleStatusAction(
                             deactivateClientAction,
                             "deactivated",
-                            "INACTIVE"
+                            "INACTIVE",
+                            "deactivate"
                           )
                         }
                       >
-                        <PauseCircle className="w-4 h-4 mr-2 text-orange-500" />
+                        {statusUpdating === "deactivate" ? (
+                          <Loader2 className="w-4 h-4 mr-2 text-orange-500 animate-spin" />
+                        ) : (
+                          <PauseCircle className="w-4 h-4 mr-2 text-orange-500" />
+                        )}
                         <span>Deactivate</span>
                       </Button>
                     )}
                     {status === "BLOCKED" ? (
                       <Button
                         variant="outline"
-                        className="justify-start h-auto py-2.5"
+                        className="justify-start h-auto py-2.5 cursor-pointer"
+                        disabled={statusUpdating !== null}
                         onClick={() =>
                           handleStatusAction(
                             unblockClientAction,
                             "unblocked",
-                            "ACTIVE"
+                            "ACTIVE",
+                            "unblock"
                           )
                         }
                       >
-                        <ShieldAlert className="w-4 h-4 mr-2 text-amber-500" />
+                        {statusUpdating === "unblock" ? (
+                          <Loader2 className="w-4 h-4 mr-2 text-amber-500 animate-spin" />
+                        ) : (
+                          <ShieldAlert className="w-4 h-4 mr-2 text-amber-500" />
+                        )}
                         <span>Unblock</span>
                       </Button>
                     ) : (
                       <Button
                         variant="outline"
-                        className="justify-start h-auto py-2.5"
+                        className="justify-start h-auto py-2.5 cursor-pointer"
+                        disabled={statusUpdating !== null}
                         onClick={() =>
                           handleStatusAction(
                             blockClientAction,
                             "blocked",
-                            "BLOCKED"
+                            "BLOCKED",
+                            "block"
                           )
                         }
                       >
-                        <Ban className="w-4 h-4 mr-2 text-red-500" />
+                        {statusUpdating === "block" ? (
+                          <Loader2 className="w-4 h-4 mr-2 text-red-500 animate-spin" />
+                        ) : (
+                          <Ban className="w-4 h-4 mr-2 text-red-500" />
+                        )}
                         <span>Block Access</span>
                       </Button>
                     )}
@@ -503,17 +546,23 @@ export default function ClientDetailsDialog({
 
                 <Button
                   variant="outline"
-                  className="justify-start h-auto py-2.5 hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:hover:bg-red-900/20"
+                  className="justify-start h-auto py-2.5 hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:hover:bg-red-900/20 cursor-pointer"
+                  disabled={statusUpdating !== null}
                   onClick={() =>
                     handleStatusAction(
                       deleteClientAction,
                       "deleted",
                       "DELETED",
+                      "delete",
                       "Are you sure you want to delete this client? They will lose access immediately."
                     )
                   }
                 >
-                  <Trash2 className="w-4 h-4 mr-2" />
+                  {statusUpdating === "delete" ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4 mr-2" />
+                  )}
                   <span>Delete Client</span>
                 </Button>
               </>
@@ -677,19 +726,19 @@ export default function ClientDetailsDialog({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Birth Date *</label>
+            <label className="text-sm font-medium">Birth Date</label>
             <Input type="date" {...getInputProps("birthDate")} />
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Gender *</label>
+            <label className="text-sm font-medium">Gender</label>
             <Select
               value={formData.gender}
               onValueChange={(v) =>
                 setFormData((p: any) => ({ ...p, gender: v }))
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select gender" />
               </SelectTrigger>
               <SelectContent>
@@ -701,24 +750,24 @@ export default function ClientDetailsDialog({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Height (cm) *</label>
+            <label className="text-sm font-medium">Height (cm)</label>
             <Input type="number" {...getInputProps("height")} />
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Weight (kg) *</label>
+            <label className="text-sm font-medium">Weight (kg)</label>
             <Input type="number" {...getInputProps("weight")} />
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Goal *</label>
+            <label className="text-sm font-medium">Goal</label>
             <Select
               value={formData.goal}
               onValueChange={(v) =>
                 setFormData((p: any) => ({ ...p, goal: v }))
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select goal" />
               </SelectTrigger>
               <SelectContent>
@@ -734,14 +783,14 @@ export default function ClientDetailsDialog({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Activity Level *</label>
+            <label className="text-sm font-medium">Activity Level</label>
             <Select
               value={formData.activityLevel}
               onValueChange={(v) =>
                 setFormData((p: any) => ({ ...p, activityLevel: v }))
               }
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select activity" />
               </SelectTrigger>
               <SelectContent>
@@ -959,7 +1008,8 @@ function normalizeActivityLevel(value: unknown): string {
   if (raw.includes("moderate")) return "moderate";
   if (raw.includes("very")) return "very";
   if (raw.includes("extra")) return "extra";
-  return "active";
+  if (raw.includes("active")) return "active";
+  return "";
 }
 
 function normalizeGoal(value: unknown): string {
