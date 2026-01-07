@@ -707,7 +707,7 @@ async function updateClientStatus(
   if (newStatus === "DELETED") {
     updateData["data.deletedBy"] = "ADMIN";
     updateData["data.deletedAt"] = now.toISOString();
-  } else if (newStatus === "ACTIVE") {
+  } else if (newStatus === "ACTIVE" || newStatus === "PENDING") {
     updateData["data.deletedBy"] = null;
     updateData["data.deletedAt"] = null;
   }
@@ -745,4 +745,8 @@ export async function unblockClientAction(id: string) {
 
 export async function deleteClientAction(id: string) {
   return updateClientStatus(id, "DELETED");
+}
+
+export async function restoreClientAction(id: string) {
+  return updateClientStatus(id, "PENDING");
 }

@@ -57,6 +57,7 @@ import {
   unblockClientAction,
   deleteClientAction,
   resendClientInviteAction,
+  restoreClientAction,
   ClientFormData,
 } from "@/app/actions/client-management";
 import { Client } from "@/types";
@@ -430,11 +431,10 @@ export default function ClientDetailsDialog({
                   disabled={statusUpdating !== null}
                   onClick={() =>
                     handleStatusAction(
-                      activateClientAction,
+                      restoreClientAction,
                       "restored",
-                      "ACTIVE",
-                      "restore",
-                      "Are you sure you want to restore this client? They will regain access immediately."
+                      "PENDING",
+                      "restore"
                     )
                   }
                 >
@@ -445,6 +445,10 @@ export default function ClientDetailsDialog({
                   )}
                   <span>Restore Client</span>
                 </Button>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Their status will be set to Pending and you can resend their
+                  invite.
+                </p>
               </div>
             ) : (
               <>
