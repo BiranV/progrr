@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -280,6 +281,7 @@ export default function AdminAuthStep({
           className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
           onClick={onBack}
         >
+          <ArrowLeft className="w-4 h-4" />
           Back
         </button>
       </div>
