@@ -21,6 +21,7 @@ import {
   Apple,
   Settings,
   LogOut,
+  Loader2,
   Menu,
   X,
   Moon,
@@ -33,6 +34,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const renderAuthSpinner = () => {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-600 dark:text-gray-300" />
+          {/* <div className="text-sm text-gray-600 dark:text-gray-300">
+            Loading…
+          </div> */}
+        </div>
+      </div>
+    );
+  };
 
   const isAuthEntryPath =
     pathname === "/" ||
@@ -86,14 +100,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <img
-          src="/logo.png"
-          className="h-20 w-20 animate-zoom-in-out object-contain"
-        />
-      </div>
-    );
+    return renderAuthSpinner();
   }
 
   // Client-side hard guard: avoid rendering auth pages inside the authenticated shell.
@@ -145,7 +152,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       pathname.startsWith("/auth"); // Add other public paths if needed
 
     if (!user && !isPublic) {
-      return null; // Render nothing while redirecting
+      // Render a spinner while we wait for navigation to /auth.
+      // This prevents a "flash" of a previously cached/visible protected screen.
+      return renderAuthSpinner();
     }
 
     return <div className="min-h-screen bg-gray-50">{children}</div>;

@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEffect, useMemo, useState } from "react";
+import { Loader2 } from "lucide-react";
 
 import AuthShell from "../auth/_components/AuthShell";
 import AuthBanner from "../auth/_components/AuthBanner";
@@ -22,6 +23,7 @@ export default function InviteClient({
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState<string>("");
   const [code, setCode] = useState<string>("");
+  const [hasRequestedCode, setHasRequestedCode] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -43,10 +45,13 @@ export default function InviteClient({
         if (cancelled) return;
         setEmail(String(data?.email ?? ""));
         setStatus("ready");
+        setCode("");
+        setHasRequestedCode(false);
       } catch (e: any) {
         if (cancelled) return;
         setStatus("error");
         setError(e?.message || "Invalid or expired link");
+        setHasRequestedCode(false);
       }
     })();
 
@@ -70,10 +75,12 @@ export default function InviteClient({
         throw new Error(data?.error || `Failed to send (${res.status})`);
       }
 
+      setHasRequestedCode(true);
       setStatus("ready");
     } catch (e: any) {
       setStatus("error");
       setError(e?.message || "Failed to send code");
+      setHasRequestedCode(false);
     }
   };
 
@@ -119,8 +126,6 @@ export default function InviteClient({
             banner={
               error
                 ? { type: "error", text: error }
-                : status === "sending"
-                ? { type: "message", text: "Sending verification code..." }
                 : status === "verifying"
                 ? { type: "message", text: "Verifying code..." }
                 : null
@@ -132,9 +137,15 @@ export default function InviteClient({
               This invite link is missing required information.
             </p>
           ) : status === "loading" ? (
-            <p className="text-sm text-gray-600 dark:text-gray-300 text-center">
-              Please wait while we validate your invitation.
-            </p>
+            <div className="flex flex-col items-center justify-center gap-3 py-2">
+              <Loader2
+                className="h-6 w-6 animate-spin text-gray-600 dark:text-gray-300"
+                aria-label="Validating invitation"
+              />
+              <p className="text-sm text-gray-600 dark:text-gray-300 text-center">
+                Please wait while we validate your invitation.
+              </p>
+            </div>
           ) : status === "success" ? (
             <p className="text-sm text-gray-600 dark:text-gray-300 text-center">
               Redirecting…
@@ -161,30 +172,43 @@ export default function InviteClient({
                 disabled={status === "sending"}
                 onClick={() => void sendCode()}
               >
-                {status === "sending" ? "Sending..." : "Send code"}
+                {status === "sending" ? (
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Sending…
+                  </span>
+                ) : (
+                  "Send code"
+                )}
               </Button>
 
-              <div className="space-y-2">
-                <div className="text-xs text-gray-500 dark:text-gray-400">
-                  Verification code
-                </div>
-                <OtpInput
-                  id="invite_code"
-                  name="invite_code"
-                  length={6}
-                  value={code}
-                  onChange={setCode}
-                  disabled={status === "verifying"}
-                />
-              </div>
+              {hasRequestedCode ? (
+                <>
+                  <div className="space-y-2">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Verification code
+                    </div>
+                    <OtpInput
+                      id="invite_code"
+                      name="invite_code"
+                      length={6}
+                      value={code}
+                      onChange={setCode}
+                      disabled={status === "verifying"}
+                    />
+                  </div>
 
-              <Button
-                className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg"
-                disabled={status === "verifying" || !String(code).trim()}
-                onClick={() => void verify()}
-              >
-                {status === "verifying" ? "Verifying..." : "Verify & Continue"}
-              </Button>
+                  <Button
+                    className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg"
+                    disabled={status === "verifying" || !String(code).trim()}
+                    onClick={() => void verify()}
+                  >
+                    {status === "verifying"
+                      ? "Verifying..."
+                      : "Verify & Continue"}
+                  </Button>
+                </>
+              ) : null}
             </div>
           )}
 
