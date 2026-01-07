@@ -703,7 +703,7 @@ function ClientDashboard({ user }: { user: any }) {
 
   const handleClientDeleteAccount = async () => {
     if (deletePending) return;
-    if (deleteConfirmText.trim().toUpperCase() !== "DELETE") {
+    if (deleteConfirmText !== "DELETE") {
       toast.error("Type DELETE to confirm.");
       return;
     }
@@ -1897,21 +1897,38 @@ function ClientDashboard({ user }: { user: any }) {
                         </DialogDescription>
                       </DialogHeader>
 
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">
-                          Type DELETE to confirm
-                        </label>
-                        <Input
-                          value={deleteConfirmText}
-                          onChange={(e) => setDeleteConfirmText(e.target.value)}
-                          placeholder="DELETE"
-                          disabled={deletePending}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          For security, deletion requires recent authentication.
-                          If needed, log out and log back in, then retry within
-                          10 minutes.
-                        </p>
+                      <div className="space-y-3">
+                        <div className="p-4 border border-red-200 bg-red-50 dark:bg-red-900/10 rounded-lg space-y-3">
+                          <div className="space-y-1">
+                            <div className="text-sm font-semibold text-red-900 dark:text-red-100">
+                              Delete this account?
+                            </div>
+                            <div className="text-xs text-red-800 dark:text-red-200 leading-relaxed">
+                              Deleting this account will permanently remove your
+                              data and credentials. This action cannot be
+                              undone.
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">
+                            Type DELETE to confirm
+                          </label>
+                          <Input
+                            value={deleteConfirmText}
+                            onChange={(e) =>
+                              setDeleteConfirmText(e.target.value)
+                            }
+                            placeholder="DELETE"
+                            disabled={deletePending}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            For security, deletion requires recent
+                            authentication. If needed, log out and log back in,
+                            then retry within 10 minutes.
+                          </p>
+                        </div>
                       </div>
 
                       <DialogFooter>
@@ -1928,8 +1945,7 @@ function ClientDashboard({ user }: { user: any }) {
                           variant="destructive"
                           onClick={handleClientDeleteAccount}
                           disabled={
-                            deletePending ||
-                            deleteConfirmText.trim().toUpperCase() !== "DELETE"
+                            deletePending || deleteConfirmText !== "DELETE"
                           }
                         >
                           {deletePending

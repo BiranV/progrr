@@ -57,11 +57,7 @@ export async function POST(req: Request) {
     }
 
     const parsed = bodySchema.parse(await req.json().catch(() => ({})));
-    if (
-      String(parsed.confirm || "")
-        .trim()
-        .toUpperCase() !== "DELETE"
-    ) {
+    if (String(parsed.confirm || "") !== "DELETE") {
       return NextResponse.json(
         { error: "Type DELETE to confirm account deletion." },
         { status: 400 }

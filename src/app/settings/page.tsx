@@ -168,7 +168,7 @@ export default function SettingsPage() {
 
   const handleDeleteAccount = async () => {
     if (deletePending) return;
-    if (deleteConfirmText.trim().toUpperCase() !== "DELETE") {
+    if (deleteConfirmText !== "DELETE") {
       toast.error("Type DELETE to confirm.");
       return;
     }
