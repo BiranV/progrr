@@ -1867,21 +1867,22 @@ function ClientDashboard({ user }: { user: any }) {
 
                   <Card className="dark:bg-gray-800 dark:border-gray-700">
                     <CardHeader>
-                      <CardTitle>Danger Zone</CardTitle>
+                      <CardTitle>Account Actions</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Permanently delete your account. This is irreversible.
+                        Remove your account from active use.
                       </p>
                       <Button
                         type="button"
-                        variant="destructive"
+                        variant="outline"
+                        className="text-red-600 border-red-200 hover:bg-red-50 dark:border-red-900/40 dark:text-red-400 dark:hover:bg-red-900/10"
                         onClick={() => {
                           setDeleteConfirmText("");
                           setDeleteOpen(true);
                         }}
                       >
-                        Delete Account
+                        Archive / Delete
                       </Button>
                     </CardContent>
                   </Card>
@@ -1891,22 +1892,25 @@ function ClientDashboard({ user }: { user: any }) {
                       <DialogHeader>
                         <DialogTitle>Delete your account?</DialogTitle>
                         <DialogDescription>
-                          Deleting your account will permanently remove all your
-                          data and access to Progrr. This action cannot be
-                          undone.
+                          Your account will be deactivated and you will lose
+                          access.
                         </DialogDescription>
                       </DialogHeader>
 
                       <div className="space-y-3">
-                        <div className="p-4 border border-red-200 bg-red-50 dark:bg-red-900/10 rounded-lg space-y-3">
+                        <div className="p-4 border border-orange-200 bg-orange-50 dark:bg-orange-900/10 rounded-lg space-y-3">
                           <div className="space-y-1">
-                            <div className="text-sm font-semibold text-red-900 dark:text-red-100">
-                              Delete this account?
+                            <div className="text-sm font-semibold text-orange-900 dark:text-orange-100">
+                              Deactivate account?
                             </div>
-                            <div className="text-xs text-red-800 dark:text-red-200 leading-relaxed">
-                              Deleting this account will permanently remove your
-                              data and credentials. This action cannot be
-                              undone.
+                            <div className="text-xs text-orange-800 dark:text-orange-200 leading-relaxed">
+                              Your data will be preserved but you will lose
+                              access essentially immediately. You can contact
+                              your coach to restore your account later.
+                            </div>
+                            <div className="text-xs text-orange-800 dark:text-orange-200 leading-relaxed pt-1">
+                              If you would like to permanently delete your data,
+                              please contact your admin.
                             </div>
                           </div>
                         </div>

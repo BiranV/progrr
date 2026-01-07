@@ -58,6 +58,7 @@ import {
   deleteClientAction,
   resendClientInviteAction,
   restoreClientAction,
+  permanentlyDeleteClientAction,
   ClientFormData,
 } from "@/app/actions/client-management";
 import { Client } from "@/types";
@@ -414,40 +415,116 @@ export default function ClientDetailsDialog({
             {status === "DELETED" ? (
               <div className="col-span-1 sm:col-span-2 space-y-3">
                 <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex items-start gap-3">
-                  <Trash2 className="w-5 h-5 text-gray-500 shrink-0 mt-0.5" />
+                  <Archive className="w-5 h-5 text-gray-500 shrink-0 mt-0.5" />
                   <div className="text-sm text-gray-600 dark:text-gray-300">
                     <p className="font-medium text-gray-900 dark:text-gray-100">
-                      Account Deleted
+                      Client Archived
                     </p>
                     <p className="mt-1">
-                      This client has been deleted. Restore the account to grant
-                      access again.
+                      This client is currently in the deleted list (soft
+                      delete). Data is preserved.
                     </p>
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start h-auto py-2.5 cursor-pointer"
-                  disabled={statusUpdating !== null}
-                  onClick={() =>
-                    handleStatusAction(
-                      restoreClientAction,
-                      "restored",
-                      "PENDING",
-                      "restore"
-                    )
-                  }
-                >
-                  {statusUpdating === "restore" ? (
-                    <Loader2 className="w-4 h-4 mr-2 text-green-600 animate-spin" />
-                  ) : (
-                    <RotateCcw className="w-4 h-4 mr-2 text-green-600" />
-                  )}
-                  <span>Restore Client</span>
-                </Button>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    variant="outline"
+                    className="justify-start h-auto py-2.5 cursor-pointer"
+                    disabled={statusUpdating !== null}
+                    onClick={() =>
+                      handleStatusAction(
+                        restoreClientAction,
+                        "restored",
+                        "PENDING",
+                        "restore"
+                      )
+                    }
+                  >
+                    {statusUpdating === "restore" ? (
+                      <Loader2 className="w-4 h-4 mr-2 text-green-600 animate-spin" />
+                    ) : (
+                      <RotateCcw className="w-4 h-4 mr-2 text-green-600" />
+                    )}
+                    <span>Restore Client</span>
+                  </Button>
+
+                  <Button
+                    variant="destructive"
+                    className="justify-start h-auto py-2.5 cursor-pointer bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 dark:bg-red-900/10 dark:hover:bg-red-900/20"
+                    disabled={statusUpdating !== null}
+                    onClick={() => setShowDeleteConfirm(true)}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    <span>Permanently Delete</span>
+                  </Button>
+                </div>
+
+                {showDeleteConfirm && (
+                  <div className="p-4 border border-red-200 bg-red-50 dark:bg-red-900/10 rounded-lg space-y-3 mt-4">
+                    <div className="space-y-1">
+                      <div className="text-sm font-semibold text-red-900 dark:text-red-100 flex items-center gap-2">
+                        <ShieldAlert className="w-4 h-4" />
+                        Danger Zone: Permanent Deletion
+                      </div>
+                      <div className="text-xs text-red-800 dark:text-red-200 leading-relaxed font-medium">
+                        This action CANNOT be undone. All data will be
+                        physically removed from the database.
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold uppercase text-red-600 dark:text-red-400">
+                        Type DELETE to confirm
+                      </label>
+                      <Input
+                        value={deleteConfirmText}
+                        onChange={(e) => setDeleteConfirmText(e.target.value)}
+                        placeholder="DELETE"
+                        className="bg-white dark:bg-black/20"
+                      />
+                    </div>
+
+                    <div className="flex gap-2 justify-end pt-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setShowDeleteConfirm(false);
+                          setDeleteConfirmText("");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={
+                          deleteConfirmText !== "DELETE" ||
+                          statusUpdating !== null
+                        }
+                        onClick={() =>
+                          handleStatusAction(
+                            permanentlyDeleteClientAction,
+                            "permanently deleted",
+                            "DELETED",
+                            "permanent_delete"
+                          )
+                        }
+                      >
+                        {statusUpdating === "permanent_delete" ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4 mr-2" />
+                        )}
+                        Confirm Permanent Delete
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Their status will be set to Pending and you can resend their
-                  invite.
+                  Restoring will set status to Pending.
                 </p>
               </div>
             ) : (
@@ -578,27 +655,16 @@ export default function ClientDetailsDialog({
                 )}
 
                 {showDeleteConfirm ? (
-                  <div className="p-4 border border-red-200 bg-red-50 dark:bg-red-900/10 rounded-lg space-y-3">
+                  <div className="p-4 border border-orange-200 bg-orange-50 dark:bg-orange-900/10 rounded-lg space-y-3 col-span-1 sm:col-span-2">
                     <div className="space-y-1">
-                      <div className="text-sm font-semibold text-red-900 dark:text-red-100">
-                        Delete this client?
+                      <div className="text-sm font-semibold text-orange-900 dark:text-orange-100 flex items-center gap-2">
+                        <Archive className="w-4 h-4" />
+                        Remove from active use?
                       </div>
-                      <div className="text-xs text-red-800 dark:text-red-200 leading-relaxed">
-                        Deleting this client will permanently remove their data
-                        and credentials. This action cannot be undone.
+                      <div className="text-xs text-orange-800 dark:text-orange-200 leading-relaxed">
+                        This client will be moved to the Deleted list. You can
+                        restore them later if needed.
                       </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold uppercase text-red-600 dark:text-red-400">
-                        Type DELETE to confirm
-                      </label>
-                      <Input
-                        value={deleteConfirmText}
-                        onChange={(e) => setDeleteConfirmText(e.target.value)}
-                        placeholder="DELETE"
-                        className="bg-white dark:bg-black/20"
-                      />
                     </div>
 
                     <div className="flex gap-2 justify-end pt-1">
@@ -613,39 +679,37 @@ export default function ClientDetailsDialog({
                         Cancel
                       </Button>
                       <Button
-                        variant="destructive"
+                        variant="default"
+                        className="bg-orange-600 hover:bg-orange-700 text-white"
                         size="sm"
-                        disabled={
-                          deleteConfirmText !== "DELETE" ||
-                          statusUpdating !== null
-                        }
+                        disabled={statusUpdating !== null}
                         onClick={() =>
                           handleStatusAction(
                             deleteClientAction,
-                            "deleted",
+                            "archived",
                             "DELETED",
-                            "delete"
+                            "soft_delete"
                           )
                         }
                       >
-                        {statusUpdating === "delete" ? (
+                        {statusUpdating === "soft_delete" ? (
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         ) : (
-                          <Trash2 className="w-4 h-4 mr-2" />
+                          <Archive className="w-4 h-4 mr-2" />
                         )}
-                        Confirm Delete
+                        Archive Client
                       </Button>
                     </div>
                   </div>
                 ) : (
                   <Button
                     variant="outline"
-                    className="justify-start h-auto py-2.5 hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:hover:bg-red-900/20 cursor-pointer"
+                    className="justify-start h-auto py-2.5 hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-800 cursor-pointer"
                     disabled={statusUpdating !== null}
                     onClick={() => setShowDeleteConfirm(true)}
                   >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    <span>Delete Client</span>
+                    <Archive className="w-4 h-4 mr-2" />
+                    <span>Archive / Delete</span>
                   </Button>
                 )}
               </>

@@ -128,15 +128,8 @@ export async function POST(req: Request) {
       const clientData = (clientEntity?.data ?? {}) as any;
       const clientName = String(clientData?.name ?? "").trim() || globalName;
 
-      // Remove all messages first (privacy), then insert a system notification.
-      await c.entities.deleteMany({
-        adminId,
-        entity: "Message",
-        "data.clientId": clientEntityId,
-      });
-
-      // Remove other client-scoped entities (meetings, schedules, etc).
-      await c.entities.deleteMany({ adminId, "data.clientId": clientEntityId });
+      // SOFT DELETE: Preserve data for restoration/auditing.
+      // Do NOT delete messages or related entities.
 
       // Anonymize client profile record while keeping a placeholder.
       // UPDATED: Instead of destroying the record completely, we mark it as DELETED status
@@ -147,30 +140,16 @@ export async function POST(req: Request) {
           $set: {
             data: {
               ...clientData,
-              // Keep name/email so admin knows who it was (requirement: "Sees the client with DELETED chip")
-              // But ensure they can't log in (handled by status=DELETED and relation removal below)
               status: "DELETED",
               deletedBy: "CLIENT",
               deletedAt: now.toISOString(),
-              isDeleted: true,
-
-              // Clear auth linkages but keep identifying info for the admin log
-              clientAuthId: null,
-              // userId: null, // Keep userId for history? Relation deletion prevents login anyway.
             },
             updatedAt: now,
           },
         }
       );
 
-      // Also update the Relation status before deleting it?
-      // The requirement says "status = DELETED".
-      // But we are deleting the relation entirely below.
-      // If we delete the relation, they disappear from the admin's relationship list?
-      // "Tables: Deleted clients table Shows only: status = DELETED"
-      // This implies the record must persist.
-      // So we should NOT delete the relation, but update it to DELETED.
-
+      // Update Relation status to DELETED (Soft Delete)
       await c.clientAdminRelations.updateOne(
         { userId: clientAuthId, adminId },
         {
@@ -187,7 +166,7 @@ export async function POST(req: Request) {
       ].filter(Boolean);
       const text = `${labelParts.join(
         " "
-      )} has permanently deleted their account.`;
+      )} has deactivated their account (Soft Delete).`;
 
       await c.entities.insertOne({
         entity: "Message",

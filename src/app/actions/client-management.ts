@@ -750,3 +750,61 @@ export async function deleteClientAction(id: string) {
 export async function restoreClientAction(id: string) {
   return updateClientStatus(id, "PENDING");
 }
+
+export async function permanentlyDeleteClientAction(id: string) {
+  const adminUser = await requireAppUser();
+  if (adminUser.role !== "admin") throw new Error("Unauthorized");
+
+  await ensureIndexes();
+  const c = await collections();
+
+  if (!ObjectId.isValid(id)) throw new Error("Invalid ID");
+  const entityId = new ObjectId(id);
+  const adminId = new ObjectId(adminUser.id);
+
+  const existing = await c.entities.findOne({
+    _id: entityId,
+    entity: "Client",
+    adminId,
+  });
+  if (!existing) throw new Error("Client not found");
+
+  // Ensure client is already soft-deleted before allowing permanent delete
+  // This is a safety check to enforce the two-step process
+  if ((existing.data as any)?.status !== "DELETED") {
+    throw new Error(
+      "Client must be soft-deleted (archived) before permanent deletion."
+    );
+  }
+
+  const oldData: any = existing.data || {};
+  const authIdStr = String(oldData.clientAuthId ?? oldData.userId ?? "");
+
+  // Delete Entity
+  await c.entities.deleteOne({ _id: entityId });
+
+  // Delete Global Auth Record if it exists & Relation
+  if (ObjectId.isValid(authIdStr)) {
+    const authObjectId = new ObjectId(authIdStr);
+
+    // Check if this auth user is used by other admins (unlikely in current model but good practice)
+    const relationsCount = await c.clientAdminRelations.countDocuments({
+      userId: authObjectId,
+      adminId: { $ne: adminId },
+    });
+
+    // Delete relation
+    await c.clientAdminRelations.deleteOne({
+      userId: authObjectId,
+      adminId,
+    });
+
+    // Only delete the global auth user if no other admins are related to it
+    if (relationsCount === 0) {
+      await c.clients.deleteOne({ _id: authObjectId });
+    }
+  }
+
+  revalidatePath("/clients");
+  return { success: true };
+}
