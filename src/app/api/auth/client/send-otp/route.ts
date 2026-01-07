@@ -64,11 +64,41 @@ export async function POST(req: Request) {
     // If the client has no active coaches (all deleted/blocked), do not send OTP.
     const resolved = await resolveClientAdminContext({ c, user: client });
     if (resolved.needsSelection) {
-      const message =
-        resolved.reason === "NO_RELATIONS" ||
-        resolved.reason === "NO_ACTIVE_RELATIONS"
-          ? "Your account is not connected to any coach."
-          : "Your account no longer has access to this platform. Please contact your coach.";
+      let message =
+        "Your account no longer has access to this platform. Please contact your coach.";
+
+      // Check specific statuses for better error messages
+      if (
+        resolved.reason === "NO_ACTIVE_RELATIONS" ||
+        resolved.reason === "NO_RELATIONS"
+      ) {
+        // Query explicit status to give better feedback
+        const rels = await c.clientAdminRelations
+          .find({ userId: client._id })
+          .toArray();
+
+        const isBlocked = rels.some(
+          (r) => String((r as any).status).toUpperCase() === "BLOCKED"
+        );
+        const isDeleted = rels.some(
+          (r) => String((r as any).status).toUpperCase() === "DELETED"
+        );
+        const isInactive = rels.some(
+          (r) => String((r as any).status).toUpperCase() === "INACTIVE"
+        );
+
+        if (isBlocked) {
+          message = "Your account has been blocked. Please contact your coach.";
+        } else if (isDeleted) {
+          message = "Your account has been deleted.";
+        } else if (isInactive) {
+          message =
+            "Your account is inactive. Please contact your coach to reactivate it.";
+        } else if (rels.length === 0) {
+          message = "Your account is not connected to any coach.";
+        }
+      }
+
       return NextResponse.json(
         {
           error: message,

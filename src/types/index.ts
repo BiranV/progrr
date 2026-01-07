@@ -66,7 +66,7 @@ export interface Client {
   goal: string;
   activityLevel: string;
   subscription?: string;
-  status: string;
+  status: "PENDING" | "ACTIVE" | "INACTIVE" | "BLOCKED" | "DELETED";
   notes?: string;
   // Backward-compatible single assignments
   assignedPlanId?: string;

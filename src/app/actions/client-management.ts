@@ -245,6 +245,11 @@ export async function createClientAction(data: ClientFormData) {
   if (existingByPhoneOrEmail) {
     const existingData: any = existingByPhoneOrEmail.data ?? {};
     if (email && normalizeEmail(existingData.email) === email) {
+      if (existingData.status === "DELETED") {
+        throw new Error(
+          "This email belongs to a deleted client. Please find them in the list and restore their account."
+        );
+      }
       throw new Error("A client with this email already exists");
     }
     throw new Error("A client with this email already exists");
@@ -572,4 +577,75 @@ export async function updateClientAction(id: string, data: ClientFormData) {
 
   revalidatePath("/clients");
   return { success: true };
+}
+
+async function updateClientStatus(
+  entityIdStr: string,
+  newStatus: "ACTIVE" | "INACTIVE" | "BLOCKED" | "DELETED" | "PENDING"
+) {
+  const adminUser = await requireAppUser();
+  if (adminUser.role !== "admin") throw new Error("Unauthorized");
+
+  await ensureIndexes();
+  const c = await collections();
+
+  if (!ObjectId.isValid(entityIdStr)) throw new Error("Invalid ID");
+  const entityId = new ObjectId(entityIdStr);
+  const adminId = new ObjectId(adminUser.id);
+
+  const existing = await c.entities.findOne({
+    _id: entityId,
+    entity: "Client",
+    adminId,
+  });
+  if (!existing) throw new Error("Client not found");
+
+  const oldData: any = existing.data || {};
+  const authIdStr = String(oldData.clientAuthId ?? oldData.userId ?? "");
+
+  const now = new Date();
+
+  const updateData: any = { "data.status": newStatus, updatedAt: now };
+
+  if (newStatus === "DELETED") {
+    updateData["data.deletedBy"] = "ADMIN";
+    updateData["data.deletedAt"] = now.toISOString();
+  } else if (newStatus === "ACTIVE") {
+    updateData["data.deletedBy"] = null;
+    updateData["data.deletedAt"] = null;
+  }
+
+  await c.entities.updateOne({ _id: entityId }, { $set: updateData });
+
+  // Sync Relation Status
+  if (ObjectId.isValid(authIdStr)) {
+    const authObjectId = new ObjectId(authIdStr);
+    await c.clientAdminRelations.updateOne(
+      { userId: authObjectId, adminId },
+      { $set: { status: newStatus, updatedAt: now } } // Sync usage
+    );
+  }
+
+  revalidatePath("/clients");
+  return { success: true };
+}
+
+export async function activateClientAction(id: string) {
+  return updateClientStatus(id, "ACTIVE");
+}
+
+export async function deactivateClientAction(id: string) {
+  return updateClientStatus(id, "INACTIVE");
+}
+
+export async function blockClientAction(id: string) {
+  return updateClientStatus(id, "BLOCKED");
+}
+
+export async function unblockClientAction(id: string) {
+  return updateClientStatus(id, "ACTIVE");
+}
+
+export async function deleteClientAction(id: string) {
+  return updateClientStatus(id, "DELETED");
 }

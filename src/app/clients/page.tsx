@@ -2,7 +2,7 @@
 
 import React from "react";
 import { db } from "@/lib/db";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,29 +28,23 @@ import {
   VenusAndMars,
   Ban,
   Trash2,
-  Edit,
   ArrowUpDown,
   Users,
 } from "lucide-react";
-import ClientDialog from "@/components/ClientDialog";
 import ClientDetailsDialog from "@/components/ClientDetailsDialog";
 import ClientAvatar from "@/components/ClientAvatar";
-import ConfirmModal from "@/components/ui/confirm-modal";
 import { Client } from "@/types";
 import { getCookie, setCookie } from "@/lib/client-cookies";
-import { toast } from "sonner";
 
 export default function ClientsPage() {
   const [search, setSearch] = React.useState("");
-  const [dialogOpen, setDialogOpen] = React.useState(false);
-  const [editingClient, setEditingClient] = React.useState<Client | null>(null);
+
+  // Unified Details/Create/Edit Panel State
   const [detailsOpen, setDetailsOpen] = React.useState(false);
-  const [detailsClient, setDetailsClient] = React.useState<Client | null>(null);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
-  const [deleteTarget, setDeleteTarget] = React.useState<{
-    id: string;
-    name: string;
-  } | null>(null);
+  const [detailsClientId, setDetailsClientId] = React.useState<string | null>(
+    null
+  );
+
   const [pageSize, setPageSize] = React.useState(() => {
     const PAGE_SIZE_OPTIONS = [5, 10, 25, 50, 100] as const;
     if (typeof window === "undefined") return 10;
@@ -64,17 +58,20 @@ export default function ClientsPage() {
     }
     return 10;
   });
+
   const [primaryPage, setPrimaryPage] = React.useState(1);
   const [inactivePage, setInactivePage] = React.useState(1);
+  const [deletedPage, setDeletedPage] = React.useState(1);
   const [sortConfig, setSortConfig] = React.useState<{
     key: keyof Client;
     direction: "asc" | "desc";
   } | null>(null);
+
   const queryClient = useQueryClient();
 
   const PAGE_SIZE_OPTIONS = [5, 10, 25, 50, 100] as const;
 
-  // Persist page size changes (like dark/light mode)
+  // Persist page size
   React.useEffect(() => {
     setCookie("progrr_clients_rows_per_page", String(pageSize), {
       maxAgeSeconds: 60 * 60 * 24 * 365,
@@ -94,11 +91,6 @@ export default function ClientsPage() {
   const { data: mealPlans = [] } = useQuery({
     queryKey: ["mealPlans"],
     queryFn: () => db.entities.MealPlan.list(),
-  });
-
-  const deleteClientMutation = useMutation({
-    mutationFn: (id: string) => db.entities.Client.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["clients"] }),
   });
 
   const filteredClients = clients.filter(
@@ -127,7 +119,6 @@ export default function ClientsPage() {
       const aValue = String(aRaw ?? "").trim();
       const bValue = String(bRaw ?? "").trim();
 
-      // Keep empties at the bottom regardless of direction
       const aEmpty = aValue.length === 0;
       const bEmpty = bValue.length === 0;
       if (aEmpty && !bEmpty) return 1;
@@ -136,7 +127,6 @@ export default function ClientsPage() {
       const cmp = collator.compare(aValue, bValue);
       if (cmp !== 0) return cmp * direction;
 
-      // Stable-ish fallback
       return String(a.id ?? "").localeCompare(String(b.id ?? ""));
     });
   }, [filteredClients, sortConfig]);
@@ -153,40 +143,23 @@ export default function ClientsPage() {
     });
   };
 
-  const handleEdit = async (client: Client) => {
-    try {
-      const full = await db.entities.Client.get(String((client as any).id));
-      setEditingClient(full as any);
-    } catch (e: any) {
-      // Fallback: open with whatever we already have.
-      setEditingClient(client);
-      toast.error(e?.message || "Failed to load client for editing");
-    }
-    setDialogOpen(true);
-  };
-
   const handleOpenDetails = (client: Client) => {
-    setDetailsClient(client);
+    console.log("Opening details for:", client.id); // Debug
+    setDetailsClientId(client.id);
     setDetailsOpen(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    const c = clients.find((x: any) => String(x?.id) === String(id));
-    setDeleteTarget({
-      id,
-      name: String(c?.name ?? "").trim() || "this client",
-    });
-    setDeleteConfirmOpen(true);
-  };
-
-  const handleCloseDialog = (open: boolean) => {
-    setDialogOpen(open);
-    if (!open) setEditingClient(null);
   };
 
   const handleCloseDetails = (open: boolean) => {
     setDetailsOpen(open);
-    if (!open) setDetailsClient(null);
+    if (!open) {
+      // Small timeout to prevent flickering if switching modes
+      setTimeout(() => setDetailsClientId(null), 200);
+    }
+  };
+
+  const handleCreateClient = () => {
+    setDetailsClientId(null);
+    setDetailsOpen(true);
   };
 
   const normalizeStatus = (value: unknown) => {
@@ -196,7 +169,8 @@ export default function ClientsPage() {
     return v === "ACTIVE" ||
       v === "PENDING" ||
       v === "INACTIVE" ||
-      v === "BLOCKED"
+      v === "BLOCKED" ||
+      v === "DELETED"
       ? v
       : "";
   };
@@ -209,20 +183,29 @@ export default function ClientsPage() {
     INACTIVE:
       "bg-gray-100 text-gray-700 dark:bg-gray-800/60 dark:text-gray-200",
     BLOCKED: "bg-red-100 text-red-800 dark:bg-red-900/25 dark:text-red-200",
+    DELETED:
+      "bg-red-50 text-red-900 dark:bg-red-950/30 dark:text-red-400 border border-red-200 dark:border-red-800",
   };
 
   const inactiveClients = sortedClients.filter(
     (c: Client) => normalizeStatus(c.status) === "INACTIVE"
   );
-  const primaryClients = sortedClients.filter(
-    (c: Client) => normalizeStatus(c.status) !== "INACTIVE"
+  const deletedClients = sortedClients.filter(
+    (c: Client) => normalizeStatus(c.status) === "DELETED"
   );
+  const primaryClients = sortedClients.filter((c: Client) => {
+    const s = normalizeStatus(c.status);
+    return s !== "INACTIVE" && s !== "DELETED";
+  });
 
+  // Reset pagination on search
   React.useEffect(() => {
     setPrimaryPage(1);
     setInactivePage(1);
+    setDeletedPage(1);
   }, [search, sortConfig?.key, sortConfig?.direction, pageSize]);
 
+  // Ensure page is valid
   React.useEffect(() => {
     const totalPrimary = Math.max(
       1,
@@ -238,6 +221,14 @@ export default function ClientsPage() {
     );
     if (inactivePage > totalInactive) setInactivePage(totalInactive);
   }, [inactiveClients.length, pageSize, inactivePage]);
+
+  React.useEffect(() => {
+    const totalDeleted = Math.max(
+      1,
+      Math.ceil(deletedClients.length / pageSize)
+    );
+    if (deletedPage > totalDeleted) setDeletedPage(totalDeleted);
+  }, [deletedClients.length, pageSize, deletedPage]);
 
   const paginate = React.useCallback(
     (rows: Client[], page: number) => {
@@ -257,6 +248,10 @@ export default function ClientsPage() {
   const inactivePaging = React.useMemo(
     () => paginate(inactiveClients, inactivePage),
     [paginate, inactiveClients, inactivePage]
+  );
+  const deletedPaging = React.useMemo(
+    () => paginate(deletedClients, deletedPage),
+    [paginate, deletedClients, deletedPage]
   );
 
   const workoutPlanNameById = React.useMemo(() => {
@@ -328,7 +323,6 @@ export default function ClientsPage() {
               </th>
               <th className="px-4 py-3 text-left font-medium">Assigned Plan</th>
               <th className="px-4 py-3 text-left font-medium">Assigned Meal</th>
-              <th className="px-4 py-3 text-left font-medium"></th>
             </tr>
           </thead>
           <tbody>
@@ -389,7 +383,7 @@ export default function ClientsPage() {
               return (
                 <tr
                   key={client.id}
-                  className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer"
+                  className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer transition-colors"
                   onClick={() => handleOpenDetails(client)}
                 >
                   {/* CLIENT COLUMN */}
@@ -411,6 +405,9 @@ export default function ClientsPage() {
                           ) : gender === "other" ? (
                             <VenusAndMars className="w-4 h-4 text-purple-500 shrink-0" />
                           ) : null}
+                          <span className="font-medium truncate">
+                            {client.name}
+                          </span>
                           {status === "BLOCKED" ? (
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -428,9 +425,21 @@ export default function ClientsPage() {
                               </TooltipContent>
                             </Tooltip>
                           ) : null}
-                          <span className="font-medium truncate">
-                            {client.name}
-                          </span>
+                          {status === "DELETED" ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span
+                                  className="inline-flex shrink-0"
+                                  aria-label="Deleted"
+                                >
+                                  <Trash2 className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent sideOffset={6}>
+                                Account Deleted
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : null}
                         </div>
                         <div className="flex items-center gap-2 text-xs text-gray-500 truncate">
                           <Mail className="w-3 h-3" />
@@ -486,31 +495,6 @@ export default function ClientsPage() {
                       {assignedMealName}
                     </div>
                   </td>
-
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEdit(client);
-                        }}
-                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900 rounded-lg"
-                        title="Edit Client"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDelete(client.id);
-                        }}
-                        className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg"
-                        title="Delete Client"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
                 </tr>
               );
             })}
@@ -560,7 +544,7 @@ export default function ClientsPage() {
 
         <div className="flex items-center gap-3">
           <Button
-            onClick={() => setDialogOpen(true)}
+            onClick={handleCreateClient}
             className="min-w-[120px] bg-indigo-600 hover:bg-indigo-700 text-white"
           >
             <Plus className="w-5 h-5 mr-2" />
@@ -650,43 +634,158 @@ export default function ClientsPage() {
               })}
             </div>
           ) : null}
+
+          {deletedClients.length > 0 ? (
+            <div className="space-y-3 mt-8">
+              <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                Deleted Clients
+              </div>
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-red-100 dark:border-red-900/30 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-red-50/50 dark:bg-red-900/10 border-b border-red-100 dark:border-red-900/30">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">
+                          Client
+                        </th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">
+                          Status
+                        </th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">
+                          Deletion Info
+                        </th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">
+                          Deleted Date
+                        </th>
+                        <th className="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {deletedPaging.pagedRows.map((client: Client) => {
+                        const deletedBy =
+                          (client as any).deletedBy === "ADMIN"
+                            ? "Admin"
+                            : (client as any).deletedBy === "CLIENT"
+                            ? "Client"
+                            : "Unknown";
+
+                        const deletedAtRaw = (client as any).deletedAt;
+                        const deletedAt = deletedAtRaw
+                          ? new Date(deletedAtRaw).toLocaleDateString()
+                          : "-";
+
+                        return (
+                          <tr
+                            key={client.id}
+                            className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40"
+                          >
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                <ClientAvatar
+                                  name={client.name}
+                                  src={(client as any).avatarDataUrl}
+                                  size={32}
+                                  className="opacity-60 grayscale"
+                                />
+                                <div className="flex flex-col">
+                                  <span className="font-medium text-gray-500 line-through decoration-red-500/30">
+                                    {client.name}
+                                  </span>
+                                  <span className="text-xs text-gray-400">
+                                    {client.email}
+                                  </span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`inline-flex items-center justify-center px-2 py-1 rounded-md text-xs font-medium ${statusConfig.DELETED}`}
+                              >
+                                DELETED
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="inline-flex items-center gap-1.5 text-xs text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded border border-gray-200 dark:border-gray-700">
+                                <Users className="w-3 h-3" />
+                                Deleted by {deletedBy}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-500">
+                              {deletedAt}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs border border-dashed border-gray-300 hover:border-gray-400 dark:border-gray-700"
+                                onClick={() => handleOpenDetails(client)}
+                              >
+                                View Details
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {deletedPaging.totalPages > 1 && (
+                  <div className="flex items-center justify-between gap-3 px-4 py-3 border-t bg-gray-50/60 dark:bg-gray-700/40">
+                    <div className="text-xs text-gray-600 dark:text-gray-300">
+                      Page {deletedPaging.page} of {deletedPaging.totalPages}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={deletedPaging.page <= 1}
+                        onClick={() =>
+                          setDeletedPage((p) => Math.max(1, p - 1))
+                        }
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={
+                          deletedPaging.page >= deletedPaging.totalPages
+                        }
+                        onClick={() =>
+                          setDeletedPage((p) =>
+                            Math.min(deletedPaging.totalPages, p + 1)
+                          )
+                        }
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : null}
         </div>
       )}
 
-      <ClientDialog
-        client={editingClient}
-        open={dialogOpen}
-        onOpenChange={handleCloseDialog}
-      />
-
+      {/* Unified Client Details Panel */}
       <ClientDetailsDialog
-        client={detailsClient}
+        client={
+          (detailsClientId &&
+            clients.find((c: any) => c.id === detailsClientId)) ||
+          null
+        }
         open={detailsOpen}
         onOpenChange={handleCloseDetails}
         workoutPlanNameById={workoutPlanNameById}
         mealPlanNameById={mealPlanNameById}
-      />
-
-      <ConfirmModal
-        open={deleteConfirmOpen}
-        onOpenChange={(next) => {
-          setDeleteConfirmOpen(next);
-          if (!next) setDeleteTarget(null);
-        }}
-        title="Delete client?"
-        description={
-          deleteTarget
-            ? `This will permanently delete ${deleteTarget.name}. This cannot be undone.`
-            : "This cannot be undone."
-        }
-        confirmText="Delete"
-        cancelText="Cancel"
-        confirmVariant="destructive"
-        confirmDisabled={!deleteTarget}
-        loading={deleteClientMutation.isPending}
-        onConfirm={async () => {
-          if (!deleteTarget) return;
-          await deleteClientMutation.mutateAsync(deleteTarget.id);
+        onClientUpdate={() => {
+          queryClient.invalidateQueries({ queryKey: ["clients"] });
         }}
       />
     </div>

@@ -21,7 +21,7 @@ const isValidEmail = (email: string) => {
 export default function ClientAuthPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAuthenticated, isLoadingAuth } = useAuth();
+  const { isAuthenticated, isLoadingAuth, user } = useAuth();
 
   const nextPath = searchParams.get("next") || "";
 
@@ -35,10 +35,24 @@ export default function ClientAuthPage() {
 
   useEffect(() => {
     if (isLoadingAuth) return;
-    if (isAuthenticated) {
-      router.replace(nextPath || "/dashboard");
+    if (isAuthenticated && user) {
+      const status = (user as any).status || "PENDING";
+
+      // Only redirect to dashboard if explicitly ACTIVE.
+      // Other statuses will be handled by AuthContext guard or remain on access pages.
+      if (status === "ACTIVE") {
+        router.replace(nextPath || "/dashboard");
+      } else if (status === "INACTIVE") {
+        router.replace("/access/inactive");
+      } else if (status === "BLOCKED") {
+        router.replace("/access/blocked");
+      } else if (status === "DELETED") {
+        router.replace("/access/deleted");
+      } else if (status === "PENDING") {
+        router.replace("/access/pending");
+      }
     }
-  }, [isAuthenticated, isLoadingAuth, nextPath, router]);
+  }, [isAuthenticated, isLoadingAuth, nextPath, router, user]);
 
   const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");

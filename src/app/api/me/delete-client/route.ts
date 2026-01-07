@@ -143,21 +143,43 @@ export async function POST(req: Request) {
       await c.entities.deleteMany({ adminId, "data.clientId": clientEntityId });
 
       // Anonymize client profile record while keeping a placeholder.
+      // UPDATED: Instead of destroying the record completely, we mark it as DELETED status
+      // so it appears in the admin's "Deleted Clients" table.
       await c.entities.updateOne(
         { _id: clientEntity._id, entity: "Client", adminId },
         {
           $set: {
             data: {
               ...clientData,
-              name: "Deleted client",
-              email: "",
-              phone: "",
-              avatarDataUrl: null,
-              userId: null,
-              clientAuthId: null,
-              isDeleted: true,
+              // Keep name/email so admin knows who it was (requirement: "Sees the client with DELETED chip")
+              // But ensure they can't log in (handled by status=DELETED and relation removal below)
+              status: "DELETED",
+              deletedBy: "CLIENT",
               deletedAt: now.toISOString(),
+              isDeleted: true,
+
+              // Clear auth linkages but keep identifying info for the admin log
+              clientAuthId: null,
+              // userId: null, // Keep userId for history? Relation deletion prevents login anyway.
             },
+            updatedAt: now,
+          },
+        }
+      );
+
+      // Also update the Relation status before deleting it?
+      // The requirement says "status = DELETED".
+      // But we are deleting the relation entirely below.
+      // If we delete the relation, they disappear from the admin's relationship list?
+      // "Tables: Deleted clients table Shows only: status = DELETED"
+      // This implies the record must persist.
+      // So we should NOT delete the relation, but update it to DELETED.
+
+      await c.clientAdminRelations.updateOne(
+        { userId: clientAuthId, adminId },
+        {
+          $set: {
+            status: "DELETED",
             updatedAt: now,
           },
         }
@@ -205,7 +227,11 @@ export async function POST(req: Request) {
     }
 
     // Remove all relations and the global auth user.
-    await c.clientAdminRelations.deleteMany({ userId: clientAuthId });
+    // MODIFIED: We do NOT delete the relations here anymore, because we updated them to DELETED status above.
+    // This allows the admin to still see the record in "Deleted Clients" table.
+    // However, we MUST delete the global client auth record so they can never log in again (as per req: "Client cannot log in again").
+
+    // await c.clientAdminRelations.deleteMany({ userId: clientAuthId });
 
     // Remove auth client profile and invalidate session
     await c.clients.deleteOne({ _id: clientAuthId });

@@ -55,9 +55,16 @@ export type ClientDoc = {
   phone?: string;
   // Optional: used by Settings "mock data" tools
   mockSeedId?: string;
+
+  deletedBy?: "ADMIN" | "CLIENT" | null;
 };
 
-export type ClientAdminRelationStatus = "ACTIVE" | "BLOCKED";
+export type ClientAdminRelationStatus =
+  | "ACTIVE"
+  | "BLOCKED"
+  | "INACTIVE"
+  | "PENDING"
+  | "DELETED";
 
 export type InviteStatus = "PENDING" | "ACCEPTED" | "REVOKED";
 

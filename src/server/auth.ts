@@ -21,6 +21,7 @@ export type AppUser =
       canSwitchCoach?: boolean;
       phone?: string;
       theme: "light" | "dark";
+      status: "PENDING" | "ACTIVE" | "INACTIVE" | "BLOCKED" | "DELETED";
       admin?: {
         id: string;
         email: string;
@@ -85,6 +86,25 @@ export async function requireAppUser(): Promise<AppUser> {
   }
 
   const adminId = resolved.activeAdminId.toHexString();
+
+  // Retrieve the Client Entity to get the status (and other business data)
+  // We match by email or userId to be robust.
+  const entity = await c.entities.findOne({
+    entity: "Client",
+    adminId: resolved.activeAdminId,
+    $or: [
+      { "data.email": client.email },
+      { "data.userId": client._id.toHexString() },
+      { "data.clientAuthId": client._id.toHexString() },
+    ],
+  });
+
+  const status = (entity?.data?.status ?? "ACTIVE") as
+    | "PENDING"
+    | "ACTIVE"
+    | "INACTIVE"
+    | "BLOCKED"
+    | "DELETED";
 
   // Attach coach contact details for the active admin.
   let adminContact:
@@ -153,6 +173,7 @@ export async function requireAppUser(): Promise<AppUser> {
     email: client.email,
     full_name: preferredFullName,
     role: "client",
+    status,
     adminId,
     canSwitchCoach,
     phone: client.phone,

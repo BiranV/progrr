@@ -119,26 +119,46 @@ export async function POST(req: Request) {
     const res = NextResponse.json({ ok: true });
     setAuthCookie(res, token);
 
-    // If invited (PENDING), promote to ACTIVE only after a successful email OTP.
+    // If invited (PENDING) or INACTIVE, promote to ACTIVE only after a successful email OTP.
+    // Do NOT reactivate BLOCKED or DELETED clients via invite/login.
     const now = new Date();
     const escaped = email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    await c.entities.updateOne(
-      {
-        entity: "Client",
-        adminId: resolved.activeAdminId,
-        $or: [
-          { "data.userId": clientId },
-          { "data.clientAuthId": clientId },
-          { "data.email": { $regex: new RegExp(`^${escaped}$`, "i") } },
-        ],
-      },
-      {
-        $set: {
-          "data.status": "ACTIVE",
-          updatedAt: now,
-        },
+
+    // First, check the current status to avoid unblocking/undeleting
+    const clientEntity = await c.entities.findOne({
+      entity: "Client",
+      adminId: resolved.activeAdminId,
+      $or: [
+        { "data.userId": clientId },
+        { "data.clientAuthId": clientId },
+        { "data.email": { $regex: new RegExp(`^${escaped}$`, "i") } },
+      ],
+    });
+
+    if (clientEntity) {
+      const currentStatus = (clientEntity.data as any).status || "PENDING";
+      // Only activate if PENDING (first login).
+      // Do NOT auto-activate INACTIVE (manually deactivated by admin).
+      const shouldActivate = currentStatus === "PENDING";
+
+      if (shouldActivate) {
+        await c.entities.updateOne(
+          { _id: clientEntity._id },
+          {
+            $set: {
+              "data.status": "ACTIVE",
+              updatedAt: now,
+            },
+          }
+        );
+
+        // Also sync relation status
+        await c.clientAdminRelations.updateOne(
+          { userId: client._id, adminId: resolved.activeAdminId },
+          { $set: { status: "ACTIVE", updatedAt: now } }
+        );
       }
-    );
+    }
 
     return res;
   } catch (error: any) {
