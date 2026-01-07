@@ -28,6 +28,7 @@ import {
   StickyNote,
   Users,
   RotateCcw,
+  Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +56,7 @@ import {
   blockClientAction,
   unblockClientAction,
   deleteClientAction,
+  resendClientInviteAction,
   ClientFormData,
 } from "@/app/actions/client-management";
 import { Client } from "@/types";
@@ -90,6 +92,8 @@ export default function ClientDetailsDialog({
   const [statusUpdating, setStatusUpdating] = React.useState<string | null>(
     null
   );
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = React.useState("");
 
   // Reset editing state when dialog opens/closes or client changes
   React.useEffect(() => {
@@ -103,6 +107,9 @@ export default function ClientDetailsDialog({
         setIsEditing(false);
         resetForm(client);
       }
+      // Reset delete confirmation state
+      setShowDeleteConfirm(false);
+      setDeleteConfirmText("");
     }
   }, [open, client]);
 
@@ -442,16 +449,38 @@ export default function ClientDetailsDialog({
             ) : (
               <>
                 {status === "PENDING" ? (
-                  <div className="col-span-1 sm:col-span-2 p-3 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-100 dark:border-yellow-900/30 rounded-lg flex items-start gap-3">
-                    <Mail className="w-5 h-5 text-yellow-600 dark:text-yellow-500 shrink-0 mt-0.5" />
-                    <div className="text-sm text-yellow-800 dark:text-yellow-200">
-                      <p className="font-medium">Invitation Sent</p>
-                      <p className="mt-1 opacity-90">
-                        Client must accept the invitation and set up their
-                        account before you can change their status.
-                      </p>
+                  <>
+                    <div className="col-span-1 sm:col-span-2 p-3 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-100 dark:border-yellow-900/30 rounded-lg flex items-start gap-3">
+                      <Mail className="w-5 h-5 text-yellow-600 dark:text-yellow-500 shrink-0 mt-0.5" />
+                      <div className="text-sm text-yellow-800 dark:text-yellow-200">
+                        <p className="font-medium">Invitation Sent</p>
+                        <p className="mt-1 opacity-90">
+                          Client must accept the invitation and set up their
+                          account before you can change their status.
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                    <Button
+                      variant="outline"
+                      className="col-span-1 sm:col-span-2 justify-start h-auto py-2.5 cursor-pointer"
+                      disabled={statusUpdating !== null}
+                      onClick={() =>
+                        handleStatusAction(
+                          resendClientInviteAction,
+                          "Invite sent",
+                          "PENDING",
+                          "resend_invite"
+                        )
+                      }
+                    >
+                      {statusUpdating === "resend_invite" ? (
+                        <Loader2 className="w-4 h-4 mr-2 text-blue-500 animate-spin" />
+                      ) : (
+                        <Send className="w-4 h-4 mr-2 text-blue-500" />
+                      )}
+                      <span>Resend Invite</span>
+                    </Button>
+                  </>
                 ) : (
                   <>
                     {status !== "ACTIVE" && (
@@ -544,27 +573,77 @@ export default function ClientDetailsDialog({
                   </>
                 )}
 
-                <Button
-                  variant="outline"
-                  className="justify-start h-auto py-2.5 hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:hover:bg-red-900/20 cursor-pointer"
-                  disabled={statusUpdating !== null}
-                  onClick={() =>
-                    handleStatusAction(
-                      deleteClientAction,
-                      "deleted",
-                      "DELETED",
-                      "delete",
-                      "Are you sure you want to delete this client? They will lose access immediately."
-                    )
-                  }
-                >
-                  {statusUpdating === "delete" ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
+                {showDeleteConfirm ? (
+                  <div className="p-4 border border-red-200 bg-red-50 dark:bg-red-900/10 rounded-lg space-y-3">
+                    <div className="space-y-1">
+                      <div className="text-sm font-semibold text-red-900 dark:text-red-100">
+                        Delete this client?
+                      </div>
+                      <div className="text-xs text-red-800 dark:text-red-200 leading-relaxed">
+                        Deleting this client will permanently remove their data
+                        and credentials. This action cannot be undone.
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold uppercase text-red-600 dark:text-red-400">
+                        Type DELETE to confirm
+                      </label>
+                      <Input
+                        value={deleteConfirmText}
+                        onChange={(e) => setDeleteConfirmText(e.target.value)}
+                        placeholder="DELETE"
+                        className="bg-white dark:bg-black/20"
+                      />
+                    </div>
+
+                    <div className="flex gap-2 justify-end pt-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setShowDeleteConfirm(false);
+                          setDeleteConfirmText("");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={
+                          deleteConfirmText !== "DELETE" ||
+                          statusUpdating !== null
+                        }
+                        onClick={() =>
+                          handleStatusAction(
+                            deleteClientAction,
+                            "deleted",
+                            "DELETED",
+                            "delete"
+                          )
+                        }
+                      >
+                        {statusUpdating === "delete" ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4 mr-2" />
+                        )}
+                        Confirm Delete
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="justify-start h-auto py-2.5 hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:hover:bg-red-900/20 cursor-pointer"
+                    disabled={statusUpdating !== null}
+                    onClick={() => setShowDeleteConfirm(true)}
+                  >
                     <Trash2 className="w-4 h-4 mr-2" />
-                  )}
-                  <span>Delete Client</span>
-                </Button>
+                    <span>Delete Client</span>
+                  </Button>
+                )}
               </>
             )}
           </div>

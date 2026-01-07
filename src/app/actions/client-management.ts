@@ -412,6 +412,103 @@ export async function createClientAction(data: ClientFormData) {
   return { success: true };
 }
 
+export async function resendClientInviteAction(clientId: string) {
+  const adminUser = await requireAppUser();
+  if (adminUser.role !== "admin") {
+    throw new Error("Only admins can resend invites");
+  }
+
+  await ensureIndexes();
+  const c = await collections();
+
+  if (!ObjectId.isValid(clientId)) throw new Error("Invalid ID");
+  const entityId = new ObjectId(clientId);
+  const adminId = new ObjectId(adminUser.id);
+
+  const client = await c.entities.findOne({
+    _id: entityId,
+    entity: "Client",
+    adminId,
+  });
+
+  if (!client) throw new Error("Client not found");
+
+  const clientData = client.data as any;
+  if (clientData.status !== "PENDING") {
+    throw new Error("Invite can only be reset for PENDING users");
+  }
+
+  const email = clientData.email;
+  if (!email) throw new Error("Client has no email");
+
+  // Invalidate old invites
+  await c.invites.updateMany(
+    { email, adminId, status: "PENDING" },
+    { $set: { status: "REVOKED", updatedAt: new Date() } }
+  );
+
+  // Create new invite
+  const now = new Date();
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+  const insertResult = await c.invites.insertOne({
+    email,
+    adminId,
+    role: "client",
+    status: "PENDING",
+    expiresAt,
+    createdAt: now,
+    clientEntityId: entityId,
+  } as any);
+
+  const inviteId = insertResult.insertedId;
+  const h = await headers();
+  const appUrl = resolveAppUrlFromEnvOrHeaders(h);
+
+  const inviteToken = await signClientInviteToken({
+    inviteId: inviteId.toHexString(),
+    adminId: adminId.toHexString(),
+    email,
+    expiresAt,
+  });
+
+  const inviteLink = `${appUrl}/invite/${encodeURIComponent(inviteToken)}`;
+
+  await sendEmail({
+    to: email,
+    subject: "You've been invited to Progrr",
+    text: `You've been invited to Progrr.\n\nAccept invitation: ${inviteLink}\n\nThis link expires in 7 days.`,
+    html: `
+        <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; line-height: 1.5;">
+          <h2 style="margin: 0 0 12px;">You've been invited to Progrr</h2>
+          <p style="margin: 0 0 16px;">Click the button below to accept your invitation and verify your email.</p>
+          <p style="margin: 0 0 20px;">
+            <a
+              href="${inviteLink}"
+              style="display: inline-block; padding: 10px 14px; background: #111827; color: #ffffff; text-decoration: none; border-radius: 8px;"
+            >
+              Accept Invitation
+            </a>
+          </p>
+          <p style="margin: 0; font-size: 12px; color: #6b7280;">This link expires in 7 days.</p>
+        </div>
+      `.trim(),
+  });
+
+  // Update audit fields
+  await c.entities.updateOne(
+    { _id: entityId },
+    {
+      $set: {
+        "data.lastInviteSentAt": now,
+        "data.lastInviteSentBy": adminId,
+      },
+    }
+  );
+
+  return { success: true };
+}
+
 export async function updateClientAction(id: string, data: ClientFormData) {
   const adminUser = await requireAppUser();
   if (adminUser.role !== "admin") {
