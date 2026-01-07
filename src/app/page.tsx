@@ -1,4 +1,14 @@
 import { redirect } from "next/navigation";
+import { requireAppUser } from "@/server/auth";
+
+function isSafeNextPath(next: string): boolean {
+  if (!next.startsWith("/")) return false;
+  if (next.startsWith("//")) return false;
+  if (next === "/" || next.startsWith("/auth") || next.startsWith("/login")) {
+    return false;
+  }
+  return true;
+}
 
 export default async function Home({
   searchParams,
@@ -16,6 +26,14 @@ export default async function Home({
   if (authError) qs.set("authError", authError);
   if (authMessage) qs.set("authMessage", authMessage);
 
-  const dest = qs.toString() ? `/auth?${qs.toString()}` : "/auth";
-  redirect(dest);
+  // If the user is already authenticated, the home route should never send them
+  // to the login/welcome screen.
+  try {
+    await requireAppUser();
+    const authedDest = next && isSafeNextPath(next) ? next : "/dashboard";
+    redirect(authedDest);
+  } catch {
+    const dest = qs.toString() ? `/auth?${qs.toString()}` : "/auth";
+    redirect(dest);
+  }
 }

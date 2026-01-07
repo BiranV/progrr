@@ -2,6 +2,17 @@ import { NextResponse, type NextRequest } from "next/server";
 import { verifyAuthToken } from "@/server/jwt";
 import { AUTH_COOKIE_NAME } from "@/server/auth-cookie";
 
+function isSafeNextPath(next: string | null): next is string {
+  if (!next) return false;
+  if (!next.startsWith("/")) return false;
+  if (next.startsWith("//")) return false;
+  // Prevent looping back to auth entry points
+  if (next === "/" || next.startsWith("/auth") || next.startsWith("/login")) {
+    return false;
+  }
+  return true;
+}
+
 function isPublicPath(pathname: string) {
   if (pathname === "/") return true;
   if (pathname.startsWith("/auth")) return true;
@@ -55,6 +66,58 @@ export async function middleware(request: NextRequest) {
   }
 
   const isAuthed = !!claims;
+
+  // Auth entry routes: if the user is already authenticated, they should never see
+  // the login / welcome screens.
+  const isAuthEntryPath =
+    pathname === "/" ||
+    pathname.startsWith("/auth") ||
+    pathname.startsWith("/login");
+
+  // IMPORTANT: A valid JWT signature is not enough to treat the session as usable.
+  // Clients can be blocked (403) or users can be missing (401). Confirm via /api/me.
+  if (isAuthEntryPath && isAuthed) {
+    try {
+      const meUrl = new URL("/api/me", request.url);
+      const cookie = request.headers.get("cookie") || "";
+      const meRes = await fetch(meUrl, {
+        method: "GET",
+        headers: { cookie },
+        cache: "no-store",
+      });
+
+      if (meRes.ok) {
+        const next = request.nextUrl.searchParams.get("next");
+        const dest = isSafeNextPath(next) ? next : "/dashboard";
+        return NextResponse.redirect(new URL(dest, request.url));
+      }
+
+      if (meRes.status === 403) {
+        const data = await meRes.json().catch(() => ({}));
+        const msg =
+          typeof data?.detail === "string" && data.detail.trim()
+            ? data.detail
+            : "Your account has been temporarily restricted. Please contact support or your administrator.";
+
+        const url = request.nextUrl.clone();
+        url.pathname = "/auth/client";
+        url.searchParams.set("authError", msg);
+
+        const res = NextResponse.redirect(url);
+        res.cookies.set(AUTH_COOKIE_NAME, "", { path: "/", maxAge: 0 });
+        return res;
+      }
+
+      // For 401 or other failures, allow the auth route to render.
+      if (meRes.status === 401) {
+        const res = NextResponse.next();
+        res.cookies.set(AUTH_COOKIE_NAME, "", { path: "/", maxAge: 0 });
+        return res;
+      }
+    } catch {
+      // If the check fails, do not break auth entry routes.
+    }
+  }
 
   // Role-Based Routing
   if (isAuthed && claims) {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -33,6 +33,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const isAuthEntryPath =
+    pathname === "/" ||
+    pathname.startsWith("/auth") ||
+    pathname.startsWith("/login");
+
+  useEffect(() => {
+    if (loading) return;
+
+    // If authenticated, never allow auth entry routes to render.
+    if (user && isAuthEntryPath) {
+      router.replace("/dashboard");
+    }
+  }, [isAuthEntryPath, loading, router, user]);
 
   const settingsOwnerId =
     user?.role === "client"
@@ -80,6 +94,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         />
       </div>
     );
+  }
+
+  // Client-side hard guard: avoid rendering auth pages inside the authenticated shell.
+  if (user && isAuthEntryPath) {
+    return null;
   }
 
   // OWNER LAYOUT
