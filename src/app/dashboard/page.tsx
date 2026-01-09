@@ -1472,7 +1472,7 @@ function ClientDashboard({ user }: { user: any }) {
               onClick={() => setActiveSection("menu")}
               aria-label="Back"
             >
-              <ArrowLeft className="w-6 h-6" />
+              <ArrowLeft className="w-6 h-6 text-gray-700 dark:text-gray-200" />
             </Button>
           ) : (
             <div />
