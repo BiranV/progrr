@@ -2176,16 +2176,6 @@ function ClientDashboard({ user }: { user: any }) {
                             : "-"}
                       </div>
                     </div>
-                    {String((myClient as any).notes ?? "").trim() ? (
-                      <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg col-span-2">
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          Notes
-                        </div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white whitespace-pre-wrap">
-                          {String((myClient as any).notes ?? "").trim()}
-                        </div>
-                      </div>
-                    ) : null}
                   </div>
 
                   <Card className="dark:bg-gray-800 dark:border-gray-700">

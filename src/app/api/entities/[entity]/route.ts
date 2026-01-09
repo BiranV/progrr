@@ -62,6 +62,12 @@ function sanitizeMeetingForClient(record: any) {
   return rest;
 }
 
+function sanitizeClientForClient(record: any) {
+  if (!record || typeof record !== "object") return record;
+  const { notes, ...rest } = record as any;
+  return rest;
+}
+
 function shouldAutoCompleteMeeting(data: Record<string, any> | null | undefined) {
   const scheduledAt = parseDate(data?.scheduledAt);
   if (!scheduledAt) return false;
@@ -151,7 +157,7 @@ export async function GET(
         });
 
         if (!myClient) return NextResponse.json([]);
-        const mine = [toPublicEntityDoc(myClient)];
+        const mine = [toPublicEntityDoc(myClient)].map(sanitizeClientForClient);
         return NextResponse.json(sortRecords(mine, sort));
       }
 

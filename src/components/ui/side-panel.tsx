@@ -51,7 +51,7 @@ export default function SidePanel({
       <button
         type="button"
         aria-label="Close panel"
-        className="absolute inset-0 bg-black/10 dark:bg-black/30 focus:outline-none"
+        className="absolute inset-0 cursor-pointer bg-black/10 dark:bg-black/30 focus:outline-none"
         onClick={() => {
           if (closeOnOutsideClick) onOpenChange(false);
         }}
@@ -87,7 +87,7 @@ export default function SidePanel({
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
             aria-label="Close"
           >
             <XIcon className="h-4 w-4" />

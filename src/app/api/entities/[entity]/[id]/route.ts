@@ -199,6 +199,12 @@ function sanitizeMeetingForClient(record: any) {
   return rest;
 }
 
+function sanitizeClientForClient(record: any) {
+  if (!record || typeof record !== "object") return record;
+  const { notes, ...rest } = record as any;
+  return rest;
+}
+
 export async function GET(
   _req: Request,
   ctx: { params: Promise<{ entity: string; id: string }> }
@@ -244,7 +250,7 @@ export async function GET(
         if (!myClient || myClient._id.toHexString() !== id) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
-        return NextResponse.json(toPublicEntityDoc(myClient));
+        return NextResponse.json(sanitizeClientForClient(toPublicEntityDoc(myClient)));
       }
 
       if (entity === "Message") {

@@ -46,6 +46,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
@@ -647,12 +648,11 @@ export default function ClientPanel({
               </div>
 
               <div className="flex items-center gap-2">
-                <Checkbox
+                <Switch
                   checked={stepsEnabledByAdmin}
-                  onCheckedChange={(v) =>
-                    toggleStepsEnabledMutation.mutate(Boolean(v))
-                  }
+                  onCheckedChange={(v) => toggleStepsEnabledMutation.mutate(v)}
                   disabled={!client?.id || toggleStepsEnabledMutation.isPending}
+                  className="disabled:cursor-default"
                 />
               </div>
             </div>
@@ -1259,7 +1259,7 @@ export default function ClientPanel({
             <label className="text-sm font-medium">Notes</label>
             <Textarea
               {...getInputProps("notes")}
-              placeholder="Additional notes..."
+              placeholder="Internal notes (private — not shared with the client)"
             />
           </div>
         </div>
