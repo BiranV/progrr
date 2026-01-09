@@ -306,8 +306,8 @@ export default function ClientDetailsDialog({
       (client as any)?.deletedBy === "ADMIN"
         ? "Admin"
         : (client as any)?.deletedBy === "CLIENT"
-        ? "Client"
-        : null;
+          ? "Client"
+          : null;
 
     // Get plan names
     const getPlanNames = (ids: string[], plans: any[]) => {
@@ -376,6 +376,97 @@ export default function ClientDetailsDialog({
           </div>
         </div>
 
+        {/* Info Grid */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="p-3 rounded-lg border bg-white dark:bg-gray-800">
+            <div className="text-xs text-gray-400 mb-1 flex items-center gap-1.5">
+              <Calendar className="w-3 h-3" /> Birth Date
+            </div>
+            <div className="font-medium">
+              {(client as any)?.birthDate || "-"}
+            </div>
+          </div>
+          <div className="p-3 rounded-lg border bg-white dark:bg-gray-800">
+            <div className="text-xs text-gray-400 mb-1 flex items-center gap-1.5">
+              <Users className="w-3 h-3" /> Gender
+            </div>
+            <div className="font-medium capitalize">
+              {(client as any)?.gender || "-"}
+            </div>
+          </div>
+          <div className="p-3 rounded-lg border bg-white dark:bg-gray-800">
+            <div className="text-xs text-gray-400 mb-1 flex items-center gap-1.5">
+              <Ruler className="w-3 h-3" /> Height
+            </div>
+            <div className="font-medium">
+              {(client as any)?.height ? `${(client as any)?.height} cm` : "-"}
+            </div>
+          </div>
+          <div className="p-3 rounded-lg border bg-white dark:bg-gray-800">
+            <div className="text-xs text-gray-400 mb-1 flex items-center gap-1.5">
+              <Weight className="w-3 h-3" /> Weight
+            </div>
+            <div className="font-medium">
+              {(client as any)?.weight ? `${(client as any)?.weight} kg` : "-"}
+            </div>
+          </div>
+        </div>
+
+        {/* Goals & Plans */}
+        <div className="space-y-4">
+          <div className="p-4 rounded-lg border bg-white dark:bg-gray-800">
+            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+              <Target className="w-4 h-4 text-indigo-500" /> Goals & Activity
+            </h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="text-xs text-gray-500 mb-1">Goal</div>
+                <div className="text-sm font-medium">
+                  {formatGoalLabel((client as any)?.goal)}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500 mb-1">Activity Level</div>
+                <div className="text-sm font-medium">
+                  {formatActivityLabel(client?.activityLevel)}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 rounded-lg border bg-white dark:bg-gray-800">
+            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-emerald-500" /> Assigned Plans
+            </h4>
+            <div className="grid grid-cols-1 gap-3">
+              <div>
+                <div className="text-xs text-gray-500 mb-1">Workout Plans</div>
+                <div className="text-sm font-medium">
+                  {getPlanNames(currentPlanIds, workoutPlans)}
+                </div>
+              </div>
+
+              <div>
+                <div className="text-xs text-gray-500 mb-1">Meal Plans</div>
+                <div className="text-sm font-medium">
+                  {getPlanNames(currentMealIds, mealPlans)}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {(client as any)?.notes && (
+            <div className="p-4 rounded-lg border bg-white dark:bg-gray-800">
+              <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
+                <StickyNote className="w-4 h-4 text-amber-500" /> Notes
+              </h4>
+              <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
+                {(client as any)?.notes}
+              </p>
+            </div>
+          )}
+        </div>
+
         {/* Status Banner */}
         <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800">
           <div className="flex items-center justify-between mb-4">
@@ -384,26 +475,22 @@ export default function ClientDetailsDialog({
             </span>
             <span
               className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                    ${
-                      status === "ACTIVE"
-                        ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                        : ""
-                    }
-                    ${
-                      status === "INACTIVE"
-                        ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
-                        : ""
-                    }
-                    ${
-                      status === "BLOCKED"
-                        ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                        : ""
-                    }
-                    ${
-                      status === "DELETED"
-                        ? "bg-red-50 text-red-800 dark:bg-red-950/50 dark:text-red-500"
-                        : ""
-                    }
+                    ${status === "ACTIVE"
+                  ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                  : ""
+                }
+                    ${status === "INACTIVE"
+                  ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
+                  : ""
+                }
+                    ${status === "BLOCKED"
+                  ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                  : ""
+                }
+                    ${status === "DELETED"
+                  ? "bg-red-50 text-red-800 dark:bg-red-950/50 dark:text-red-500"
+                  : ""
+                }
                 `}
             >
               {toTitleCase(status)}
@@ -724,97 +811,6 @@ export default function ClientDetailsDialog({
             </div>
           )}
         </div>
-
-        {/* Info Grid */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-3 rounded-lg border bg-white dark:bg-gray-800">
-            <div className="text-xs text-gray-400 mb-1 flex items-center gap-1.5">
-              <Calendar className="w-3 h-3" /> Birth Date
-            </div>
-            <div className="font-medium">
-              {(client as any)?.birthDate || "-"}
-            </div>
-          </div>
-          <div className="p-3 rounded-lg border bg-white dark:bg-gray-800">
-            <div className="text-xs text-gray-400 mb-1 flex items-center gap-1.5">
-              <Users className="w-3 h-3" /> Gender
-            </div>
-            <div className="font-medium capitalize">
-              {(client as any)?.gender || "-"}
-            </div>
-          </div>
-          <div className="p-3 rounded-lg border bg-white dark:bg-gray-800">
-            <div className="text-xs text-gray-400 mb-1 flex items-center gap-1.5">
-              <Ruler className="w-3 h-3" /> Height
-            </div>
-            <div className="font-medium">
-              {(client as any)?.height ? `${(client as any)?.height} cm` : "-"}
-            </div>
-          </div>
-          <div className="p-3 rounded-lg border bg-white dark:bg-gray-800">
-            <div className="text-xs text-gray-400 mb-1 flex items-center gap-1.5">
-              <Weight className="w-3 h-3" /> Weight
-            </div>
-            <div className="font-medium">
-              {(client as any)?.weight ? `${(client as any)?.weight} kg` : "-"}
-            </div>
-          </div>
-        </div>
-
-        {/* Goals & Plans */}
-        <div className="space-y-4">
-          <div className="p-4 rounded-lg border bg-white dark:bg-gray-800">
-            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
-              <Target className="w-4 h-4 text-indigo-500" /> Goals & Activity
-            </h4>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <div className="text-xs text-gray-500 mb-1">Goal</div>
-                <div className="text-sm font-medium">
-                  {formatGoalLabel((client as any)?.goal)}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-500 mb-1">Activity Level</div>
-                <div className="text-sm font-medium">
-                  {formatActivityLabel(client?.activityLevel)}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-lg border bg-white dark:bg-gray-800">
-            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-emerald-500" /> Assigned Plans
-            </h4>
-            <div className="grid grid-cols-1 gap-3">
-              <div>
-                <div className="text-xs text-gray-500 mb-1">Workout Plans</div>
-                <div className="text-sm font-medium">
-                  {getPlanNames(currentPlanIds, workoutPlans)}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-xs text-gray-500 mb-1">Meal Plans</div>
-                <div className="text-sm font-medium">
-                  {getPlanNames(currentMealIds, mealPlans)}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {(client as any)?.notes && (
-            <div className="p-4 rounded-lg border bg-white dark:bg-gray-800">
-              <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
-                <StickyNote className="w-4 h-4 text-amber-500" /> Notes
-              </h4>
-              <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
-                {(client as any)?.notes}
-              </p>
-            </div>
-          )}
-        </div>
       </div>
     );
   };
@@ -1084,8 +1080,8 @@ export default function ClientDetailsDialog({
                 {saveMutation.isPending
                   ? "Saving..."
                   : client
-                  ? "Save Changes"
-                  : "Create Client"}
+                    ? "Save Changes"
+                    : "Create Client"}
               </Button>
             </div>
           ) : (
