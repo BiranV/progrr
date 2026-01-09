@@ -255,6 +255,200 @@ export default function ClientPanel({
     )}-${String(year)}`;
   };
 
+  const getDateSortKey = (value: unknown) => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return Number.NaN;
+
+    const parts = raw.split(/\D+/).filter(Boolean);
+    if (parts.length !== 3) return Number.NaN;
+
+    const [p1, p2, p3] = parts;
+    const n1 = Number(p1);
+    const n2 = Number(p2);
+    const n3 = Number(p3);
+    if (![n1, n2, n3].every((n) => Number.isFinite(n))) return Number.NaN;
+
+    let year: number;
+    let month: number;
+    let day: number;
+
+    if (String(p1).length === 4) {
+      year = n1;
+      month = n2;
+      day = n3;
+    } else if (String(p3).length === 4) {
+      day = n1;
+      month = n2;
+      year = n3;
+    } else {
+      day = n1;
+      month = n2;
+      year = n3;
+    }
+
+    if (year < 1900 || year > 2200) return Number.NaN;
+    if (month < 1 || month > 12) return Number.NaN;
+    if (day < 1 || day > 31) return Number.NaN;
+
+    const dUtc = new Date(Date.UTC(year, month - 1, day));
+    if (
+      dUtc.getUTCFullYear() !== year ||
+      dUtc.getUTCMonth() !== month - 1 ||
+      dUtc.getUTCDate() !== day
+    ) {
+      return Number.NaN;
+    }
+
+    return dUtc.getTime();
+  };
+
+  const StepsProgressGraph = ({
+    days,
+  }: {
+    days: { date: string; steps: number }[];
+  }) => {
+    const series = React.useMemo(() => {
+      const sorted = [...(days ?? [])]
+        .map((d) => ({
+          date: String((d as any)?.date ?? ""),
+          steps: Number((d as any)?.steps ?? 0),
+          key: getDateSortKey((d as any)?.date),
+        }))
+        .filter((d) => Number.isFinite(d.steps))
+        .sort((a, b) => {
+          const ak = Number.isFinite(a.key) ? a.key : Number.POSITIVE_INFINITY;
+          const bk = Number.isFinite(b.key) ? b.key : Number.POSITIVE_INFINITY;
+          return ak - bk;
+        });
+
+      return sorted;
+    }, [days]);
+
+    if (!series.length) return null;
+
+    const values = series.map((d) => d.steps);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const n = series.length;
+
+    const width = 100;
+    const height = 40;
+    const padX = 4;
+    const padY = 4;
+
+    const toX = (i: number) => {
+      if (n <= 1) return width / 2;
+      return padX + (i * (width - padX * 2)) / (n - 1);
+    };
+
+    const toY = (v: number) => {
+      if (!Number.isFinite(v)) return height / 2;
+      if (max === min) return height / 2;
+      const t = (v - min) / (max - min);
+      return padY + (1 - t) * (height - padY * 2);
+    };
+
+    const points = series
+      .map((d, i) => `${toX(i).toFixed(2)},${toY(d.steps).toFixed(2)}`)
+      .join(" ");
+
+    const first = series[0]?.steps ?? 0;
+    const last = series[n - 1]?.steps ?? 0;
+    const prev = series[n - 2]?.steps;
+    const netChange = last - first;
+    const lastDelta = typeof prev === "number" ? last - prev : 0;
+
+    const netLabel =
+      netChange > 0
+        ? `+${netChange.toLocaleString()}`
+        : netChange < 0
+          ? netChange.toLocaleString()
+          : "0";
+
+    return (
+      <div className="rounded-md border bg-white dark:bg-gray-800 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-sm font-medium">Progress (last 7 days)</div>
+            <div className="text-xs text-gray-500">
+              Net change: <span className="font-medium">{netLabel}</span>
+              {typeof prev === "number" ? (
+                <>
+                  {" "}
+                  • Last day: {lastDelta >= 0 ? "+" : ""}
+                  {lastDelta.toLocaleString()}
+                </>
+              ) : null}
+            </div>
+          </div>
+          <div className="text-xs text-gray-500">
+            {min.toLocaleString()} – {max.toLocaleString()}
+          </div>
+        </div>
+
+        <div className="mt-2">
+          <svg
+            viewBox={`0 0 ${width} ${height}`}
+            className="h-16 w-full"
+            preserveAspectRatio="none"
+          >
+            <polyline
+              fill="none"
+              className="stroke-muted-foreground"
+              strokeWidth="1.5"
+              points={points}
+            />
+            {series.map((d, i) => {
+              const prevSteps = i > 0 ? series[i - 1]?.steps : undefined;
+              const delta =
+                typeof prevSteps === "number" ? d.steps - prevSteps : 0;
+
+              const dotClass =
+                i === 0
+                  ? "fill-muted-foreground"
+                  : delta > 0
+                    ? "fill-emerald-500"
+                    : delta < 0
+                      ? "fill-red-500"
+                      : "fill-muted-foreground";
+
+              return (
+                <circle
+                  key={`${d.date}-${i}`}
+                  cx={toX(i)}
+                  cy={toY(d.steps)}
+                  r={2.3}
+                  className={dotClass}
+                >
+                  <title>
+                    {`${formatDateDDMMYYYY(d.date)}: ${Number(
+                      d.steps
+                    ).toLocaleString()} steps`}
+                  </title>
+                </circle>
+              );
+            })}
+          </svg>
+        </div>
+
+        <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
+          <div className="inline-flex items-center gap-1">
+            <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+            Increase
+          </div>
+          <div className="inline-flex items-center gap-1">
+            <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
+            Decrease
+          </div>
+          <div className="inline-flex items-center gap-1">
+            <span className="inline-block h-2 w-2 rounded-full bg-muted-foreground" />
+            No change
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // State
   const [isEditing, setIsEditing] = React.useState(false);
   const [validationError, setValidationError] = React.useState<string | null>(
@@ -656,6 +850,12 @@ export default function ClientPanel({
                 />
               </div>
             </div>
+
+            {recentDays.length > 0 ? (
+              <div className="mb-3">
+                <StepsProgressGraph days={recentDays} />
+              </div>
+            ) : null}
 
             {recentDays.length > 0 ? (
               <div className="rounded-md border overflow-hidden">
