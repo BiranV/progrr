@@ -1569,7 +1569,10 @@ function ClientDashboard({ user }: { user: any }) {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[220px]">
-              <DropdownMenuItem onSelect={() => setMessagesOpen(true)}>
+              <DropdownMenuItem
+                onSelect={() => setMessagesOpen(true)}
+                className="cursor-pointer"
+              >
                 <div className="flex w-full items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <MessageSquare className="h-4 w-4" />
@@ -1599,8 +1602,8 @@ function ClientDashboard({ user }: { user: any }) {
                           }}
                           className={
                             isActive
-                              ? "bg-accent text-accent-foreground"
-                              : undefined
+                              ? "cursor-pointer bg-accent text-accent-foreground"
+                              : "cursor-pointer"
                           }
                         >
                           <span className="inline-flex items-center gap-2">
@@ -1615,7 +1618,10 @@ function ClientDashboard({ user }: { user: any }) {
                   )}
                 </>
               ) : null}
-              <DropdownMenuItem onSelect={() => toggleDarkMode()}>
+              <DropdownMenuItem
+                onSelect={() => toggleDarkMode()}
+                className="cursor-pointer"
+              >
                 <span className="inline-flex items-center gap-2">
                   {darkMode ? (
                     <Sun className="h-4 w-4" />
@@ -1630,13 +1636,14 @@ function ClientDashboard({ user }: { user: any }) {
                   setDeleteConfirmText("");
                   setDeleteOpen(true);
                 }}
+                className="cursor-pointer"
               >
                 <span className="inline-flex items-center gap-2">
                   <UserX className="h-4 w-4" />
                   Archive / Delete
                 </span>
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => logout(true)}>
+              <DropdownMenuItem onSelect={() => logout(true)} className="cursor-pointer">
                 <span className="inline-flex items-center gap-2">
                   <LogOut className="h-4 w-4" />
                   Logout
