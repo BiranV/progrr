@@ -215,6 +215,7 @@ export interface AppSettings {
   businessDescription?: string;
   webAddress?: string;
   logoUrl?: string;
+  logoShape?: "square" | "circle";
   clientLabel?: string;
   planLabel?: string;
   mealTypes?: string[];

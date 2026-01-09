@@ -85,6 +85,69 @@ export default function ClientPanel({
   const router = useRouter();
   const queryClient = useQueryClient();
 
+  const formatBirthDateWithAge = (birthDate: unknown) => {
+    const raw = String(birthDate ?? "").trim();
+    if (!raw) return "-";
+
+    const parts = raw.split(/\D+/).filter(Boolean);
+    if (parts.length !== 3) return raw;
+
+    const [p1, p2, p3] = parts;
+    const n1 = Number(p1);
+    const n2 = Number(p2);
+    const n3 = Number(p3);
+    if (![n1, n2, n3].every((n) => Number.isFinite(n))) return raw;
+
+    let year: number;
+    let month: number;
+    let day: number;
+
+    if (String(p1).length === 4) {
+      year = n1;
+      month = n2;
+      day = n3;
+    } else if (String(p3).length === 4) {
+      day = n1;
+      month = n2;
+      year = n3;
+    } else {
+      day = n1;
+      month = n2;
+      year = n3;
+    }
+
+    if (year < 1900 || year > 2200) return raw;
+    if (month < 1 || month > 12) return raw;
+    if (day < 1 || day > 31) return raw;
+
+    const birthUtc = new Date(Date.UTC(year, month - 1, day));
+    if (
+      birthUtc.getUTCFullYear() !== year ||
+      birthUtc.getUTCMonth() !== month - 1 ||
+      birthUtc.getUTCDate() !== day
+    ) {
+      return raw;
+    }
+
+    const now = new Date();
+    const nowYear = now.getFullYear();
+    const nowMonth = now.getMonth() + 1;
+    const nowDay = now.getDate();
+
+    let age = nowYear - year;
+    const birthdayNotYetThisYear =
+      nowMonth < month || (nowMonth === month && nowDay < day);
+    if (birthdayNotYetThisYear) age -= 1;
+
+    const formatted = `${String(day).padStart(2, "0")}-${String(month).padStart(
+      2,
+      "0"
+    )}-${String(year)}`;
+
+    if (!Number.isFinite(age) || age < 0 || age > 130) return formatted;
+    return `${formatted} (${age})`;
+  };
+
   // State
   const [isEditing, setIsEditing] = React.useState(false);
   const [validationError, setValidationError] = React.useState<string | null>(
@@ -383,7 +446,7 @@ export default function ClientPanel({
               <Calendar className="w-3 h-3" /> Birth Date
             </div>
             <div className="font-medium">
-              {(client as any)?.birthDate || "-"}
+              {formatBirthDateWithAge((client as any)?.birthDate)}
             </div>
           </div>
           <div className="p-3 rounded-lg border bg-white dark:bg-gray-800">

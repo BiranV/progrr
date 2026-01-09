@@ -21,9 +21,11 @@ import {
   MapPin,
   Bell,
   Send,
+  Settings,
   Sun,
   Moon,
   LogOut,
+  UserX,
   FileDown,
   FileText,
   Copy as CopyIcon,
@@ -460,16 +462,21 @@ function ClientDashboard({ user }: { user: any }) {
 
   const coachLogoUrl =
     appSettings.length > 0 &&
-    typeof (appSettings[0] as any)?.logoUrl === "string"
+      typeof (appSettings[0] as any)?.logoUrl === "string"
       ? String((appSettings[0] as any).logoUrl).trim()
       : "";
 
   const coachBusinessName =
     appSettings.length > 0 &&
-    typeof (appSettings[0] as any)?.businessName === "string" &&
-    String((appSettings[0] as any).businessName).trim()
+      typeof (appSettings[0] as any)?.businessName === "string" &&
+      String((appSettings[0] as any).businessName).trim()
       ? String((appSettings[0] as any).businessName).trim()
       : "";
+
+  const coachLogoShape =
+    appSettings.length > 0 && (appSettings[0] as any)?.logoShape === "circle"
+      ? "circle"
+      : "square";
 
   const switchCoachMutation = useMutation({
     mutationFn: async (adminId: string) => {
@@ -517,6 +524,73 @@ function ClientDashboard({ user }: { user: any }) {
       .split(" ")
       .map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w))
       .join(" ");
+  };
+
+  const formatBirthDateWithAge = (birthDate: unknown) => {
+    const raw = String(birthDate ?? "").trim();
+    if (!raw) return "-";
+
+    const parts = raw.split(/\D+/).filter(Boolean);
+    if (parts.length !== 3) return raw;
+
+    const [p1, p2, p3] = parts;
+    const n1 = Number(p1);
+    const n2 = Number(p2);
+    const n3 = Number(p3);
+    if (![n1, n2, n3].every((n) => Number.isFinite(n))) return raw;
+
+    let year: number;
+    let month: number;
+    let day: number;
+
+    // Prefer unambiguous year-first or year-last parsing.
+    if (String(p1).length === 4) {
+      year = n1;
+      month = n2;
+      day = n3;
+    } else if (String(p3).length === 4) {
+      day = n1;
+      month = n2;
+      year = n3;
+    } else {
+      // Fallback: treat as DD-MM-YY(YY) style where possible.
+      day = n1;
+      month = n2;
+      year = n3;
+    }
+
+    if (year < 1900 || year > 2200) return raw;
+    if (month < 1 || month > 12) return raw;
+    if (day < 1 || day > 31) return raw;
+
+    // Validate date via UTC to avoid timezone shifting day.
+    const birthUtc = new Date(Date.UTC(year, month - 1, day));
+    if (
+      birthUtc.getUTCFullYear() !== year ||
+      birthUtc.getUTCMonth() !== month - 1 ||
+      birthUtc.getUTCDate() !== day
+    ) {
+      return raw;
+    }
+
+    const now = new Date();
+    const nowYear = now.getFullYear();
+    const nowMonth = now.getMonth() + 1;
+    const nowDay = now.getDate();
+
+    let age = nowYear - year;
+    const birthdayNotYetThisYear =
+      nowMonth < month || (nowMonth === month && nowDay < day);
+    if (birthdayNotYetThisYear) age -= 1;
+    if (age < 0 || age > 130) return `${String(day).padStart(2, "0")}-${String(
+      month
+    ).padStart(2, "0")}-${String(year)}`;
+
+    const formatted = `${String(day).padStart(2, "0")}-${String(month).padStart(
+      2,
+      "0"
+    )}-${String(year)}`;
+    return `${formatted} (${age})`;
   };
 
   const formatDuration = (duration: any) => {
@@ -733,8 +807,8 @@ function ClientDashboard({ user }: { user: any }) {
   const assignedPlanIds = React.useMemo(() => {
     const ids = Array.isArray((myClient as any)?.assignedPlanIds)
       ? ((myClient as any).assignedPlanIds as any[])
-          .map((v) => String(v ?? "").trim())
-          .filter((v) => v && v !== "none")
+        .map((v) => String(v ?? "").trim())
+        .filter((v) => v && v !== "none")
       : [];
     const legacy = String((myClient as any)?.assignedPlanId ?? "").trim();
     const all = [...ids, ...(legacy && legacy !== "none" ? [legacy] : [])];
@@ -744,8 +818,8 @@ function ClientDashboard({ user }: { user: any }) {
   const assignedMealPlanIds = React.useMemo(() => {
     const ids = Array.isArray((myClient as any)?.assignedMealPlanIds)
       ? ((myClient as any).assignedMealPlanIds as any[])
-          .map((v) => String(v ?? "").trim())
-          .filter((v) => v && v !== "none")
+        .map((v) => String(v ?? "").trim())
+        .filter((v) => v && v !== "none")
       : [];
     const legacy = String((myClient as any)?.assignedMealPlanId ?? "").trim();
     const all = [...ids, ...(legacy && legacy !== "none" ? [legacy] : [])];
@@ -1368,16 +1442,17 @@ function ClientDashboard({ user }: { user: any }) {
     <div className="p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
       {coachLogoUrl || coachBusinessName ? (
         <div className="mb-6">
-          <div className="flex items-center gap-3 min-w-0 pr-24 md:pr-0">
+          <div className="flex flex-col items-center justify-center gap-2 min-w-0 px-24 md:px-0 text-center">
             {coachLogoUrl ? (
               <img
                 src={coachLogoUrl}
                 alt="Coach logo"
-                className="h-12 w-12 rounded-md object-contain shrink-0"
+                className={`h-14 w-14 object-contain shrink-0 ${coachLogoShape === "circle" ? "rounded-full" : "rounded-none"
+                  }`}
               />
             ) : null}
             {coachBusinessName ? (
-              <div className="min-w-0 truncate text-base font-semibold text-gray-900 dark:text-gray-100">
+              <div className="min-w-0 truncate text-base font-semibold text-gray-900 dark:text-gray-100 text-center">
                 {coachBusinessName}
               </div>
             ) : null}
@@ -1387,20 +1462,6 @@ function ClientDashboard({ user }: { user: any }) {
 
       <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
         <Dialog open={messagesOpen} onOpenChange={setMessagesOpen}>
-          <DialogTrigger asChild>
-            <button
-              className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-              aria-label="Messages"
-            >
-              <Bell className="w-6 h-6 text-gray-700 dark:text-gray-200" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 h-5 min-w-5 px-1 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
-          </DialogTrigger>
-
           <DialogContent className="w-[90vw] max-w-[90vw] sm:max-w-xl">
             <DialogHeader>
               <DialogTitle>Messages</DialogTitle>
@@ -1424,22 +1485,19 @@ function ClientDashboard({ user }: { user: any }) {
                         return (
                           <div
                             key={m.id}
-                            className={`flex ${
-                              fromMe ? "justify-end" : "justify-start"
-                            }`}
+                            className={`flex ${fromMe ? "justify-end" : "justify-start"
+                              }`}
                           >
                             <div
-                              className={`max-w-[75%] rounded-lg px-3 py-2 text-sm border ${
-                                fromMe
-                                  ? "bg-indigo-600 text-white border-indigo-600"
-                                  : "bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-200 dark:border-gray-700"
-                              }`}
+                              className={`max-w-[75%] rounded-lg px-3 py-2 text-sm border ${fromMe
+                                ? "bg-indigo-600 text-white border-indigo-600"
+                                : "bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-200 dark:border-gray-700"
+                                }`}
                             >
                               <div>{m.text}</div>
                               <div
-                                className={`mt-1 text-[11px] ${
-                                  fromMe ? "text-indigo-100" : "text-gray-500"
-                                }`}
+                                className={`mt-1 text-[11px] ${fromMe ? "text-indigo-100" : "text-gray-500"
+                                  }`}
                               >
                                 {m.created_date
                                   ? format(new Date(m.created_date), "PPP p")
@@ -1478,77 +1536,167 @@ function ClientDashboard({ user }: { user: any }) {
           </DialogContent>
         </Dialog>
 
-        {user?.canSwitchCoach ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                aria-label="Switch coach"
-                title="Switch coach"
-              >
-                <Repeat className="w-6 h-6 text-gray-700 dark:text-gray-200" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[220px]">
-              <DropdownMenuLabel>Switch coach</DropdownMenuLabel>
-              {coaches.length ? (
-                coaches.map((c) => {
-                  const isActive =
-                    typeof user?.adminId === "string" &&
-                    user.adminId === c.adminId;
-                  return (
-                    <DropdownMenuItem
-                      key={c.adminId}
-                      onSelect={() => {
-                        if (isActive) return;
-                        switchCoachMutation.mutate(c.adminId);
-                      }}
-                      className={
-                        isActive
-                          ? "bg-accent text-accent-foreground"
-                          : undefined
-                      }
-                    >
-                      {c.label}
-                    </DropdownMenuItem>
-                  );
-                })
-              ) : (
-                <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+              aria-label="Settings"
+              title="Settings"
+            >
+              <Settings className="w-6 h-6 text-gray-700 dark:text-gray-200" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 h-5 min-w-5 px-1 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center">
+                  {unreadCount}
+                </span>
               )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : null}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-[220px]">
+            <DropdownMenuItem onSelect={() => setMessagesOpen(true)}>
+              <div className="flex w-full items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  <span>Messages</span>
+                </div>
+                {unreadCount > 0 ? (
+                  <span className="h-5 min-w-5 px-1 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                ) : null}
+              </div>
+            </DropdownMenuItem>
 
-        <button
-          onClick={toggleDarkMode}
-          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-          aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-        >
-          {darkMode ? (
-            <Sun className="w-6 h-6 text-gray-700 dark:text-gray-200" />
-          ) : (
-            <Moon className="w-6 h-6 text-gray-700 dark:text-gray-200" />
-          )}
-        </button>
-
-        <button
-          onClick={() => logout(true)}
-          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-          aria-label="Logout"
-        >
-          <LogOut className="w-6 h-6 text-gray-700 dark:text-gray-200" />
-        </button>
+            {user?.canSwitchCoach ? (
+              <>
+                {coaches.length ? (
+                  coaches.map((c) => {
+                    const isActive =
+                      typeof user?.adminId === "string" &&
+                      user.adminId === c.adminId;
+                    return (
+                      <DropdownMenuItem
+                        key={c.adminId}
+                        onSelect={() => {
+                          if (isActive) return;
+                          switchCoachMutation.mutate(c.adminId);
+                        }}
+                        className={
+                          isActive
+                            ? "bg-accent text-accent-foreground"
+                            : undefined
+                        }
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          <Repeat className="h-4 w-4" />
+                          {c.label}
+                        </span>
+                      </DropdownMenuItem>
+                    );
+                  })
+                ) : (
+                  <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
+                )}
+              </>
+            ) : null}
+            <DropdownMenuItem onSelect={() => toggleDarkMode()}>
+              <span className="inline-flex items-center gap-2">
+                {darkMode ? (
+                  <Sun className="h-4 w-4" />
+                ) : (
+                  <Moon className="h-4 w-4" />
+                )}
+                {darkMode ? "Light mode" : "Dark mode"}
+              </span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => {
+                setDeleteConfirmText("");
+                setDeleteOpen(true);
+              }}
+            >
+              <span className="inline-flex items-center gap-2">
+                <UserX className="h-4 w-4" />
+                Archive / Delete
+              </span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => logout(true)}>
+              <span className="inline-flex items-center gap-2">
+                <LogOut className="h-4 w-4" />
+                Logout
+              </span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      <div className="mb-6">
-        <div className="min-w-0 pr-24 md:pr-0">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent showCloseButton={!deletePending}>
+          <DialogHeader>
+            <DialogTitle>Delete your account?</DialogTitle>
+            <DialogDescription>
+              Your account will be deactivated and you will lose access.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="p-4 border border-orange-200 bg-orange-50 dark:bg-orange-900/10 rounded-lg space-y-3">
+              <div className="space-y-1">
+                <div className="text-sm font-semibold text-orange-900 dark:text-orange-100">
+                  Deactivate account?
+                </div>
+                <div className="text-xs text-orange-800 dark:text-orange-200 leading-relaxed">
+                  Your data will be preserved but you will lose access
+                  essentially immediately. You can contact your coach to
+                  restore your account later.
+                </div>
+                <div className="text-xs text-orange-800 dark:text-orange-200 leading-relaxed pt-1">
+                  If you would like to permanently delete your data, please
+                  contact your admin.
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Type DELETE to confirm</label>
+              <Input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE"
+                disabled={deletePending}
+              />
+              <p className="text-xs text-muted-foreground">
+                For security, deletion requires recent authentication. If
+                needed, log out and log back in, then retry within 10 minutes.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteOpen(false)}
+              disabled={deletePending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleClientDeleteAccount}
+              disabled={deletePending || deleteConfirmText !== "DELETE"}
+            >
+              {deletePending ? "Deleting..." : "Delete account permanently"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <div className="mb-6 flex justify-center">
+        <div className="min-w-0 px-24 md:px-0 text-center">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
             Hi, {user.full_name}!
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Track your progress and stay connected with your coach
-          </p>
         </div>
       </div>
 
@@ -1560,7 +1708,9 @@ function ClientDashboard({ user }: { user: any }) {
           >
             <CardHeader className="h-full flex flex-col items-center justify-center text-center gap-2">
               <Users className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-              <CardTitle className="text-base">Profile</CardTitle>
+              <div className="h-10 flex items-center justify-center">
+                <CardTitle className="text-base leading-tight">Profile</CardTitle>
+              </div>
             </CardHeader>
           </Card>
 
@@ -1570,7 +1720,9 @@ function ClientDashboard({ user }: { user: any }) {
           >
             <CardHeader className="h-full flex flex-col items-center justify-center text-center gap-2">
               <Calendar className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-              <CardTitle className="text-base">Meetings</CardTitle>
+              <div className="h-10 flex items-center justify-center">
+                <CardTitle className="text-base leading-tight">Meetings</CardTitle>
+              </div>
             </CardHeader>
           </Card>
 
@@ -1580,7 +1732,9 @@ function ClientDashboard({ user }: { user: any }) {
           >
             <CardHeader className="h-full flex flex-col items-center justify-center text-center gap-2">
               <Dumbbell className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-              <CardTitle className="text-base">Workout Plans</CardTitle>
+              <div className="h-10 flex items-center justify-center">
+                <CardTitle className="text-base leading-tight">Workouts</CardTitle>
+              </div>
             </CardHeader>
           </Card>
 
@@ -1590,7 +1744,9 @@ function ClientDashboard({ user }: { user: any }) {
           >
             <CardHeader className="h-full flex flex-col items-center justify-center text-center gap-2">
               <UtensilsCrossed className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-              <CardTitle className="text-base">Meal Plans</CardTitle>
+              <div className="h-10 flex items-center justify-center">
+                <CardTitle className="text-base leading-tight">Meals</CardTitle>
+              </div>
             </CardHeader>
           </Card>
 
@@ -1600,7 +1756,9 @@ function ClientDashboard({ user }: { user: any }) {
           >
             <CardHeader className="h-full flex flex-col items-center justify-center text-center gap-2">
               <CalendarDays className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-              <CardTitle className="text-base">Weekly Calendar</CardTitle>
+              <div className="h-10 flex items-center justify-center">
+                <CardTitle className="text-base leading-tight">Calendar</CardTitle>
+              </div>
             </CardHeader>
           </Card>
         </div>
@@ -1620,12 +1778,12 @@ function ClientDashboard({ user }: { user: any }) {
               {activeSection === "profile"
                 ? "Profile"
                 : activeSection === "meetings"
-                ? "Meetings"
-                : activeSection === "workouts"
-                ? "Workout Plans"
-                : activeSection === "meals"
-                ? "Meal Plans"
-                : "Weekly Calendar"}
+                  ? "Meetings"
+                  : activeSection === "workouts"
+                    ? "Workouts"
+                    : activeSection === "meals"
+                      ? "Meals"
+                      : "Calendar"}
             </div>
           </div>
 
@@ -1697,13 +1855,14 @@ function ClientDashboard({ user }: { user: any }) {
                           Remove photo
                         </Button>
                       ) : null}
+
                       <div className="text-xs text-gray-500 dark:text-gray-400">
                         Auto-cropped to a square avatar
                       </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                       <div className="text-xs text-gray-500 dark:text-gray-400">
                         Full name
@@ -1737,6 +1896,7 @@ function ClientDashboard({ user }: { user: any }) {
                           "-"}
                       </div>
                     </div>
+
                     <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                       <div className="text-xs text-gray-500 dark:text-gray-400">
                         Goal
@@ -1761,8 +1921,7 @@ function ClientDashboard({ user }: { user: any }) {
                         Birth date
                       </div>
                       <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {String((myClient as any).birthDate ?? "").trim() ||
-                          "-"}
+                        {formatBirthDateWithAge((myClient as any).birthDate)}
                       </div>
                     </div>
                     <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
@@ -1781,7 +1940,7 @@ function ClientDashboard({ user }: { user: any }) {
                         {String((myClient as any).weight ?? "").trim() || "-"}
                       </div>
                     </div>
-                    <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg sm:col-span-2">
+                    <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg col-span-2">
                       <div className="text-xs text-gray-500 dark:text-gray-400">
                         Assigned workout plans
                       </div>
@@ -1789,15 +1948,15 @@ function ClientDashboard({ user }: { user: any }) {
                         {assignedPlansLoading
                           ? "Loading…"
                           : assignedPlans.length
-                          ? (assignedPlans as any[])
+                            ? (assignedPlans as any[])
                               .map(
                                 (p) => String((p as any)?.name ?? "-") || "-"
                               )
                               .join(", ")
-                          : "-"}
+                            : "-"}
                       </div>
                     </div>
-                    <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg sm:col-span-2">
+                    <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg col-span-2">
                       <div className="text-xs text-gray-500 dark:text-gray-400">
                         Assigned meal plans
                       </div>
@@ -1805,16 +1964,16 @@ function ClientDashboard({ user }: { user: any }) {
                         {assignedMealPlansLoading
                           ? "Loading…"
                           : assignedMealPlans.length
-                          ? (assignedMealPlans as any[])
+                            ? (assignedMealPlans as any[])
                               .map(
                                 (p) => String((p as any)?.name ?? "-") || "-"
                               )
                               .join(", ")
-                          : "-"}
+                            : "-"}
                       </div>
                     </div>
                     {String((myClient as any).notes ?? "").trim() ? (
-                      <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg sm:col-span-2">
+                      <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg col-span-2">
                         <div className="text-xs text-gray-500 dark:text-gray-400">
                           Notes
                         </div>
@@ -1829,7 +1988,7 @@ function ClientDashboard({ user }: { user: any }) {
                     <CardHeader>
                       <CardTitle>Coach</CardTitle>
                     </CardHeader>
-                    <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <CardContent className="grid grid-cols-2 gap-3">
                       <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                         <div className="text-xs text-gray-500 dark:text-gray-400">
                           Name
@@ -1838,8 +1997,8 @@ function ClientDashboard({ user }: { user: any }) {
                           {toTitleCase(
                             String(
                               (user as any)?.admin?.full_name ??
-                                (user as any)?.admin?.email ??
-                                ""
+                              (user as any)?.admin?.email ??
+                              ""
                             )
                           ) || "-"}
                         </div>
@@ -1862,28 +2021,38 @@ function ClientDashboard({ user }: { user: any }) {
                             "-"}
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
 
-                  <Card className="dark:bg-gray-800 dark:border-gray-700">
-                    <CardHeader>
-                      <CardTitle>Account Actions</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        Remove your account from active use.
-                      </p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="text-red-600 border-red-200 hover:bg-red-50 dark:border-red-900/40 dark:text-red-400 dark:hover:bg-red-900/10"
-                        onClick={() => {
-                          setDeleteConfirmText("");
-                          setDeleteOpen(true);
-                        }}
-                      >
-                        Archive / Delete
-                      </Button>
+                      {String((appSettings?.[0] as any)?.facebookUrl ?? "").trim() ? (
+                        <a
+                          href={String((appSettings?.[0] as any)?.facebookUrl)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
+                        >
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            Facebook
+                          </div>
+                          <div className="text-sm font-medium text-indigo-600 dark:text-indigo-400 truncate">
+                            {String((appSettings?.[0] as any)?.facebookUrl)}
+                          </div>
+                        </a>
+                      ) : null}
+
+                      {String((appSettings?.[0] as any)?.instagramUrl ?? "").trim() ? (
+                        <a
+                          href={String((appSettings?.[0] as any)?.instagramUrl)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
+                        >
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            Instagram
+                          </div>
+                          <div className="text-sm font-medium text-indigo-600 dark:text-indigo-400 truncate">
+                            {String((appSettings?.[0] as any)?.instagramUrl)}
+                          </div>
+                        </a>
+                      ) : null}
                     </CardContent>
                   </Card>
 
@@ -2268,11 +2437,10 @@ function ClientDashboard({ user }: { user: any }) {
                                   onClick={() =>
                                     setWeeklyAnchorDate(new Date(opt.start))
                                   }
-                                  className={`w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${
-                                    selected
-                                      ? "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-medium"
-                                      : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
-                                  }`}
+                                  className={`w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${selected
+                                    ? "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-medium"
+                                    : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
+                                    }`}
                                 >
                                   {opt.label}
                                 </button>
@@ -2294,11 +2462,10 @@ function ClientDashboard({ user }: { user: any }) {
                       return (
                         <div
                           key={key}
-                          className={`rounded-xl border p-4 dark:border-gray-700 bg-white dark:bg-gray-900/30 flex flex-col ${
-                            isToday
-                              ? "border-indigo-200 dark:border-indigo-800"
-                              : "border-gray-200"
-                          }`}
+                          className={`rounded-xl border p-4 dark:border-gray-700 bg-white dark:bg-gray-900/30 flex flex-col ${isToday
+                            ? "border-indigo-200 dark:border-indigo-800"
+                            : "border-gray-200"
+                            }`}
                         >
                           <div className="flex-1">
                             <div className="flex items-baseline justify-between gap-2">
@@ -2317,9 +2484,8 @@ function ClientDashboard({ user }: { user: any }) {
                               </div>
                               <div className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
                                 {dayMeetings.length
-                                  ? `${dayMeetings.length} meeting${
-                                      dayMeetings.length === 1 ? "" : "s"
-                                    }`
+                                  ? `${dayMeetings.length} meeting${dayMeetings.length === 1 ? "" : "s"
+                                  }`
                                   : ""}
                               </div>
                             </div>
@@ -2618,8 +2784,8 @@ function ClientDashboard({ user }: { user: any }) {
                                             ) : null}
 
                                             {String(ex.sets ?? "").trim() ||
-                                            String(ex.reps ?? "").trim() ||
-                                            restText ? (
+                                              String(ex.reps ?? "").trim() ||
+                                              restText ? (
                                               <div className="mt-2 text-sm text-gray-700 dark:text-gray-200 leading-5">
                                                 {String(
                                                   ex.sets ?? ""
@@ -2644,7 +2810,7 @@ function ClientDashboard({ user }: { user: any }) {
                                             ) : null}
 
                                             {String(videoKind) === "youtube" &&
-                                            String(videoUrlRaw).trim() ? (
+                                              String(videoUrlRaw).trim() ? (
                                               (() => {
                                                 const embed = toYouTubeEmbedUrl(
                                                   String(videoUrlRaw)
@@ -2689,7 +2855,7 @@ function ClientDashboard({ user }: { user: any }) {
                                                 );
                                               })()
                                             ) : String(videoKind) ===
-                                                "upload" &&
+                                              "upload" &&
                                               String(videoUrlRaw).trim() ? (
                                               <div className="mt-2">
                                                 <div
@@ -2961,7 +3127,7 @@ function ClientDashboard({ user }: { user: any }) {
                                         </div>
 
                                         {Array.isArray(meal.foods) &&
-                                        meal.foods.length > 0 ? (
+                                          meal.foods.length > 0 ? (
                                           <div className="mt-2 space-y-1">
                                             {meal.foods.map(
                                               (food: any, foodIdx: number) => (

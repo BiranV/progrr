@@ -78,6 +78,7 @@ export default function SettingsPage() {
     businessDescription: "",
     webAddress: "",
     logoUrl: "",
+    logoShape: "square",
     mealTypes: [],
     weekStartDay: "monday",
     facebookUrl: "",
@@ -117,6 +118,7 @@ export default function SettingsPage() {
       const s = settings[0] as any;
       setFormData({
         ...s,
+        logoShape: s?.logoShape === "circle" ? "circle" : "square",
         mealTypes: Array.isArray(s?.mealTypes)
           ? s.mealTypes.map((v: any) => String(v ?? "").trim()).filter(Boolean)
           : [],
@@ -463,28 +465,63 @@ export default function SettingsPage() {
                 Logo
               </label>
 
-              {/* Toggle between URL and Upload */}
-              <div className="flex gap-2 mb-3">
-                <Button
-                  type="button"
-                  variant={uploadMethod === "url" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setUploadMethod("url")}
-                  className="flex items-center gap-2"
-                >
-                  <Link2 className="w-4 h-4" />
-                  URL
-                </Button>
-                <Button
-                  type="button"
-                  variant={uploadMethod === "upload" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setUploadMethod("upload")}
-                  className="flex items-center gap-2"
-                >
-                  <Upload className="w-4 h-4" />
-                  Upload
-                </Button>
+              <div className="flex items-end justify-between gap-3 mb-3">
+                <div className="flex flex-col gap-1">
+                  <div className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                    Source
+                  </div>
+                  <div className="inline-flex rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setUploadMethod("url")}
+                      className={`rounded-l-md rounded-r-none px-3 gap-2 ${uploadMethod === "url"
+                        ? "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-500 dark:bg-indigo-900/20 dark:text-indigo-200"
+                        : ""
+                        }`}
+                    >
+                      <Link2 className="w-4 h-4" />
+                      URL
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setUploadMethod("upload")}
+                      className={`rounded-r-md rounded-l-none px-3 gap-2 border-l border-gray-200 dark:border-gray-700 ${uploadMethod === "upload"
+                        ? "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-500 dark:bg-indigo-900/20 dark:text-indigo-200"
+                        : ""
+                        }`}
+                    >
+                      <Upload className="w-4 h-4" />
+                      Upload
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-end gap-1">
+                  <div className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                    Shape
+                  </div>
+                  <Select
+                    value={formData.logoShape === "circle" ? "circle" : "square"}
+                    onValueChange={(v) =>
+                      setFormData({
+                        ...formData,
+                        logoShape: v === "circle" ? "circle" : "square",
+                      })
+                    }
+                  >
+                    <SelectTrigger className="w-[140px] justify-between">
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="square">Square</SelectItem>
+                      <SelectItem value="circle">Circle</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {uploadMethod === "url" ? (
@@ -501,11 +538,11 @@ export default function SettingsPage() {
                   onDragLeave={handleDrag}
                   onDragOver={handleDrag}
                   onDrop={handleDrop}
-                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                    dragActive
+                  className={`border-2 border-dashed ${formData.logoShape === "circle" ? "rounded-lg" : "rounded-none"
+                    } p-8 text-center transition-colors ${dragActive
                       ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20"
                       : "border-gray-300 dark:border-gray-700"
-                  }`}
+                    }`}
                 >
                   {uploading ? (
                     <p className="text-gray-600 dark:text-gray-400">
@@ -516,7 +553,10 @@ export default function SettingsPage() {
                       <img
                         src={formData.logoUrl}
                         alt="Logo"
-                        className="mx-auto h-20 object-contain"
+                        className={`mx-auto h-20 w-20 object-contain ${formData.logoShape === "circle"
+                          ? "rounded-full"
+                          : "rounded-none"
+                          }`}
                       />
                       <div className="flex justify-center gap-2">
                         <Button
@@ -578,59 +618,61 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Mock Data */}
-        <Card className="dark:bg-gray-800 dark:border-gray-700">
-          <CardHeader>
-            <CardTitle>Mock Data</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Generate a detailed demo dataset (clients, plans, meals, meetings,
-              and messages) to test your project. Clear will wipe all clients,
-              plans, meals, foods, meetings, and messages for this admin.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                type="button"
-                className="bg-indigo-600 hover:bg-indigo-700"
-                disabled={
-                  seedMockMutation.isPending || clearMockMutation.isPending
-                }
-                onClick={() => {
-                  const ok = window.confirm(
-                    "Generate mock data now? This will first remove any previously generated mock data."
-                  );
-                  if (!ok) return;
-                  seedMockMutation.mutate();
-                }}
-              >
-                {seedMockMutation.isPending
-                  ? "Generating..."
-                  : "Generate Mock Data"}
-              </Button>
+        {/* Mock Data (hidden) */}
+        {/*
+          <Card className="dark:bg-gray-800 dark:border-gray-700">
+            <CardHeader>
+              <CardTitle>Mock Data</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Generate a detailed demo dataset (clients, plans, meals, meetings,
+                and messages) to test your project. Clear will wipe all clients,
+                plans, meals, foods, meetings, and messages for this admin.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  type="button"
+                  className="bg-indigo-600 hover:bg-indigo-700"
+                  disabled={
+                    seedMockMutation.isPending || clearMockMutation.isPending
+                  }
+                  onClick={() => {
+                    const ok = window.confirm(
+                      "Generate mock data now? This will first remove any previously generated mock data."
+                    );
+                    if (!ok) return;
+                    seedMockMutation.mutate();
+                  }}
+                >
+                  {seedMockMutation.isPending
+                    ? "Generating..."
+                    : "Generate Mock Data"}
+                </Button>
 
-              <Button
-                type="button"
-                variant="outline"
-                className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-900/10"
-                disabled={
-                  seedMockMutation.isPending || clearMockMutation.isPending
-                }
-                onClick={() => {
-                  const ok = window.confirm(
-                    "Clear data now? This will delete all clients, plans, meals, foods, meetings, and messages for this admin."
-                  );
-                  if (!ok) return;
-                  clearMockMutation.mutate();
-                }}
-              >
-                {clearMockMutation.isPending
-                  ? "Clearing..."
-                  : "Clear Mock Data"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-900/40 dark:text-red-300 dark:hover:bg-red-900/10"
+                  disabled={
+                    seedMockMutation.isPending || clearMockMutation.isPending
+                  }
+                  onClick={() => {
+                    const ok = window.confirm(
+                      "Clear data now? This will delete all clients, plans, meals, foods, meetings, and messages for this admin."
+                    );
+                    if (!ok) return;
+                    clearMockMutation.mutate();
+                  }}
+                >
+                  {clearMockMutation.isPending
+                    ? "Clearing..."
+                    : "Clear Mock Data"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+          */}
 
         {/* Social Links */}
         <Card className="dark:bg-gray-800 dark:border-gray-700">

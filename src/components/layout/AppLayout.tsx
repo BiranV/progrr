@@ -95,6 +95,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       ? null
       : rawLogoUrl;
 
+  const logoShape =
+    settings.length > 0 && (settings[0] as any)?.logoShape === "circle"
+      ? "circle"
+      : "square";
+  const logoShapeClass = logoShape === "circle" ? "rounded-full" : "rounded-none";
+
   const handleLogout = async () => {
     logout();
   };
@@ -193,20 +199,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const navItems = isAdmin
     ? [
-        { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-        { name: "Clients", icon: Users, href: "/clients" },
-        { name: "Exercises", icon: Dumbbell, href: "/exercises" },
-        { name: "Workout Plans", icon: ClipboardList, href: "/plans" },
-        { name: "Foods", icon: Apple, href: "/foods" },
-        { name: "Meal Plans", icon: UtensilsCrossed, href: "/meals" },
-        { name: "Meetings", icon: Calendar, href: "/meetings" },
-        { name: "Messages", icon: MessageSquare, href: "/messages" },
-        { name: "Settings", icon: Settings, href: "/settings" },
-      ]
+      { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
+      { name: "Clients", icon: Users, href: "/clients" },
+      { name: "Exercises", icon: Dumbbell, href: "/exercises" },
+      { name: "Workout Plans", icon: ClipboardList, href: "/plans" },
+      { name: "Foods", icon: Apple, href: "/foods" },
+      { name: "Meal Plans", icon: UtensilsCrossed, href: "/meals" },
+      { name: "Meetings", icon: Calendar, href: "/meetings" },
+      { name: "Messages", icon: MessageSquare, href: "/messages" },
+      { name: "Settings", icon: Settings, href: "/settings" },
+    ]
     : [
-        { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-        { name: "Messages", icon: MessageSquare, href: "/messages" },
-      ];
+      { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
+      { name: "Messages", icon: MessageSquare, href: "/messages" },
+    ];
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
@@ -222,7 +228,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <img
               src={logoUrl}
               alt="Logo"
-              className="h-8 object-contain shrink-0"
+              className={`h-8 w-8 object-contain shrink-0 ${logoShapeClass}`}
             />
           )}
           <h1 className="text-xl font-bold text-gray-900 dark:text-white truncate">
@@ -260,10 +266,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             fixed lg:sticky lg:top-0 lg:h-screen inset-y-0 left-0 z-50
             w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
             transform transition-transform duration-200 ease-in-out
-            ${
-              sidebarOpen
-                ? "translate-x-0"
-                : "-translate-x-full lg:translate-x-0"
+            ${sidebarOpen
+              ? "translate-x-0"
+              : "-translate-x-full lg:translate-x-0"
             }
           `}
         >
@@ -275,7 +280,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <img
                     src={logoUrl}
                     alt="Logo"
-                    className="h-8 object-contain shrink-0"
+                    className={`h-8 w-8 object-contain shrink-0 ${logoShapeClass}`}
                   />
                 )}
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white truncate min-w-0">
@@ -302,10 +307,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     onClick={() => setSidebarOpen(false)}
                     className={`
                       flex items-center gap-3 px-4 py-3 rounded-lg transition-colors
-                      ${
-                        isActive
-                          ? "bg-indigo-50 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 font-medium"
-                          : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      ${isActive
+                        ? "bg-indigo-50 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 font-medium"
+                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
                       }
                     `}
                   >
