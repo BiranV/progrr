@@ -1,119 +1,162 @@
 "use client";
 
 import React from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Plus,
-  Search,
-  Edit,
-  Trash2,
-  Dumbbell,
-  FileText,
-  Video,
-} from "lucide-react";
-import ExerciseLibraryDialog from "@/components/ExerciseLibraryDialog";
+import { Card, CardContent } from "@/components/ui/card";
+import { ArrowUpDown, Dumbbell, Plus, Search } from "lucide-react";
 import ExerciseLibraryDetailsDialog from "@/components/ExerciseLibraryDetailsDialog";
-import ConfirmModal from "@/components/ui/confirm-modal";
-import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { getCookie, setCookie } from "@/lib/client-cookies";
+
+type ExerciseRow = {
+  id: string;
+  name?: string;
+  guidelines?: string;
+  videoKind?: string | null;
+  videoUrl?: string | null;
+};
 
 export default function ExercisesPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = React.useState("");
-  const [dialogOpen, setDialogOpen] = React.useState(false);
-  const [editingExercise, setEditingExercise] = React.useState<any | null>(
-    null
-  );
-
   const [detailsOpen, setDetailsOpen] = React.useState(false);
-  const [detailsExercise, setDetailsExercise] = React.useState<any | null>(
+  const [detailsExerciseId, setDetailsExerciseId] = React.useState<string | null>(
     null
   );
 
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
-  const [deleteTarget, setDeleteTarget] = React.useState<{
-    id: string;
-    name: string;
+  const PAGE_SIZE_OPTIONS = [5, 10, 25, 50, 100] as const;
+  const [pageSize, setPageSize] = React.useState(() => {
+    if (typeof window === "undefined") return 10;
+    const raw = getCookie("progrr_exercises_rows_per_page");
+    const parsed = raw ? Number(raw) : NaN;
+    if (
+      Number.isFinite(parsed) &&
+      (PAGE_SIZE_OPTIONS as readonly number[]).includes(parsed)
+    ) {
+      return parsed;
+    }
+    return 10;
+  });
+
+  const [page, setPage] = React.useState(1);
+  const [sortConfig, setSortConfig] = React.useState<{
+    key: keyof ExerciseRow;
+    direction: "asc" | "desc";
   } | null>(null);
+
+  React.useEffect(() => {
+    setCookie("progrr_exercises_rows_per_page", String(pageSize), {
+      maxAgeSeconds: 60 * 60 * 24 * 365,
+    });
+  }, [pageSize]);
 
   const { data: exercises = [], isLoading } = useQuery({
     queryKey: ["exerciseLibrary"],
     queryFn: () => db.entities.ExerciseLibrary.list("-created_date"),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      // Best-effort delete uploaded video file too
-      try {
-        await fetch(`/api/admin/exercise-library/${id}/video`, {
-          method: "DELETE",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ deleteFile: true }),
-        });
-      } catch {
-        // ignore
-      }
-
-      await db.entities.ExerciseLibrary.delete(id);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["exerciseLibrary"] });
-    },
-    onError: (err: any) => {
-      toast.error(String(err?.message ?? "Failed to delete"));
-    },
-  });
-
-  const filtered = (exercises as any[]).filter((e) =>
+  const filtered = (exercises as ExerciseRow[]).filter((e) =>
     String(e?.name ?? "")
       .toLowerCase()
       .includes(search.toLowerCase())
   );
 
-  const handleEdit = async (exercise: any) => {
-    try {
-      const full = await db.entities.ExerciseLibrary.get(
-        String((exercise as any)?.id)
-      );
-      setEditingExercise(full as any);
-    } catch (e: any) {
-      // Fallback: open with whatever we already have.
-      setEditingExercise(exercise);
-      toast.error(e?.message || "Failed to load exercise for editing");
-    }
-    setDialogOpen(true);
+  const sorted = React.useMemo(() => {
+    if (!sortConfig) return filtered;
+
+    const collator = new Intl.Collator(["he", "en"], {
+      sensitivity: "base",
+      numeric: true,
+    });
+
+    return [...filtered].sort((a, b) => {
+      const direction = sortConfig.direction === "asc" ? 1 : -1;
+      const aRaw = (a as any)[sortConfig.key];
+      const bRaw = (b as any)[sortConfig.key];
+
+      const aValue = String(aRaw ?? "").trim();
+      const bValue = String(bRaw ?? "").trim();
+
+      const aEmpty = aValue.length === 0;
+      const bEmpty = bValue.length === 0;
+      if (aEmpty && !bEmpty) return 1;
+      if (!aEmpty && bEmpty) return -1;
+
+      const cmp = collator.compare(aValue, bValue);
+      if (cmp !== 0) return cmp * direction;
+      return String(a.id ?? "").localeCompare(String(b.id ?? ""));
+    });
+  }, [filtered, sortConfig]);
+
+  const handleSort = (key: keyof ExerciseRow) => {
+    setSortConfig((current) => {
+      if (current?.key === key) {
+        return {
+          key,
+          direction: current.direction === "asc" ? "desc" : "asc",
+        };
+      }
+      return { key, direction: "asc" };
+    });
   };
 
-  const handleDetails = (exercise: any) => {
-    setDetailsExercise(exercise);
+  const handleOpenDetails = (exercise: ExerciseRow) => {
+    setDetailsExerciseId(String(exercise.id));
     setDetailsOpen(true);
   };
 
-  const handleCreate = () => {
-    setEditingExercise(null);
-    setDialogOpen(true);
+  const handleCloseDetails = (open: boolean) => {
+    setDetailsOpen(open);
+    if (!open) {
+      setTimeout(() => setDetailsExerciseId(null), 200);
+    }
   };
 
-  const handleDelete = (id: string) => {
-    const found = (exercises as any[]).find(
-      (x) => String(x?.id) === String(id)
-    );
-    setDeleteTarget({
-      id,
-      name: String(found?.name ?? "").trim() || "this exercise",
-    });
-    setDeleteConfirmOpen(true);
+  const handleCreate = () => {
+    setDetailsExerciseId(null);
+    setDetailsOpen(true);
   };
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [search, sortConfig?.key, sortConfig?.direction, pageSize]);
+
+  const paginate = React.useCallback(
+    (rows: ExerciseRow[], currentPage: number) => {
+      const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+      const safePage = Math.min(Math.max(1, currentPage), totalPages);
+      const start = (safePage - 1) * pageSize;
+      const pagedRows = rows.slice(start, start + pageSize);
+      return {
+        pagedRows,
+        totalPages,
+        page: safePage,
+        totalCount: rows.length,
+      };
+    },
+    [pageSize]
+  );
+
+  const paging = React.useMemo(
+    () => paginate(sorted, page),
+    [paginate, sorted, page]
+  );
+
+  const selectedExercise =
+    (detailsExerciseId &&
+      (exercises as ExerciseRow[]).find(
+        (e) => String((e as any)?.id) === String(detailsExerciseId)
+      )) ||
+    null;
 
   return (
     <div className="p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
@@ -135,8 +178,8 @@ export default function ExercisesPage() {
         </Button>
       </div>
 
-      <div className="mb-6">
-        <div className="relative max-w-md">
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-end gap-3">
+        <div className="relative max-w-md w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <Input
             value={search}
@@ -145,13 +188,35 @@ export default function ExercisesPage() {
             className="pl-10"
           />
         </div>
+
+        <div className="w-[180px]">
+          <Select
+            value={String(pageSize)}
+            onValueChange={(v) => {
+              const next = Number(v);
+              if (!Number.isFinite(next)) return;
+              setPageSize(next);
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Rows per page" />
+            </SelectTrigger>
+            <SelectContent>
+              {PAGE_SIZE_OPTIONS.map((n) => (
+                <SelectItem key={n} value={String(n)}>
+                  {n} rows
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {isLoading ? (
         <div className="text-center py-12 text-gray-600 dark:text-gray-400">
           Loading exercises...
         </div>
-      ) : filtered.length === 0 ? (
+      ) : sorted.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <Dumbbell className="w-12 h-12 text-indigo-500 dark:text-indigo-400 mx-auto mb-4" />
@@ -163,153 +228,109 @@ export default function ExercisesPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered.map((e: any) =>
-            (() => {
-              const videoKind = String(e?.videoKind ?? "").trim();
-              const videoUrl = String(e?.videoUrl ?? "").trim();
-              const hasVideo =
-                !!videoKind &&
-                (videoKind !== "youtube" || !!videoUrl) &&
-                (videoKind !== "upload" || !!videoUrl);
-              const hasGuidelines = !!String(e?.guidelines ?? "").trim();
-
-              const subtitle =
-                hasVideo && hasGuidelines
-                  ? "Video & Guidelines"
-                  : hasVideo
-                  ? "Video"
-                  : hasGuidelines
-                  ? "Guidelines"
-                  : "";
-
-              const videoLabel =
-                videoKind === "youtube"
-                  ? "YouTube"
-                  : videoKind === "upload"
-                  ? "Upload"
-                  : videoKind || "";
-
-              return (
-                <Card
-                  key={e.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleDetails(e)}
-                  onKeyDown={(ev) => {
-                    if (ev.key === "Enter" || ev.key === " ") {
-                      ev.preventDefault();
-                      handleDetails(e);
-                    }
-                  }}
-                  className="hover:shadow-lg cursor-pointer transition-shadow duration-200 flex flex-col h-full dark:bg-gray-800 dark:border-gray-700"
-                >
-                  <CardHeader className="flex flex-row items-start justify-between pb-2">
-                    <div className="space-y-1 min-w-0">
-                      <CardTitle className="text-xl font-semibold truncate">
-                        {e.name || "-"}
-                      </CardTitle>
-                      {subtitle ? (
-                        <CardDescription className="text-xs text-gray-500 dark:text-gray-400">
-                          {subtitle}
-                        </CardDescription>
-                      ) : null}
+        <div className="bg-white dark:bg-gray-800 rounded-lg border">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th
+                    className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                    onClick={() => handleSort("name")}
+                  >
+                    <div className="flex items-center gap-2">
+                      Exercise
+                      <ArrowUpDown className="w-4 h-4" />
                     </div>
-
-                    <div className="flex gap-2">
-                      <button
-                        onClick={(ev) => {
-                          ev.stopPropagation();
-                          handleEdit(e);
-                        }}
-                        className="p-2 text-gray-600 dark:text-gray-400
-                        hover:text-indigo-600
-                        hover:bg-indigo-50 dark:hover:bg-indigo-900
-                        rounded-lg"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-
-                      <button
-                        onClick={(ev) => {
-                          ev.stopPropagation();
-                          handleDelete(e.id);
-                        }}
-                        className="p-2 text-gray-600 dark:text-gray-400
-                        hover:text-red-600
-                        hover:bg-red-50 dark:hover:bg-red-900
-                        rounded-lg"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                  </th>
+                  <th
+                    className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                    onClick={() => handleSort("videoKind")}
+                  >
+                    <div className="flex items-center gap-2">
+                      Video
+                      <ArrowUpDown className="w-4 h-4" />
                     </div>
-                  </CardHeader>
+                  </th>
+                  <th
+                    className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                    onClick={() => handleSort("guidelines")}
+                  >
+                    <div className="flex items-center gap-2">
+                      Guidelines
+                      <ArrowUpDown className="w-4 h-4" />
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {paging.pagedRows.map((e) => {
+                  const videoKind = String(e?.videoKind ?? "").trim();
+                  const videoUrl = String(e?.videoUrl ?? "").trim();
+                  const hasVideo =
+                    !!videoKind &&
+                    (videoKind !== "youtube" || !!videoUrl) &&
+                    (videoKind !== "upload" || !!videoUrl);
+                  const videoLabel =
+                    videoKind === "youtube"
+                      ? "YouTube"
+                      : videoKind === "upload"
+                        ? "Upload"
+                        : "-";
+                  const hasGuidelines = !!String(e?.guidelines ?? "").trim();
 
-                  <CardContent className="px-5 py-2">
-                    {hasVideo || hasGuidelines ? (
-                      <div className="space-y-3 text-sm text-gray-600 dark:text-gray-300">
-                        <div className="grid grid-cols-2 gap-4">
-                          {hasVideo ? (
-                            <div className="flex items-center gap-2">
-                              <Video className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                              <span>Video: {videoLabel || "-"}</span>
-                            </div>
-                          ) : null}
-                          {hasGuidelines ? (
-                            <div className="flex items-center gap-2">
-                              <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                              <span>Guidelines</span>
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-                    ) : null}
-                  </CardContent>
-                </Card>
-              );
-            })()
-          )}
+                  return (
+                    <tr
+                      key={String(e.id)}
+                      className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer transition-colors"
+                      onClick={() => handleOpenDetails(e)}
+                    >
+                      <td className="px-4 py-3">
+                        <span className="font-medium">{String(e.name ?? "-")}</span>
+                      </td>
+                      <td className="px-4 py-3">{hasVideo ? videoLabel : "-"}</td>
+                      <td className="px-4 py-3">{hasGuidelines ? "Available" : "-"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-t bg-gray-50/60 dark:bg-gray-700/40">
+            <div className="text-xs text-gray-600 dark:text-gray-300">
+              Page {paging.page} of {paging.totalPages}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={paging.page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Previous
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={paging.page >= paging.totalPages}
+                onClick={() => setPage((p) => Math.min(paging.totalPages, p + 1))}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
-      <ExerciseLibraryDialog
-        exercise={editingExercise}
-        open={dialogOpen}
-        onOpenChange={(open) => {
-          setDialogOpen(open);
-          if (!open) setEditingExercise(null);
-        }}
-      />
-
       <ExerciseLibraryDetailsDialog
-        exercise={detailsExercise}
+        exercise={selectedExercise}
         open={detailsOpen}
-        onOpenChange={(open) => {
-          setDetailsOpen(open);
-          if (!open) setDetailsExercise(null);
-        }}
-      />
-
-      <ConfirmModal
-        open={deleteConfirmOpen}
-        onOpenChange={(next) => {
-          setDeleteConfirmOpen(next);
-          if (!next) setDeleteTarget(null);
-        }}
-        title="Delete exercise?"
-        description={
-          deleteTarget
-            ? `This will permanently delete ${deleteTarget.name}. This cannot be undone.`
-            : "This cannot be undone."
-        }
-        confirmText="Delete"
-        cancelText="Cancel"
-        confirmVariant="destructive"
-        confirmDisabled={!deleteTarget}
-        loading={deleteMutation.isPending}
-        onConfirm={async () => {
-          if (!deleteTarget) return;
-          deleteMutation.mutate(deleteTarget.id);
+        onOpenChange={handleCloseDetails}
+        onExerciseUpdate={() => {
+          queryClient.invalidateQueries({ queryKey: ["exerciseLibrary"] });
         }}
       />
     </div>
