@@ -94,10 +94,31 @@ export interface Food {
 export interface FoodLibrary {
   id: string;
   name: string;
-  protein?: string;
-  carbs?: string;
-  fat?: string;
-  calories?: string;
+  calories?: string | number;
+  protein?: string | number;
+  carbs?: string | number;
+  fat?: string | number;
+
+  fiber?: number;
+  sugars?: number;
+  saturatedFat?: number;
+  transFat?: number;
+  cholesterol?: number;
+  sodium?: number;
+  potassium?: number;
+  calcium?: number;
+  iron?: number;
+  vitaminA?: number;
+  vitaminC?: number;
+  vitaminD?: number;
+  vitaminB12?: number;
+
+  servingSize?: number;
+  servingUnit?: string;
+
+  source?: "USDA";
+  externalId?: number;
+  rawSource?: any;
   created_date?: string;
   [key: string]: any;
 }

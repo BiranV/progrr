@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -13,9 +14,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Apple, ArrowUpDown, Plus, Search } from "lucide-react";
+import { Apple, ArrowUpDown, Plus, Search, X } from "lucide-react";
 import FoodPanel from "@/components/panels/FoodPanel";
 import { getCookie, setCookie } from "@/lib/client-cookies";
+import { toast } from "sonner";
+
+type CatalogRow = {
+  fdcId: number;
+  description: string;
+  brandName?: string;
+  brandOwner?: string;
+  dataType?: string;
+  servingSize?: number;
+  servingSizeUnit?: string;
+  foodNutrients?: any[];
+};
 
 type FoodRow = {
   id: string;
@@ -132,6 +145,100 @@ export default function FoodsPage() {
     setDetailsOpen(true);
   };
 
+  // USDA Food Catalog (bulk add)
+  const [catalogOpen, setCatalogOpen] = React.useState(false);
+  const [catalogQuery, setCatalogQuery] = React.useState("");
+  const [catalogLoading, setCatalogLoading] = React.useState(false);
+  const [catalogError, setCatalogError] = React.useState<string | null>(null);
+  const [catalogResults, setCatalogResults] = React.useState<CatalogRow[]>([]);
+  const [selectedCatalogIds, setSelectedCatalogIds] = React.useState<Set<number>>(
+    () => new Set()
+  );
+
+  const runCatalogSearch = async () => {
+    const q = String(catalogQuery ?? "").trim();
+    if (!q) return;
+
+    setCatalogError(null);
+    setCatalogLoading(true);
+    try {
+      const res = await fetch(
+        `/api/foods/catalog/search?q=${encodeURIComponent(q)}`,
+        {
+          method: "GET",
+          credentials: "include",
+        }
+      );
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || `Request failed (${res.status})`);
+      }
+      const results = Array.isArray(payload?.results) ? payload.results : [];
+      setCatalogResults(results);
+      setSelectedCatalogIds(new Set());
+      // Reset the search box after searching, but keep results visible.
+      setCatalogQuery("");
+    } catch (err: any) {
+      setCatalogError(err?.message || "Failed to search USDA catalog");
+    } finally {
+      setCatalogLoading(false);
+    }
+  };
+
+  const toggleCatalogId = (id: number, checked: boolean) => {
+    setSelectedCatalogIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const selectedCatalogItems = React.useMemo(() => {
+    if (!selectedCatalogIds.size) return [] as CatalogRow[];
+    return catalogResults.filter((r) => selectedCatalogIds.has(Number(r.fdcId)));
+  }, [catalogResults, selectedCatalogIds]);
+
+  const addSelectedFromCatalog = async () => {
+    if (!selectedCatalogItems.length) return;
+
+    setCatalogError(null);
+    setCatalogLoading(true);
+    try {
+      const res = await fetch("/api/foods/catalog/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ items: selectedCatalogItems }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || `Request failed (${res.status})`);
+      }
+
+      const inserted = Number(payload?.inserted ?? 0);
+      const skipped = Number(payload?.skippedExisting ?? 0);
+      toast.success(
+        inserted
+          ? `Added ${inserted} food${inserted === 1 ? "" : "s"}`
+          : skipped
+            ? "All selected foods already exist"
+            : "No foods added"
+      );
+
+      await queryClient.invalidateQueries({ queryKey: ["foodLibrary"] });
+
+      setSelectedCatalogIds(new Set());
+      // Reset catalog state after importing to start fresh.
+      setCatalogQuery("");
+      setCatalogResults([]);
+    } catch (err: any) {
+      setCatalogError(err?.message || "Failed to import foods");
+    } finally {
+      setCatalogLoading(false);
+    }
+  };
+
   // Reset pagination on search/sort/page size change
   React.useEffect(() => {
     setPage(1);
@@ -174,13 +281,40 @@ export default function FoodsPage() {
           </p>
         </div>
 
-        <Button
-          onClick={handleCreateFood}
-          className="min-w-[120px] bg-indigo-600 hover:bg-indigo-700 text-white"
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          Food
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              setCatalogOpen((v) => {
+                const next = !v;
+                if (next) {
+                  setCatalogQuery("");
+                  setCatalogError(null);
+                  setCatalogResults([]);
+                  setSelectedCatalogIds(new Set());
+                }
+                return next;
+              })
+            }
+          >
+            {catalogOpen ? (
+              <X className="w-5 h-5 mr-2" />
+            ) : (
+              <Plus className="w-5 h-5 mr-2" />
+            )}
+            {catalogOpen ? "Close Catalog" : "Add from Food Catalog"}
+          </Button>
+
+          <Button
+            type="button"
+            onClick={handleCreateFood}
+            className="min-w-[140px] bg-indigo-600 hover:bg-indigo-700 text-white"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Add Food
+          </Button>
+        </div>
       </div>
 
       {/* Search + Pagination settings */}
@@ -217,6 +351,129 @@ export default function FoodsPage() {
           </Select>
         </div>
       </div>
+
+      {catalogOpen ? (
+        <div className="mb-6 rounded-lg border bg-white dark:bg-gray-800 p-4">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div className="text-sm font-medium">Food Catalog (USDA)</div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setCatalogOpen(false)}
+              aria-label="Close catalog"
+              title="Close catalog"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+            <div className="flex-1">
+              <Input
+                value={catalogQuery}
+                onChange={(e) => setCatalogQuery(e.target.value)}
+                placeholder="Search USDA foods (e.g. banana, chicken breast, rice)"
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter") return;
+                  e.preventDefault();
+                  runCatalogSearch();
+                }}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" onClick={runCatalogSearch} disabled={catalogLoading}>
+                {catalogLoading ? "Searching..." : "Search"}
+              </Button>
+              <Button
+                type="button"
+                onClick={addSelectedFromCatalog}
+                disabled={catalogLoading || selectedCatalogItems.length === 0}
+              >
+                Add selected{selectedCatalogItems.length ? ` (${selectedCatalogItems.length})` : ""}
+              </Button>
+            </div>
+          </div>
+
+          {catalogError ? (
+            <div className="mt-3 text-sm text-red-600 dark:text-red-400">
+              {catalogError}
+            </div>
+          ) : null}
+
+          <div className="mt-4 rounded-lg border overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium w-[44px]">
+                      <Checkbox
+                        checked={
+                          catalogResults.length > 0 &&
+                          selectedCatalogIds.size === catalogResults.length
+                        }
+                        onCheckedChange={(v) => {
+                          const checked = Boolean(v);
+                          setSelectedCatalogIds(() => {
+                            if (!checked) return new Set();
+                            return new Set(catalogResults.map((r) => Number(r.fdcId)));
+                          });
+                        }}
+                        disabled={catalogResults.length === 0}
+                      />
+                    </th>
+                    <th className="px-4 py-3 text-left font-medium">Food</th>
+                    <th className="px-4 py-3 text-left font-medium">Brand</th>
+                    <th className="px-4 py-3 text-left font-medium">Type</th>
+                    <th className="px-4 py-3 text-left font-medium">Serving</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {catalogResults.length === 0 ? (
+                    <tr>
+                      <td className="px-4 py-6 text-sm text-gray-500" colSpan={5}>
+                        Search to see USDA results.
+                      </td>
+                    </tr>
+                  ) : (
+                    catalogResults.map((r) => {
+                      const id = Number(r.fdcId);
+                      const checked = selectedCatalogIds.has(id);
+                      return (
+                        <tr key={id} className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                          <td className="px-4 py-3">
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(v) => toggleCatalogId(id, Boolean(v))}
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="font-medium">{String(r.description ?? "-")}</div>
+                            <div className="text-xs text-gray-500">FDC ID: {id}</div>
+                          </td>
+                          <td className="px-4 py-3">
+                            {String(r.brandName ?? r.brandOwner ?? "").trim() || "-"}
+                          </td>
+                          <td className="px-4 py-3">{String(r.dataType ?? "-")}</td>
+                          <td className="px-4 py-3">
+                            {typeof r.servingSize === "number" && r.servingSize ? (
+                              <>
+                                {r.servingSize} {String(r.servingSizeUnit ?? "").trim()}
+                              </>
+                            ) : (
+                              "-"
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Content */}
       {isLoading ? (
@@ -351,6 +608,7 @@ export default function FoodsPage() {
         food={selectedFood}
         open={detailsOpen}
         onOpenChange={handleCloseDetails}
+        createNew={detailsOpen && !detailsFoodId}
         onFoodUpdate={() => {
           queryClient.invalidateQueries({ queryKey: ["foodLibrary"] });
           queryClient.invalidateQueries({ queryKey: ["mealPlans"] });

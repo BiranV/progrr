@@ -29,6 +29,7 @@ interface FoodPanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onFoodUpdate?: () => void;
+  createNew?: boolean;
 }
 
 export default function FoodPanel({
@@ -36,6 +37,7 @@ export default function FoodPanel({
   open,
   onOpenChange,
   onFoodUpdate,
+  createNew,
 }: FoodPanelProps) {
   const queryClient = useQueryClient();
 
@@ -105,6 +107,18 @@ export default function FoodPanel({
 
   const [formData, setFormData] = React.useState<any>({});
 
+  const toOptionalNumber = (value: unknown) => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return undefined;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : undefined;
+  };
+
+  const toOptionalString = (value: unknown) => {
+    const raw = String(value ?? "").trim();
+    return raw ? raw : undefined;
+  };
+
   const resetForm = (current: any | null) => {
     setValidationError(null);
     if (current) {
@@ -114,6 +128,21 @@ export default function FoodPanel({
         protein: String(current?.protein ?? ""),
         carbs: String(current?.carbs ?? ""),
         fat: String(current?.fat ?? ""),
+        fiber: String(current?.fiber ?? ""),
+        sugars: String(current?.sugars ?? ""),
+        saturatedFat: String(current?.saturatedFat ?? ""),
+        transFat: String(current?.transFat ?? ""),
+        cholesterol: String(current?.cholesterol ?? ""),
+        sodium: String(current?.sodium ?? ""),
+        potassium: String(current?.potassium ?? ""),
+        calcium: String(current?.calcium ?? ""),
+        iron: String(current?.iron ?? ""),
+        vitaminA: String(current?.vitaminA ?? ""),
+        vitaminC: String(current?.vitaminC ?? ""),
+        vitaminD: String(current?.vitaminD ?? ""),
+        vitaminB12: String(current?.vitaminB12 ?? ""),
+        servingSize: String(current?.servingSize ?? ""),
+        servingUnit: String(current?.servingUnit ?? ""),
       });
     } else {
       setFormData({
@@ -122,6 +151,21 @@ export default function FoodPanel({
         protein: "",
         carbs: "",
         fat: "",
+        fiber: "",
+        sugars: "",
+        saturatedFat: "",
+        transFat: "",
+        cholesterol: "",
+        sodium: "",
+        potassium: "",
+        calcium: "",
+        iron: "",
+        vitaminA: "",
+        vitaminC: "",
+        vitaminD: "",
+        vitaminB12: "",
+        servingSize: "",
+        servingUnit: "",
       });
     }
   };
@@ -131,13 +175,13 @@ export default function FoodPanel({
     if (!open) return;
     setShowDeleteConfirm(false);
     if (!food) {
-      setIsEditing(true);
       resetForm(null);
+      setIsEditing(Boolean(createNew));
       return;
     }
     setIsEditing(false);
     resetForm(food);
-  }, [open, food]);
+  }, [open, food, createNew]);
 
   const getInputProps = (field: string) => ({
     value: formData[field] || "",
@@ -154,10 +198,25 @@ export default function FoodPanel({
 
       const payload: any = {
         name,
-        calories: String(formData.calories ?? "").trim(),
-        protein: String(formData.protein ?? "").trim(),
-        carbs: String(formData.carbs ?? "").trim(),
-        fat: String(formData.fat ?? "").trim(),
+        calories: toOptionalString(formData.calories),
+        protein: toOptionalString(formData.protein),
+        carbs: toOptionalString(formData.carbs),
+        fat: toOptionalString(formData.fat),
+        fiber: toOptionalNumber(formData.fiber),
+        sugars: toOptionalNumber(formData.sugars),
+        saturatedFat: toOptionalNumber(formData.saturatedFat),
+        transFat: toOptionalNumber(formData.transFat),
+        cholesterol: toOptionalNumber(formData.cholesterol),
+        sodium: toOptionalNumber(formData.sodium),
+        potassium: toOptionalNumber(formData.potassium),
+        calcium: toOptionalNumber(formData.calcium),
+        iron: toOptionalNumber(formData.iron),
+        vitaminA: toOptionalNumber(formData.vitaminA),
+        vitaminC: toOptionalNumber(formData.vitaminC),
+        vitaminD: toOptionalNumber(formData.vitaminD),
+        vitaminB12: toOptionalNumber(formData.vitaminB12),
+        servingSize: toOptionalNumber(formData.servingSize),
+        servingUnit: toOptionalString(formData.servingUnit),
       };
 
       if (food?.id) {
@@ -213,6 +272,24 @@ export default function FoodPanel({
     const protein = String(food?.protein ?? "").trim() || "-";
     const carbs = String(food?.carbs ?? "").trim() || "-";
     const fat = String(food?.fat ?? "").trim() || "-";
+
+    const renderSimpleRow = (
+      label: string,
+      value: unknown,
+      unit?: string
+    ) => {
+      const raw = String(value ?? "").trim();
+      if (!raw) return null;
+      return (
+        <div className="flex items-center justify-between gap-4 py-2 border-b border-gray-100 dark:border-gray-800">
+          <div className="text-sm text-gray-600 dark:text-gray-300">{label}</div>
+          <div className="text-sm font-medium text-gray-900 dark:text-white">
+            {raw}
+            {unit ? ` ${unit}` : ""}
+          </div>
+        </div>
+      );
+    };
 
     return (
       <div className="space-y-6">
@@ -304,6 +381,69 @@ export default function FoodPanel({
             <div className="mt-1 font-medium text-gray-900 dark:text-white">
               {fat} g
             </div>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/20">
+          <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800">
+            <div className="text-sm font-medium text-gray-900 dark:text-white">
+              More nutrition (per 100g)
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Simple values below the main macros.
+            </div>
+          </div>
+
+          <div className="px-3">
+            {renderSimpleRow("Fiber", food?.fiber, "g")}
+            {renderSimpleRow("Sugars", food?.sugars, "g")}
+            {renderSimpleRow("Saturated fat", food?.saturatedFat, "g")}
+            {renderSimpleRow("Trans fat", food?.transFat, "g")}
+            {renderSimpleRow("Cholesterol", food?.cholesterol, "mg")}
+            {renderSimpleRow("Sodium", food?.sodium, "mg")}
+            {renderSimpleRow("Potassium", food?.potassium, "mg")}
+            {renderSimpleRow("Calcium", food?.calcium, "mg")}
+            {renderSimpleRow("Iron", food?.iron, "mg")}
+            {renderSimpleRow("Vitamin A", food?.vitaminA, "µg")}
+            {renderSimpleRow("Vitamin C", food?.vitaminC, "mg")}
+            {renderSimpleRow("Vitamin D", food?.vitaminD, "µg")}
+            {renderSimpleRow("Vitamin B12", food?.vitaminB12, "µg")}
+
+            {!String(food?.fiber ?? "").trim() &&
+              !String(food?.sugars ?? "").trim() &&
+              !String(food?.saturatedFat ?? "").trim() &&
+              !String(food?.transFat ?? "").trim() &&
+              !String(food?.cholesterol ?? "").trim() &&
+              !String(food?.sodium ?? "").trim() &&
+              !String(food?.potassium ?? "").trim() &&
+              !String(food?.calcium ?? "").trim() &&
+              !String(food?.iron ?? "").trim() &&
+              !String(food?.vitaminA ?? "").trim() &&
+              !String(food?.vitaminC ?? "").trim() &&
+              !String(food?.vitaminD ?? "").trim() &&
+              !String(food?.vitaminB12 ?? "").trim() ? (
+              <div className="py-3 text-sm text-gray-500 dark:text-gray-400">
+                No extra values available for this food.
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/20">
+          <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800">
+            <div className="text-sm font-medium text-gray-900 dark:text-white">Info</div>
+          </div>
+          <div className="px-3">
+            {renderSimpleRow("Serving size", food?.servingSize, String(food?.servingUnit ?? "").trim() || undefined)}
+            {renderSimpleRow("Source", food?.source)}
+            {renderSimpleRow("External ID", food?.externalId)}
+            {!String(food?.servingSize ?? "").trim() &&
+              !String(food?.source ?? "").trim() &&
+              !String(food?.externalId ?? "").trim() ? (
+              <div className="py-3 text-sm text-gray-500 dark:text-gray-400">
+                No extra info.
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -400,6 +540,114 @@ export default function FoodPanel({
             Fat (per 100g)
           </label>
           <Input placeholder="e.g., 10 (g)" {...getInputProps("fat")} />
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 p-3">
+        <div className="text-sm font-medium text-gray-900 dark:text-white">
+          More nutrition (optional)
+        </div>
+        <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+          Keep simple: leave empty if you don’t have the value.
+        </div>
+
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Fiber (g)
+            </label>
+            <Input placeholder="e.g., 3.2" {...getInputProps("fiber")} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Sugars (g)
+            </label>
+            <Input placeholder="e.g., 10" {...getInputProps("sugars")} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Saturated fat (g)
+            </label>
+            <Input placeholder="e.g., 2" {...getInputProps("saturatedFat")} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Trans fat (g)
+            </label>
+            <Input placeholder="e.g., 0" {...getInputProps("transFat")} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Cholesterol (mg)
+            </label>
+            <Input placeholder="e.g., 30" {...getInputProps("cholesterol")} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Sodium (mg)
+            </label>
+            <Input placeholder="e.g., 200" {...getInputProps("sodium")} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Potassium (mg)
+            </label>
+            <Input placeholder="e.g., 350" {...getInputProps("potassium")} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Calcium (mg)
+            </label>
+            <Input placeholder="e.g., 120" {...getInputProps("calcium")} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Iron (mg)
+            </label>
+            <Input placeholder="e.g., 2" {...getInputProps("iron")} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Vitamin A (µg)
+            </label>
+            <Input placeholder="e.g., 50" {...getInputProps("vitaminA")} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Vitamin C (mg)
+            </label>
+            <Input placeholder="e.g., 12" {...getInputProps("vitaminC")} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Vitamin D (µg)
+            </label>
+            <Input placeholder="e.g., 2" {...getInputProps("vitaminD")} />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Vitamin B12 (µg)
+            </label>
+            <Input placeholder="e.g., 0.6" {...getInputProps("vitaminB12")} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Serving size
+            </label>
+            <Input placeholder="e.g., 30" {...getInputProps("servingSize")} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Serving unit
+            </label>
+            <Input placeholder="e.g., g, ml" {...getInputProps("servingUnit")} />
+          </div>
         </div>
       </div>
 
