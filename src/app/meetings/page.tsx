@@ -66,11 +66,11 @@ export default function MeetingsPage() {
   const getMeetingIcon = (type: string) => {
     switch (type) {
       case "zoom":
-        return <Video className="w-4 h-4" />;
+        return <Video className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />;
       case "call":
-        return <Phone className="w-4 h-4" />;
+        return <Phone className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />;
       default:
-        return <MapPin className="w-4 h-4" />;
+        return <MapPin className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />;
     }
   };
 
@@ -94,7 +94,7 @@ export default function MeetingsPage() {
     return null;
   };
 
-  const renderTypeSpecificLocation = (meeting: Meeting) => {
+  const getTypeSpecificMeta = (meeting: Meeting) => {
     const type = normalizeType((meeting as any)?.type);
     const rawLocation = String((meeting as any).location ?? "").trim();
     const locationLower = rawLocation.toLowerCase();
@@ -112,40 +112,7 @@ export default function MeetingsPage() {
       type === "call" ? "phone" : type === "zoom" ? "link" : "location";
 
     const href = typeBasedKind === "link" ? getLinkHref(rawLocation) : null;
-
-    return (
-      <div className="flex items-center gap-2 truncate col-span-2">
-        {typeBasedKind === "phone" ? (
-          <Phone className="w-4 h-4 shrink-0 text-gray-500 dark:text-gray-400" />
-        ) : typeBasedKind === "link" ? (
-          <LinkIcon className="w-4 h-4 shrink-0 text-gray-500 dark:text-gray-400" />
-        ) : (
-          <MapPin className="w-4 h-4 shrink-0 text-gray-500 dark:text-gray-400" />
-        )}
-        <span className="truncate">
-          {typeBasedKind === "phone"
-            ? "Phone"
-            : typeBasedKind === "link"
-              ? "Link"
-              : "Location"}
-          :{" "}
-          {href ? (
-            <a
-              href={href}
-              target="_blank"
-              rel="noreferrer"
-              className="underline underline-offset-2 hover:text-indigo-600 dark:hover:text-indigo-300"
-              onClick={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
-            >
-              {rawLocation}
-            </a>
-          ) : (
-            rawLocation
-          )}
-        </span>
-      </div>
-    );
+    return { rawLocation, href };
   };
 
   const upcoming = meetings.filter(
@@ -267,17 +234,41 @@ export default function MeetingsPage() {
                                 " "
                               )}
                             </span>
+                            {(() => {
+                              const meta = getTypeSpecificMeta(meeting);
+                              if (!meta) return null;
+
+                              return (
+                                <>
+                                  <span className="mx-2 h-4 w-px bg-gray-200 dark:bg-gray-700 shrink-0" />
+                                  <span className="truncate">
+                                    {meta.href ? (
+                                      <a
+                                        href={meta.href}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="underline underline-offset-2 hover:text-indigo-600 dark:hover:text-indigo-300"
+                                        onClick={(e) => e.stopPropagation()}
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                      >
+                                        {meta.rawLocation}
+                                      </a>
+                                    ) : (
+                                      meta.rawLocation
+                                    )}
+                                  </span>
+                                </>
+                              );
+                            })()}
                           </div>
 
-                          {renderTypeSpecificLocation(meeting)}
-
                           <div className="flex items-center gap-2 truncate col-span-2">
-                            <User className="w-4 h-4 shrink-0 text-gray-500 dark:text-gray-400" />
+                            <User className="w-4 h-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
                             <span className="truncate">With: {getClientName(meeting)}</span>
                           </div>
 
                           <div className="flex items-center gap-2 truncate col-span-2">
-                            <Clock className="w-4 h-4 shrink-0 text-gray-500 dark:text-gray-400" />
+                            <Clock className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
                             <span className="truncate">
                               Duration:{" "}
                               {Number.isFinite(Number((meeting as any).durationMinutes))
@@ -347,54 +338,39 @@ export default function MeetingsPage() {
                               {format(new Date(meeting.scheduledAt), "PPP p")}
                             </p>
                             <p className="text-sm text-gray-500 dark:text-gray-400 capitalize">
-                              Type: {String(meeting.type ?? "-").replace(/[-_]/g, " ")}
+                              {(() => {
+                                const typeText = String(meeting.type ?? "-").replace(
+                                  /[-_]/g,
+                                  " "
+                                );
+                                const meta = getTypeSpecificMeta(meeting);
+
+                                return (
+                                  <>
+                                    Type: {typeText}
+                                    {meta ? (
+                                      <>
+                                        <span className="mx-2 inline-block h-3 w-px bg-gray-200 dark:bg-gray-700 align-middle" />
+                                        {meta.href ? (
+                                          <a
+                                            href={meta.href}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="underline underline-offset-2 hover:text-indigo-600 dark:hover:text-indigo-300"
+                                            onClick={(e) => e.stopPropagation()}
+                                            onMouseDown={(e) => e.stopPropagation()}
+                                          >
+                                            {meta.rawLocation}
+                                          </a>
+                                        ) : (
+                                          meta.rawLocation
+                                        )}
+                                      </>
+                                    ) : null}
+                                  </>
+                                );
+                              })()}
                             </p>
-                            {(() => {
-                              const type = normalizeType((meeting as any)?.type);
-                              const rawLocation = String(
-                                (meeting as any).location ?? ""
-                              ).trim();
-                              const locationLower = rawLocation.toLowerCase();
-                              const redundant =
-                                !rawLocation ||
-                                (type === "zoom" && locationLower === "zoom") ||
-                                (type === "call" && locationLower === "phone") ||
-                                locationLower === type;
-                              if (redundant) return null;
-
-                              const kind: "link" | "location" | "phone" =
-                                type === "call"
-                                  ? "phone"
-                                  : type === "zoom"
-                                    ? "link"
-                                    : "location";
-
-                              const href = kind === "link" ? getLinkHref(rawLocation) : null;
-
-                              return (
-                                <p className="text-sm text-gray-500 dark:text-gray-400">
-                                  {(kind === "phone"
-                                    ? "Phone"
-                                    : kind === "link"
-                                      ? "Link"
-                                      : "Location") + ": "}
-                                  {href ? (
-                                    <a
-                                      href={href}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="underline underline-offset-2 hover:text-indigo-600 dark:hover:text-indigo-300"
-                                      onClick={(e) => e.stopPropagation()}
-                                      onMouseDown={(e) => e.stopPropagation()}
-                                    >
-                                      {rawLocation}
-                                    </a>
-                                  ) : (
-                                    rawLocation
-                                  )}
-                                </p>
-                              );
-                            })()}
                             <p className="text-sm text-gray-500 dark:text-gray-400">
                               With: {getClientName(meeting)}
                             </p>
