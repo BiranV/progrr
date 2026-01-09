@@ -217,6 +217,15 @@ export interface ExerciseLibrary {
   guidelines?: string;
   videoKind?: "upload" | "youtube" | null;
   videoUrl?: string | null;
+
+  bodyPart?: string;
+  targetMuscle?: string;
+  equipment?: string;
+  gifUrl?: string;
+  source?: "RapidAPI - ExerciseDB" | "MANUAL";
+  externalId?: string;
+  rawSource?: any;
+
   created_date?: string;
   [key: string]: any;
 }

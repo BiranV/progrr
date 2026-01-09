@@ -8,6 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Copy as CopyIcon,
   Edit2,
   FileDown,
@@ -15,6 +22,7 @@ import {
   Loader2,
   Trash2,
   Video,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { extractYouTubeVideoId, toYouTubeEmbedUrl } from "@/lib/youtube";
@@ -57,8 +65,21 @@ export default function ExercisePanel({
     const videoKind = String(exercise?.videoKind ?? "").trim();
     const videoUrl = String(exercise?.videoUrl ?? "").trim();
 
+    const bodyPart = String(exercise?.bodyPart ?? "").trim();
+    const targetMuscle = String(exercise?.targetMuscle ?? "").trim();
+    const equipment = String(exercise?.equipment ?? "").trim();
+    const gifUrl = String(exercise?.gifUrl ?? "").trim();
+    const source = String(exercise?.source ?? "").trim();
+    const externalId = String(exercise?.externalId ?? "").trim();
+
     const lines: string[] = [];
     lines.push(`Exercise: ${name}`);
+    if (bodyPart) lines.push(`Body part: ${bodyPart}`);
+    if (targetMuscle) lines.push(`Target muscle: ${targetMuscle}`);
+    if (equipment) lines.push(`Equipment: ${equipment}`);
+    if (gifUrl) lines.push(`GIF: ${gifUrl}`);
+    if (source) lines.push(`Source: ${source}`);
+    if (externalId) lines.push(`External ID: ${externalId}`);
     if (videoKind || videoUrl) {
       lines.push(`Video: ${videoKind || "-"}${videoUrl ? ` (${videoUrl})` : ""}`);
     }
@@ -110,12 +131,26 @@ export default function ExercisePanel({
 
   const [formData, setFormData] = React.useState<any>({});
 
+  const [metadataLoading, setMetadataLoading] = React.useState(false);
+  const [metadataError, setMetadataError] = React.useState<string | null>(null);
+  const [metadata, setMetadata] = React.useState<{
+    bodyParts: string[];
+    targets: string[];
+    equipment: string[];
+  } | null>(null);
+
   const resetForm = (current: any | null) => {
     setValidationError(null);
     if (current) {
       setFormData({
         name: String(current?.name ?? ""),
         guidelines: String(current?.guidelines ?? ""),
+        bodyPart: String(current?.bodyPart ?? ""),
+        targetMuscle: String(current?.targetMuscle ?? ""),
+        equipment: String(current?.equipment ?? ""),
+        gifUrl: String(current?.gifUrl ?? ""),
+        source: String(current?.source ?? ""),
+        externalId: String(current?.externalId ?? ""),
         youtubeUrl:
           String(current?.videoKind ?? "") === "youtube"
             ? String(current?.videoUrl ?? "")
@@ -126,6 +161,12 @@ export default function ExercisePanel({
       setFormData({
         name: "",
         guidelines: "",
+        bodyPart: "",
+        targetMuscle: "",
+        equipment: "",
+        gifUrl: "",
+        source: "MANUAL",
+        externalId: "",
         youtubeUrl: "",
         uploadFile: null as File | null,
       });
@@ -146,6 +187,50 @@ export default function ExercisePanel({
     setIsEditing(false);
     resetForm(exercise);
   }, [open, exercise]);
+
+  React.useEffect(() => {
+    if (!open) return;
+
+    let cancelled = false;
+    const load = async () => {
+      setMetadataError(null);
+      setMetadataLoading(true);
+      try {
+        const res = await fetch("/api/exercises/catalog/metadata", {
+          method: "GET",
+          credentials: "include",
+        });
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(payload?.error || `Request failed (${res.status})`);
+        }
+
+        const bodyParts = Array.isArray(payload?.bodyParts) ? payload.bodyParts : [];
+        const targets = Array.isArray(payload?.targets) ? payload.targets : [];
+        const equipment = Array.isArray(payload?.equipment) ? payload.equipment : [];
+
+        if (!cancelled) {
+          setMetadata({
+            bodyParts: bodyParts.map((x: any) => String(x)).filter(Boolean),
+            targets: targets.map((x: any) => String(x)).filter(Boolean),
+            equipment: equipment.map((x: any) => String(x)).filter(Boolean),
+          });
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          setMetadataError(err?.message || "Failed to load metadata");
+          setMetadata(null);
+        }
+      } finally {
+        if (!cancelled) setMetadataLoading(false);
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   const uploadVideo = async (exerciseId: string, file: File) => {
     const form = new FormData();
@@ -199,7 +284,17 @@ export default function ExercisePanel({
       const payload: any = {
         name,
         guidelines: String(formData.guidelines ?? "").trim() || "",
+        bodyPart: String(formData.bodyPart ?? "").trim() || undefined,
+        targetMuscle: String(formData.targetMuscle ?? "").trim() || undefined,
+        equipment: String(formData.equipment ?? "").trim() || undefined,
+        gifUrl: String(formData.gifUrl ?? "").trim() || undefined,
       };
+
+      // Preserve import metadata (editable only via DB/admin decisions)
+      const source = String(exercise?.source ?? formData.source ?? "").trim();
+      const externalId = String(exercise?.externalId ?? formData.externalId ?? "").trim();
+      if (source) payload.source = source;
+      if (externalId) payload.externalId = externalId;
 
       const yt = String(formData.youtubeUrl ?? "").trim();
       if (yt) {
@@ -312,6 +407,13 @@ export default function ExercisePanel({
     const videoKind = String(exercise?.videoKind ?? "").trim();
     const videoUrl = String(exercise?.videoUrl ?? "").trim();
 
+    const bodyPart = String(exercise?.bodyPart ?? "").trim();
+    const targetMuscle = String(exercise?.targetMuscle ?? "").trim();
+    const equipment = String(exercise?.equipment ?? "").trim();
+    const gifUrl = String(exercise?.gifUrl ?? "").trim();
+    const source = String(exercise?.source ?? "").trim();
+    const externalId = String(exercise?.externalId ?? "").trim();
+
     const youtubeEmbedUrl =
       videoKind === "youtube" && videoUrl ? toYouTubeEmbedUrl(videoUrl) : "";
 
@@ -403,6 +505,63 @@ export default function ExercisePanel({
             </div>
           </div>
         </div>
+
+        {(bodyPart || targetMuscle || equipment || gifUrl || source || externalId) ? (
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/20">
+            <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800">
+              <div className="text-sm font-medium text-gray-900 dark:text-white">
+                Details
+              </div>
+            </div>
+            <div className="px-3">
+              {bodyPart ? (
+                <div className="flex items-center justify-between gap-4 py-2 border-b border-gray-100 dark:border-gray-800">
+                  <div className="text-sm text-gray-600 dark:text-gray-300">Body part</div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">{bodyPart}</div>
+                </div>
+              ) : null}
+              {targetMuscle ? (
+                <div className="flex items-center justify-between gap-4 py-2 border-b border-gray-100 dark:border-gray-800">
+                  <div className="text-sm text-gray-600 dark:text-gray-300">Target muscle</div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">{targetMuscle}</div>
+                </div>
+              ) : null}
+              {equipment ? (
+                <div className="flex items-center justify-between gap-4 py-2 border-b border-gray-100 dark:border-gray-800">
+                  <div className="text-sm text-gray-600 dark:text-gray-300">Equipment</div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">{equipment}</div>
+                </div>
+              ) : null}
+              {gifUrl ? (
+                <div className="flex items-center justify-between gap-4 py-2 border-b border-gray-100 dark:border-gray-800">
+                  <div className="text-sm text-gray-600 dark:text-gray-300">GIF</div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                    <a
+                      href={gifUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 dark:text-blue-300 underline"
+                    >
+                      Open
+                    </a>
+                  </div>
+                </div>
+              ) : null}
+              {source ? (
+                <div className="flex items-center justify-between gap-4 py-2 border-b border-gray-100 dark:border-gray-800">
+                  <div className="text-sm text-gray-600 dark:text-gray-300">Source</div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">{source}</div>
+                </div>
+              ) : null}
+              {externalId ? (
+                <div className="flex items-center justify-between gap-4 py-2">
+                  <div className="text-sm text-gray-600 dark:text-gray-300">External ID</div>
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">{externalId}</div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
 
         {youtubeEmbedUrl ? (
           <div>
@@ -528,8 +687,15 @@ export default function ExercisePanel({
     return (
       <form id="exercise-form" className="space-y-6" onSubmit={handleSubmit}>
         {validationError ? (
-          <div className="text-sm text-red-600 dark:text-red-400">
-            {validationError}
+          <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-4 min-h-12 py-2">
+            <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
+              <XCircle className="h-3.5 w-3.5" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
+                {validationError}
+              </div>
+            </div>
           </div>
         ) : null}
 
@@ -563,6 +729,165 @@ export default function ExercisePanel({
             Tip: keep it short and actionable (setup → execution → mistakes).
           </div>
         </div>
+
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 p-3">
+          <div className="text-sm font-medium text-gray-900 dark:text-white">
+            Details (optional)
+          </div>
+          <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+            These fields help catalog/import alignment.
+          </div>
+
+          {metadataError ? (
+            <div className="mt-2 text-xs text-amber-700 dark:text-amber-300">
+              {metadataError}
+            </div>
+          ) : null}
+
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Body part
+              </label>
+              {metadata?.bodyParts?.length ? (
+                <Select
+                  value={String(formData.bodyPart ?? "").trim() || "__none__"}
+                  onValueChange={(v) => {
+                    if (validationError) setValidationError(null);
+                    setFormData((prev: any) => ({
+                      ...prev,
+                      bodyPart: v === "__none__" ? "" : v,
+                    }));
+                  }}
+                >
+                  <SelectTrigger className="w-full" disabled={metadataLoading}>
+                    <SelectValue placeholder={metadataLoading ? "Loading…" : "Select"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">—</SelectItem>
+                    {metadata.bodyParts.map((v) => (
+                      <SelectItem key={v} value={v}>
+                        {v}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  value={String(formData.bodyPart ?? "")}
+                  onChange={(e) => {
+                    if (validationError) setValidationError(null);
+                    setFormData((prev: any) => ({ ...prev, bodyPart: e.target.value }));
+                  }}
+                />
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Target muscle
+              </label>
+              {metadata?.targets?.length ? (
+                <Select
+                  value={String(formData.targetMuscle ?? "").trim() || "__none__"}
+                  onValueChange={(v) => {
+                    if (validationError) setValidationError(null);
+                    setFormData((prev: any) => ({
+                      ...prev,
+                      targetMuscle: v === "__none__" ? "" : v,
+                    }));
+                  }}
+                >
+                  <SelectTrigger className="w-full" disabled={metadataLoading}>
+                    <SelectValue placeholder={metadataLoading ? "Loading…" : "Select"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">—</SelectItem>
+                    {metadata.targets.map((v) => (
+                      <SelectItem key={v} value={v}>
+                        {v}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  value={String(formData.targetMuscle ?? "")}
+                  onChange={(e) => {
+                    if (validationError) setValidationError(null);
+                    setFormData((prev: any) => ({ ...prev, targetMuscle: e.target.value }));
+                  }}
+                />
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Equipment
+              </label>
+              {metadata?.equipment?.length ? (
+                <Select
+                  value={String(formData.equipment ?? "").trim() || "__none__"}
+                  onValueChange={(v) => {
+                    if (validationError) setValidationError(null);
+                    setFormData((prev: any) => ({
+                      ...prev,
+                      equipment: v === "__none__" ? "" : v,
+                    }));
+                  }}
+                >
+                  <SelectTrigger className="w-full" disabled={metadataLoading}>
+                    <SelectValue placeholder={metadataLoading ? "Loading…" : "Select"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">—</SelectItem>
+                    {metadata.equipment.map((v) => (
+                      <SelectItem key={v} value={v}>
+                        {v}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  value={String(formData.equipment ?? "")}
+                  onChange={(e) => {
+                    if (validationError) setValidationError(null);
+                    setFormData((prev: any) => ({ ...prev, equipment: e.target.value }));
+                  }}
+                />
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                GIF URL
+              </label>
+              <Input
+                value={String(formData.gifUrl ?? "")}
+                onChange={(e) => {
+                  if (validationError) setValidationError(null);
+                  setFormData((prev: any) => ({ ...prev, gifUrl: e.target.value }));
+                }}
+                placeholder="https://..."
+              />
+            </div>
+          </div>
+        </div>
+
+        {(String(exercise?.source ?? formData.source ?? "").trim() ||
+          String(exercise?.externalId ?? formData.externalId ?? "").trim()) ? (
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+            <div className="text-xs text-gray-500 dark:text-gray-400">Import metadata</div>
+            <div className="mt-1 text-sm text-gray-700 dark:text-gray-200">
+              {String(exercise?.source ?? formData.source ?? "").trim()
+                ? `Source: ${String(exercise?.source ?? formData.source ?? "").trim()}`
+                : ""}
+              {String(exercise?.externalId ?? formData.externalId ?? "").trim()
+                ? `${String(exercise?.source ?? formData.source ?? "").trim() ? " · " : ""}External ID: ${String(
+                  exercise?.externalId ?? formData.externalId ?? ""
+                ).trim()}`
+                : ""}
+            </div>
+          </div>
+        ) : null}
 
         <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
           <div className="text-sm font-semibold text-gray-900 dark:text-white">

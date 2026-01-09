@@ -6,8 +6,9 @@ import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { ArrowUpDown, Dumbbell, Plus, Search } from "lucide-react";
+import { ArrowUpDown, Dumbbell, FileText, Plus, Search, Video, X } from "lucide-react";
 import ExercisePanel from "@/components/panels/ExercisePanel";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -16,6 +17,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getCookie, setCookie } from "@/lib/client-cookies";
+import { toast } from "sonner";
+
+type CatalogRow = {
+  externalId: string;
+  name: string;
+  bodyPart?: string;
+  targetMuscle?: string;
+  equipment?: string;
+  gifUrl?: string;
+};
 
 type ExerciseRow = {
   id: string;
@@ -23,6 +34,9 @@ type ExerciseRow = {
   guidelines?: string;
   videoKind?: string | null;
   videoUrl?: string | null;
+  bodyPart?: string;
+  targetMuscle?: string;
+  equipment?: string;
 };
 
 export default function ExercisesPage() {
@@ -126,6 +140,99 @@ export default function ExercisesPage() {
     setDetailsOpen(true);
   };
 
+  // Exercise Catalog (RapidAPI - ExerciseDB) bulk add
+  const [catalogOpen, setCatalogOpen] = React.useState(false);
+  const [catalogQuery, setCatalogQuery] = React.useState("");
+  const [catalogLoading, setCatalogLoading] = React.useState(false);
+  const [catalogError, setCatalogError] = React.useState<string | null>(null);
+  const [catalogResults, setCatalogResults] = React.useState<CatalogRow[]>([]);
+  const [selectedCatalogIds, setSelectedCatalogIds] = React.useState<Set<string>>(
+    () => new Set()
+  );
+
+  const runCatalogSearch = async () => {
+    const q = String(catalogQuery ?? "").trim();
+    if (!q) return;
+
+    setCatalogError(null);
+    setCatalogLoading(true);
+    try {
+      const res = await fetch(`/api/exercises/catalog/search?q=${encodeURIComponent(q)}`,
+        {
+          method: "GET",
+          credentials: "include",
+        }
+      );
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || `Request failed (${res.status})`);
+      }
+      const results = Array.isArray(payload?.results) ? payload.results : [];
+      setCatalogResults(results);
+      setSelectedCatalogIds(new Set());
+      // Reset search box after searching, keep results visible.
+      setCatalogQuery("");
+    } catch (err: any) {
+      setCatalogError(err?.message || "Failed to search exercise catalog");
+    } finally {
+      setCatalogLoading(false);
+    }
+  };
+
+  const toggleCatalogId = (id: string, checked: boolean) => {
+    setSelectedCatalogIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const selectedCatalogItems = React.useMemo(() => {
+    if (!selectedCatalogIds.size) return [] as CatalogRow[];
+    return catalogResults.filter((r) => selectedCatalogIds.has(String(r.externalId)));
+  }, [catalogResults, selectedCatalogIds]);
+
+  const addSelectedFromCatalog = async () => {
+    if (!selectedCatalogItems.length) return;
+
+    setCatalogError(null);
+    setCatalogLoading(true);
+    try {
+      const res = await fetch("/api/exercises/catalog/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ items: selectedCatalogItems }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || `Request failed (${res.status})`);
+      }
+
+      const inserted = Number(payload?.inserted ?? 0);
+      const skipped = Number(payload?.skippedExisting ?? 0);
+      toast.success(
+        inserted
+          ? `Added ${inserted} exercise${inserted === 1 ? "" : "s"}`
+          : skipped
+            ? "All selected exercises already exist"
+            : "No exercises added"
+      );
+
+      await queryClient.invalidateQueries({ queryKey: ["exerciseLibrary"] });
+
+      setSelectedCatalogIds(new Set());
+      // Reset catalog state after importing to start fresh.
+      setCatalogQuery("");
+      setCatalogResults([]);
+    } catch (err: any) {
+      setCatalogError(err?.message || "Failed to import exercises");
+    } finally {
+      setCatalogLoading(false);
+    }
+  };
+
   React.useEffect(() => {
     setPage(1);
   }, [search, sortConfig?.key, sortConfig?.direction, pageSize]);
@@ -169,14 +276,163 @@ export default function ExercisesPage() {
             Create reusable exercises with videos and guidelines
           </p>
         </div>
-        <Button
-          onClick={handleCreate}
-          className="min-w-[120px] bg-indigo-600 hover:bg-indigo-700 text-white"
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          Exercise
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              setCatalogOpen((v) => {
+                const next = !v;
+                if (next) {
+                  setCatalogQuery("");
+                  setCatalogError(null);
+                  setCatalogResults([]);
+                  setSelectedCatalogIds(new Set());
+                }
+                return next;
+              })
+            }
+          >
+            {catalogOpen ? (
+              <X className="w-5 h-5 mr-2" />
+            ) : (
+              <Plus className="w-5 h-5 mr-2" />
+            )}
+            {catalogOpen ? "Close Catalog" : "Add from Exercise Catalog"}
+          </Button>
+
+          <Button
+            type="button"
+            onClick={handleCreate}
+            className="min-w-[120px] bg-indigo-600 hover:bg-indigo-700 text-white"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Exercise
+          </Button>
+        </div>
       </div>
+
+      {catalogOpen ? (
+        <div className="mb-6 rounded-lg border bg-white dark:bg-gray-800 p-4">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div className="text-sm font-medium">Exercise Catalog (ExerciseDB)</div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setCatalogOpen(false)}
+              aria-label="Close catalog"
+              title="Close catalog"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+            <div className="flex-1">
+              <Input
+                value={catalogQuery}
+                onChange={(e) => setCatalogQuery(e.target.value)}
+                placeholder="Search exercises (e.g. push up, squat, bench press)"
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter") return;
+                  e.preventDefault();
+                  runCatalogSearch();
+                }}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={runCatalogSearch}
+                disabled={catalogLoading}
+              >
+                {catalogLoading ? "Searching..." : "Search"}
+              </Button>
+              <Button
+                type="button"
+                onClick={addSelectedFromCatalog}
+                disabled={catalogLoading || selectedCatalogItems.length === 0}
+              >
+                Add selected
+                {selectedCatalogItems.length ? ` (${selectedCatalogItems.length})` : ""}
+              </Button>
+            </div>
+          </div>
+
+          {catalogError ? (
+            <div className="mt-3 text-sm text-red-600 dark:text-red-400">
+              {catalogError}
+            </div>
+          ) : null}
+
+          <div className="mt-4 rounded-lg border overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium w-[44px]">
+                      <Checkbox
+                        checked={
+                          catalogResults.length > 0 &&
+                          selectedCatalogIds.size === catalogResults.length
+                        }
+                        onCheckedChange={(v) => {
+                          const checked = Boolean(v);
+                          setSelectedCatalogIds(() => {
+                            if (!checked) return new Set();
+                            return new Set(catalogResults.map((r) => String(r.externalId)));
+                          });
+                        }}
+                        disabled={catalogResults.length === 0}
+                      />
+                    </th>
+                    <th className="px-4 py-3 text-left font-medium">Exercise</th>
+                    <th className="px-4 py-3 text-left font-medium">Target</th>
+                    <th className="px-4 py-3 text-left font-medium">Body Part</th>
+                    <th className="px-4 py-3 text-left font-medium">Equipment</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {catalogResults.length === 0 ? (
+                    <tr>
+                      <td className="px-4 py-6 text-sm text-gray-500" colSpan={5}>
+                        Search to see ExerciseDB results.
+                      </td>
+                    </tr>
+                  ) : (
+                    catalogResults.map((r) => {
+                      const id = String(r.externalId);
+                      const checked = selectedCatalogIds.has(id);
+                      return (
+                        <tr
+                          key={id}
+                          className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40"
+                        >
+                          <td className="px-4 py-3">
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(v) => toggleCatalogId(id, Boolean(v))}
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="font-medium">{String(r.name ?? "-")}</div>
+                            <div className="text-xs text-gray-500">ID: {id}</div>
+                          </td>
+                          <td className="px-4 py-3">{String(r.targetMuscle ?? "-")}</td>
+                          <td className="px-4 py-3">{String(r.bodyPart ?? "-")}</td>
+                          <td className="px-4 py-3">{String(r.equipment ?? "-")}</td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mb-6 flex flex-col sm:flex-row sm:items-end gap-3">
         <div className="relative max-w-md w-full">
@@ -244,22 +500,32 @@ export default function ExercisesPage() {
                   </th>
                   <th
                     className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                    onClick={() => handleSort("videoKind")}
+                    onClick={() => handleSort("targetMuscle")}
                   >
                     <div className="flex items-center gap-2">
-                      Video
+                      Target
                       <ArrowUpDown className="w-4 h-4" />
                     </div>
                   </th>
                   <th
                     className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                    onClick={() => handleSort("guidelines")}
+                    onClick={() => handleSort("bodyPart")}
                   >
                     <div className="flex items-center gap-2">
-                      Guidelines
+                      Body Part
                       <ArrowUpDown className="w-4 h-4" />
                     </div>
                   </th>
+                  <th
+                    className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                    onClick={() => handleSort("equipment")}
+                  >
+                    <div className="flex items-center gap-2">
+                      Equipment
+                      <ArrowUpDown className="w-4 h-4" />
+                    </div>
+                  </th>
+                  <th className="px-4 py-3 text-left font-medium">Media</th>
                 </tr>
               </thead>
               <tbody>
@@ -277,6 +543,9 @@ export default function ExercisesPage() {
                         ? "Upload"
                         : "-";
                   const hasGuidelines = !!String(e?.guidelines ?? "").trim();
+                  const targetMuscle = String(e?.targetMuscle ?? "").trim();
+                  const bodyPart = String(e?.bodyPart ?? "").trim();
+                  const equipment = String(e?.equipment ?? "").trim();
 
                   return (
                     <tr
@@ -287,8 +556,32 @@ export default function ExercisesPage() {
                       <td className="px-4 py-3">
                         <span className="font-medium">{String(e.name ?? "-")}</span>
                       </td>
-                      <td className="px-4 py-3">{hasVideo ? videoLabel : "-"}</td>
-                      <td className="px-4 py-3">{hasGuidelines ? "Available" : "-"}</td>
+                      <td className="px-4 py-3">{targetMuscle || "-"}</td>
+                      <td className="px-4 py-3">{bodyPart || "-"}</td>
+                      <td className="px-4 py-3">{equipment || "-"}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                          {hasVideo ? (
+                            <span
+                              className="inline-flex items-center"
+                              title={`Video: ${videoLabel}`}
+                              aria-label={`Video: ${videoLabel}`}
+                            >
+                              <Video className="h-4 w-4" />
+                            </span>
+                          ) : null}
+                          {hasGuidelines ? (
+                            <span
+                              className="inline-flex items-center"
+                              title="Guidelines available"
+                              aria-label="Guidelines available"
+                            >
+                              <FileText className="h-4 w-4" />
+                            </span>
+                          ) : null}
+                          {!hasVideo && !hasGuidelines ? <span>-</span> : null}
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
