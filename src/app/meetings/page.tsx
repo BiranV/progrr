@@ -27,8 +27,9 @@ import { format } from "date-fns";
 import { Meeting, Client } from "@/types";
 import { useRefetchOnVisible } from "@/hooks/use-refetch-on-visible";
 
-const PROSPECT_CLIENT_ID = "__PROSPECT__";
-const PROSPECT_CLIENT_LABEL = "Prospect (Process / Payment questions)";
+const OTHER_CLIENT_ID = "__PROSPECT__";
+const OTHER_CLIENT_LABEL = "Other (not a client)";
+const OTHER_CLIENT_NAME_FIELD = "otherClientName";
 
 export default function MeetingsPage() {
   const [detailsOpen, setDetailsOpen] = React.useState(false);
@@ -51,8 +52,13 @@ export default function MeetingsPage() {
     queryFn: () => db.entities.Client.list(),
   });
 
-  const getClientName = (clientId: string) => {
-    if (clientId === PROSPECT_CLIENT_ID) return PROSPECT_CLIENT_LABEL;
+  const getClientName = (meeting: Meeting) => {
+    const clientId = String((meeting as any)?.clientId ?? "").trim();
+    if (!clientId) return "-";
+    if (clientId === OTHER_CLIENT_ID) {
+      const name = String((meeting as any)?.[OTHER_CLIENT_NAME_FIELD] ?? "").trim();
+      return name || OTHER_CLIENT_LABEL;
+    }
     const client = clients.find((c: Client) => c.id === clientId);
     return client?.name || "Unknown";
   };
@@ -66,6 +72,80 @@ export default function MeetingsPage() {
       default:
         return <MapPin className="w-4 h-4" />;
     }
+  };
+
+  const normalizeType = (type: string) =>
+    String(type ?? "")
+      .trim()
+      .toLowerCase();
+
+  const getLinkHref = (raw: string): string | null => {
+    const s = String(raw ?? "").trim();
+    if (!s) return null;
+
+    if (s.startsWith("http://") || s.startsWith("https://")) return s;
+
+    // Handle common cases where the admin pastes without protocol.
+    if (s.startsWith("www.")) return `https://${s}`;
+
+    const looksLikeDomain = /^[a-z0-9.-]+\.[a-z]{2,}(\/.*)?$/i.test(s);
+    if (looksLikeDomain) return `https://${s}`;
+
+    return null;
+  };
+
+  const renderTypeSpecificLocation = (meeting: Meeting) => {
+    const type = normalizeType((meeting as any)?.type);
+    const rawLocation = String((meeting as any).location ?? "").trim();
+    const locationLower = rawLocation.toLowerCase();
+
+    // Avoid duplicate "Zoom"/"Phone" when type already conveys it.
+    const redundant =
+      !rawLocation ||
+      (type === "zoom" && locationLower === "zoom") ||
+      (type === "call" && locationLower === "phone") ||
+      locationLower === type;
+
+    if (redundant) return null;
+
+    const typeBasedKind: "link" | "location" | "phone" =
+      type === "call" ? "phone" : type === "zoom" ? "link" : "location";
+
+    const href = typeBasedKind === "link" ? getLinkHref(rawLocation) : null;
+
+    return (
+      <div className="flex items-center gap-2 truncate col-span-2">
+        {typeBasedKind === "phone" ? (
+          <Phone className="w-4 h-4 shrink-0 text-gray-500 dark:text-gray-400" />
+        ) : typeBasedKind === "link" ? (
+          <LinkIcon className="w-4 h-4 shrink-0 text-gray-500 dark:text-gray-400" />
+        ) : (
+          <MapPin className="w-4 h-4 shrink-0 text-gray-500 dark:text-gray-400" />
+        )}
+        <span className="truncate">
+          {typeBasedKind === "phone"
+            ? "Phone"
+            : typeBasedKind === "link"
+              ? "Link"
+              : "Location"}
+          :{" "}
+          {href ? (
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-2 hover:text-indigo-600 dark:hover:text-indigo-300"
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              {rawLocation}
+            </a>
+          ) : (
+            rawLocation
+          )}
+        </span>
+      </div>
+    );
   };
 
   const upcoming = meetings.filter(
@@ -189,61 +269,22 @@ export default function MeetingsPage() {
                             </span>
                           </div>
 
-                          {meeting.clientId ? (
-                            <div className="flex items-center gap-2 truncate col-span-2">
-                              <User className="w-4 h-4 shrink-0 text-gray-500 dark:text-gray-400" />
-                              <span className="truncate">
-                                With: {getClientName(meeting.clientId)}
-                              </span>
-                            </div>
-                          ) : null}
+                          {renderTypeSpecificLocation(meeting)}
 
-                          {(() => {
-                            const type = String(meeting.type ?? "")
-                              .trim()
-                              .toLowerCase();
-                            const rawLocation = String(
-                              (meeting as any).location ?? ""
-                            ).trim();
-                            const location = rawLocation;
-                            const locationLower = rawLocation.toLowerCase();
+                          <div className="flex items-center gap-2 truncate col-span-2">
+                            <User className="w-4 h-4 shrink-0 text-gray-500 dark:text-gray-400" />
+                            <span className="truncate">With: {getClientName(meeting)}</span>
+                          </div>
 
-                            // Avoid duplicate "Zoom"/"Phone" when type already conveys it.
-                            const redundant =
-                              !location ||
-                              (type === "zoom" && locationLower === "zoom") ||
-                              (type === "call" && locationLower === "phone") ||
-                              locationLower === type;
-
-                            if (redundant) return null;
-
-                            const typeBasedKind: "link" | "location" | "phone" =
-                              type === "call"
-                                ? "phone"
-                                : type === "zoom"
-                                  ? "link"
-                                  : "location";
-
-                            return (
-                              <div className="flex items-center gap-2 truncate col-span-2">
-                                {typeBasedKind === "phone" ? (
-                                  <Phone className="w-4 h-4 shrink-0 text-gray-500 dark:text-gray-400" />
-                                ) : typeBasedKind === "link" ? (
-                                  <LinkIcon className="w-4 h-4 shrink-0 text-gray-500 dark:text-gray-400" />
-                                ) : (
-                                  <MapPin className="w-4 h-4 shrink-0 text-gray-500 dark:text-gray-400" />
-                                )}
-                                <span className="truncate">
-                                  {typeBasedKind === "phone"
-                                    ? "Phone"
-                                    : typeBasedKind === "link"
-                                      ? "Link"
-                                      : "Location"}
-                                  : {location}
-                                </span>
-                              </div>
-                            );
-                          })()}
+                          <div className="flex items-center gap-2 truncate col-span-2">
+                            <Clock className="w-4 h-4 shrink-0 text-gray-500 dark:text-gray-400" />
+                            <span className="truncate">
+                              Duration:{" "}
+                              {Number.isFinite(Number((meeting as any).durationMinutes))
+                                ? `${Number((meeting as any).durationMinutes)} min`
+                                : "-"}
+                            </span>
+                          </div>
                         </div>
                       </div>
 
@@ -304,6 +345,64 @@ export default function MeetingsPage() {
                             </h3>
                             <p className="text-sm text-gray-500 dark:text-gray-400">
                               {format(new Date(meeting.scheduledAt), "PPP p")}
+                            </p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 capitalize">
+                              Type: {String(meeting.type ?? "-").replace(/[-_]/g, " ")}
+                            </p>
+                            {(() => {
+                              const type = normalizeType((meeting as any)?.type);
+                              const rawLocation = String(
+                                (meeting as any).location ?? ""
+                              ).trim();
+                              const locationLower = rawLocation.toLowerCase();
+                              const redundant =
+                                !rawLocation ||
+                                (type === "zoom" && locationLower === "zoom") ||
+                                (type === "call" && locationLower === "phone") ||
+                                locationLower === type;
+                              if (redundant) return null;
+
+                              const kind: "link" | "location" | "phone" =
+                                type === "call"
+                                  ? "phone"
+                                  : type === "zoom"
+                                    ? "link"
+                                    : "location";
+
+                              const href = kind === "link" ? getLinkHref(rawLocation) : null;
+
+                              return (
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                  {(kind === "phone"
+                                    ? "Phone"
+                                    : kind === "link"
+                                      ? "Link"
+                                      : "Location") + ": "}
+                                  {href ? (
+                                    <a
+                                      href={href}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="underline underline-offset-2 hover:text-indigo-600 dark:hover:text-indigo-300"
+                                      onClick={(e) => e.stopPropagation()}
+                                      onMouseDown={(e) => e.stopPropagation()}
+                                    >
+                                      {rawLocation}
+                                    </a>
+                                  ) : (
+                                    rawLocation
+                                  )}
+                                </p>
+                              );
+                            })()}
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              With: {getClientName(meeting)}
+                            </p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              Duration:{" "}
+                              {Number.isFinite(Number((meeting as any).durationMinutes))
+                                ? `${Number((meeting as any).durationMinutes)} min`
+                                : "-"}
                             </p>
                           </div>
                         </div>

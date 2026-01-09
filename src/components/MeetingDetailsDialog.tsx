@@ -31,8 +31,9 @@ import { format } from "date-fns";
 import { Client, Meeting } from "@/types";
 import { toast } from "sonner";
 
-const PROSPECT_CLIENT_ID = "__PROSPECT__";
-const PROSPECT_CLIENT_LABEL = "Prospect (Process / Payment questions)";
+const OTHER_CLIENT_ID = "__PROSPECT__";
+const OTHER_CLIENT_LABEL = "Other (not a client)";
+const OTHER_CLIENT_NAME_FIELD = "otherClientName";
 
 interface MeetingDetailsDialogProps {
   meetingId: string | null;
@@ -63,6 +64,16 @@ function isoToLocalDateTimeInputValue(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
   return toLocalDateTimeInputValue(d);
+}
+
+function normalizeMeetingType(type: unknown): "zoom" | "call" | "in-person" {
+  const t = String(type ?? "")
+    .trim()
+    .toLowerCase();
+  if (t === "call") return "call";
+  if (t === "in-person" || t === "in_person" || t === "inperson")
+    return "in-person";
+  return "zoom";
 }
 
 export default function MeetingDetailsDialog({
@@ -96,7 +107,16 @@ export default function MeetingDetailsDialog({
     durationMinutes: 60,
     location: "",
     clientId: "",
+    [OTHER_CLIENT_NAME_FIELD]: "",
     notes: "",
+  });
+
+  const [locationByType, setLocationByType] = React.useState<
+    Record<"zoom" | "call" | "in-person", string>
+  >({
+    zoom: "",
+    call: "",
+    "in-person": "",
   });
 
   React.useEffect(() => {
@@ -115,8 +135,11 @@ export default function MeetingDetailsDialog({
         durationMinutes: 60,
         location: "",
         clientId: "",
+        [OTHER_CLIENT_NAME_FIELD]: "",
         notes: "",
       });
+
+      setLocationByType({ zoom: "", call: "", "in-person": "" });
     } else {
       setIsEditing(false);
     }
@@ -127,6 +150,9 @@ export default function MeetingDetailsDialog({
     if (!isEditing) return;
 
     if (meetingId && meeting) {
+      const normalizedType = normalizeMeetingType((meeting as any)?.type);
+      const normalizedLocation = String((meeting as any).location ?? "");
+
       setFormData({
         title: meeting.title || "",
         type: meeting.type || "zoom",
@@ -137,12 +163,27 @@ export default function MeetingDetailsDialog({
         durationMinutes: (meeting as any).durationMinutes || 60,
         location: (meeting as any).location || "",
         clientId: meeting.clientId || "",
+        [OTHER_CLIENT_NAME_FIELD]:
+          String((meeting as any)?.[OTHER_CLIENT_NAME_FIELD] ?? "").trim() ||
+          String((meeting as any)?.prospectName ?? "").trim() ||
+          String((meeting as any)?.guestName ?? "").trim() ||
+          "",
         notes: meeting.notes || "",
       });
+
+      setLocationByType((prev) => ({
+        ...prev,
+        [normalizedType]: normalizedLocation,
+      }));
     }
   }, [open, isEditing, meetingId, meeting]);
   const getClientName = (clientId: string) => {
-    if (clientId === PROSPECT_CLIENT_ID) return PROSPECT_CLIENT_LABEL;
+    if (clientId === OTHER_CLIENT_ID) {
+      const name = String(
+        (meeting as any)?.[OTHER_CLIENT_NAME_FIELD] ?? ""
+      ).trim();
+      return name || OTHER_CLIENT_LABEL;
+    }
     const client = clients.find((c: Client) => c.id === clientId);
     return client?.name || "Unknown";
   };
@@ -223,6 +264,14 @@ export default function MeetingDetailsDialog({
       const title = String(formData.title ?? "").trim();
       if (!title) throw new Error("Title is required");
 
+      const clientId = String((formData as any).clientId ?? "").trim();
+      if (!clientId) {
+        throw new Error("Client is required");
+      }
+      if (clientId === OTHER_CLIENT_ID && !otherClientName) {
+        throw new Error("Please enter a name for the 'Other' client");
+      }
+
       if (shouldEnforceMinDateTime) {
         const scheduledAtLocal = String(formData.scheduledAt ?? "").trim();
         const d = scheduledAtLocal ? new Date(scheduledAtLocal) : null;
@@ -236,6 +285,12 @@ export default function MeetingDetailsDialog({
 
       const payload: any = { ...formData, title };
       const scheduledAtLocal = String(formData.scheduledAt ?? "").trim();
+
+      if (String(payload.clientId ?? "").trim() === OTHER_CLIENT_ID) {
+        payload[OTHER_CLIENT_NAME_FIELD] = otherClientName;
+      } else {
+        delete payload[OTHER_CLIENT_NAME_FIELD];
+      }
 
       if (meetingId && meeting) {
         const originalLocal = meeting.scheduledAt
@@ -312,7 +367,7 @@ export default function MeetingDetailsDialog({
 
   const hasClientOption = React.useMemo(() => {
     if (!clientSelectValue) return true;
-    if (clientSelectValue === PROSPECT_CLIENT_ID) return true;
+    if (clientSelectValue === OTHER_CLIENT_ID) return true;
     return (clients ?? []).some(
       (c) => String((c as any)?.id ?? "").trim() === clientSelectValue
     );
@@ -320,12 +375,16 @@ export default function MeetingDetailsDialog({
 
   const selectedClientName = React.useMemo(() => {
     if (!clientSelectValue) return "";
-    if (clientSelectValue === PROSPECT_CLIENT_ID) return PROSPECT_CLIENT_LABEL;
+    if (clientSelectValue === OTHER_CLIENT_ID) return OTHER_CLIENT_LABEL;
     const found = (clients ?? []).find(
       (c) => String((c as any)?.id ?? "").trim() === clientSelectValue
     );
     return String((found as any)?.name ?? "").trim();
   }, [clients, clientSelectValue]);
+
+  const otherClientName = String(
+    (formData as any)?.[OTHER_CLIENT_NAME_FIELD] ?? ""
+  ).trim();
 
   const renderEditMode = () => (
     <form id="meeting-form" onSubmit={handleSubmit} noValidate className="space-y-4">
@@ -362,7 +421,24 @@ export default function MeetingDetailsDialog({
           </label>
           <Select
             value={String(formData.type ?? "zoom")}
-            onValueChange={(v) => setFormData({ ...formData, type: v })}
+            onValueChange={(v) => {
+              if (validationError) setValidationError(null);
+
+              const nextRaw = String(v ?? "zoom");
+              const currentType = normalizeMeetingType((formData as any).type);
+              const nextType = normalizeMeetingType(nextRaw);
+              const currentLocation = String((formData as any).location ?? "");
+
+              setLocationByType((prev) => {
+                const updated = { ...prev, [currentType]: currentLocation };
+                setFormData({
+                  ...formData,
+                  type: nextRaw,
+                  location: updated[nextType] ?? "",
+                });
+                return updated;
+              });
+            }}
           >
             <SelectTrigger className="w-full">
               <SelectValue />
@@ -467,13 +543,20 @@ export default function MeetingDetailsDialog({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Client
+          Client *
         </label>
         <Select
           value={clientSelectValue}
           onValueChange={(v) => {
             if (validationError) setValidationError(null);
-            setFormData({ ...formData, clientId: String(v ?? "").trim() });
+            const next = String(v ?? "").trim();
+            setFormData({
+              ...formData,
+              clientId: next,
+              ...(next === OTHER_CLIENT_ID
+                ? {}
+                : { [OTHER_CLIENT_NAME_FIELD]: "" }),
+            });
           }}
         >
           <SelectTrigger className="w-full">
@@ -485,8 +568,8 @@ export default function MeetingDetailsDialog({
                 {selectedClientName || `Client (${clientSelectValue})`}
               </SelectItem>
             ) : null}
-            <SelectItem value={PROSPECT_CLIENT_ID}>
-              {PROSPECT_CLIENT_LABEL}
+            <SelectItem value={OTHER_CLIENT_ID}>
+              {OTHER_CLIENT_LABEL}
             </SelectItem>
             {clients.map((client) => (
               <SelectItem key={client.id} value={client.id}>
@@ -496,6 +579,28 @@ export default function MeetingDetailsDialog({
           </SelectContent>
         </Select>
       </div>
+
+      {clientSelectValue === OTHER_CLIENT_ID ? (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Name *
+          </label>
+          <Input
+            value={String((formData as any)?.[OTHER_CLIENT_NAME_FIELD] ?? "")}
+            onChange={(e) => {
+              if (validationError) setValidationError(null);
+              setFormData({
+                ...formData,
+                [OTHER_CLIENT_NAME_FIELD]: e.target.value,
+              });
+            }}
+            placeholder="Enter name"
+          />
+          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            This meeting isn’t linked to an existing client.
+          </div>
+        </div>
+      ) : null}
 
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

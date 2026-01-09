@@ -18,8 +18,9 @@ import SidePanel from "@/components/ui/side-panel";
 import { Meeting, Client } from "@/types";
 import { toast } from "sonner";
 
-const PROSPECT_CLIENT_ID = "__PROSPECT__";
-const PROSPECT_CLIENT_LABEL = "Prospect (Process / Payment questions)";
+const OTHER_CLIENT_ID = "__PROSPECT__";
+const OTHER_CLIENT_LABEL = "Other (not a client)";
+const OTHER_CLIENT_NAME_FIELD = "otherClientName";
 
 interface MeetingDialogProps {
   meeting: Meeting | null;
@@ -70,6 +71,7 @@ export default function MeetingDialog({
     durationMinutes: 60,
     location: "",
     clientId: "",
+    [OTHER_CLIENT_NAME_FIELD]: "",
     notes: "",
   });
 
@@ -86,6 +88,11 @@ export default function MeetingDialog({
         durationMinutes: meeting.durationMinutes || 60,
         location: meeting.location || "",
         clientId: meeting.clientId || "",
+        [OTHER_CLIENT_NAME_FIELD]:
+          String((meeting as any)?.[OTHER_CLIENT_NAME_FIELD] ?? "").trim() ||
+          String((meeting as any)?.prospectName ?? "").trim() ||
+          String((meeting as any)?.guestName ?? "").trim() ||
+          "",
         notes: meeting.notes || "",
       });
     } else {
@@ -97,6 +104,7 @@ export default function MeetingDialog({
         durationMinutes: 60,
         location: "",
         clientId: "",
+        [OTHER_CLIENT_NAME_FIELD]: "",
         notes: "",
       });
     }
@@ -141,6 +149,14 @@ export default function MeetingDialog({
       // changing meetings into the past. So only send `scheduledAt` when it
       // actually changed.
       const payload: any = { ...data };
+
+      if (String(payload.clientId ?? "").trim() === OTHER_CLIENT_ID) {
+        payload[OTHER_CLIENT_NAME_FIELD] = String(
+          (data as any)?.[OTHER_CLIENT_NAME_FIELD] ?? ""
+        ).trim();
+      } else {
+        delete payload[OTHER_CLIENT_NAME_FIELD];
+      }
 
       const scheduledAtLocal = String(data.scheduledAt ?? "").trim();
 
@@ -192,6 +208,12 @@ export default function MeetingDialog({
       return;
     }
 
+    const clientId = String((formData as any).clientId ?? "").trim();
+    if (!clientId) {
+      setValidationError("Client is required");
+      return;
+    }
+
     if (shouldEnforceMinDateTime) {
       const scheduledAt = String(formData.scheduledAt ?? "").trim();
       const d = scheduledAt ? new Date(scheduledAt) : null;
@@ -203,6 +225,14 @@ export default function MeetingDialog({
         setValidationError("Meeting date & time cannot be in the past");
         return;
       }
+    }
+
+    const otherClientName = String(
+      (formData as any)?.[OTHER_CLIENT_NAME_FIELD] ?? ""
+    ).trim();
+    if (clientId === OTHER_CLIENT_ID && !otherClientName) {
+      setValidationError("Please enter a name for the 'Other' client");
+      return;
     }
 
     saveMutation.mutate(formData);
@@ -217,7 +247,7 @@ export default function MeetingDialog({
 
   const hasClientOption = React.useMemo(() => {
     if (!clientSelectValue) return true; // placeholder
-    if (clientSelectValue === PROSPECT_CLIENT_ID) return true;
+    if (clientSelectValue === OTHER_CLIENT_ID) return true;
     return (clients ?? []).some(
       (c) => String((c as any)?.id ?? "").trim() === clientSelectValue
     );
@@ -225,7 +255,7 @@ export default function MeetingDialog({
 
   const selectedClientName = React.useMemo(() => {
     if (!clientSelectValue) return "";
-    if (clientSelectValue === PROSPECT_CLIENT_ID) return PROSPECT_CLIENT_LABEL;
+    if (clientSelectValue === OTHER_CLIENT_ID) return OTHER_CLIENT_LABEL;
     const found = (clients ?? []).find(
       (c) => String((c as any)?.id ?? "").trim() === clientSelectValue
     );
@@ -319,10 +349,10 @@ export default function MeetingDialog({
                 .toLowerCase() === "call"
                 ? "Phone"
                 : String(formData.type ?? "")
-                    .trim()
-                    .toLowerCase() === "in-person"
-                ? "Location"
-                : "Link"}
+                  .trim()
+                  .toLowerCase() === "in-person"
+                  ? "Location"
+                  : "Link"}
             </label>
             <Input
               value={formData.location}
@@ -335,10 +365,10 @@ export default function MeetingDialog({
                   .toLowerCase() === "call"
                   ? "+1 202 555 0123"
                   : String(formData.type ?? "")
-                      .trim()
-                      .toLowerCase() === "in-person"
-                  ? "Address / meeting point"
-                  : "https://..."
+                    .trim()
+                    .toLowerCase() === "in-person"
+                    ? "Address / meeting point"
+                    : "https://..."
               }
             />
           </div>
@@ -404,13 +434,20 @@ export default function MeetingDialog({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Client
+            Client *
           </label>
           <Select
             value={clientSelectValue}
             onValueChange={(v) => {
               if (validationError) setValidationError(null);
-              setFormData({ ...formData, clientId: String(v ?? "").trim() });
+              const next = String(v ?? "").trim();
+              setFormData({
+                ...formData,
+                clientId: next,
+                ...(next === OTHER_CLIENT_ID
+                  ? {}
+                  : { [OTHER_CLIENT_NAME_FIELD]: "" }),
+              });
             }}
           >
             <SelectTrigger className="w-full">
@@ -422,8 +459,8 @@ export default function MeetingDialog({
                   {selectedClientName || `Client (${clientSelectValue})`}
                 </SelectItem>
               ) : null}
-              <SelectItem value={PROSPECT_CLIENT_ID}>
-                {PROSPECT_CLIENT_LABEL}
+              <SelectItem value={OTHER_CLIENT_ID}>
+                {OTHER_CLIENT_LABEL}
               </SelectItem>
               {clients.map((client) => (
                 <SelectItem key={client.id} value={client.id}>
@@ -433,6 +470,28 @@ export default function MeetingDialog({
             </SelectContent>
           </Select>
         </div>
+
+        {clientSelectValue === OTHER_CLIENT_ID ? (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Name *
+            </label>
+            <Input
+              value={String((formData as any)?.[OTHER_CLIENT_NAME_FIELD] ?? "")}
+              onChange={(e) => {
+                if (validationError) setValidationError(null);
+                setFormData({
+                  ...formData,
+                  [OTHER_CLIENT_NAME_FIELD]: e.target.value,
+                });
+              }}
+              placeholder="Enter name"
+            />
+            <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              This meeting isn’t linked to an existing client.
+            </div>
+          </div>
+        ) : null}
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
