@@ -2,7 +2,7 @@
 
 import React from "react";
 import { db } from "@/lib/db";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -19,33 +19,22 @@ import {
   Link as LinkIcon,
   MapPin,
   User,
-  Edit,
-  Trash2,
   Clock,
   History,
 } from "lucide-react";
-import MeetingDialog from "@/components/MeetingDialog";
 import MeetingDetailsDialog from "@/components/MeetingDetailsDialog";
-import ConfirmModal from "@/components/ui/confirm-modal";
 import { format } from "date-fns";
 import { Meeting, Client } from "@/types";
 import { useRefetchOnVisible } from "@/hooks/use-refetch-on-visible";
-import { toast } from "sonner";
 
 const PROSPECT_CLIENT_ID = "__PROSPECT__";
 const PROSPECT_CLIENT_LABEL = "Prospect (Process / Payment questions)";
 
 export default function MeetingsPage() {
-  const [dialogOpen, setDialogOpen] = React.useState(false);
-  const [editingMeeting, setEditingMeeting] = React.useState<Meeting | null>(
-    null
-  );
   const [detailsOpen, setDetailsOpen] = React.useState(false);
-  const [detailsMeeting, setDetailsMeeting] = React.useState<Meeting | null>(
+  const [detailsMeetingId, setDetailsMeetingId] = React.useState<string | null>(
     null
   );
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
-  const [deleteTarget, setDeleteTarget] = React.useState<Meeting | null>(null);
   const queryClient = useQueryClient();
 
   const { data: meetings = [], isLoading } = useQuery({
@@ -60,14 +49,6 @@ export default function MeetingsPage() {
   const { data: clients = [] } = useQuery({
     queryKey: ["clients"],
     queryFn: () => db.entities.Client.list(),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => db.entities.Meeting.delete(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["meetings"] }),
-    onError: (err: any) => {
-      toast.error(String(err?.message ?? "Failed to delete"));
-    },
   });
 
   const getClientName = (clientId: string) => {
@@ -94,32 +75,14 @@ export default function MeetingsPage() {
     (m: Meeting) => new Date(m.scheduledAt) < new Date()
   );
 
-  const handleEdit = async (meeting: Meeting) => {
-    try {
-      const full = await db.entities.Meeting.get(String((meeting as any).id));
-      setEditingMeeting(full as any);
-    } catch (e: any) {
-      // Fallback: open with whatever we already have.
-      setEditingMeeting(meeting);
-      toast.error(e?.message || "Failed to load meeting for editing");
-    }
-    setDialogOpen(true);
-  };
-
   const handleDetails = (meeting: Meeting) => {
-    setDetailsMeeting(meeting);
+    setDetailsMeetingId(String((meeting as any).id ?? "").trim() || null);
     setDetailsOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    const meeting = (meetings as Meeting[]).find((m) => m.id === id) ?? null;
-    setDeleteTarget(meeting ?? ({ id } as any));
-    setDeleteConfirmOpen(true);
-  };
-
-  const handleCloseDialog = (open: boolean) => {
-    setDialogOpen(open);
-    if (!open) setEditingMeeting(null);
+  const handleCreate = () => {
+    setDetailsMeetingId(null);
+    setDetailsOpen(true);
   };
 
   const statusChipClasses = (status?: string) => {
@@ -151,7 +114,7 @@ export default function MeetingsPage() {
           </p>
         </div>
         <Button
-          onClick={() => setDialogOpen(true)}
+          onClick={handleCreate}
           className="min-w-[180px] bg-indigo-600 hover:bg-indigo-700 text-white"
         >
           <Plus className="w-5 h-5 mr-2" />
@@ -208,33 +171,6 @@ export default function MeetingsPage() {
                           {format(new Date(meeting.scheduledAt), "PPP p")}
                         </CardDescription>
                       </div>
-
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEdit(meeting);
-                          }}
-                          className="p-2 text-gray-600 dark:text-gray-400
-                                       hover:text-indigo-600
-                                       hover:bg-indigo-50 dark:hover:bg-indigo-900
-                                       rounded-lg"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(meeting.id);
-                          }}
-                          className="p-2 text-gray-600 dark:text-gray-400
-                                       hover:text-red-600
-                                       hover:bg-red-50 dark:hover:bg-red-900
-                                       rounded-lg"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
                     </CardHeader>
 
                     <CardContent className="px-5 py-2 flex flex-col flex-1">
@@ -285,8 +221,8 @@ export default function MeetingsPage() {
                               type === "call"
                                 ? "phone"
                                 : type === "zoom"
-                                ? "link"
-                                : "location";
+                                  ? "link"
+                                  : "location";
 
                             return (
                               <div className="flex items-center gap-2 truncate col-span-2">
@@ -301,8 +237,8 @@ export default function MeetingsPage() {
                                   {typeBasedKind === "phone"
                                     ? "Phone"
                                     : typeBasedKind === "link"
-                                    ? "Link"
-                                    : "Location"}
+                                      ? "Link"
+                                      : "Location"}
                                   : {location}
                                 </span>
                               </div>
@@ -372,32 +308,6 @@ export default function MeetingsPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-4">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEdit(meeting);
-                              }}
-                              className="p-2 text-gray-600 dark:text-gray-400
-                                       hover:text-indigo-600
-                                       hover:bg-indigo-50 dark:hover:bg-indigo-900
-                                       rounded-lg"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDelete(meeting.id);
-                              }}
-                              className="p-2 text-gray-600 dark:text-gray-400
-                                       hover:text-red-600
-                                       hover:bg-red-50 dark:hover:bg-red-900
-                                       rounded-lg"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
                         </div>
                       </div>
 
@@ -418,44 +328,13 @@ export default function MeetingsPage() {
         </div>
       )}
 
-      <MeetingDialog
-        meeting={editingMeeting}
-        clients={clients}
-        open={dialogOpen}
-        onOpenChange={handleCloseDialog}
-      />
-
       <MeetingDetailsDialog
-        meeting={detailsMeeting}
+        meetingId={detailsMeetingId}
         clients={clients}
         open={detailsOpen}
         onOpenChange={(open) => {
           setDetailsOpen(open);
-          if (!open) setDetailsMeeting(null);
-        }}
-      />
-
-      <ConfirmModal
-        open={deleteConfirmOpen}
-        onOpenChange={(open) => {
-          setDeleteConfirmOpen(open);
-          if (!open) setDeleteTarget(null);
-        }}
-        title="Delete meeting?"
-        description={
-          <span>
-            This will permanently delete{" "}
-            <strong>{String(deleteTarget?.title ?? "this meeting")}</strong>.
-            This cannot be undone.
-          </span>
-        }
-        confirmText="Delete"
-        loading={deleteMutation.isPending}
-        confirmDisabled={!deleteTarget?.id}
-        onConfirm={async () => {
-          const id = String(deleteTarget?.id ?? "").trim();
-          if (!id) return;
-          await deleteMutation.mutateAsync(id);
+          if (!open) setDetailsMeetingId(null);
         }}
       />
     </div>

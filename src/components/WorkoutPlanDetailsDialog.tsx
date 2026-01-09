@@ -2,10 +2,27 @@
 
 import React from "react";
 import { db } from "@/lib/db";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import SidePanel from "@/components/ui/side-panel";
 import { Button } from "@/components/ui/button";
-import { Copy as CopyIcon, FileDown, FileText } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Copy as CopyIcon,
+  Edit2,
+  FileDown,
+  FileText,
+  Plus,
+  Trash2,
+  XCircle,
+} from "lucide-react";
 import {
   copyTextToClipboard,
   downloadPdfFile,
@@ -13,20 +30,124 @@ import {
   formatWorkoutPlanText,
 } from "@/lib/plan-export";
 import { toast } from "sonner";
-import { WorkoutPlan, Exercise, PlanExercise } from "@/types";
+import { Exercise, ExerciseLibrary, PlanExercise, WorkoutPlan } from "@/types";
 import { extractYouTubeVideoId, toYouTubeEmbedUrl } from "@/lib/youtube";
 
+const DIFFICULTY_VALUES = ["beginner", "intermediate", "advanced"] as const;
+
+function normalizeDifficulty(
+  value: unknown
+): (typeof DIFFICULTY_VALUES)[number] | "" {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const v = raw.toLowerCase().replace(/\s+/g, " ");
+  if ((DIFFICULTY_VALUES as readonly string[]).includes(v)) return v as any;
+
+  if (v === "beginner" || v === "easy" || v === "starter") return "beginner";
+  if (v === "intermediate" || v === "medium") return "intermediate";
+  if (v === "advanced" || v === "hard") return "advanced";
+
+  if (raw === "Beginner") return "beginner";
+  if (raw === "Intermediate") return "intermediate";
+  if (raw === "Advanced") return "advanced";
+
+  return "";
+}
+
 interface WorkoutPlanDetailsDialogProps {
-  plan: WorkoutPlan | null;
+  planId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 export default function WorkoutPlanDetailsDialog({
-  plan,
+  planId,
   open,
   onOpenChange,
 }: WorkoutPlanDetailsDialogProps) {
+  const queryClient = useQueryClient();
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [validationError, setValidationError] = React.useState<string | null>(
+    null
+  );
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+
+  const planExercisesHydrationRef = React.useRef<{
+    planId: string | null;
+    applied: boolean;
+  }>({ planId: null, applied: false });
+
+  const [formData, setFormData] = React.useState<Partial<WorkoutPlan>>({
+    name: "",
+    difficulty: "",
+    duration: "",
+    goal: "",
+    notes: "",
+  });
+
+  const [planExercises, setPlanExercises] = React.useState<
+    Partial<PlanExercise>[]
+  >([]);
+
+  const { data: plan } = useQuery({
+    queryKey: ["workoutPlan", planId],
+    queryFn: async () => {
+      if (!planId) return null;
+      return (await db.entities.WorkoutPlan.get(String(planId))) as any;
+    },
+    enabled: !!planId && open,
+  });
+
+  const resetForm = (current: WorkoutPlan | null) => {
+    setValidationError(null);
+    if (current) {
+      setFormData({
+        name: current.name || "",
+        difficulty: normalizeDifficulty(current.difficulty) || "",
+        duration: current.duration || "",
+        goal: current.goal || "",
+        notes: current.notes || "",
+      });
+    } else {
+      setFormData({
+        name: "",
+        difficulty: "",
+        duration: "",
+        goal: "",
+        notes: "",
+      });
+    }
+  };
+
+  React.useEffect(() => {
+    if (!open) return;
+    setShowDeleteConfirm(false);
+
+    if (!planId) {
+      setIsEditing(true);
+      resetForm(null);
+      setPlanExercises([]);
+      planExercisesHydrationRef.current = { planId: null, applied: false };
+      return;
+    }
+
+    setIsEditing(false);
+    // keep current plan data if already loaded
+    resetForm((plan as any) || null);
+    setPlanExercises([]);
+    planExercisesHydrationRef.current = {
+      planId: String(planId),
+      applied: false,
+    };
+  }, [open, planId]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    if (!planId) return;
+    if (!plan) return;
+    if (isEditing) return;
+    resetForm(plan as any);
+  }, [plan, open, planId, isEditing]);
   const formatDurationWeeks = (duration: any) => {
     const raw = String(duration ?? "").trim();
     if (!raw) return "";
@@ -51,12 +172,12 @@ export default function WorkoutPlanDetailsDialog({
   };
 
   const { data: exercises = [] } = useQuery({
-    queryKey: ["workoutPlanExercises", plan?.id, "details"],
+    queryKey: ["workoutPlanExercises", planId, "details"],
     queryFn: async () => {
-      if (!plan?.id) return [];
+      if (!planId) return [];
 
       const planExerciseRows = await db.entities.PlanExercise.filter({
-        workoutPlanId: plan.id,
+        workoutPlanId: planId,
       });
 
       const sortedPlanExercises = [...planExerciseRows].sort(
@@ -102,14 +223,61 @@ export default function WorkoutPlanDetailsDialog({
 
       // Legacy fallback
       const rows = await db.entities.Exercise.filter({
-        workoutPlanId: plan.id,
+        workoutPlanId: planId,
       });
       return [...rows].sort(
         (a: Exercise, b: Exercise) => (a.order || 0) - (b.order || 0)
       );
     },
-    enabled: !!plan && open,
+    enabled: !!planId && open,
   });
+
+  const { data: exerciseLibrary = [] } = useQuery({
+    queryKey: ["exerciseLibrary"],
+    queryFn: async () => {
+      const rows = await db.entities.ExerciseLibrary.list();
+      return [...rows].sort((a: ExerciseLibrary, b: ExerciseLibrary) =>
+        String(a.name ?? "")
+          .trim()
+          .localeCompare(String(b.name ?? "").trim())
+      );
+    },
+    enabled: open && isEditing,
+  });
+
+  const { data: queryPlanExercises } = useQuery({
+    queryKey: ["planExercises", planId, "edit"],
+    queryFn: async () => {
+      if (!planId) return [];
+      const rows = await db.entities.PlanExercise.filter({
+        workoutPlanId: planId,
+      });
+      return [...rows].sort(
+        (a: PlanExercise, b: PlanExercise) => (a.order || 0) - (b.order || 0)
+      );
+    },
+    enabled: open && isEditing && !!planId,
+  });
+
+  const existingPlanExercises = queryPlanExercises || [];
+
+  React.useEffect(() => {
+    if (!open) return;
+    if (!isEditing) return;
+    if (!planId) return;
+    if (!queryPlanExercises) return;
+
+    const expectedPlanId = planExercisesHydrationRef.current.planId;
+    const currentPlanId = String(planId ?? "");
+    if (!expectedPlanId || expectedPlanId !== currentPlanId) return;
+    if (planExercisesHydrationRef.current.applied) return;
+
+    setPlanExercises(queryPlanExercises);
+    planExercisesHydrationRef.current = {
+      planId: currentPlanId,
+      applied: true,
+    };
+  }, [queryPlanExercises, planId, open, isEditing]);
 
   const exportText = React.useMemo(() => {
     if (!plan) return "";
@@ -157,200 +325,681 @@ export default function WorkoutPlanDetailsDialog({
     }
   };
 
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const name = String(formData.name ?? "").trim();
+      if (!name) throw new Error("Plan name is required");
+
+      const difficulty = normalizeDifficulty((formData as any).difficulty);
+      if (!difficulty) throw new Error("Difficulty is required");
+
+      const duration = String(formData.duration ?? "").trim();
+      if (!duration) throw new Error("Duration is required");
+
+      const goal = String(formData.goal ?? "").trim();
+      if (!goal) throw new Error("Goal is required");
+
+      for (const row of planExercises) {
+        const exId = String((row as any)?.exerciseLibraryId ?? "").trim();
+        if (!exId) throw new Error("Each exercise must be selected from the library");
+      }
+
+      let nextPlanId: string;
+      const payload: any = {
+        ...formData,
+        name,
+        difficulty,
+        duration,
+        goal,
+      };
+
+      if (planId) {
+        await db.entities.WorkoutPlan.update(planId, payload);
+        nextPlanId = planId;
+
+        const currentIds = planExercises
+          .map((e) => String((e as any).id ?? "").trim())
+          .filter(Boolean);
+        const rowsToDelete = (existingPlanExercises as any[]).filter(
+          (e: any) => !currentIds.includes(String(e.id ?? "").trim())
+        );
+        await Promise.all(
+          rowsToDelete.map((e: any) => db.entities.PlanExercise.delete(e.id))
+        );
+      } else {
+        const created = await db.entities.WorkoutPlan.create(payload);
+        nextPlanId = String((created as any).id);
+      }
+
+      for (let i = 0; i < planExercises.length; i++) {
+        const row = planExercises[i] as any;
+        const exerciseLibraryId = String(row.exerciseLibraryId ?? "").trim();
+        const rowData: any = {
+          workoutPlanId: nextPlanId,
+          exerciseLibraryId,
+          sets: String(row.sets ?? "").trim(),
+          reps: String(row.reps ?? "").trim(),
+          restSeconds:
+            typeof row.restSeconds === "number" ? row.restSeconds : undefined,
+          order: i,
+        };
+
+        if (row.id) {
+          await db.entities.PlanExercise.update(String(row.id), rowData);
+        } else {
+          await db.entities.PlanExercise.create(rowData);
+        }
+      }
+    },
+    onSuccess: async () => {
+      queryClient.invalidateQueries({ queryKey: ["workoutPlans"] });
+      queryClient.invalidateQueries({ queryKey: ["workoutPlanExerciseCounts"] });
+      queryClient.invalidateQueries({ queryKey: ["planExercises"] });
+      queryClient.invalidateQueries({ queryKey: ["workoutPlan"] });
+      toast.success(planId ? "Workout plan updated" : "Workout plan created");
+
+      if (!planId) {
+        onOpenChange(false);
+      } else {
+        setIsEditing(false);
+      }
+    },
+    onError: (error: any) => {
+      const msg = error?.message || "Failed to save workout plan";
+      setValidationError(String(msg));
+      toast.error(String(msg));
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!planId) return;
+      await db.entities.WorkoutPlan.delete(planId);
+
+      const planExercisesRows = await db.entities.PlanExercise.filter({
+        workoutPlanId: planId,
+      });
+      await Promise.all(
+        (planExercisesRows as any[]).map((e: any) =>
+          db.entities.PlanExercise.delete(e.id)
+        )
+      );
+
+      const legacyExercises = await db.entities.Exercise.filter({
+        workoutPlanId: planId,
+      });
+      await Promise.all(
+        (legacyExercises as any[]).map((e: any) => db.entities.Exercise.delete(e.id))
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workoutPlans"] });
+      queryClient.invalidateQueries({ queryKey: ["workoutPlanExerciseCounts"] });
+      toast.success("Workout plan deleted");
+      setShowDeleteConfirm(false);
+      onOpenChange(false);
+    },
+    onError: (error: any) => {
+      toast.error(String(error?.message || "Failed to delete workout plan"));
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setValidationError(null);
+    saveMutation.mutate();
+  };
+
+  const difficultySelectValue =
+    normalizeDifficulty((formData as any).difficulty) ||
+    normalizeDifficulty((plan as any)?.difficulty) ||
+    "";
+
+  const addExercise = () => {
+    setPlanExercises([
+      ...planExercises,
+      { exerciseLibraryId: "", sets: "", reps: "", restSeconds: undefined },
+    ]);
+  };
+
+  const updatePlanExercise = (index: number, patch: Partial<PlanExercise>) => {
+    setPlanExercises((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], ...patch };
+      return updated;
+    });
+  };
+
+  const updateRestSeconds = (index: number, value: string) => {
+    const raw = String(value ?? "").trim();
+    if (!raw) {
+      updatePlanExercise(index, { restSeconds: undefined });
+      return;
+    }
+
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isFinite(parsed)) {
+      updatePlanExercise(index, { restSeconds: undefined });
+      return;
+    }
+
+    updatePlanExercise(index, { restSeconds: Math.max(0, parsed) });
+  };
+
+  const removeExercise = (index: number) => {
+    setPlanExercises(planExercises.filter((_, i) => i !== index));
+  };
+
+  const renderEditMode = () => {
+    return (
+      <form
+        id="workout-plan-form"
+        onSubmit={handleSubmit}
+        noValidate
+        className="space-y-6"
+      >
+        {validationError ? (
+          <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-4 min-h-12 py-2">
+            <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
+              <XCircle className="h-3.5 w-3.5" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
+                {validationError}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Plan Name *
+            </label>
+            <Input
+              value={String(formData.name ?? "")}
+              onChange={(e) => (
+                validationError && setValidationError(null),
+                setFormData({ ...formData, name: e.target.value })
+              )}
+              placeholder="e.g., Full Body Strength"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Difficulty *
+              </label>
+              <Select
+                value={difficultySelectValue}
+                onValueChange={(value) => (
+                  validationError && setValidationError(null),
+                  setFormData({
+                    ...formData,
+                    difficulty: normalizeDifficulty(value) || "",
+                  })
+                )}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select difficulty" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="beginner">Beginner</SelectItem>
+                  <SelectItem value="intermediate">Intermediate</SelectItem>
+                  <SelectItem value="advanced">Advanced</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Duration *
+              </label>
+              <Input
+                value={String(formData.duration ?? "")}
+                onChange={(e) => (
+                  validationError && setValidationError(null),
+                  setFormData({ ...formData, duration: e.target.value })
+                )}
+                placeholder="e.g., 8 weeks"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Goal *
+            </label>
+            <Input
+              value={String(formData.goal ?? "")}
+              onChange={(e) => (
+                validationError && setValidationError(null),
+                setFormData({ ...formData, goal: e.target.value })
+              )}
+              placeholder="e.g., Build muscle, Lose fat"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Notes
+            </label>
+            <Textarea
+              value={String(formData.notes ?? "")}
+              onChange={(e) =>
+                setFormData({ ...formData, notes: e.target.value })
+              }
+              rows={3}
+              placeholder="Additional notes about this plan..."
+            />
+          </div>
+        </div>
+
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Exercises
+            </h3>
+            <Button
+              type="button"
+              onClick={addExercise}
+              variant="outline"
+              size="sm"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Exercise
+            </Button>
+          </div>
+
+          <div className="space-y-3">
+            {planExercises.map((row, index) => (
+              <div
+                key={index}
+                className="flex flex-col sm:flex-row gap-3 items-start p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
+              >
+                <div className="flex-1 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
+                    <div className="sm:col-span-3">
+                      <Select
+                        value={String((row as any).exerciseLibraryId ?? "")}
+                        onValueChange={(value) =>
+                          updatePlanExercise(index, {
+                            exerciseLibraryId: value,
+                          })
+                        }
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select exercise" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(exerciseLibrary as any[]).map((ex: any) => (
+                            <SelectItem key={ex.id} value={ex.id}>
+                              {ex.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <Input
+                      value={String((row as any).sets ?? "")}
+                      onChange={(e) =>
+                        updatePlanExercise(index, { sets: e.target.value })
+                      }
+                      placeholder="Sets"
+                      className="sm:col-span-1"
+                    />
+                    <Input
+                      value={String((row as any).reps ?? "")}
+                      onChange={(e) =>
+                        updatePlanExercise(index, { reps: e.target.value })
+                      }
+                      placeholder="Reps"
+                      className="sm:col-span-1"
+                    />
+
+                    <div className="sm:col-span-1">
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        value={String((row as any).restSeconds ?? "")}
+                        onChange={(e) =>
+                          updateRestSeconds(index, e.target.value)
+                        }
+                        placeholder="Rest"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeExercise(index)}
+                  className="p-2 text-gray-600 dark:text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors self-end sm:self-auto"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+
+            {planExercises.length === 0 ? (
+              <p className="text-center text-gray-500 dark:text-gray-400 py-4">
+                No exercises added yet. Click "Add Exercise" to get started.
+              </p>
+            ) : null}
+          </div>
+        </div>
+      </form>
+    );
+  };
+
+  const renderViewMode = () => {
+    if (!plan) {
+      return (
+        <div className="text-sm text-gray-600 dark:text-gray-300">
+          No plan selected
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1 min-w-0">
+            <div className="text-xl font-semibold text-gray-900 dark:text-white truncate">
+              {plan.name}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-300">
+              {plan.difficulty ? (
+                <span className="capitalize">
+                  {String(plan.difficulty).replace(/[_-]/g, " ")}
+                </span>
+              ) : (
+                <span className="text-gray-500 dark:text-gray-400">
+                  Difficulty: -
+                </span>
+              )}
+              {plan.duration ? (
+                <span> · {formatDurationWeeks(plan.duration)}</span>
+              ) : null}
+              {plan.goal ? <span> · {plan.goal}</span> : null}
+            </div>
+          </div>
+
+          <div className="shrink-0 flex flex-wrap gap-2 items-center">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
+              title="Download PDF"
+              aria-label="Download PDF"
+              onClick={handleDownloadPdf}
+            >
+              <FileDown className="w-4 h-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
+              title="Download Text"
+              aria-label="Download Text"
+              onClick={handleDownloadText}
+            >
+              <FileText className="w-4 h-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-300 dark:hover:text-emerald-200"
+              title="Copy to clipboard"
+              aria-label="Copy to clipboard"
+              onClick={handleCopy}
+            >
+              <CopyIcon className="w-4 h-4" />
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setValidationError(null);
+                setIsEditing(true);
+                resetForm(plan as any);
+                setPlanExercises([]);
+                planExercisesHydrationRef.current = {
+                  planId: String(planId ?? ""),
+                  applied: false,
+                };
+              }}
+            >
+              <Edit2 className="w-4 h-4 mr-2" />
+              Edit
+            </Button>
+          </div>
+        </div>
+
+        {plan.notes ? (
+          <div>
+            <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+              Notes
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
+              {plan.notes}
+            </div>
+          </div>
+        ) : null}
+
+        <div>
+          <div className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+            Exercises
+          </div>
+          {exercises.length === 0 ? (
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              No exercises
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {exercises.map((e: any, idx: number) => {
+                const restText = formatRest(e.restSeconds);
+                return (
+                  <div
+                    key={e.id || idx}
+                    className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2"
+                  >
+                    <div>
+                      <div className="min-w-0">
+                        <div className="font-medium text-gray-900 dark:text-white truncate">
+                          {e.name || "-"}
+                        </div>
+
+                        {String(e.guidelines ?? "").trim() ? (
+                          <div className="mt-1 text-xs text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
+                            {String(e.guidelines)}
+                          </div>
+                        ) : null}
+
+                        {String(e.sets ?? "").trim() ||
+                          String(e.reps ?? "").trim() ||
+                          restText ? (
+                          <div className="mt-2 text-sm text-gray-700 dark:text-gray-200 leading-5">
+                            {String(e.sets ?? "").trim() ? (
+                              <div>{String(e.sets).trim()} Sets</div>
+                            ) : null}
+                            {String(e.reps ?? "").trim() ? (
+                              <div>{String(e.reps).trim()} Reps</div>
+                            ) : null}
+                            {restText ? <div>{restText} Rest</div> : null}
+                          </div>
+                        ) : null}
+
+                        {String(e.videoKind ?? "") === "youtube" &&
+                          String(e.videoUrl ?? "").trim()
+                          ? (() => {
+                            const embed = toYouTubeEmbedUrl(
+                              String(e.videoUrl ?? "")
+                            );
+                            if (!embed) return null;
+
+                            const id = extractYouTubeVideoId(
+                              String(e.videoUrl ?? "")
+                            );
+                            const watchUrl = id
+                              ? `https://www.youtube.com/watch?v=${id}`
+                              : null;
+
+                            return (
+                              <div className="mt-2">
+                                <div
+                                  className="relative w-full overflow-hidden rounded-lg bg-black"
+                                  style={{ paddingTop: "56.25%" }}
+                                >
+                                  {watchUrl ? (
+                                    <a
+                                      href={watchUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="absolute inset-0 z-10 cursor-pointer"
+                                      title="Open video"
+                                      aria-label="Open video"
+                                    />
+                                  ) : null}
+                                  <iframe
+                                    src={embed}
+                                    title="Exercise video"
+                                    className="absolute inset-0 h-full w-full"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })()
+                          : String(e.videoKind ?? "") === "upload" &&
+                            String(e.videoUrl ?? "").trim()
+                            ? (
+                              <div className="mt-2">
+                                <div
+                                  className="relative w-full overflow-hidden rounded-lg bg-black"
+                                  style={{ paddingTop: "56.25%" }}
+                                >
+                                  <video
+                                    className="absolute inset-0 h-full w-full object-contain"
+                                    controls
+                                    preload="metadata"
+                                    src={String(e.videoUrl ?? "").trim()}
+                                  />
+                                </div>
+                              </div>
+                            )
+                            : null}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="pt-2">
+          {!showDeleteConfirm ? (
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={!planId}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Workout Plan
+            </Button>
+          ) : (
+            <div className="p-4 border border-red-200 bg-red-50 dark:bg-red-900/10 rounded-lg space-y-3">
+              <div className="space-y-1">
+                <div className="text-sm font-semibold text-red-900 dark:text-red-100">
+                  Delete workout plan?
+                </div>
+                <div className="text-xs text-red-800 dark:text-red-200 leading-relaxed font-medium">
+                  This will permanently delete <strong>{String(plan?.name ?? "this workout plan")}</strong>. This cannot be undone.
+                </div>
+              </div>
+
+              <div className="flex gap-2 justify-end pt-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  type="button"
+                  disabled={deleteMutation.isPending}
+                  onClick={() => setShowDeleteConfirm(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  type="button"
+                  disabled={!planId || deleteMutation.isPending}
+                  onClick={() => deleteMutation.mutate()}
+                >
+                  {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <SidePanel
       open={open}
       onOpenChange={onOpenChange}
-      title="Workout Plan Details"
+      title={
+        isEditing
+          ? planId
+            ? "Edit Workout Plan"
+            : "Create Workout Plan"
+          : "Workout Plan Details"
+      }
       description={plan ? String(plan?.name ?? "").trim() : undefined}
       widthClassName="w-full sm:w-[560px] lg:w-[720px]"
+      footer={
+        isEditing ? (
+          <div className="flex gap-3 justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => (planId ? setIsEditing(false) : onOpenChange(false))}
+              disabled={saveMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="workout-plan-form"
+              disabled={saveMutation.isPending}
+            >
+              {saveMutation.isPending
+                ? "Saving..."
+                : planId
+                  ? "Update Plan"
+                  : "Create Plan"}
+            </Button>
+          </div>
+        ) : undefined
+      }
     >
-      {!plan ? (
+      {!planId && !isEditing ? (
         <div className="text-sm text-gray-600 dark:text-gray-300">
           No plan selected
         </div>
+      ) : isEditing ? (
+        renderEditMode()
       ) : (
-        <div className="space-y-6">
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1 min-w-0">
-              <div className="text-xl font-semibold text-gray-900 dark:text-white truncate">
-                {plan.name}
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-300">
-                {plan.difficulty ? (
-                  <span className="capitalize">
-                    {String(plan.difficulty).replace(/[_-]/g, " ")}
-                  </span>
-                ) : (
-                  <span className="text-gray-500 dark:text-gray-400">
-                    Difficulty: -
-                  </span>
-                )}
-                {plan.duration ? (
-                  <span> · {formatDurationWeeks(plan.duration)}</span>
-                ) : null}
-                {plan.goal ? <span> · {plan.goal}</span> : null}
-              </div>
-            </div>
-
-            <div className="shrink-0 flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                className="text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
-                title="Download PDF"
-                aria-label="Download PDF"
-                onClick={handleDownloadPdf}
-              >
-                <FileDown className="w-4 h-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                className="text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
-                title="Download Text"
-                aria-label="Download Text"
-                onClick={handleDownloadText}
-              >
-                <FileText className="w-4 h-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                className="text-green-600 hover:text-green-700 dark:text-green-300 dark:hover:text-green-200"
-                title="Copy to clipboard"
-                aria-label="Copy to clipboard"
-                onClick={handleCopy}
-              >
-                <CopyIcon className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-
-          {plan.notes ? (
-            <div>
-              <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-                Notes
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
-                {plan.notes}
-              </div>
-            </div>
-          ) : null}
-
-          <div>
-            <div className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-              Exercises
-            </div>
-            {exercises.length === 0 ? (
-              <div className="text-sm text-gray-500 dark:text-gray-400">
-                No exercises
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {exercises.map((e: any, idx: number) => {
-                  const restText = formatRest(e.restSeconds);
-                  return (
-                    <div
-                      key={e.id || idx}
-                      className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2"
-                    >
-                      <div>
-                        <div className="min-w-0">
-                          <div className="font-medium text-gray-900 dark:text-white truncate">
-                            {e.name || "-"}
-                          </div>
-
-                          {String(e.guidelines ?? "").trim() ? (
-                            <div className="mt-1 text-xs text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
-                              {String(e.guidelines)}
-                            </div>
-                          ) : null}
-
-                          {String(e.sets ?? "").trim() ||
-                          String(e.reps ?? "").trim() ||
-                          restText ? (
-                            <div className="mt-2 text-sm text-gray-700 dark:text-gray-200 leading-5">
-                              {String(e.sets ?? "").trim() ? (
-                                <div>{String(e.sets).trim()} Sets</div>
-                              ) : null}
-                              {String(e.reps ?? "").trim() ? (
-                                <div>{String(e.reps).trim()} Reps</div>
-                              ) : null}
-                              {restText ? <div>{restText} Rest</div> : null}
-                            </div>
-                          ) : null}
-
-                          {String(e.videoKind ?? "") === "youtube" &&
-                          String(e.videoUrl ?? "").trim() ? (
-                            (() => {
-                              const embed = toYouTubeEmbedUrl(
-                                String(e.videoUrl ?? "")
-                              );
-                              if (!embed) return null;
-
-                              const id = extractYouTubeVideoId(
-                                String(e.videoUrl ?? "")
-                              );
-                              const watchUrl = id
-                                ? `https://www.youtube.com/watch?v=${id}`
-                                : null;
-
-                              return (
-                                <div className="mt-2">
-                                  <div
-                                    className="relative w-full overflow-hidden rounded-lg bg-black"
-                                    style={{ paddingTop: "56.25%" }}
-                                  >
-                                    {watchUrl ? (
-                                      <a
-                                        href={watchUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="absolute inset-0 z-10 cursor-pointer"
-                                        title="Open video"
-                                        aria-label="Open video"
-                                      />
-                                    ) : null}
-                                    <iframe
-                                      src={embed}
-                                      title="Exercise video"
-                                      className="absolute inset-0 h-full w-full"
-                                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                      allowFullScreen
-                                    />
-                                  </div>
-                                </div>
-                              );
-                            })()
-                          ) : String(e.videoKind ?? "") === "upload" &&
-                            String(e.videoUrl ?? "").trim() ? (
-                            <div className="mt-2">
-                              <div
-                                className="relative w-full overflow-hidden rounded-lg bg-black"
-                                style={{ paddingTop: "56.25%" }}
-                              >
-                                <video
-                                  className="absolute inset-0 h-full w-full object-contain"
-                                  controls
-                                  preload="metadata"
-                                  src={String(e.videoUrl ?? "").trim()}
-                                />
-                              </div>
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
+        renderViewMode()
       )}
     </SidePanel>
   );

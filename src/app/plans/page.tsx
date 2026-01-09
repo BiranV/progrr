@@ -1,51 +1,73 @@
 "use client";
 
 import React from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   Plus,
   Search,
-  Dumbbell,
   ClipboardList,
-  Clock,
-  Target,
-  BarChart,
-  Edit,
-  Trash2,
+  ArrowUpDown,
 } from "lucide-react";
-import PlanDialog from "@/components/PlanDialog";
 import WorkoutPlanDetailsDialog from "@/components/WorkoutPlanDetailsDialog";
-import ConfirmModal from "@/components/ui/confirm-modal";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { WorkoutPlan } from "@/types";
 import { useRefetchOnVisible } from "@/hooks/use-refetch-on-visible";
-import { toast } from "sonner";
+import { getCookie, setCookie } from "@/lib/client-cookies";
+
+type PlanRow = {
+  id: string;
+  name?: string;
+  duration?: string;
+  difficulty?: string;
+  goal?: string;
+  exercisesCount?: number;
+};
 
 export default function PlansPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = React.useState("");
-  const [dialogOpen, setDialogOpen] = React.useState(false);
-  const [editingPlan, setEditingPlan] = React.useState<WorkoutPlan | null>(
-    null
-  );
+
   const [detailsOpen, setDetailsOpen] = React.useState(false);
-  const [detailsPlan, setDetailsPlan] = React.useState<WorkoutPlan | null>(
-    null
-  );
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
-  const [deleteTarget, setDeleteTarget] = React.useState<{
-    id: string;
-    name: string;
+  const [detailsPlanId, setDetailsPlanId] = React.useState<string | null>(null);
+
+  const PAGE_SIZE_OPTIONS = [5, 10, 25, 50, 100] as const;
+  const [pageSize, setPageSize] = React.useState(() => {
+    if (typeof window === "undefined") return 10;
+    const raw = getCookie("progrr_workout_plans_rows_per_page");
+    const parsed = raw ? Number(raw) : NaN;
+    if (
+      Number.isFinite(parsed) &&
+      (PAGE_SIZE_OPTIONS as readonly number[]).includes(parsed)
+    ) {
+      return parsed;
+    }
+    return 10;
+  });
+
+  const [page, setPage] = React.useState(1);
+  const [sortConfig, setSortConfig] = React.useState<{
+    key: keyof PlanRow;
+    direction: "asc" | "desc";
   } | null>(null);
+
+  React.useEffect(() => {
+    setCookie("progrr_workout_plans_rows_per_page", String(pageSize), {
+      maxAgeSeconds: 60 * 60 * 24 * 365,
+    });
+  }, [pageSize]);
 
   const { data: plans = [], isLoading } = useQuery({
     queryKey: ["workoutPlans"],
@@ -92,61 +114,110 @@ export default function PlansPage() {
     enabled: Array.isArray(plans) && plans.length > 0,
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await db.entities.WorkoutPlan.delete(id);
-
-      // New model: PlanExercise rows
-      const planExercises = await db.entities.PlanExercise.filter({
-        workoutPlanId: id,
-      });
-      await Promise.all(
-        planExercises.map((e: any) => db.entities.PlanExercise.delete(e.id))
-      );
-
-      // Legacy cleanup: Exercise rows
-      const legacyExercises = await db.entities.Exercise.filter({
-        workoutPlanId: id,
-      });
-      await Promise.all(
-        legacyExercises.map((e: any) => db.entities.Exercise.delete(e.id))
-      );
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["workoutPlans"] });
-    },
-  });
-
-  const filteredPlans = plans.filter((plan: WorkoutPlan) =>
-    plan.name.toLowerCase().includes(search.toLowerCase())
+  const filteredPlans = (plans as WorkoutPlan[]).filter((plan: WorkoutPlan) =>
+    String(plan?.name ?? "")
+      .toLowerCase()
+      .includes(search.toLowerCase())
   );
 
-  const handleEdit = async (plan: WorkoutPlan) => {
-    try {
-      const full = await db.entities.WorkoutPlan.get(String((plan as any).id));
-      setEditingPlan(full as any);
-    } catch (e: any) {
-      // Fallback: open with whatever we already have.
-      setEditingPlan(plan);
-      toast.error(e?.message || "Failed to load workout plan for editing");
-    }
-    setDialogOpen(true);
+  const rows = React.useMemo(() => {
+    return filteredPlans.map((p: any) => {
+      const id = String(p?.id ?? "");
+      return {
+        id,
+        name: String(p?.name ?? ""),
+        duration: String(p?.duration ?? ""),
+        difficulty: String(p?.difficulty ?? ""),
+        goal: String(p?.goal ?? ""),
+        exercisesCount: Number(exerciseCountByPlanId[id] ?? 0),
+      } satisfies PlanRow;
+    });
+  }, [filteredPlans, exerciseCountByPlanId]);
+
+  const sortedRows = React.useMemo(() => {
+    if (!sortConfig) return rows;
+
+    const collator = new Intl.Collator(["he", "en"], {
+      sensitivity: "base",
+      numeric: true,
+    });
+
+    return [...rows].sort((a, b) => {
+      const direction = sortConfig.direction === "asc" ? 1 : -1;
+
+      if (sortConfig.key === "exercisesCount") {
+        const aN = Number(a.exercisesCount ?? 0);
+        const bN = Number(b.exercisesCount ?? 0);
+        if (aN !== bN) return (aN - bN) * direction;
+        return String(a.id).localeCompare(String(b.id));
+      }
+
+      const aValue = String((a as any)[sortConfig.key] ?? "").trim();
+      const bValue = String((b as any)[sortConfig.key] ?? "").trim();
+
+      const aEmpty = aValue.length === 0;
+      const bEmpty = bValue.length === 0;
+      if (aEmpty && !bEmpty) return 1;
+      if (!aEmpty && bEmpty) return -1;
+
+      const cmp = collator.compare(aValue, bValue);
+      if (cmp !== 0) return cmp * direction;
+      return String(a.id).localeCompare(String(b.id));
+    });
+  }, [rows, sortConfig]);
+
+  const handleSort = (key: keyof PlanRow) => {
+    setSortConfig((current) => {
+      if (current?.key === key) {
+        return {
+          key,
+          direction: current.direction === "asc" ? "desc" : "asc",
+        };
+      }
+      return { key, direction: "asc" };
+    });
   };
 
-  const handleDetails = (plan: WorkoutPlan) => {
-    setDetailsPlan(plan);
+  React.useEffect(() => {
+    setPage(1);
+  }, [search, sortConfig?.key, sortConfig?.direction, pageSize]);
+
+  const paginate = React.useCallback(
+    (rowsIn: PlanRow[], currentPage: number) => {
+      const totalPages = Math.max(1, Math.ceil(rowsIn.length / pageSize));
+      const safePage = Math.min(Math.max(1, currentPage), totalPages);
+      const start = (safePage - 1) * pageSize;
+      const pagedRows = rowsIn.slice(start, start + pageSize);
+      return {
+        pagedRows,
+        totalPages,
+        page: safePage,
+        totalCount: rowsIn.length,
+      };
+    },
+    [pageSize]
+  );
+
+  const paging = React.useMemo(
+    () => paginate(sortedRows, page),
+    [paginate, sortedRows, page]
+  );
+
+  const handleOpenDetails = (row: PlanRow) => {
+    setDetailsPlanId(row.id);
     setDetailsOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    const found = (plans as WorkoutPlan[]).find(
-      (p) => String(p?.id) === String(id)
-    );
-    setDeleteTarget({
-      id,
-      name: String(found?.name ?? "").trim() || "this workout plan",
-    });
-    setDeleteConfirmOpen(true);
+  const handleCloseDetails = (openNext: boolean) => {
+    setDetailsOpen(openNext);
+    if (!openNext) {
+      setTimeout(() => setDetailsPlanId(null), 200);
+    }
+  };
+
+  const handleCreatePlan = () => {
+    setDetailsPlanId(null);
+    setDetailsOpen(true);
   };
 
   const formatDurationWeeks = (duration: any) => {
@@ -173,10 +244,7 @@ export default function PlansPage() {
           </p>
         </div>
         <Button
-          onClick={() => {
-            setEditingPlan(null);
-            setDialogOpen(true);
-          }}
+          onClick={handleCreatePlan}
           className="min-w-[120px] bg-indigo-600 hover:bg-indigo-700 text-white"
         >
           <Plus className="w-5 h-5 mr-2" />
@@ -184,9 +252,9 @@ export default function PlansPage() {
         </Button>
       </div>
 
-      {/* Search */}
-      <div className="mb-6">
-        <div className="relative max-w-md">
+      {/* Search + Pagination settings */}
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-end gap-3">
+        <div className="max-w-md relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <Input
             value={search}
@@ -195,6 +263,28 @@ export default function PlansPage() {
             className="pl-10"
           />
         </div>
+
+        <div className="w-[180px]">
+          <Select
+            value={String(pageSize)}
+            onValueChange={(v) => {
+              const next = Number(v);
+              if (!Number.isFinite(next)) return;
+              setPageSize(next);
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Rows per page" />
+            </SelectTrigger>
+            <SelectContent>
+              {PAGE_SIZE_OPTIONS.map((n) => (
+                <SelectItem key={n} value={String(n)}>
+                  {n} rows
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Content */}
@@ -202,7 +292,7 @@ export default function PlansPage() {
         <div className="text-center py-12 text-gray-600 dark:text-gray-400">
           Loading workout plans...
         </div>
-      ) : filteredPlans.length === 0 ? (
+      ) : rows.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <ClipboardList className="w-12 h-12 text-indigo-500 dark:text-indigo-400 mx-auto mb-4" />
@@ -214,132 +304,131 @@ export default function PlansPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredPlans.map((plan: WorkoutPlan) => (
-            <Card
-              key={plan.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => handleDetails(plan)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  handleDetails(plan);
-                }
-              }}
-              className="hover:shadow-lg cursor-pointer transition-shadow duration-200 flex flex-col h-full dark:bg-gray-800 dark:border-gray-700"
-            >
-              <CardHeader className="flex flex-row items-start justify-between pb-2">
-                <div className="space-y-1 min-w-0">
-                  <CardTitle className="text-xl font-semibold truncate">
-                    {plan.name}
-                  </CardTitle>
-                  <CardDescription className="text-xs text-gray-500 dark:text-gray-400">
-                    Workout plan
-                  </CardDescription>
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEdit(plan);
-                    }}
-                    className="p-2 text-gray-600 dark:text-gray-400
-               hover:text-indigo-600
-               hover:bg-indigo-50 dark:hover:bg-indigo-900
-               rounded-lg"
+        <div className="bg-white dark:bg-gray-800 rounded-lg border">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th
+                    className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                    onClick={() => handleSort("name")}
                   >
-                    <Edit className="w-4 h-4" />
-                  </button>
-
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(plan.id);
-                    }}
-                    className="p-2 text-gray-600 dark:text-gray-400
-               hover:text-red-600
-               hover:bg-red-50 dark:hover:bg-red-900
-               rounded-lg"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </CardHeader>
-
-              <CardContent className="px-5 py-2">
-                <div className="space-y-3 text-sm text-gray-600 dark:text-gray-300">
-                  <div className="grid grid-cols-2 gap-4">
                     <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
-                      <span>
-                        Duration: {formatDurationWeeks(plan.duration) || "-"}
+                      Plan
+                      <ArrowUpDown className="w-4 h-4" />
+                    </div>
+                  </th>
+                  <th
+                    className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                    onClick={() => handleSort("duration")}
+                  >
+                    <div className="flex items-center gap-2">
+                      Duration
+                      <ArrowUpDown className="w-4 h-4" />
+                    </div>
+                  </th>
+                  <th
+                    className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                    onClick={() => handleSort("difficulty")}
+                  >
+                    <div className="flex items-center gap-2">
+                      Difficulty
+                      <ArrowUpDown className="w-4 h-4" />
+                    </div>
+                  </th>
+                  <th
+                    className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                    onClick={() => handleSort("goal")}
+                  >
+                    <div className="flex items-center gap-2">
+                      Goal
+                      <ArrowUpDown className="w-4 h-4" />
+                    </div>
+                  </th>
+                  <th
+                    className="px-4 py-3 text-right font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                    onClick={() => handleSort("exercisesCount")}
+                  >
+                    <div className="flex items-center justify-end gap-2">
+                      Exercises
+                      <ArrowUpDown className="w-4 h-4" />
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {paging.pagedRows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer transition-colors"
+                    onClick={() => handleOpenDetails(row)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleOpenDetails(row);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <td className="px-4 py-3">
+                      <span className="font-medium">
+                        {String(row.name ?? "-")}
                       </span>
-                    </div>
-                    <div className="flex items-center gap-2 truncate">
-                      <BarChart className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                      <span className="truncate capitalize">
-                        Difficulty: {plan.difficulty || "-"}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 truncate">
-                      <Target className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                      <span className="truncate">Goal: {plan.goal || "-"}</span>
-                    </div>
-                    <div className="flex items-center gap-2 truncate">
-                      <Dumbbell className="w-4 h-4 shrink-0 text-violet-600 dark:text-violet-400" />
-                      <span className="truncate">
-                        Exercises: {exerciseCountByPlanId[String(plan.id)] ?? 0}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                    </td>
+                    <td className="px-4 py-3">
+                      {formatDurationWeeks(row.duration) || "-"}
+                    </td>
+                    <td className="px-4 py-3 capitalize">
+                      {String(row.difficulty ?? "").trim() || "-"}
+                    </td>
+                    <td className="px-4 py-3">
+                      {String(row.goal ?? "").trim() || "-"}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {Number(row.exercisesCount ?? 0)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-t bg-gray-50/60 dark:bg-gray-700/40">
+            <div className="text-xs text-gray-600 dark:text-gray-300">
+              Page {paging.page} of {paging.totalPages}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={paging.page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Previous
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={paging.page >= paging.totalPages}
+                onClick={() =>
+                  setPage((p) => Math.min(paging.totalPages, p + 1))
+                }
+              >
+                Next
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
-      <PlanDialog
-        open={dialogOpen}
-        onOpenChange={(open) => {
-          setDialogOpen(open);
-          if (!open) setEditingPlan(null);
-        }}
-        plan={editingPlan}
-      />
-
       <WorkoutPlanDetailsDialog
         open={detailsOpen}
-        onOpenChange={(open) => {
-          setDetailsOpen(open);
-          if (!open) setDetailsPlan(null);
-        }}
-        plan={detailsPlan}
-      />
-
-      <ConfirmModal
-        open={deleteConfirmOpen}
-        onOpenChange={(next) => {
-          setDeleteConfirmOpen(next);
-          if (!next) setDeleteTarget(null);
-        }}
-        title="Delete workout plan?"
-        description={
-          deleteTarget
-            ? `This will permanently delete ${deleteTarget.name}. This cannot be undone.`
-            : "This cannot be undone."
-        }
-        confirmText="Delete"
-        cancelText="Cancel"
-        confirmVariant="destructive"
-        confirmDisabled={!deleteTarget}
-        loading={deleteMutation.isPending}
-        onConfirm={async () => {
-          if (!deleteTarget) return;
-          deleteMutation.mutate(deleteTarget.id);
-        }}
+        onOpenChange={handleCloseDetails}
+        planId={detailsPlanId}
       />
     </div>
   );
