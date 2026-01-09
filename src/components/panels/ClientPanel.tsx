@@ -624,12 +624,23 @@ export default function ClientPanel({
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-xs font-semibold uppercase text-red-600 dark:text-red-400">
+                      <label
+                        className="text-xs font-semibold uppercase text-red-600 dark:text-red-400 block mb-1 select-none"
+                        onCopy={(e) => e.preventDefault()}
+                        onCut={(e) => e.preventDefault()}
+                        onContextMenu={(e) => e.preventDefault()}
+                      >
                         Type DELETE to confirm
                       </label>
                       <Input
                         value={deleteConfirmText}
                         onChange={(e) => setDeleteConfirmText(e.target.value)}
+                        onPaste={(e) => e.preventDefault()}
+                        onDrop={(e) => e.preventDefault()}
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="none"
+                        spellCheck={false}
                         placeholder="DELETE"
                         className="bg-white dark:bg-black/20"
                       />

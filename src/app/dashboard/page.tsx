@@ -13,6 +13,7 @@ import {
   UtensilsCrossed,
   Calendar,
   CalendarDays,
+  Activity,
   Repeat,
   MessageSquare,
   Mail,
@@ -1460,173 +1461,192 @@ function ClientDashboard({ user }: { user: any }) {
         </div>
       ) : null}
 
-      <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
-        <Dialog open={messagesOpen} onOpenChange={setMessagesOpen}>
-          <DialogContent className="w-[90vw] max-w-[90vw] sm:max-w-xl">
-            <DialogHeader>
-              <DialogTitle>Messages</DialogTitle>
-            </DialogHeader>
+      <div className="fixed top-4 left-4 right-4 z-50 flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          {activeSection !== "menu" ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="cursor-pointer"
+              onClick={() => setActiveSection("menu")}
+              aria-label="Back"
+            >
+              <ArrowLeft className="w-6 h-6" />
+            </Button>
+          ) : (
+            <div />
+          )}
+        </div>
 
-            {!myClient ? (
-              <div className="py-10 text-center text-gray-500">
-                No client profile found
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                <div className="h-80 overflow-y-auto border rounded-lg p-3 bg-white dark:bg-gray-900">
-                  {sortedMessages.length === 0 ? (
-                    <div className="h-full flex items-center justify-center text-gray-500">
-                      No messages yet
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {sortedMessages.map((m: any) => {
-                        const fromMe = m.senderRole === "client";
-                        return (
-                          <div
-                            key={m.id}
-                            className={`flex ${fromMe ? "justify-end" : "justify-start"
-                              }`}
-                          >
+        <div className="flex items-center gap-2">
+          <Dialog open={messagesOpen} onOpenChange={setMessagesOpen}>
+            <DialogContent className="w-[90vw] max-w-[90vw] sm:max-w-xl">
+              <DialogHeader>
+                <DialogTitle>Messages</DialogTitle>
+              </DialogHeader>
+
+              {!myClient ? (
+                <div className="py-10 text-center text-gray-500">
+                  No client profile found
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <div className="h-80 overflow-y-auto border rounded-lg p-3 bg-white dark:bg-gray-900">
+                    {sortedMessages.length === 0 ? (
+                      <div className="h-full flex items-center justify-center text-gray-500">
+                        No messages yet
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {sortedMessages.map((m: any) => {
+                          const fromMe = m.senderRole === "client";
+                          return (
                             <div
-                              className={`max-w-[75%] rounded-lg px-3 py-2 text-sm border ${fromMe
-                                ? "bg-indigo-600 text-white border-indigo-600"
-                                : "bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-200 dark:border-gray-700"
+                              key={m.id}
+                              className={`flex ${fromMe ? "justify-end" : "justify-start"
                                 }`}
                             >
-                              <div>{m.text}</div>
                               <div
-                                className={`mt-1 text-[11px] ${fromMe ? "text-indigo-100" : "text-gray-500"
+                                className={`max-w-[75%] rounded-lg px-3 py-2 text-sm border ${fromMe
+                                  ? "bg-indigo-600 text-white border-indigo-600"
+                                  : "bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-200 dark:border-gray-700"
                                   }`}
                               >
-                                {m.created_date
-                                  ? format(new Date(m.created_date), "PPP p")
-                                  : ""}
+                                <div>{m.text}</div>
+                                <div
+                                  className={`mt-1 text-[11px] ${fromMe ? "text-indigo-100" : "text-gray-500"
+                                    }`}
+                                >
+                                  {m.created_date
+                                    ? format(new Date(m.created_date), "PPP p")
+                                    : ""}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
 
-                <div className="flex gap-2">
-                  <Input
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Type a message"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        void handleSend();
-                      }
-                    }}
-                  />
-                  <Button
-                    onClick={() => void handleSend()}
-                    disabled={sendMutation.isPending || !newMessage.trim()}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                  >
-                    <Send className="w-4 h-4" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <Input
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      placeholder="Type a message"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          void handleSend();
+                        }
+                      }}
+                    />
+                    <Button
+                      onClick={() => void handleSend()}
+                      disabled={sendMutation.isPending || !newMessage.trim()}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                    >
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
-              aria-label="Settings"
-              title="Settings"
-            >
-              <Settings className="w-6 h-6 text-gray-700 dark:text-gray-200" />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 h-5 min-w-5 px-1 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center">
-                  {unreadCount}
-                </span>
               )}
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-[220px]">
-            <DropdownMenuItem onSelect={() => setMessagesOpen(true)}>
-              <div className="flex w-full items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4" />
-                  <span>Messages</span>
-                </div>
-                {unreadCount > 0 ? (
-                  <span className="h-5 min-w-5 px-1 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center">
+            </DialogContent>
+          </Dialog>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+                aria-label="Settings"
+                title="Settings"
+              >
+                <Settings className="w-6 h-6 text-gray-700 dark:text-gray-200" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-5 min-w-5 px-1 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center">
                     {unreadCount}
                   </span>
-                ) : null}
-              </div>
-            </DropdownMenuItem>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[220px]">
+              <DropdownMenuItem onSelect={() => setMessagesOpen(true)}>
+                <div className="flex w-full items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4" />
+                    <span>Messages</span>
+                  </div>
+                  {unreadCount > 0 ? (
+                    <span className="h-5 min-w-5 px-1 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center">
+                      {unreadCount}
+                    </span>
+                  ) : null}
+                </div>
+              </DropdownMenuItem>
 
-            {user?.canSwitchCoach ? (
-              <>
-                {coaches.length ? (
-                  coaches.map((c) => {
-                    const isActive =
-                      typeof user?.adminId === "string" &&
-                      user.adminId === c.adminId;
-                    return (
-                      <DropdownMenuItem
-                        key={c.adminId}
-                        onSelect={() => {
-                          if (isActive) return;
-                          switchCoachMutation.mutate(c.adminId);
-                        }}
-                        className={
-                          isActive
-                            ? "bg-accent text-accent-foreground"
-                            : undefined
-                        }
-                      >
-                        <span className="inline-flex items-center gap-2">
-                          <Repeat className="h-4 w-4" />
-                          {c.label}
-                        </span>
-                      </DropdownMenuItem>
-                    );
-                  })
-                ) : (
-                  <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
-                )}
-              </>
-            ) : null}
-            <DropdownMenuItem onSelect={() => toggleDarkMode()}>
-              <span className="inline-flex items-center gap-2">
-                {darkMode ? (
-                  <Sun className="h-4 w-4" />
-                ) : (
-                  <Moon className="h-4 w-4" />
-                )}
-                {darkMode ? "Light mode" : "Dark mode"}
-              </span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={() => {
-                setDeleteConfirmText("");
-                setDeleteOpen(true);
-              }}
-            >
-              <span className="inline-flex items-center gap-2">
-                <UserX className="h-4 w-4" />
-                Archive / Delete
-              </span>
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => logout(true)}>
-              <span className="inline-flex items-center gap-2">
-                <LogOut className="h-4 w-4" />
-                Logout
-              </span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              {user?.canSwitchCoach ? (
+                <>
+                  {coaches.length ? (
+                    coaches.map((c) => {
+                      const isActive =
+                        typeof user?.adminId === "string" &&
+                        user.adminId === c.adminId;
+                      return (
+                        <DropdownMenuItem
+                          key={c.adminId}
+                          onSelect={() => {
+                            if (isActive) return;
+                            switchCoachMutation.mutate(c.adminId);
+                          }}
+                          className={
+                            isActive
+                              ? "bg-accent text-accent-foreground"
+                              : undefined
+                          }
+                        >
+                          <span className="inline-flex items-center gap-2">
+                            <Repeat className="h-4 w-4" />
+                            {c.label}
+                          </span>
+                        </DropdownMenuItem>
+                      );
+                    })
+                  ) : (
+                    <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
+                  )}
+                </>
+              ) : null}
+              <DropdownMenuItem onSelect={() => toggleDarkMode()}>
+                <span className="inline-flex items-center gap-2">
+                  {darkMode ? (
+                    <Sun className="h-4 w-4" />
+                  ) : (
+                    <Moon className="h-4 w-4" />
+                  )}
+                  {darkMode ? "Light mode" : "Dark mode"}
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => {
+                  setDeleteConfirmText("");
+                  setDeleteOpen(true);
+                }}
+              >
+                <span className="inline-flex items-center gap-2">
+                  <UserX className="h-4 w-4" />
+                  Archive / Delete
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => logout(true)}>
+                <span className="inline-flex items-center gap-2">
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
@@ -1657,10 +1677,23 @@ function ClientDashboard({ user }: { user: any }) {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Type DELETE to confirm</label>
+              <label
+                className="text-sm font-medium block mb-1 select-none"
+                onCopy={(e) => e.preventDefault()}
+                onCut={(e) => e.preventDefault()}
+                onContextMenu={(e) => e.preventDefault()}
+              >
+                Type DELETE to confirm
+              </label>
               <Input
                 value={deleteConfirmText}
                 onChange={(e) => setDeleteConfirmText(e.target.value)}
+                onPaste={(e) => e.preventDefault()}
+                onDrop={(e) => e.preventDefault()}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck={false}
                 placeholder="DELETE"
                 disabled={deletePending}
               />
@@ -1764,27 +1797,16 @@ function ClientDashboard({ user }: { user: any }) {
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              className="gap-2"
-              onClick={() => setActiveSection("menu")}
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back
-            </Button>
-            <div className="text-lg font-semibold text-gray-900 dark:text-white">
-              {activeSection === "profile"
-                ? "Profile"
-                : activeSection === "meetings"
-                  ? "Meetings"
-                  : activeSection === "workouts"
-                    ? "Workouts"
-                    : activeSection === "meals"
-                      ? "Meals"
-                      : "Calendar"}
-            </div>
+          <div className="text-lg font-semibold text-gray-900 dark:text-white">
+            {activeSection === "profile"
+              ? "Profile"
+              : activeSection === "meetings"
+                ? "Meetings"
+                : activeSection === "workouts"
+                  ? "Workouts"
+                  : activeSection === "meals"
+                    ? "Meals"
+                    : "Calendar"}
           </div>
 
           {activeSection === "profile" ? (
@@ -1889,10 +1911,10 @@ function ClientDashboard({ user }: { user: any }) {
                     </div>
                     <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                       <div className="text-xs text-gray-500 dark:text-gray-400">
-                        Status
+                        Gender
                       </div>
                       <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {toTitleCase(String((myClient as any).status ?? "")) ||
+                        {toTitleCase(String((myClient as any).gender ?? "")) ||
                           "-"}
                       </div>
                     </div>
@@ -1933,16 +1955,8 @@ function ClientDashboard({ user }: { user: any }) {
                       </div>
                     </div>
                     <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        Weight
-                      </div>
-                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {String((myClient as any).weight ?? "").trim() || "-"}
-                      </div>
-                    </div>
-                    <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg col-span-2">
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        Assigned workout plans
+                      <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                        <Activity className="w-3 h-3" /> Assigned workout plans
                       </div>
                       <div className="text-sm font-medium text-gray-900 dark:text-white">
                         {assignedPlansLoading
@@ -1956,9 +1970,9 @@ function ClientDashboard({ user }: { user: any }) {
                             : "-"}
                       </div>
                     </div>
-                    <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg col-span-2">
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        Assigned meal plans
+                    <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                        <Activity className="w-3 h-3" /> Assigned meal plans
                       </div>
                       <div className="text-sm font-medium text-gray-900 dark:text-white">
                         {assignedMealPlansLoading
@@ -2055,79 +2069,6 @@ function ClientDashboard({ user }: { user: any }) {
                       ) : null}
                     </CardContent>
                   </Card>
-
-                  <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-                    <DialogContent showCloseButton={!deletePending}>
-                      <DialogHeader>
-                        <DialogTitle>Delete your account?</DialogTitle>
-                        <DialogDescription>
-                          Your account will be deactivated and you will lose
-                          access.
-                        </DialogDescription>
-                      </DialogHeader>
-
-                      <div className="space-y-3">
-                        <div className="p-4 border border-orange-200 bg-orange-50 dark:bg-orange-900/10 rounded-lg space-y-3">
-                          <div className="space-y-1">
-                            <div className="text-sm font-semibold text-orange-900 dark:text-orange-100">
-                              Deactivate account?
-                            </div>
-                            <div className="text-xs text-orange-800 dark:text-orange-200 leading-relaxed">
-                              Your data will be preserved but you will lose
-                              access essentially immediately. You can contact
-                              your coach to restore your account later.
-                            </div>
-                            <div className="text-xs text-orange-800 dark:text-orange-200 leading-relaxed pt-1">
-                              If you would like to permanently delete your data,
-                              please contact your admin.
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">
-                            Type DELETE to confirm
-                          </label>
-                          <Input
-                            value={deleteConfirmText}
-                            onChange={(e) =>
-                              setDeleteConfirmText(e.target.value)
-                            }
-                            placeholder="DELETE"
-                            disabled={deletePending}
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            For security, deletion requires recent
-                            authentication. If needed, log out and log back in,
-                            then retry within 10 minutes.
-                          </p>
-                        </div>
-                      </div>
-
-                      <DialogFooter>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setDeleteOpen(false)}
-                          disabled={deletePending}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          onClick={handleClientDeleteAccount}
-                          disabled={
-                            deletePending || deleteConfirmText !== "DELETE"
-                          }
-                        >
-                          {deletePending
-                            ? "Deleting..."
-                            : "Delete account permanently"}
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
                 </div>
               )}
             </div>
