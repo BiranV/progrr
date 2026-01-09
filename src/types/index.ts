@@ -152,6 +152,21 @@ export interface MealPlan {
   dailyProtein?: string;
   dailyCarbs?: string;
   dailyFat?: string;
+
+  dailyFiber?: string;
+  dailySugars?: string;
+  dailySaturatedFat?: string;
+  dailyTransFat?: string;
+  dailyCholesterol?: string;
+  dailySodium?: string;
+  dailyPotassium?: string;
+  dailyCalcium?: string;
+  dailyIron?: string;
+  dailyVitaminA?: string;
+  dailyVitaminC?: string;
+  dailyVitaminD?: string;
+  dailyVitaminB12?: string;
+
   notes?: string;
   created_date?: string;
   [key: string]: any;

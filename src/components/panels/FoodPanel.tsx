@@ -50,20 +50,63 @@ export default function FoodPanel({
   const exportText = React.useMemo(() => {
     if (!food) return "";
 
-    const name = String(food?.name ?? "").trim() || "-";
-    const calories = String(food?.calories ?? "").trim() || "-";
-    const protein = String(food?.protein ?? "").trim() || "-";
-    const carbs = String(food?.carbs ?? "").trim() || "-";
-    const fat = String(food?.fat ?? "").trim() || "-";
-
     const lines: string[] = [];
+
+    const addLine = (label: string, value: unknown, unit?: string) => {
+      const raw = String(value ?? "").trim();
+      if (!raw) return;
+      lines.push(`${label}: ${raw}${unit ? ` ${unit}` : ""}`);
+    };
+
+    const name = String(food?.name ?? "").trim() || "-";
     lines.push(`Food: ${name}`);
     lines.push("Values per 100g");
     lines.push("");
-    lines.push(`Calories: ${calories} kcal`);
-    lines.push(`Protein: ${protein} g`);
-    lines.push(`Carbs: ${carbs} g`);
-    lines.push(`Fat: ${fat} g`);
+
+    // Main macros (always included, even if empty)
+    lines.push(`Calories: ${String(food?.calories ?? "-").trim() || "-"} kcal`);
+    lines.push(`Protein: ${String(food?.protein ?? "-").trim() || "-"} g`);
+    lines.push(`Carbs: ${String(food?.carbs ?? "-").trim() || "-"} g`);
+    lines.push(`Fat: ${String(food?.fat ?? "-").trim() || "-"} g`);
+
+    // Extra nutrition (only if present)
+    const extraLinesStart = lines.length;
+    addLine("Fiber", food?.fiber, "g");
+    addLine("Sugars", food?.sugars, "g");
+    addLine("Saturated fat", food?.saturatedFat, "g");
+    addLine("Trans fat", food?.transFat, "g");
+    addLine("Cholesterol", food?.cholesterol, "mg");
+    addLine("Sodium", food?.sodium, "mg");
+    addLine("Potassium", food?.potassium, "mg");
+    addLine("Calcium", food?.calcium, "mg");
+    addLine("Iron", food?.iron, "mg");
+    addLine("Vitamin A", food?.vitaminA, "µg");
+    addLine("Vitamin C", food?.vitaminC, "mg");
+    addLine("Vitamin D", food?.vitaminD, "µg");
+    addLine("Vitamin B12", food?.vitaminB12, "µg");
+    const hasExtras = lines.length > extraLinesStart;
+
+    // Metadata / source (only if present)
+    const metaLines: string[] = [];
+    const servingSizeRaw = String(food?.servingSize ?? "").trim();
+    const servingUnitRaw = String(food?.servingUnit ?? "").trim();
+    if (servingSizeRaw) {
+      metaLines.push(
+        `Serving size: ${servingSizeRaw}${servingUnitRaw ? ` ${servingUnitRaw}` : ""}`
+      );
+    }
+    const sourceRaw = String(food?.source ?? "").trim();
+    if (sourceRaw) metaLines.push(`Source: ${sourceRaw}`);
+    const externalIdRaw = String(food?.externalId ?? "").trim();
+    if (externalIdRaw) metaLines.push(`External ID: ${externalIdRaw}`);
+
+    if (hasExtras || metaLines.length) lines.push("");
+    if (metaLines.length) {
+      lines.push("Info");
+      lines.push(...metaLines);
+      lines.push("");
+    }
+
     return lines.join("\n");
   }, [food]);
 

@@ -98,9 +98,8 @@ export const formatWorkoutPlanText = (
 
       const detail =
         sets || reps
-          ? `${sets ? `${sets} sets` : ""}${sets && reps ? " × " : ""}${
-              reps ? `${reps} reps` : ""
-            }`
+          ? `${sets ? `${sets} sets` : ""}${sets && reps ? " × " : ""}${reps ? `${reps} reps` : ""
+          }`
           : "";
       const suffixParts = [detail, restText ? `Rest ${restText}` : ""].filter(
         Boolean
@@ -133,6 +132,12 @@ export const formatMealPlanText = (
 ) => {
   const lines: string[] = [];
 
+  const addBullet = (label: string, value: unknown, unit?: string) => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return;
+    lines.push(`- ${label}: ${raw}${unit ? ` ${unit}` : ""}`);
+  };
+
   lines.push(`Meal Plan: ${String(plan.name ?? "").trim() || "-"}`);
 
   const goal = String((plan as any).goal ?? "").trim();
@@ -143,13 +148,58 @@ export const formatMealPlanText = (
   const dailyCarbs = String((plan as any).dailyCarbs ?? "").trim();
   const dailyFat = String((plan as any).dailyFat ?? "").trim();
 
-  if (dailyCalories || dailyProtein || dailyCarbs || dailyFat) {
+  const dailyFiber = String((plan as any).dailyFiber ?? "").trim();
+  const dailySugars = String((plan as any).dailySugars ?? "").trim();
+  const dailySaturatedFat = String((plan as any).dailySaturatedFat ?? "").trim();
+  const dailyTransFat = String((plan as any).dailyTransFat ?? "").trim();
+  const dailyCholesterol = String((plan as any).dailyCholesterol ?? "").trim();
+  const dailySodium = String((plan as any).dailySodium ?? "").trim();
+  const dailyPotassium = String((plan as any).dailyPotassium ?? "").trim();
+  const dailyCalcium = String((plan as any).dailyCalcium ?? "").trim();
+  const dailyIron = String((plan as any).dailyIron ?? "").trim();
+  const dailyVitaminA = String((plan as any).dailyVitaminA ?? "").trim();
+  const dailyVitaminC = String((plan as any).dailyVitaminC ?? "").trim();
+  const dailyVitaminD = String((plan as any).dailyVitaminD ?? "").trim();
+  const dailyVitaminB12 = String((plan as any).dailyVitaminB12 ?? "").trim();
+
+  if (
+    dailyCalories ||
+    dailyProtein ||
+    dailyCarbs ||
+    dailyFat ||
+    dailyFiber ||
+    dailySugars ||
+    dailySaturatedFat ||
+    dailyTransFat ||
+    dailyCholesterol ||
+    dailySodium ||
+    dailyPotassium ||
+    dailyCalcium ||
+    dailyIron ||
+    dailyVitaminA ||
+    dailyVitaminC ||
+    dailyVitaminD ||
+    dailyVitaminB12
+  ) {
     lines.push("");
     lines.push("Daily targets:");
-    if (dailyCalories) lines.push(`- Calories: ${dailyCalories} kcal`);
-    if (dailyProtein) lines.push(`- Protein: ${dailyProtein} g`);
-    if (dailyCarbs) lines.push(`- Carbs: ${dailyCarbs} g`);
-    if (dailyFat) lines.push(`- Fat: ${dailyFat} g`);
+    addBullet("Calories", dailyCalories, "kcal");
+    addBullet("Protein", dailyProtein, "g");
+    addBullet("Carbs", dailyCarbs, "g");
+    addBullet("Fat", dailyFat, "g");
+    addBullet("Fiber", dailyFiber, "g");
+    addBullet("Sugars", dailySugars, "g");
+    addBullet("Saturated fat", dailySaturatedFat, "g");
+    addBullet("Trans fat", dailyTransFat, "g");
+    addBullet("Cholesterol", dailyCholesterol, "mg");
+    addBullet("Sodium", dailySodium, "mg");
+    addBullet("Potassium", dailyPotassium, "mg");
+    addBullet("Calcium", dailyCalcium, "mg");
+    addBullet("Iron", dailyIron, "mg");
+    addBullet("Vitamin A", dailyVitaminA, "µg");
+    addBullet("Vitamin C", dailyVitaminC, "mg");
+    addBullet("Vitamin D", dailyVitaminD, "µg");
+    addBullet("Vitamin B12", dailyVitaminB12, "µg");
   }
 
   const notes = String((plan as any).notes ?? "").trim();
@@ -185,13 +235,26 @@ export const formatMealPlanText = (
             food?.carbs ? `Carbs ${String(food.carbs).trim()}` : "",
             food?.fat ? `Fat ${String(food.fat).trim()}` : "",
             food?.calories ? `Calories ${String(food.calories).trim()}` : "",
+
+            food?.fiber ? `Fiber ${String(food.fiber).trim()}` : "",
+            food?.sugars ? `Sugars ${String(food.sugars).trim()}` : "",
+            food?.saturatedFat ? `Sat fat ${String(food.saturatedFat).trim()}` : "",
+            food?.transFat ? `Trans fat ${String(food.transFat).trim()}` : "",
+            food?.cholesterol ? `Cholesterol ${String(food.cholesterol).trim()}` : "",
+            food?.sodium ? `Sodium ${String(food.sodium).trim()}` : "",
+            food?.potassium ? `Potassium ${String(food.potassium).trim()}` : "",
+            food?.calcium ? `Calcium ${String(food.calcium).trim()}` : "",
+            food?.iron ? `Iron ${String(food.iron).trim()}` : "",
+            food?.vitaminA ? `Vit A ${String(food.vitaminA).trim()}` : "",
+            food?.vitaminC ? `Vit C ${String(food.vitaminC).trim()}` : "",
+            food?.vitaminD ? `Vit D ${String(food.vitaminD).trim()}` : "",
+            food?.vitaminB12 ? `Vit B12 ${String(food.vitaminB12).trim()}` : "",
           ].filter(Boolean);
 
           const macroSuffix = macros.length ? ` (${macros.join(" • ")})` : "";
           lines.push(
-            `   - ${foodIdx + 1}. ${foodName}${
-              amount ? ` — ${amount}` : ""
-            }${macroSuffix}`.trimEnd()
+            `   - ${foodIdx + 1}. ${foodName}${amount ? ` — ${amount}` : ""
+              }${macroSuffix}`.trimEnd()
           );
         });
       }

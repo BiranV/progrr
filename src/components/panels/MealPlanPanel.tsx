@@ -144,6 +144,19 @@ export default function MealPlanPanel({
                 carbs: lib?.carbs ?? "",
                 fat: lib?.fat ?? "",
                 calories: lib?.calories ?? "",
+                fiber: lib?.fiber,
+                sugars: lib?.sugars,
+                saturatedFat: lib?.saturatedFat,
+                transFat: lib?.transFat,
+                cholesterol: lib?.cholesterol,
+                sodium: lib?.sodium,
+                potassium: lib?.potassium,
+                calcium: lib?.calcium,
+                iron: lib?.iron,
+                vitaminA: lib?.vitaminA,
+                vitaminC: lib?.vitaminC,
+                vitaminD: lib?.vitaminD,
+                vitaminB12: lib?.vitaminB12,
               };
             });
 
@@ -363,6 +376,20 @@ export default function MealPlanPanel({
     let carbs = 0;
     let fat = 0;
 
+    let fiber = 0;
+    let sugars = 0;
+    let saturatedFat = 0;
+    let transFat = 0;
+    let cholesterol = 0;
+    let sodium = 0;
+    let potassium = 0;
+    let calcium = 0;
+    let iron = 0;
+    let vitaminA = 0;
+    let vitaminC = 0;
+    let vitaminD = 0;
+    let vitaminB12 = 0;
+
     for (const meal of meals) {
       for (const row of meal.planFoods || []) {
         const foodLibraryId = String((row as any)?.foodLibraryId ?? "").trim();
@@ -377,6 +404,20 @@ export default function MealPlanPanel({
         protein += parseNum(f.protein) * factor;
         carbs += parseNum(f.carbs) * factor;
         fat += parseNum(f.fat) * factor;
+
+        fiber += parseNum(f.fiber) * factor;
+        sugars += parseNum(f.sugars) * factor;
+        saturatedFat += parseNum(f.saturatedFat) * factor;
+        transFat += parseNum(f.transFat) * factor;
+        cholesterol += parseNum(f.cholesterol) * factor;
+        sodium += parseNum(f.sodium) * factor;
+        potassium += parseNum(f.potassium) * factor;
+        calcium += parseNum(f.calcium) * factor;
+        iron += parseNum(f.iron) * factor;
+        vitaminA += parseNum(f.vitaminA) * factor;
+        vitaminC += parseNum(f.vitaminC) * factor;
+        vitaminD += parseNum(f.vitaminD) * factor;
+        vitaminB12 += parseNum(f.vitaminB12) * factor;
       }
     }
 
@@ -385,6 +426,20 @@ export default function MealPlanPanel({
       protein,
       carbs,
       fat,
+
+      fiber,
+      sugars,
+      saturatedFat,
+      transFat,
+      cholesterol,
+      sodium,
+      potassium,
+      calcium,
+      iron,
+      vitaminA,
+      vitaminC,
+      vitaminD,
+      vitaminB12,
     };
   }, [meals, foodLibrary]);
 
@@ -461,6 +516,20 @@ export default function MealPlanPanel({
         dailyProtein: fmt(computedDailyTotals.protein, 1),
         dailyCarbs: fmt(computedDailyTotals.carbs, 1),
         dailyFat: fmt(computedDailyTotals.fat, 1),
+
+        dailyFiber: fmt(computedDailyTotals.fiber, 1),
+        dailySugars: fmt(computedDailyTotals.sugars, 1),
+        dailySaturatedFat: fmt(computedDailyTotals.saturatedFat, 1),
+        dailyTransFat: fmt(computedDailyTotals.transFat, 1),
+        dailyCholesterol: fmt(computedDailyTotals.cholesterol, 0),
+        dailySodium: fmt(computedDailyTotals.sodium, 0),
+        dailyPotassium: fmt(computedDailyTotals.potassium, 0),
+        dailyCalcium: fmt(computedDailyTotals.calcium, 0),
+        dailyIron: fmt(computedDailyTotals.iron, 1),
+        dailyVitaminA: fmt(computedDailyTotals.vitaminA, 0),
+        dailyVitaminC: fmt(computedDailyTotals.vitaminC, 1),
+        dailyVitaminD: fmt(computedDailyTotals.vitaminD, 1),
+        dailyVitaminB12: fmt(computedDailyTotals.vitaminB12, 2),
       };
 
       let nextPlanId: string;
@@ -684,6 +753,20 @@ export default function MealPlanPanel({
       );
     }
 
+    const renderSimpleRow = (label: string, value: unknown, unit?: string) => {
+      const raw = String(value ?? "").trim();
+      if (!raw) return null;
+      return (
+        <div className="flex items-center justify-between gap-4 py-2 border-b border-gray-100 dark:border-gray-800">
+          <div className="text-sm text-gray-600 dark:text-gray-300">{label}</div>
+          <div className="text-sm font-medium text-gray-900 dark:text-white">
+            {raw}
+            {unit ? ` ${unit}` : ""}
+          </div>
+        </div>
+      );
+    };
+
     return (
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-3">
@@ -783,6 +866,50 @@ export default function MealPlanPanel({
             <div className="mt-1 font-medium text-gray-900 dark:text-white">
               {plan.dailyFat ? `${plan.dailyFat} g` : "-"}
             </div>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/20">
+          <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800">
+            <div className="text-sm font-medium text-gray-900 dark:text-white">
+              More nutrition (daily totals)
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              Simple values below the main macros.
+            </div>
+          </div>
+          <div className="px-3">
+            {renderSimpleRow("Fiber", (plan as any).dailyFiber, "g")}
+            {renderSimpleRow("Sugars", (plan as any).dailySugars, "g")}
+            {renderSimpleRow("Saturated fat", (plan as any).dailySaturatedFat, "g")}
+            {renderSimpleRow("Trans fat", (plan as any).dailyTransFat, "g")}
+            {renderSimpleRow("Cholesterol", (plan as any).dailyCholesterol, "mg")}
+            {renderSimpleRow("Sodium", (plan as any).dailySodium, "mg")}
+            {renderSimpleRow("Potassium", (plan as any).dailyPotassium, "mg")}
+            {renderSimpleRow("Calcium", (plan as any).dailyCalcium, "mg")}
+            {renderSimpleRow("Iron", (plan as any).dailyIron, "mg")}
+            {renderSimpleRow("Vitamin A", (plan as any).dailyVitaminA, "µg")}
+            {renderSimpleRow("Vitamin C", (plan as any).dailyVitaminC, "mg")}
+            {renderSimpleRow("Vitamin D", (plan as any).dailyVitaminD, "µg")}
+            {renderSimpleRow("Vitamin B12", (plan as any).dailyVitaminB12, "µg")}
+
+            {!String((plan as any).dailyFiber ?? "").trim() &&
+              !String((plan as any).dailySugars ?? "").trim() &&
+              !String((plan as any).dailySaturatedFat ?? "").trim() &&
+              !String((plan as any).dailyTransFat ?? "").trim() &&
+              !String((plan as any).dailyCholesterol ?? "").trim() &&
+              !String((plan as any).dailySodium ?? "").trim() &&
+              !String((plan as any).dailyPotassium ?? "").trim() &&
+              !String((plan as any).dailyCalcium ?? "").trim() &&
+              !String((plan as any).dailyIron ?? "").trim() &&
+              !String((plan as any).dailyVitaminA ?? "").trim() &&
+              !String((plan as any).dailyVitaminC ?? "").trim() &&
+              !String((plan as any).dailyVitaminD ?? "").trim() &&
+              !String((plan as any).dailyVitaminB12 ?? "").trim() ? (
+              <div className="py-3 text-sm text-gray-500 dark:text-gray-400">
+                No extra values available for this plan.
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -976,6 +1103,31 @@ export default function MealPlanPanel({
           {Number(computedDailyTotals.carbs.toFixed(1))}g carbs ·{" "}
           {Number(computedDailyTotals.fat.toFixed(1))}g fat
         </div>
+
+        {computedDailyTotals.fiber ||
+          computedDailyTotals.sugars ||
+          computedDailyTotals.saturatedFat ||
+          computedDailyTotals.transFat ||
+          computedDailyTotals.cholesterol ||
+          computedDailyTotals.sodium ||
+          computedDailyTotals.potassium ||
+          computedDailyTotals.calcium ||
+          computedDailyTotals.iron ||
+          computedDailyTotals.vitaminA ||
+          computedDailyTotals.vitaminC ||
+          computedDailyTotals.vitaminD ||
+          computedDailyTotals.vitaminB12 ? (
+          <div className="mt-2 text-xs text-gray-600 dark:text-gray-300">
+            {[
+              computedDailyTotals.fiber ? `Fiber ${Number(computedDailyTotals.fiber.toFixed(1))}g` : "",
+              computedDailyTotals.sugars ? `Sugars ${Number(computedDailyTotals.sugars.toFixed(1))}g` : "",
+              computedDailyTotals.sodium ? `Sodium ${Math.round(computedDailyTotals.sodium)}mg` : "",
+              computedDailyTotals.potassium ? `Potassium ${Math.round(computedDailyTotals.potassium)}mg` : "",
+            ]
+              .filter((v): v is string => Boolean(v))
+              .join(" · ")}
+          </div>
+        ) : null}
       </div>
 
       <div className="border-t pt-6">
