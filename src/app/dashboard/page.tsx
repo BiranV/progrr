@@ -2116,6 +2116,11 @@ function ClientDashboard({ user }: { user: any }) {
                                     <div className="font-medium text-gray-900 dark:text-white truncate">
                                       {String(m.title ?? "")}
                                     </div>
+                                    {String(m.notes ?? "").trim() ? (
+                                      <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                        {String(m.notes)}
+                                      </div>
+                                    ) : null}
                                     <div className="text-sm text-gray-500 dark:text-gray-400">
                                       {m.scheduledAt
                                         ? format(
@@ -2254,9 +2259,16 @@ function ClientDashboard({ user }: { user: any }) {
                                     className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
                                   >
                                     <td className="px-4 py-3">
-                                      <span className="font-medium text-gray-900 dark:text-white">
-                                        {String(m.title ?? "").trim() || "-"}
-                                      </span>
+                                      <div className="min-w-0">
+                                        <div className="font-medium text-gray-900 dark:text-white">
+                                          {String(m.title ?? "").trim() || "-"}
+                                        </div>
+                                        {String(m.notes ?? "").trim() ? (
+                                          <div className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 truncate">
+                                            {String(m.notes)}
+                                          </div>
+                                        ) : null}
+                                      </div>
                                     </td>
                                     <td className="px-4 py-3 text-gray-700 dark:text-gray-200 whitespace-nowrap">
                                       {scheduledAt && !Number.isNaN(scheduledAt.getTime())

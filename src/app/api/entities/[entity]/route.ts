@@ -49,8 +49,15 @@ function toPublicRecord(row: {
   };
 }
 
-function stripClientPrivateMeetingFields(record: any) {
+function sanitizeMeetingForClient(record: any) {
   if (!record || typeof record !== "object") return record;
+  const share = Boolean(
+    (record as any).shareNotesWithClient ??
+    (record as any).shareNotes ??
+    (record as any).notesSharedWithClient ??
+    (record as any).notesShared
+  );
+  if (share) return record;
   const { notes, ...rest } = record as any;
   return rest;
 }
@@ -194,7 +201,7 @@ export async function GET(
         }
 
         const mine = meetingDocs.map(toPublicEntityDoc);
-        const sanitized = mine.map(stripClientPrivateMeetingFields);
+        const sanitized = mine.map(sanitizeMeetingForClient);
         return NextResponse.json(sortRecords(sanitized, sort));
       }
 

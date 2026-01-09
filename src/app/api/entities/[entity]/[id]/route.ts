@@ -186,8 +186,15 @@ function toPublicEntityDoc(doc: {
   });
 }
 
-function stripClientPrivateMeetingFields(record: any) {
+function sanitizeMeetingForClient(record: any) {
   if (!record || typeof record !== "object") return record;
+  const share = Boolean(
+    (record as any).shareNotesWithClient ??
+    (record as any).shareNotes ??
+    (record as any).notesSharedWithClient ??
+    (record as any).notesShared
+  );
+  if (share) return record;
   const { notes, ...rest } = record as any;
   return rest;
 }
@@ -286,9 +293,7 @@ export async function GET(
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        return NextResponse.json(
-          stripClientPrivateMeetingFields(toPublicEntityDoc(row))
-        );
+        return NextResponse.json(sanitizeMeetingForClient(toPublicEntityDoc(row)));
       }
 
       if (entity === "ClientWeeklySchedule") {

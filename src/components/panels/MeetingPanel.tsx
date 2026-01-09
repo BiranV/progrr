@@ -7,6 +7,7 @@ import SidePanel from "@/components/ui/side-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -123,6 +124,8 @@ export default function MeetingPanel({
     clientId: "",
     [OTHER_CLIENT_NAME_FIELD]: "",
     notes: "",
+    // Stored on the meeting record; used to decide whether clients can see notes.
+    ...({ shareNotesWithClient: false } as any),
   });
 
   React.useEffect(() => {
@@ -143,6 +146,7 @@ export default function MeetingPanel({
         clientId: "",
         [OTHER_CLIENT_NAME_FIELD]: "",
         notes: "",
+        ...({ shareNotesWithClient: false } as any),
       });
     } else {
       setIsEditing(false);
@@ -154,6 +158,12 @@ export default function MeetingPanel({
     if (!isEditing) return;
 
     if (meetingId && meeting) {
+      const shareNotesWithClient = Boolean(
+        (meeting as any).shareNotesWithClient ??
+        (meeting as any).shareNotes ??
+        (meeting as any).notesSharedWithClient ??
+        (meeting as any).notesShared
+      );
       setFormData({
         title: meeting.title || "",
         type: normalizeMeetingType((meeting as any).type),
@@ -170,6 +180,7 @@ export default function MeetingPanel({
           String((meeting as any)?.guestName ?? "").trim() ||
           "",
         notes: meeting.notes || "",
+        ...({ shareNotesWithClient } as any),
       });
     }
   }, [open, isEditing, meetingId, meeting]);
@@ -285,6 +296,9 @@ export default function MeetingPanel({
       payload.type = normalizeMeetingType(payload.type);
       payload.status = normalizeMeetingStatus(payload.status);
       payload.clientId = String(payload.clientId ?? "").trim();
+      payload.shareNotesWithClient = Boolean(
+        payload.shareNotesWithClient ?? payload.shareNotes ?? payload.notesShared
+      );
 
       if (String(payload.clientId ?? "").trim() === OTHER_CLIENT_ID) {
         payload[OTHER_CLIENT_NAME_FIELD] = otherClientName;
@@ -602,16 +616,36 @@ export default function MeetingPanel({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Notes (admin only)
+          Notes
         </label>
         <Textarea
           value={String(formData.notes ?? "")}
           onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-          placeholder="Private notes for you only (not visible to the client)"
+          placeholder="Private notes for you (not visible to the client unless you share)"
           rows={3}
         />
+        <div className="mt-2 flex items-center gap-2">
+          <Checkbox
+            checked={Boolean((formData as any).shareNotesWithClient)}
+            onCheckedChange={(checked) =>
+              setFormData({
+                ...formData,
+                shareNotesWithClient: Boolean(checked),
+              } as any)
+            }
+            id="share-meeting-notes"
+          />
+          <label
+            htmlFor="share-meeting-notes"
+            className="text-sm text-gray-700 dark:text-gray-300"
+          >
+            Share these notes with the client
+          </label>
+        </div>
         <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          Private — the client cannot see these notes.
+          {Boolean((formData as any).shareNotesWithClient)
+            ? "Shared — the client can see these notes."
+            : "Private — the client cannot see these notes."}
         </div>
       </div>
 
@@ -730,10 +764,15 @@ export default function MeetingPanel({
       {meeting.notes ? (
         <div>
           <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-            Notes (admin only)
+            Notes
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
             {meeting.notes}
+          </div>
+          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {Boolean((meeting as any).shareNotesWithClient)
+              ? "Shared with client"
+              : "Private (not shared with client)"}
           </div>
         </div>
       ) : null}
