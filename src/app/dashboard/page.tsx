@@ -1371,21 +1371,22 @@ function ClientDashboard({ user }: { user: any }) {
   });
 
   const now = new Date();
+  const isForcedPastMeetingStatus = (status: unknown) => {
+    const s = String(status ?? "").trim().toLowerCase();
+    return s === "completed" || s === "cancelled";
+  };
+  const isPastMeeting = (m: any) => {
+    if (isForcedPastMeetingStatus(m?.status)) return true;
+    const d = new Date(m?.scheduledAt || 0);
+    return d.getTime() < now.getTime();
+  };
   const sortedMeetings = [...meetings].sort((a: any, b: any) => {
     const at = new Date(a.scheduledAt || 0).getTime();
     const bt = new Date(b.scheduledAt || 0).getTime();
     return at - bt;
   });
-  const upcomingMeetings = sortedMeetings.filter((m: any) => {
-    const d = new Date(m.scheduledAt || 0);
-    return d.getTime() >= now.getTime();
-  });
-  const pastMeetings = sortedMeetings
-    .filter((m: any) => {
-      const d = new Date(m.scheduledAt || 0);
-      return d.getTime() < now.getTime();
-    })
-    .reverse();
+  const upcomingMeetings = sortedMeetings.filter((m: any) => !isPastMeeting(m));
+  const pastMeetings = sortedMeetings.filter((m: any) => isPastMeeting(m)).reverse();
 
   const unreadCount = messages.filter(
     (m: any) => m.senderRole === "admin" && !m.readByClient
@@ -2095,7 +2096,6 @@ function ClientDashboard({ user }: { user: any }) {
                 <div className="space-y-4">
                   <div>
                     <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white mb-2">
-                      <Clock className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
                       <span>Upcoming</span>
                     </div>
                     {upcomingMeetings.length === 0 ? (
@@ -2212,7 +2212,6 @@ function ClientDashboard({ user }: { user: any }) {
 
                   <div>
                     <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white mb-2">
-                      <History className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                       <span>Past</span>
                     </div>
                     {pastMeetings.length === 0 ? (
@@ -2220,109 +2219,102 @@ function ClientDashboard({ user }: { user: any }) {
                         No past meetings
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {pastMeetings.map((m: any) => (
-                          <Card
-                            key={m.id}
-                            className="dark:bg-gray-800 dark:border-gray-700"
-                          >
-                            <CardContent className="px-5 py-2">
-                              <div className="flex items-start justify-between gap-4">
-                                <div className="flex items-start gap-3 min-w-0">
-                                  <div className="min-w-0 space-y-1">
-                                    <div className="font-medium text-gray-900 dark:text-white truncate">
-                                      {String(m.title ?? "")}
-                                    </div>
-                                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                                      {m.scheduledAt
-                                        ? format(
-                                          new Date(m.scheduledAt),
-                                          "PPP p"
-                                        )
-                                        : ""}
-                                    </div>
-                                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                                      {(() => {
-                                        const typeText = String(
-                                          m.type ?? "-"
-                                        ).replace(/[-_]/g, " ");
-                                        const typeLabel = toTitleCase(typeText);
-                                        const meta = getTypeSpecificMeta(m);
-                                        return (
-                                          <div className="flex items-center gap-2 min-w-0">
-                                            <span className="shrink-0">
-                                              {getMeetingIcon(m.type)}
-                                            </span>
-                                            <span className="truncate">
-                                              {typeLabel}
-                                            </span>
-                                            {meta ? (
-                                              <>
-                                                <span className="mx-1 h-4 w-px bg-gray-200 dark:bg-gray-700 shrink-0" />
-                                                <span className="truncate">
-                                                  {meta.href ? (
-                                                    <a
-                                                      href={meta.href}
-                                                      target="_blank"
-                                                      rel="noreferrer"
-                                                      className="underline underline-offset-2 hover:text-indigo-600 dark:hover:text-indigo-300"
-                                                      onClick={(e) =>
-                                                        e.stopPropagation()
-                                                      }
-                                                      onMouseDown={(e) =>
-                                                        e.stopPropagation()
-                                                      }
-                                                    >
-                                                      {meta.rawLocation}
-                                                    </a>
-                                                  ) : (
-                                                    meta.rawLocation
-                                                  )}
-                                                </span>
-                                              </>
-                                            ) : null}
-                                          </div>
-                                        );
-                                      })()}
-                                    </div>
+                      <div className="bg-white dark:bg-gray-800 rounded-lg border">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead className="bg-gray-50 dark:bg-gray-700">
+                              <tr>
+                                <th className="px-4 py-3 text-left font-medium">Meeting</th>
+                                <th className="px-4 py-3 text-left font-medium">Date</th>
+                                <th className="px-4 py-3 text-left font-medium">Type</th>
+                                <th className="px-4 py-3 text-left font-medium hidden lg:table-cell">
+                                  With
+                                </th>
+                                <th className="px-4 py-3 text-left font-medium hidden lg:table-cell">
+                                  Duration
+                                </th>
+                                <th className="px-4 py-3 text-left font-medium">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {pastMeetings.map((m: any) => {
+                                const scheduledAt = m?.scheduledAt
+                                  ? new Date(m.scheduledAt)
+                                  : null;
+                                const typeText = String(m.type ?? "-").replace(
+                                  /[-_]/g,
+                                  " "
+                                );
+                                const typeLabel = toTitleCase(typeText);
+                                const meta = getTypeSpecificMeta(m);
 
-                                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 truncate">
-                                      <User className="w-4 h-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
-                                      <span className="truncate">
-                                        With: {coachBusinessName || "Coach"}
+                                return (
+                                  <tr
+                                    key={m.id}
+                                    className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors"
+                                  >
+                                    <td className="px-4 py-3">
+                                      <span className="font-medium text-gray-900 dark:text-white">
+                                        {String(m.title ?? "").trim() || "-"}
                                       </span>
-                                    </div>
-
-                                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 truncate">
-                                      <Clock className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                                      <span className="truncate">
-                                        Duration:{" "}
-                                        {Number.isFinite(
-                                          Number(m?.durationMinutes)
-                                        )
-                                          ? `${Number(m.durationMinutes)} min`
-                                          : "-"}
+                                    </td>
+                                    <td className="px-4 py-3 text-gray-700 dark:text-gray-200 whitespace-nowrap">
+                                      {scheduledAt && !Number.isNaN(scheduledAt.getTime())
+                                        ? format(scheduledAt, "PPP p")
+                                        : "-"}
+                                    </td>
+                                    <td className="px-4 py-3 text-gray-700 dark:text-gray-200">
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <span className="shrink-0">
+                                          {getMeetingIcon(m.type)}
+                                        </span>
+                                        <span className="truncate">{typeLabel}</span>
+                                      </div>
+                                      {meta ? (
+                                        <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 truncate">
+                                          {meta.href ? (
+                                            <a
+                                              href={meta.href}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                              className="underline underline-offset-2 hover:text-indigo-600 dark:hover:text-indigo-300"
+                                              onMouseDown={(e) => e.stopPropagation()}
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              {meta.rawLocation}
+                                            </a>
+                                          ) : (
+                                            meta.rawLocation
+                                          )}
+                                        </div>
+                                      ) : null}
+                                    </td>
+                                    <td className="px-4 py-3 text-gray-700 dark:text-gray-200 hidden lg:table-cell">
+                                      {coachBusinessName || "Coach"}
+                                    </td>
+                                    <td className="px-4 py-3 text-gray-700 dark:text-gray-200 hidden lg:table-cell whitespace-nowrap">
+                                      {Number.isFinite(Number(m?.durationMinutes))
+                                        ? `${Number(m.durationMinutes)} min`
+                                        : "-"}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                      <span
+                                        className={`inline-flex items-center h-6 px-2.5 rounded-md text-xs font-medium capitalize ${statusChipClasses(
+                                          m.status
+                                        )}`}
+                                      >
+                                        {String(m.status ?? "unknown").replace(
+                                          /[-_]/g,
+                                          " "
+                                        )}
                                       </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="mt-2 flex justify-end">
-                                <span
-                                  className={`inline-flex items-center h-6 px-2.5 rounded-md text-xs font-medium capitalize ${statusChipClasses(
-                                    m.status
-                                  )}`}
-                                >
-                                  {String(m.status ?? "unknown").replace(
-                                    /[-_]/g,
-                                    " "
-                                  )}
-                                </span>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     )}
                   </div>

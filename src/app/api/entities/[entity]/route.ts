@@ -49,6 +49,25 @@ function toPublicRecord(row: {
   };
 }
 
+function stripClientPrivateMeetingFields(record: any) {
+  if (!record || typeof record !== "object") return record;
+  const { notes, ...rest } = record as any;
+  return rest;
+}
+
+function shouldAutoCompleteMeeting(data: Record<string, any> | null | undefined) {
+  const scheduledAt = parseDate(data?.scheduledAt);
+  if (!scheduledAt) return false;
+
+  const status = String(data?.status ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, "-");
+
+  if (status && status !== "scheduled") return false;
+  return scheduledAt.getTime() < Date.now();
+}
+
 function toPublicEntityDoc(doc: {
   _id: ObjectId;
   data: any;
@@ -163,8 +182,20 @@ export async function GET(
           .sort({ "data.scheduledAt": -1, updatedAt: -1 })
           .toArray();
 
+        const toAutoComplete = meetingDocs.filter((d) =>
+          shouldAutoCompleteMeeting((d as any)?.data ?? null)
+        );
+        for (const doc of toAutoComplete) {
+          await c.entities.updateOne(
+            { _id: doc._id, entity: "Meeting", adminId },
+            { $set: { "data.status": "completed", updatedAt: new Date() } }
+          );
+          (doc as any).data = { ...((doc as any).data ?? {}), status: "completed" };
+        }
+
         const mine = meetingDocs.map(toPublicEntityDoc);
-        return NextResponse.json(sortRecords(mine, sort));
+        const sanitized = mine.map(stripClientPrivateMeetingFields);
+        return NextResponse.json(sortRecords(sanitized, sort));
       }
 
       // 4) Weekly schedule: only their own schedule
@@ -203,6 +234,19 @@ export async function GET(
       .find({ entity, adminId })
       .sort({ updatedAt: -1 })
       .toArray();
+
+    if (entity === "Meeting") {
+      const toAutoComplete = docs.filter((d) =>
+        shouldAutoCompleteMeeting((d as any)?.data ?? null)
+      );
+      for (const doc of toAutoComplete) {
+        await c.entities.updateOne(
+          { _id: doc._id, entity: "Meeting", adminId },
+          { $set: { "data.status": "completed", updatedAt: new Date() } }
+        );
+        (doc as any).data = { ...((doc as any).data ?? {}), status: "completed" };
+      }
+    }
 
     const records = docs.map(toPublicEntityDoc);
     return NextResponse.json(sortRecords(records, sort));

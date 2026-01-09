@@ -16,7 +16,6 @@ import {
   Calendar as CalendarIcon,
   Video,
   Phone,
-  Link as LinkIcon,
   MapPin,
   User,
   Clock,
@@ -115,12 +114,18 @@ export default function MeetingsPage() {
     return { rawLocation, href };
   };
 
-  const upcoming = meetings.filter(
-    (m: Meeting) => new Date(m.scheduledAt) >= new Date()
-  );
-  const past = meetings.filter(
-    (m: Meeting) => new Date(m.scheduledAt) < new Date()
-  );
+  const now = new Date();
+  const isForcedPastStatus = (status: unknown) => {
+    const s = String(status ?? "").trim().toLowerCase();
+    return s === "completed" || s === "cancelled";
+  };
+  const isPastMeeting = (m: Meeting) => {
+    if (isForcedPastStatus((m as any)?.status)) return true;
+    return new Date(m.scheduledAt) < now;
+  };
+
+  const upcoming = meetings.filter((m: Meeting) => !isPastMeeting(m));
+  const past = meetings.filter((m: Meeting) => isPastMeeting(m));
 
   const handleDetails = (meeting: Meeting) => {
     setDetailsMeetingId(String((meeting as any).id ?? "").trim() || null);
@@ -309,94 +314,108 @@ export default function MeetingsPage() {
                 No past meetings
               </p>
             ) : (
-              <div className="grid gap-4">
-                {past.map((meeting: Meeting) => (
-                  <Card
-                    key={meeting.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => handleDetails(meeting)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        handleDetails(meeting);
-                      }
-                    }}
-                    className="cursor-pointer hover:shadow-lg transition-shadow dark:bg-gray-800 dark:border-gray-700"
-                  >
-                    <CardContent className="p-4 flex flex-col">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-500 dark:text-gray-400">
-                            {getMeetingIcon(meeting.type)}
-                          </div>
-                          <div>
-                            <h3 className="font-medium text-gray-900 dark:text-white">
-                              {meeting.title}
-                            </h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              {format(new Date(meeting.scheduledAt), "PPP p")}
-                            </p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 capitalize">
-                              {(() => {
-                                const typeText = String(meeting.type ?? "-").replace(
-                                  /[-_]/g,
-                                  " "
-                                );
-                                const meta = getTypeSpecificMeta(meeting);
+              <div className="bg-white dark:bg-gray-800 rounded-lg border">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 dark:bg-gray-700">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-medium">Meeting</th>
+                        <th className="px-4 py-3 text-left font-medium">Date</th>
+                        <th className="px-4 py-3 text-left font-medium">Type</th>
+                        <th className="px-4 py-3 text-left font-medium">Client</th>
+                        <th className="px-4 py-3 text-left font-medium hidden lg:table-cell">
+                          Duration
+                        </th>
+                        <th className="px-4 py-3 text-left font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {past.map((meeting: Meeting) => {
+                        const scheduledAt = meeting?.scheduledAt
+                          ? new Date(meeting.scheduledAt)
+                          : null;
+                        const typeText = String((meeting as any).type ?? "-").replace(
+                          /[-_]/g,
+                          " "
+                        );
+                        const meta = getTypeSpecificMeta(meeting);
 
-                                return (
-                                  <>
-                                    Type: {typeText}
-                                    {meta ? (
-                                      <>
-                                        <span className="mx-2 inline-block h-3 w-px bg-gray-200 dark:bg-gray-700 align-middle" />
-                                        {meta.href ? (
-                                          <a
-                                            href={meta.href}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="underline underline-offset-2 hover:text-indigo-600 dark:hover:text-indigo-300"
-                                            onClick={(e) => e.stopPropagation()}
-                                            onMouseDown={(e) => e.stopPropagation()}
-                                          >
-                                            {meta.rawLocation}
-                                          </a>
-                                        ) : (
-                                          meta.rawLocation
-                                        )}
-                                      </>
-                                    ) : null}
-                                  </>
-                                );
-                              })()}
-                            </p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              With: {getClientName(meeting)}
-                            </p>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              Duration:{" "}
-                              {Number.isFinite(Number((meeting as any).durationMinutes))
+                        return (
+                          <tr
+                            key={meeting.id}
+                            className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer transition-colors"
+                            onClick={() => handleDetails(meeting)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                handleDetails(meeting);
+                              }
+                            }}
+                            role="button"
+                            tabIndex={0}
+                          >
+                            <td className="px-4 py-3">
+                              <span className="font-medium text-gray-900 dark:text-white">
+                                {String((meeting as any).title ?? "").trim() || "-"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-gray-700 dark:text-gray-200 whitespace-nowrap">
+                              {scheduledAt && !Number.isNaN(scheduledAt.getTime())
+                                ? format(scheduledAt, "PPP p")
+                                : "-"}
+                            </td>
+                            <td className="px-4 py-3 text-gray-700 dark:text-gray-200">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="shrink-0">
+                                  {getMeetingIcon(String((meeting as any).type ?? ""))}
+                                </span>
+                                <span className="truncate">{typeText}</span>
+                              </div>
+                              {meta ? (
+                                <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 truncate">
+                                  {meta.href ? (
+                                    <a
+                                      href={meta.href}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="underline underline-offset-2 hover:text-indigo-600 dark:hover:text-indigo-300"
+                                      onClick={(e) => e.stopPropagation()}
+                                      onMouseDown={(e) => e.stopPropagation()}
+                                    >
+                                      {meta.rawLocation}
+                                    </a>
+                                  ) : (
+                                    meta.rawLocation
+                                  )}
+                                </div>
+                              ) : null}
+                            </td>
+                            <td className="px-4 py-3 text-gray-700 dark:text-gray-200">
+                              {getClientName(meeting)}
+                            </td>
+                            <td className="px-4 py-3 text-gray-700 dark:text-gray-200 hidden lg:table-cell whitespace-nowrap">
+                              {Number.isFinite(
+                                Number((meeting as any).durationMinutes)
+                              )
                                 ? `${Number((meeting as any).durationMinutes)} min`
                                 : "-"}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                        </div>
-                      </div>
-
-                      <div className="mt-3 flex justify-end">
-                        <span
-                          className={`inline-flex items-center h-7 px-3 rounded-md text-xs font-medium capitalize
-              ${statusChipClasses(meeting.status)}`}
-                        >
-                          {meeting.status?.replace(/[-_]/g, " ") || "unknown"}
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`inline-flex items-center h-7 px-3 rounded-md text-xs font-medium capitalize ${statusChipClasses(
+                                  meeting.status
+                                )}`}
+                              >
+                                {meeting.status?.replace(/[-_]/g, " ") ||
+                                  "unknown"}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>

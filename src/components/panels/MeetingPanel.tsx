@@ -76,6 +76,20 @@ function normalizeMeetingType(type: unknown): "zoom" | "call" | "in-person" {
   return "zoom";
 }
 
+function normalizeMeetingStatus(
+  status: unknown
+): "scheduled" | "completed" | "cancelled" | "no-show" {
+  const s = String(status ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, "-");
+
+  if (s === "completed") return "completed";
+  if (s === "cancelled" || s === "canceled") return "cancelled";
+  if (s === "no-show" || s === "no show") return "no-show";
+  return "scheduled";
+}
+
 export default function MeetingPanel({
   meetingId,
   clients,
@@ -105,7 +119,7 @@ export default function MeetingPanel({
     status: "scheduled",
     scheduledAt: "",
     durationMinutes: 60,
-    location: "https://",
+    location: "",
     clientId: "",
     [OTHER_CLIENT_NAME_FIELD]: "",
     notes: "",
@@ -125,7 +139,7 @@ export default function MeetingPanel({
         status: "scheduled",
         scheduledAt: "",
         durationMinutes: 60,
-        location: "https://",
+        location: "",
         clientId: "",
         [OTHER_CLIENT_NAME_FIELD]: "",
         notes: "",
@@ -142,14 +156,14 @@ export default function MeetingPanel({
     if (meetingId && meeting) {
       setFormData({
         title: meeting.title || "",
-        type: meeting.type || "zoom",
-        status: meeting.status || "scheduled",
+        type: normalizeMeetingType((meeting as any).type),
+        status: normalizeMeetingStatus((meeting as any).status),
         scheduledAt: meeting.scheduledAt
           ? isoToLocalDateTimeInputValue(meeting.scheduledAt)
           : "",
         durationMinutes: (meeting as any).durationMinutes || 60,
         location: (meeting as any).location || "",
-        clientId: meeting.clientId || "",
+        clientId: String((meeting as any).clientId ?? "").trim(),
         [OTHER_CLIENT_NAME_FIELD]:
           String((meeting as any)?.[OTHER_CLIENT_NAME_FIELD] ?? "").trim() ||
           String((meeting as any)?.prospectName ?? "").trim() ||
@@ -267,6 +281,10 @@ export default function MeetingPanel({
 
       const payload: any = { ...formData, title };
       const scheduledAtLocal = String(formData.scheduledAt ?? "").trim();
+
+      payload.type = normalizeMeetingType(payload.type);
+      payload.status = normalizeMeetingStatus(payload.status);
+      payload.clientId = String(payload.clientId ?? "").trim();
 
       if (String(payload.clientId ?? "").trim() === OTHER_CLIENT_ID) {
         payload[OTHER_CLIENT_NAME_FIELD] = otherClientName;
@@ -407,11 +425,14 @@ export default function MeetingPanel({
               if (validationError) setValidationError(null);
 
               const nextRaw = String(v ?? "zoom");
-              const nextType = normalizeMeetingType(nextRaw);
+              const _nextType = normalizeMeetingType(nextRaw);
+              const currentLocation = String((formData as any).location ?? "");
+              const normalizedLocation =
+                currentLocation.trim() === "https://" ? "" : currentLocation;
               setFormData({
                 ...formData,
                 type: nextRaw,
-                location: nextType === "zoom" ? "https://" : "",
+                location: normalizedLocation,
               });
             }}
           >
@@ -452,7 +473,7 @@ export default function MeetingPanel({
                   .trim()
                   .toLowerCase() === "in-person"
                   ? "Address / meeting point"
-                  : "https://..."
+                  : "https://"
             }
           />
         </div>
@@ -464,8 +485,10 @@ export default function MeetingPanel({
             Status
           </label>
           <Select
-            value={String(formData.status ?? "scheduled")}
-            onValueChange={(v) => setFormData({ ...formData, status: v })}
+            value={normalizeMeetingStatus(formData.status)}
+            onValueChange={(v) =>
+              setFormData({ ...formData, status: normalizeMeetingStatus(v) })
+            }
           >
             <SelectTrigger className="w-full">
               <SelectValue />
@@ -579,13 +602,17 @@ export default function MeetingPanel({
 
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Notes
+          Notes (admin only)
         </label>
         <Textarea
           value={String(formData.notes ?? "")}
           onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+          placeholder="Private notes for you only (not visible to the client)"
           rows={3}
         />
+        <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          Private — the client cannot see these notes.
+        </div>
       </div>
 
       <div className="h-2" />
@@ -703,7 +730,7 @@ export default function MeetingPanel({
       {meeting.notes ? (
         <div>
           <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-            Notes
+            Notes (admin only)
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
             {meeting.notes}

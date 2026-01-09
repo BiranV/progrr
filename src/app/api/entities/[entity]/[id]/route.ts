@@ -89,13 +89,13 @@ async function recomputeMealPlanTotalsForFoodLibrary(args: {
 
     const foodDocs = uniqueFoodLibraryIds.length
       ? await c.entities
-          .find({
-            entity: "FoodLibrary",
-            adminId,
-            _id: { $in: uniqueFoodLibraryIds.map((id) => new ObjectId(id)) },
-          })
-          .project({ _id: 1, data: 1 })
-          .toArray()
+        .find({
+          entity: "FoodLibrary",
+          adminId,
+          _id: { $in: uniqueFoodLibraryIds.map((id) => new ObjectId(id)) },
+        })
+        .project({ _id: 1, data: 1 })
+        .toArray()
       : [];
 
     const foodById = new Map<string, any>();
@@ -184,6 +184,12 @@ function toPublicEntityDoc(doc: {
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   });
+}
+
+function stripClientPrivateMeetingFields(record: any) {
+  if (!record || typeof record !== "object") return record;
+  const { notes, ...rest } = record as any;
+  return rest;
 }
 
 export async function GET(
@@ -280,7 +286,9 @@ export async function GET(
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        return NextResponse.json(toPublicEntityDoc(row));
+        return NextResponse.json(
+          stripClientPrivateMeetingFields(toPublicEntityDoc(row))
+        );
       }
 
       if (entity === "ClientWeeklySchedule") {

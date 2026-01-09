@@ -37,6 +37,36 @@ function toPublicEntityDoc(doc: {
   });
 }
 
+function stripClientPrivateMeetingFields(record: any) {
+  if (!record || typeof record !== "object") return record;
+  const { notes, ...rest } = record as any;
+  return rest;
+}
+
+function parseDate(value: unknown): Date | null {
+  if (typeof value === "string" || typeof value === "number") {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  return null;
+}
+
+function shouldAutoCompleteMeeting(data: Record<string, any> | null | undefined) {
+  const scheduledAt = parseDate(data?.scheduledAt);
+  if (!scheduledAt) return false;
+
+  const status = String(data?.status ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, "-");
+
+  if (status && status !== "scheduled") return false;
+  return scheduledAt.getTime() < Date.now();
+}
+
 export async function POST(
   req: Request,
   ctx: { params: Promise<{ entity: string }> }
@@ -120,8 +150,21 @@ export async function POST(
           .sort({ "data.scheduledAt": -1, updatedAt: -1 })
           .toArray();
 
+        const toAutoComplete = docs.filter((d) =>
+          shouldAutoCompleteMeeting((d as any)?.data ?? null)
+        );
+        for (const doc of toAutoComplete) {
+          await c.entities.updateOne(
+            { _id: doc._id, entity: "Meeting", adminId },
+            { $set: { "data.status": "completed", updatedAt: new Date() } }
+          );
+          (doc as any).data = { ...((doc as any).data ?? {}), status: "completed" };
+        }
+
         const records = docs.map(toPublicEntityDoc);
-        return NextResponse.json(filterRecords(records, criteria));
+        const sanitizedRecords = records.map(stripClientPrivateMeetingFields);
+        const { notes: _ignoredNotes, ...sanitizedCriteria } = criteria as any;
+        return NextResponse.json(filterRecords(sanitizedRecords, sanitizedCriteria));
       }
 
       // Weekly schedule: only their own record(s)
