@@ -85,6 +85,50 @@ export default function ClientPanel({
   const router = useRouter();
   const queryClient = useQueryClient();
 
+  const { data: stepsRecent } = useQuery({
+    queryKey: ["stepsRecent", "admin", String(client?.id ?? "")],
+    enabled: Boolean(open && client?.id),
+    queryFn: async () => {
+      const clientId = String(client?.id ?? "").trim();
+      if (!clientId) return { ok: true, days: [] as any[] };
+
+      const res = await fetch(
+        `/api/steps/recent?clientId=${encodeURIComponent(
+          clientId
+        )}&days=7`,
+        {
+          method: "GET",
+          credentials: "include",
+        }
+      );
+
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || `Request failed (${res.status})`);
+      }
+      return payload as { ok: true; days: { date: string; steps: number }[] };
+    },
+  });
+
+  const toggleStepsEnabledMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      if (!client?.id) return;
+      await db.entities.Client.update(client.id, {
+        stepsEnabledByAdmin: enabled,
+      } as any);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["clients"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["stepsRecent", "admin", String(client?.id ?? "")],
+      });
+      onClientUpdate?.();
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Failed to update steps settings");
+    },
+  });
+
   const statusConfig: Record<string, string> = {
     ACTIVE:
       "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200",
@@ -402,6 +446,12 @@ export default function ClientPanel({
       (client as any)?.assignedMealPlanId
     );
 
+    const stepsEnabledByAdmin = (client as any)?.stepsEnabledByAdmin !== false;
+    const stepsSharingEnabled = (client as any)?.stepsSharingEnabled === true;
+    const recentDays = Array.isArray((stepsRecent as any)?.days)
+      ? ((stepsRecent as any).days as any[])
+      : [];
+
     return (
       <div className="space-y-8">
         {/* Header Section */}
@@ -528,6 +578,58 @@ export default function ClientPanel({
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className="p-4 rounded-lg border bg-white dark:bg-gray-800">
+            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+              <Activity className="w-4 h-4 text-emerald-500" /> Steps
+            </h4>
+
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="min-w-0">
+                <div className="text-sm font-medium">Enable steps tracking</div>
+                <div className="text-xs text-gray-500">
+                  Client sharing is currently{" "}
+                  <span className="font-medium">
+                    {stepsSharingEnabled ? "ON" : "OFF"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  checked={stepsEnabledByAdmin}
+                  onCheckedChange={(v) =>
+                    toggleStepsEnabledMutation.mutate(Boolean(v))
+                  }
+                  disabled={!client?.id || toggleStepsEnabledMutation.isPending}
+                />
+              </div>
+            </div>
+
+            {recentDays.length > 0 ? (
+              <div className="rounded-md border overflow-hidden">
+                <div className="grid grid-cols-2 text-xs font-medium bg-gray-50 dark:bg-gray-900/40 px-3 py-2">
+                  <div>Date</div>
+                  <div className="text-right">Steps</div>
+                </div>
+                {recentDays.map((d, idx) => (
+                  <div
+                    key={`${String(d?.date ?? idx)}-${idx}`}
+                    className="grid grid-cols-2 px-3 py-2 text-sm border-t bg-white dark:bg-gray-800"
+                  >
+                    <div className="text-gray-700 dark:text-gray-200">
+                      {String(d?.date ?? "-")}
+                    </div>
+                    <div className="text-right font-medium">
+                      {Number(d?.steps ?? 0).toLocaleString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-sm text-gray-500">No recent steps</div>
+            )}
           </div>
 
           {(client as any)?.notes && (

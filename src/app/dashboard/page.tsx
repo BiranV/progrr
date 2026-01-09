@@ -718,6 +718,79 @@ function ClientDashboard({ user }: { user: any }) {
 
   const myClient = clients[0];
 
+  const stepsEnabledByCoach = (myClient as any)?.stepsEnabledByAdmin !== false;
+  const stepsSharingEnabled = (myClient as any)?.stepsSharingEnabled === true;
+
+  const [todaySteps, setTodaySteps] = React.useState<string>("");
+
+  const { data: stepsRecent } = useQuery({
+    queryKey: ["stepsRecent", "client", String(user?.adminId ?? "")],
+    enabled: Boolean(user && user.role === "client" && stepsEnabledByCoach),
+    queryFn: async () => {
+      const res = await fetch(`/api/steps/recent?days=7`, {
+        method: "GET",
+        credentials: "include",
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || `Request failed (${res.status})`);
+      }
+      return payload as { ok: true; days: { date: string; steps: number }[] };
+    },
+  });
+
+  const stepsConsentMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const res = await fetch("/api/steps/consent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ enabled }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || `Request failed (${res.status})`);
+      }
+      return payload as { ok: true; enabled: boolean };
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["myClient", String(user?.adminId ?? "")],
+      });
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Failed to update steps sharing");
+    },
+  });
+
+  const stepsSyncMutation = useMutation({
+    mutationFn: async (steps: number) => {
+      const today = new Date();
+      const ymd = today.toISOString().slice(0, 10);
+      const res = await fetch("/api/steps/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ days: [{ date: ymd, steps }], source: "manual" }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || `Request failed (${res.status})`);
+      }
+      return payload as { ok: true; upserted: number };
+    },
+    onSuccess: async () => {
+      setTodaySteps("");
+      await queryClient.invalidateQueries({
+        queryKey: ["stepsRecent", "client", String(user?.adminId ?? "")],
+      });
+      toast.success("Steps saved");
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "Failed to save steps");
+    },
+  });
+
   // Refetch coach-scoped data only when tab becomes visible.
   useRefetchOnVisible(
     async () => {
@@ -758,6 +831,10 @@ function ClientDashboard({ user }: { user: any }) {
           queryKey: ["mealPlanMealsByPlanId"],
         });
       }
+
+      await queryClient.invalidateQueries({
+        queryKey: ["stepsRecent", "client", adminId],
+      });
     },
     { enabled: Boolean(user) }
   );
@@ -1902,6 +1979,100 @@ function ClientDashboard({ user }: { user: any }) {
                       </div>
                     </div>
                   </div>
+
+                  <Card className="dark:bg-gray-800 dark:border-gray-700">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base">Steps</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {!stepsEnabledByCoach ? (
+                        <div className="text-sm text-gray-600 dark:text-gray-300">
+                          Steps tracking is disabled by your coach.
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium">
+                                Share step summaries with coach
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                You control whether your coach can view your steps.
+                              </div>
+                            </div>
+                            <Switch
+                              checked={stepsSharingEnabled}
+                              onCheckedChange={(v) =>
+                                stepsConsentMutation.mutate(Boolean(v))
+                              }
+                              disabled={stepsConsentMutation.isPending}
+                            />
+                          </div>
+
+                          <div className="flex items-end gap-2">
+                            <div className="flex-1">
+                              <div className="text-sm font-medium mb-1">
+                                Today's steps
+                              </div>
+                              <Input
+                                inputMode="numeric"
+                                value={todaySteps}
+                                onChange={(e) => setTodaySteps(e.target.value)}
+                                placeholder="e.g. 8000"
+                                disabled={!stepsSharingEnabled}
+                              />
+                              {!stepsSharingEnabled ? (
+                                <div className="text-xs text-gray-500 mt-1">
+                                  Enable sharing to save steps.
+                                </div>
+                              ) : null}
+                            </div>
+                            <Button
+                              type="button"
+                              onClick={() => {
+                                const n = Number(String(todaySteps || "").trim());
+                                if (!Number.isFinite(n) || n < 0) {
+                                  toast.error("Enter a valid steps number");
+                                  return;
+                                }
+                                stepsSyncMutation.mutate(Math.floor(n));
+                              }}
+                              disabled={
+                                !stepsSharingEnabled || stepsSyncMutation.isPending
+                              }
+                            >
+                              Save
+                            </Button>
+                          </div>
+
+                          {Array.isArray((stepsRecent as any)?.days) &&
+                            (stepsRecent as any).days.length > 0 ? (
+                            <div className="rounded-md border overflow-hidden">
+                              <div className="grid grid-cols-2 text-xs font-medium bg-gray-50 dark:bg-gray-900/40 px-3 py-2">
+                                <div>Date</div>
+                                <div className="text-right">Steps</div>
+                              </div>
+                              {(stepsRecent as any).days.map((d: any, idx: number) => (
+                                <div
+                                  key={`${String(d?.date ?? idx)}-${idx}`}
+                                  className="grid grid-cols-2 px-3 py-2 text-sm border-t bg-white dark:bg-gray-800"
+                                >
+                                  <div className="text-gray-700 dark:text-gray-200">
+                                    {String(d?.date ?? "-")}
+                                  </div>
+                                  <div className="text-right font-medium">
+                                    {Number(d?.steps ?? 0).toLocaleString()}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-sm text-gray-500">No recent steps</div>
+                          )}
+                        </>
+                      )}
+                    </CardContent>
+                  </Card>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
