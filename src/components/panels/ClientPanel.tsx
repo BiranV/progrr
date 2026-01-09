@@ -204,6 +204,56 @@ export default function ClientPanel({
     return `${formatted} (${age})`;
   };
 
+  const formatDateDDMMYYYY = (value: unknown) => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return "-";
+
+    const parts = raw.split(/\D+/).filter(Boolean);
+    if (parts.length !== 3) return raw;
+
+    const [p1, p2, p3] = parts;
+    const n1 = Number(p1);
+    const n2 = Number(p2);
+    const n3 = Number(p3);
+    if (![n1, n2, n3].every((n) => Number.isFinite(n))) return raw;
+
+    let year: number;
+    let month: number;
+    let day: number;
+
+    if (String(p1).length === 4) {
+      year = n1;
+      month = n2;
+      day = n3;
+    } else if (String(p3).length === 4) {
+      day = n1;
+      month = n2;
+      year = n3;
+    } else {
+      day = n1;
+      month = n2;
+      year = n3;
+    }
+
+    if (year < 1900 || year > 2200) return raw;
+    if (month < 1 || month > 12) return raw;
+    if (day < 1 || day > 31) return raw;
+
+    const dUtc = new Date(Date.UTC(year, month - 1, day));
+    if (
+      dUtc.getUTCFullYear() !== year ||
+      dUtc.getUTCMonth() !== month - 1 ||
+      dUtc.getUTCDate() !== day
+    ) {
+      return raw;
+    }
+
+    return `${String(day).padStart(2, "0")}-${String(month).padStart(
+      2,
+      "0"
+    )}-${String(year)}`;
+  };
+
   // State
   const [isEditing, setIsEditing] = React.useState(false);
   const [validationError, setValidationError] = React.useState<string | null>(
@@ -619,7 +669,7 @@ export default function ClientPanel({
                     className="grid grid-cols-2 px-3 py-2 text-sm border-t bg-white dark:bg-gray-800"
                   >
                     <div className="text-gray-700 dark:text-gray-200">
-                      {String(d?.date ?? "-")}
+                      {formatDateDDMMYYYY(d?.date)}
                     </div>
                     <div className="text-right font-medium">
                       {Number(d?.steps ?? 0).toLocaleString()}

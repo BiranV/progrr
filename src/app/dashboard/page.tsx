@@ -419,7 +419,7 @@ function ClientDashboard({ user }: { user: any }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [activeSection, setActiveSection] = React.useState<
-    "menu" | "profile" | "meetings" | "workouts" | "meals" | "weekly"
+    "menu" | "profile" | "steps" | "meetings" | "workouts" | "meals" | "weekly"
   >("menu");
 
   const [deleteOpen, setDeleteOpen] = React.useState(false);
@@ -595,6 +595,56 @@ function ClientDashboard({ user }: { user: any }) {
       "0"
     )}-${String(year)}`;
     return `${formatted} (${age})`;
+  };
+
+  const formatDateDDMMYYYY = (value: unknown) => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return "-";
+
+    const parts = raw.split(/\D+/).filter(Boolean);
+    if (parts.length !== 3) return raw;
+
+    const [p1, p2, p3] = parts;
+    const n1 = Number(p1);
+    const n2 = Number(p2);
+    const n3 = Number(p3);
+    if (![n1, n2, n3].every((n) => Number.isFinite(n))) return raw;
+
+    let year: number;
+    let month: number;
+    let day: number;
+
+    if (String(p1).length === 4) {
+      year = n1;
+      month = n2;
+      day = n3;
+    } else if (String(p3).length === 4) {
+      day = n1;
+      month = n2;
+      year = n3;
+    } else {
+      day = n1;
+      month = n2;
+      year = n3;
+    }
+
+    if (year < 1900 || year > 2200) return raw;
+    if (month < 1 || month > 12) return raw;
+    if (day < 1 || day > 31) return raw;
+
+    const dUtc = new Date(Date.UTC(year, month - 1, day));
+    if (
+      dUtc.getUTCFullYear() !== year ||
+      dUtc.getUTCMonth() !== month - 1 ||
+      dUtc.getUTCDate() !== day
+    ) {
+      return raw;
+    }
+
+    return `${String(day).padStart(2, "0")}-${String(month).padStart(
+      2,
+      "0"
+    )}-${String(year)}`;
   };
 
   const formatDuration = (duration: any) => {
@@ -790,6 +840,26 @@ function ClientDashboard({ user }: { user: any }) {
       toast.error(err?.message || "Failed to save steps");
     },
   });
+
+  const canSaveTodaySteps =
+    stepsSharingEnabled &&
+    !stepsSyncMutation.isPending &&
+    Boolean(String(todaySteps ?? "").trim());
+
+  const saveTodaySteps = () => {
+    if (!canSaveTodaySteps) return;
+
+    const raw = String(todaySteps ?? "").trim();
+    if (!raw) return;
+
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0) {
+      toast.error("Enter a valid steps number");
+      return;
+    }
+
+    stepsSyncMutation.mutate(Math.floor(n));
+  };
 
   // Refetch coach-scoped data only when tab becomes visible.
   useRefetchOnVisible(
@@ -1645,10 +1715,13 @@ function ClientDashboard({ user }: { user: any }) {
                 )}
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[220px]">
+            <DropdownMenuContent
+              align="end"
+              className="min-w-[260px] p-2 flex flex-col gap-2"
+            >
               <DropdownMenuItem
                 onSelect={() => setMessagesOpen(true)}
-                className="cursor-pointer"
+                className="cursor-pointer text-base py-2"
               >
                 <div className="flex w-full items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
@@ -1679,8 +1752,8 @@ function ClientDashboard({ user }: { user: any }) {
                           }}
                           className={
                             isActive
-                              ? "cursor-pointer bg-accent text-accent-foreground"
-                              : "cursor-pointer"
+                              ? "cursor-pointer bg-accent text-accent-foreground text-base py-2"
+                              : "cursor-pointer text-base py-2"
                           }
                         >
                           <span className="inline-flex items-center gap-2">
@@ -1697,7 +1770,7 @@ function ClientDashboard({ user }: { user: any }) {
               ) : null}
               <DropdownMenuItem
                 onSelect={() => toggleDarkMode()}
-                className="cursor-pointer"
+                className="cursor-pointer text-base py-2"
               >
                 <span className="inline-flex items-center gap-2">
                   {darkMode ? (
@@ -1713,14 +1786,17 @@ function ClientDashboard({ user }: { user: any }) {
                   setDeleteConfirmText("");
                   setDeleteOpen(true);
                 }}
-                className="cursor-pointer"
+                className="cursor-pointer text-base py-2"
               >
                 <span className="inline-flex items-center gap-2">
                   <UserX className="h-4 w-4" />
                   Archive / Delete
                 </span>
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => logout(true)} className="cursor-pointer">
+              <DropdownMenuItem
+                onSelect={() => logout(true)}
+                className="cursor-pointer text-base py-2"
+              >
                 <span className="inline-flex items-center gap-2">
                   <LogOut className="h-4 w-4" />
                   Logout
@@ -1807,81 +1883,97 @@ function ClientDashboard({ user }: { user: any }) {
         </DialogContent>
       </Dialog>
 
-      <div className="mb-6 flex justify-center">
-        <div className="min-w-0 px-24 md:px-0 text-center">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Hi, {user.full_name}!
-          </h1>
-        </div>
-      </div>
-
       {activeSection === "menu" ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card
-            className="h-32 md:h-36 dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
-            onClick={() => setActiveSection("profile")}
-          >
-            <CardHeader className="h-full flex flex-col items-center justify-center text-center gap-2">
-              <Users className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-              <div className="h-10 flex items-center justify-center">
-                <CardTitle className="text-base leading-tight">Profile</CardTitle>
-              </div>
-            </CardHeader>
-          </Card>
+        <>
+          <div className="mb-6 flex justify-center">
+            <div className="min-w-0 px-24 md:px-0 text-center">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Hi, {user.full_name}!
+              </h1>
+            </div>
+          </div>
 
-          <Card
-            className="h-32 md:h-36 dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
-            onClick={() => setActiveSection("meetings")}
-          >
-            <CardHeader className="h-full flex flex-col items-center justify-center text-center gap-2">
-              <Calendar className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-              <div className="h-10 flex items-center justify-center">
-                <CardTitle className="text-base leading-tight">Meetings</CardTitle>
-              </div>
-            </CardHeader>
-          </Card>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card
+              className="h-32 md:h-36 dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
+              onClick={() => setActiveSection("profile")}
+            >
+              <CardHeader className="h-full flex flex-col items-center justify-center text-center gap-2">
+                <Users className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+                <div className="h-10 flex items-center justify-center">
+                  <CardTitle className="text-base leading-tight">Profile</CardTitle>
+                </div>
+              </CardHeader>
+            </Card>
 
-          <Card
-            className="h-32 md:h-36 dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
-            onClick={() => setActiveSection("workouts")}
-          >
-            <CardHeader className="h-full flex flex-col items-center justify-center text-center gap-2">
-              <Dumbbell className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-              <div className="h-10 flex items-center justify-center">
-                <CardTitle className="text-base leading-tight">Workouts</CardTitle>
-              </div>
-            </CardHeader>
-          </Card>
+            <Card
+              className="h-32 md:h-36 dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
+              onClick={() => setActiveSection("meetings")}
+            >
+              <CardHeader className="h-full flex flex-col items-center justify-center text-center gap-2">
+                <Calendar className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+                <div className="h-10 flex items-center justify-center">
+                  <CardTitle className="text-base leading-tight">Meetings</CardTitle>
+                </div>
+              </CardHeader>
+            </Card>
 
-          <Card
-            className="h-32 md:h-36 dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
-            onClick={() => setActiveSection("meals")}
-          >
-            <CardHeader className="h-full flex flex-col items-center justify-center text-center gap-2">
-              <UtensilsCrossed className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-              <div className="h-10 flex items-center justify-center">
-                <CardTitle className="text-base leading-tight">Meals</CardTitle>
-              </div>
-            </CardHeader>
-          </Card>
+            <Card
+              className="h-32 md:h-36 dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
+              onClick={() => setActiveSection("workouts")}
+            >
+              <CardHeader className="h-full flex flex-col items-center justify-center text-center gap-2">
+                <Dumbbell className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+                <div className="h-10 flex items-center justify-center">
+                  <CardTitle className="text-base leading-tight">Workouts</CardTitle>
+                </div>
+              </CardHeader>
+            </Card>
 
-          <Card
-            className="h-32 md:h-36 dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
-            onClick={() => setActiveSection("weekly")}
-          >
-            <CardHeader className="h-full flex flex-col items-center justify-center text-center gap-2">
-              <CalendarDays className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-              <div className="h-10 flex items-center justify-center">
-                <CardTitle className="text-base leading-tight">Calendar</CardTitle>
-              </div>
-            </CardHeader>
-          </Card>
-        </div>
+            <Card
+              className="h-32 md:h-36 dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
+              onClick={() => setActiveSection("steps")}
+            >
+              <CardHeader className="h-full flex flex-col items-center justify-center text-center gap-2">
+                <Activity className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+                <div className="h-10 flex items-center justify-center">
+                  <CardTitle className="text-base leading-tight">Steps</CardTitle>
+                </div>
+              </CardHeader>
+            </Card>
+
+            <Card
+              className="h-32 md:h-36 dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
+              onClick={() => setActiveSection("meals")}
+            >
+              <CardHeader className="h-full flex flex-col items-center justify-center text-center gap-2">
+                <UtensilsCrossed className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+                <div className="h-10 flex items-center justify-center">
+                  <CardTitle className="text-base leading-tight">Meals</CardTitle>
+                </div>
+              </CardHeader>
+            </Card>
+
+            <Card
+              className="h-32 md:h-36 dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
+              onClick={() => setActiveSection("weekly")}
+            >
+              <CardHeader className="h-full flex flex-col items-center justify-center text-center gap-2">
+                <CalendarDays className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+                <div className="h-10 flex items-center justify-center">
+                  <CardTitle className="text-base leading-tight">Calendar</CardTitle>
+                </div>
+              </CardHeader>
+            </Card>
+          </div>
+        </>
       ) : (
         <div className="space-y-4">
           <div className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
             {activeSection === "profile" ? (
               <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            ) : activeSection === "steps" ? (
+              <Activity className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
             ) : activeSection === "meetings" ? (
               <Calendar className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
             ) : activeSection === "workouts" ? (
@@ -1895,13 +1987,15 @@ function ClientDashboard({ user }: { user: any }) {
             <span>
               {activeSection === "profile"
                 ? "Profile"
-                : activeSection === "meetings"
-                  ? "Meetings"
-                  : activeSection === "workouts"
-                    ? "Workouts"
-                    : activeSection === "meals"
-                      ? "Meals"
-                      : "Calendar"}
+                : activeSection === "steps"
+                  ? "Steps"
+                  : activeSection === "meetings"
+                    ? "Meetings"
+                    : activeSection === "workouts"
+                      ? "Workouts"
+                      : activeSection === "meals"
+                        ? "Meals"
+                        : "Calendar"}
             </span>
           </div>
 
@@ -1979,100 +2073,6 @@ function ClientDashboard({ user }: { user: any }) {
                       </div>
                     </div>
                   </div>
-
-                  <Card className="dark:bg-gray-800 dark:border-gray-700">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base">Steps</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {!stepsEnabledByCoach ? (
-                        <div className="text-sm text-gray-600 dark:text-gray-300">
-                          Steps tracking is disabled by your coach.
-                        </div>
-                      ) : (
-                        <>
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="text-sm font-medium">
-                                Share step summaries with coach
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                You control whether your coach can view your steps.
-                              </div>
-                            </div>
-                            <Switch
-                              checked={stepsSharingEnabled}
-                              onCheckedChange={(v) =>
-                                stepsConsentMutation.mutate(Boolean(v))
-                              }
-                              disabled={stepsConsentMutation.isPending}
-                            />
-                          </div>
-
-                          <div className="flex items-end gap-2">
-                            <div className="flex-1">
-                              <div className="text-sm font-medium mb-1">
-                                Today's steps
-                              </div>
-                              <Input
-                                inputMode="numeric"
-                                value={todaySteps}
-                                onChange={(e) => setTodaySteps(e.target.value)}
-                                placeholder="e.g. 8000"
-                                disabled={!stepsSharingEnabled}
-                              />
-                              {!stepsSharingEnabled ? (
-                                <div className="text-xs text-gray-500 mt-1">
-                                  Enable sharing to save steps.
-                                </div>
-                              ) : null}
-                            </div>
-                            <Button
-                              type="button"
-                              onClick={() => {
-                                const n = Number(String(todaySteps || "").trim());
-                                if (!Number.isFinite(n) || n < 0) {
-                                  toast.error("Enter a valid steps number");
-                                  return;
-                                }
-                                stepsSyncMutation.mutate(Math.floor(n));
-                              }}
-                              disabled={
-                                !stepsSharingEnabled || stepsSyncMutation.isPending
-                              }
-                            >
-                              Save
-                            </Button>
-                          </div>
-
-                          {Array.isArray((stepsRecent as any)?.days) &&
-                            (stepsRecent as any).days.length > 0 ? (
-                            <div className="rounded-md border overflow-hidden">
-                              <div className="grid grid-cols-2 text-xs font-medium bg-gray-50 dark:bg-gray-900/40 px-3 py-2">
-                                <div>Date</div>
-                                <div className="text-right">Steps</div>
-                              </div>
-                              {(stepsRecent as any).days.map((d: any, idx: number) => (
-                                <div
-                                  key={`${String(d?.date ?? idx)}-${idx}`}
-                                  className="grid grid-cols-2 px-3 py-2 text-sm border-t bg-white dark:bg-gray-800"
-                                >
-                                  <div className="text-gray-700 dark:text-gray-200">
-                                    {String(d?.date ?? "-")}
-                                  </div>
-                                  <div className="text-right font-medium">
-                                    {Number(d?.steps ?? 0).toLocaleString()}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="text-sm text-gray-500">No recent steps</div>
-                          )}
-                        </>
-                      )}
-                    </CardContent>
-                  </Card>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
@@ -2260,6 +2260,120 @@ function ClientDashboard({ user }: { user: any }) {
                     </CardContent>
                   </Card>
                 </div>
+              )}
+            </div>
+          ) : null}
+
+          {activeSection === "steps" ? (
+            <div>
+              {!myClient ? (
+                <div className="py-10 text-center text-gray-500 dark:text-gray-400">
+                  No client profile found
+                </div>
+              ) : (
+                <Card className="dark:bg-gray-800 dark:border-gray-700">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Steps</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {!stepsEnabledByCoach ? (
+                      <div className="text-sm text-gray-600 dark:text-gray-300">
+                        Steps tracking is disabled by your coach.
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium">
+                              Share step summaries with coach
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              You control whether your coach can view your steps.
+                            </div>
+                          </div>
+                          <Switch
+                            className="disabled:cursor-default"
+                            checked={stepsSharingEnabled}
+                            onCheckedChange={(v) =>
+                              stepsConsentMutation.mutate(Boolean(v))
+                            }
+                            disabled={stepsConsentMutation.isPending}
+                          />
+                        </div>
+
+                        <div className="flex items-end gap-2">
+                          <div className="flex-1">
+                            <div className="text-sm font-medium mb-1">
+                              Today's steps
+                            </div>
+                            <Input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              autoComplete="off"
+                              value={todaySteps}
+                              onChange={(e) => {
+                                const next = String(e.target.value ?? "");
+                                const digitsOnly = next.replace(/\D+/g, "");
+                                setTodaySteps(digitsOnly);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key !== "Enter") return;
+                                e.preventDefault();
+                                saveTodaySteps();
+                              }}
+                              onPaste={(e) => {
+                                e.preventDefault();
+                                const pasted = e.clipboardData?.getData("text") ?? "";
+                                const digitsOnly = String(pasted).replace(/\D+/g, "");
+                                setTodaySteps(digitsOnly);
+                              }}
+                              placeholder="e.g. 8000"
+                              disabled={!stepsSharingEnabled}
+                            />
+                            {!stepsSharingEnabled ? (
+                              <div className="text-xs text-gray-500 mt-1">
+                                Enable sharing to save steps.
+                              </div>
+                            ) : null}
+                          </div>
+                          <Button
+                            type="button"
+                            onClick={saveTodaySteps}
+                            disabled={!canSaveTodaySteps}
+                          >
+                            Save
+                          </Button>
+                        </div>
+
+                        {Array.isArray((stepsRecent as any)?.days) &&
+                          (stepsRecent as any).days.length > 0 ? (
+                          <div className="rounded-md border overflow-hidden">
+                            <div className="grid grid-cols-2 text-xs font-medium bg-gray-50 dark:bg-gray-900/40 px-3 py-2">
+                              <div>Date</div>
+                              <div className="text-right">Steps</div>
+                            </div>
+                            {(stepsRecent as any).days.map((d: any, idx: number) => (
+                              <div
+                                key={`${String(d?.date ?? idx)}-${idx}`}
+                                className="grid grid-cols-2 px-3 py-2 text-sm border-t bg-white dark:bg-gray-800"
+                              >
+                                <div className="text-gray-700 dark:text-gray-200">
+                                  {formatDateDDMMYYYY(d?.date)}
+                                </div>
+                                <div className="text-right font-medium">
+                                  {Number(d?.steps ?? 0).toLocaleString()}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-sm text-gray-500">No recent steps</div>
+                        )}
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
               )}
             </div>
           ) : null}
