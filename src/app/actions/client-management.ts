@@ -6,6 +6,7 @@ import { requireAppUser } from "@/server/auth";
 import { Client } from "@/types";
 import { revalidatePath } from "next/cache";
 import { sendEmail } from "@/server/email";
+import { buildInviteEmail } from "@/server/emails/auth";
 import { signClientInviteToken } from "@/server/invite-token";
 import { getDb } from "@/server/mongo";
 import { checkRateLimit } from "@/server/rate-limit";
@@ -387,25 +388,18 @@ export async function createClientAction(data: ClientFormData) {
 
     const inviteLink = `${appUrl}/invite/${encodeURIComponent(inviteToken)}`;
 
+    const inviteEmail = buildInviteEmail({
+      inviteLink,
+      expiresDays: 7,
+      subject: "You've been invited to Progrr",
+      title: "You’ve been invited",
+    });
+
     await sendEmail({
       to: email,
-      subject: "You've been invited to Progrr",
-      text: `You've been invited to Progrr.\n\nAccept invitation: ${inviteLink}\n\nThis link expires in 7 days.`,
-      html: `
-        <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; line-height: 1.5;">
-          <h2 style="margin: 0 0 12px;">You've been invited to Progrr</h2>
-          <p style="margin: 0 0 16px;">Click the button below to accept your invitation and verify your email.</p>
-          <p style="margin: 0 0 20px;">
-            <a
-              href="${inviteLink}"
-              style="display: inline-block; padding: 10px 14px; background: #111827; color: #ffffff; text-decoration: none; border-radius: 8px;"
-            >
-              Accept Invitation
-            </a>
-          </p>
-          <p style="margin: 0; font-size: 12px; color: #6b7280;">This link expires in 7 days.</p>
-        </div>
-      `.trim(),
+      subject: inviteEmail.subject,
+      text: inviteEmail.text,
+      html: inviteEmail.html,
     });
   }
 
@@ -474,25 +468,18 @@ export async function resendClientInviteAction(clientId: string) {
 
   const inviteLink = `${appUrl}/invite/${encodeURIComponent(inviteToken)}`;
 
+  const inviteEmail = buildInviteEmail({
+    inviteLink,
+    expiresDays: 7,
+    subject: "You've been invited to Progrr",
+    title: "You’ve been invited",
+  });
+
   await sendEmail({
     to: email,
-    subject: "You've been invited to Progrr",
-    text: `You've been invited to Progrr.\n\nAccept invitation: ${inviteLink}\n\nThis link expires in 7 days.`,
-    html: `
-        <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; line-height: 1.5;">
-          <h2 style="margin: 0 0 12px;">You've been invited to Progrr</h2>
-          <p style="margin: 0 0 16px;">Click the button below to accept your invitation and verify your email.</p>
-          <p style="margin: 0 0 20px;">
-            <a
-              href="${inviteLink}"
-              style="display: inline-block; padding: 10px 14px; background: #111827; color: #ffffff; text-decoration: none; border-radius: 8px;"
-            >
-              Accept Invitation
-            </a>
-          </p>
-          <p style="margin: 0; font-size: 12px; color: #6b7280;">This link expires in 7 days.</p>
-        </div>
-      `.trim(),
+    subject: inviteEmail.subject,
+    text: inviteEmail.text,
+    html: inviteEmail.html,
   });
 
   // Update audit fields

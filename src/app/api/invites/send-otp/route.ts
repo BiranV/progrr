@@ -7,6 +7,7 @@ import { generateOtp } from "@/server/otp";
 import { sendEmail } from "@/server/email";
 import { getDb } from "@/server/mongo";
 import { checkRateLimit } from "@/server/rate-limit";
+import { buildOtpEmail } from "@/server/emails/auth";
 
 export const runtime = "nodejs";
 
@@ -123,10 +124,18 @@ export async function POST(req: Request) {
       { upsert: true }
     );
 
+    const emailContent = buildOtpEmail({
+      subject: "Your Progrr verification code",
+      title: "Your verification code",
+      code,
+      expiresMinutes: 10,
+    });
+
     await sendEmail({
       to: email,
-      subject: "Your Progrr verification code",
-      text: `Your Progrr verification code is: ${code}. This code expires in 10 minutes.`,
+      subject: emailContent.subject,
+      text: emailContent.text,
+      html: emailContent.html,
     });
 
     return NextResponse.json({ ok: true, delivery: "email" });

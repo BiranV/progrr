@@ -4,6 +4,7 @@ import { generateOtp } from "@/server/otp";
 import { sendEmail } from "@/server/email";
 import { getDb } from "@/server/mongo";
 import { checkRateLimit } from "@/server/rate-limit";
+import { buildOtpEmail } from "@/server/emails/auth";
 
 function normalizeEmail(input: unknown): string {
   return String(input ?? "")
@@ -92,16 +93,21 @@ export async function POST(req: Request) {
       { upsert: true }
     );
 
-    await sendEmail({
-      to: email,
+    const emailContent = buildOtpEmail({
       subject:
         purpose === "admin_login"
           ? "Your Progrr login code"
           : "Your Progrr admin signup code",
-      text:
-        purpose === "admin_login"
-          ? `Your Progrr login code is: ${code}. This code expires in 10 minutes.`
-          : `Your Progrr admin signup code is: ${code}. This code expires in 10 minutes.`,
+      title: purpose === "admin_login" ? "Your login code" : "Your signup code",
+      code,
+      expiresMinutes: 10,
+    });
+
+    await sendEmail({
+      to: email,
+      subject: emailContent.subject,
+      text: emailContent.text,
+      html: emailContent.html,
     });
 
     return NextResponse.json({

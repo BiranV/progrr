@@ -656,9 +656,6 @@ export default function ClientsPage() {
                         <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">
                           Deleted Date
                         </th>
-                        <th className="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300">
-                          Actions
-                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -678,7 +675,8 @@ export default function ClientsPage() {
                         return (
                           <tr
                             key={client.id}
-                            className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40"
+                            className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer transition-colors"
+                            onClick={() => handleOpenDetails(client)}
                           >
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-3">
@@ -713,16 +711,6 @@ export default function ClientsPage() {
                             </td>
                             <td className="px-4 py-3 text-xs text-gray-500">
                               {deletedAt}
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 text-xs border border-dashed border-gray-300 hover:border-gray-400 dark:border-gray-700"
-                                onClick={() => handleOpenDetails(client)}
-                              >
-                                View Details
-                              </Button>
                             </td>
                           </tr>
                         );
