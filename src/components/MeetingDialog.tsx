@@ -367,10 +367,14 @@ export default function MeetingDialog({
 
                 setLocationByType((prev) => {
                   const updated = { ...prev, [currentType]: currentLocation };
+                  let nextLocation = String(updated[nextType] ?? "");
+                  if (nextType === "zoom" && !nextLocation.trim()) {
+                    nextLocation = "https://";
+                  }
                   setFormData({
                     ...formData,
                     type: nextRaw,
-                    location: updated[nextType] ?? "",
+                    location: nextLocation,
                   });
                   return updated;
                 });

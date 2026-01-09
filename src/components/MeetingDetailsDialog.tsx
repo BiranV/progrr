@@ -105,18 +105,10 @@ export default function MeetingDetailsDialog({
     status: "scheduled",
     scheduledAt: "",
     durationMinutes: 60,
-    location: "",
+    location: "https://",
     clientId: "",
     [OTHER_CLIENT_NAME_FIELD]: "",
     notes: "",
-  });
-
-  const [locationByType, setLocationByType] = React.useState<
-    Record<"zoom" | "call" | "in-person", string>
-  >({
-    zoom: "",
-    call: "",
-    "in-person": "",
   });
 
   React.useEffect(() => {
@@ -133,13 +125,11 @@ export default function MeetingDetailsDialog({
         status: "scheduled",
         scheduledAt: "",
         durationMinutes: 60,
-        location: "",
+        location: "https://",
         clientId: "",
         [OTHER_CLIENT_NAME_FIELD]: "",
         notes: "",
       });
-
-      setLocationByType({ zoom: "", call: "", "in-person": "" });
     } else {
       setIsEditing(false);
     }
@@ -150,9 +140,6 @@ export default function MeetingDetailsDialog({
     if (!isEditing) return;
 
     if (meetingId && meeting) {
-      const normalizedType = normalizeMeetingType((meeting as any)?.type);
-      const normalizedLocation = String((meeting as any).location ?? "");
-
       setFormData({
         title: meeting.title || "",
         type: meeting.type || "zoom",
@@ -170,11 +157,6 @@ export default function MeetingDetailsDialog({
           "",
         notes: meeting.notes || "",
       });
-
-      setLocationByType((prev) => ({
-        ...prev,
-        [normalizedType]: normalizedLocation,
-      }));
     }
   }, [open, isEditing, meetingId, meeting]);
   const getClientName = (clientId: string) => {
@@ -425,18 +407,11 @@ export default function MeetingDetailsDialog({
               if (validationError) setValidationError(null);
 
               const nextRaw = String(v ?? "zoom");
-              const currentType = normalizeMeetingType((formData as any).type);
               const nextType = normalizeMeetingType(nextRaw);
-              const currentLocation = String((formData as any).location ?? "");
-
-              setLocationByType((prev) => {
-                const updated = { ...prev, [currentType]: currentLocation };
-                setFormData({
-                  ...formData,
-                  type: nextRaw,
-                  location: updated[nextType] ?? "",
-                });
-                return updated;
+              setFormData({
+                ...formData,
+                type: nextRaw,
+                location: nextType === "zoom" ? "https://" : "",
               });
             }}
           >
