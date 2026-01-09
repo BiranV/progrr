@@ -13,6 +13,7 @@ import {
   UtensilsCrossed,
   Calendar,
   CalendarDays,
+  Check,
   Activity,
   Repeat,
   MessageSquare,
@@ -40,6 +41,9 @@ import {
   Beef,
   Wheat,
   Droplets,
+  User,
+  Clock,
+  History,
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -88,6 +92,12 @@ import {
 import { useRefetchOnVisible } from "@/hooks/use-refetch-on-visible";
 import { toast } from "sonner";
 
+const normalizeStatus = (raw: any) => {
+  const v = String(raw ?? "").trim().toUpperCase();
+  if (v === "PENDING" || v === "INACTIVE" || v === "ACTIVE") return v;
+  return v || "ACTIVE";
+};
+
 export default function DashboardPage() {
   const { user, isLoadingAuth } = useAuth();
   const router = useRouter();
@@ -135,25 +145,18 @@ function AdminDashboard({ user }: { user: any }) {
 
   const { data: plans = [] } = useQuery({
     queryKey: ["workoutPlans"],
-    queryFn: () => db.entities.WorkoutPlan.list(),
+    queryFn: () => db.entities.WorkoutPlan.list("-created_date"),
   });
 
   const { data: meetings = [] } = useQuery({
     queryKey: ["meetings"],
-    queryFn: () => db.entities.Meeting.list(),
+    queryFn: () => db.entities.Meeting.list("-scheduledAt"),
   });
 
   const { data: messages = [] } = useQuery({
     queryKey: ["messages"],
-    queryFn: () => db.entities.Message.list(),
+    queryFn: () => db.entities.Message.list("-created_date"),
   });
-
-  const normalizeStatus = (value: unknown) => {
-    const v = String(value ?? "")
-      .trim()
-      .toUpperCase();
-    return v === "ACTIVE" || v === "PENDING" || v === "INACTIVE" ? v : "";
-  };
 
   const clientNameById = React.useMemo(() => {
     const map = new Map<string, string>();
@@ -624,6 +627,74 @@ function ClientDashboard({ user }: { user: any }) {
     return `${s}s`;
   };
 
+  const normalizeMeetingType = (type: any) =>
+    String(type ?? "")
+      .trim()
+      .toLowerCase();
+
+  const getLinkHref = (raw: string): string | null => {
+    const s = String(raw ?? "").trim();
+    if (!s) return null;
+
+    if (s.startsWith("http://") || s.startsWith("https://")) return s;
+    if (s.startsWith("www.")) return `https://${s}`;
+
+    const looksLikeDomain = /^[a-z0-9.-]+\.[a-z]{2,}(\/.*)?$/i.test(s);
+    if (looksLikeDomain) return `https://${s}`;
+
+    return null;
+  };
+
+  const getTypeSpecificMeta = (meeting: any) => {
+    const type = normalizeMeetingType(meeting?.type);
+    const rawLocation = String(meeting?.location ?? "").trim();
+    const locationLower = rawLocation.toLowerCase();
+
+    const redundant =
+      !rawLocation ||
+      (type === "zoom" && locationLower === "zoom") ||
+      (type === "call" && locationLower === "phone") ||
+      locationLower === type;
+
+    if (redundant) return null;
+
+    const kind: "link" | "location" | "phone" =
+      type === "call" ? "phone" : type === "zoom" ? "link" : "location";
+
+    const href = kind === "link" ? getLinkHref(rawLocation) : null;
+    return { rawLocation, href };
+  };
+
+  const getMeetingIcon = (rawType: any) => {
+    const type = normalizeMeetingType(rawType);
+    if (type === "zoom")
+      return (
+        <Video className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+      );
+    if (type === "call")
+      return (
+        <Phone className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+      );
+    return <MapPin className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />;
+  };
+
+  const statusChipClasses = (status?: any) => {
+    const s = String(status ?? "").trim().toLowerCase();
+    switch (s) {
+      case "scheduled":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200";
+      case "completed":
+        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200";
+      case "cancelled":
+        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200";
+      case "no_show":
+      case "no-show":
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/25 dark:text-yellow-200";
+      default:
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800/60 dark:text-gray-200";
+    }
+  };
+
   const { data: clients = [] } = useQuery({
     queryKey: ["myClient", String(user?.adminId ?? "")],
     queryFn: async () => {
@@ -945,24 +1016,13 @@ function ClientDashboard({ user }: { user: any }) {
         assignedMealPlanIds.length > 0,
     });
 
-  type WeekStart = "sun" | "mon";
   type DaySchedule = {
     workoutPlanId?: string;
     workoutTime?: string;
+    workoutCompleted?: boolean;
+    mealsCompleted?: boolean;
     notes?: string;
   };
-
-  const WEEK_START_COOKIE = "progrr_week_start";
-  const [weekStart, setWeekStartState] = React.useState<WeekStart>(() => {
-    const raw = String(getCookie(WEEK_START_COOKIE) ?? "").trim();
-    return raw === "mon" ? "mon" : "sun";
-  });
-
-  React.useEffect(() => {
-    setCookie(WEEK_START_COOKIE, weekStart, {
-      maxAgeSeconds: 60 * 60 * 24 * 365,
-    });
-  }, [weekStart]);
 
   const [weeklyAnchorDate, setWeeklyAnchorDate] = React.useState<Date>(
     () => new Date()
@@ -1004,7 +1064,7 @@ function ClientDashboard({ user }: { user: any }) {
       lastSavedWeeklyScheduleJsonRef.current = JSON.stringify(days);
     } else {
       setWeeklySchedule({});
-      lastSavedWeeklyScheduleJsonRef.current = "{}";
+      lastSavedWeeklyScheduleJsonRef.current = "{ }";
     }
 
     didInitWeeklyScheduleRef.current = true;
@@ -1062,19 +1122,15 @@ function ClientDashboard({ user }: { user: any }) {
   const toLocalDateKey = (d: Date) => {
     return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
   };
-  const startOfWeek = (d: Date, startsOn: WeekStart) => {
+  const startOfDay = (d: Date) => {
     const date = new Date(d);
     date.setHours(0, 0, 0, 0);
-    const day = date.getDay();
-    const weekStartsOn = startsOn === "mon" ? 1 : 0;
-    const diff = (day - weekStartsOn + 7) % 7;
-    date.setDate(date.getDate() - diff);
     return date;
   };
 
   const weekStartDate = React.useMemo(
-    () => startOfWeek(weeklyAnchorDate, weekStart),
-    [weeklyAnchorDate, weekStart]
+    () => startOfDay(weeklyAnchorDate),
+    [weeklyAnchorDate]
   );
   const weekDays = React.useMemo(() => {
     const days: Date[] = [];
@@ -1093,44 +1149,6 @@ function ClientDashboard({ user }: { user: any }) {
       return next;
     });
   };
-
-  const [weekListYear, setWeekListYear] = React.useState<number>(() =>
-    new Date().getFullYear()
-  );
-
-  React.useEffect(() => {
-    setWeekListYear(weekStartDate.getFullYear());
-  }, [weekStartDate]);
-
-  const weekListTouchStartX = React.useRef<number | null>(null);
-
-  const yearWeekOptions = React.useMemo(() => {
-    const yearStart = new Date(weekListYear, 0, 1);
-    yearStart.setHours(0, 0, 0, 0);
-    const yearEnd = new Date(weekListYear + 1, 0, 1);
-    yearEnd.setHours(0, 0, 0, 0);
-
-    const firstWeekStart = startOfWeek(yearStart, weekStart);
-    const options: Array<{ key: string; start: Date; label: string }> = [];
-
-    for (let i = 0; i < 60; i++) {
-      const start = new Date(firstWeekStart);
-      start.setDate(start.getDate() + i * 7);
-
-      const end = new Date(start);
-      end.setDate(end.getDate() + 6);
-
-      // Include weeks that intersect this year.
-      if (end < yearStart) continue;
-      if (start >= yearEnd) break;
-
-      const key = toLocalDateKey(start);
-      const label = `${format(start, "MMM d")} – ${format(end, "MMM d")}`;
-      options.push({ key, start, label });
-    }
-
-    return options;
-  }, [weekListYear, weekStart]);
 
   const updateDaySchedule = (dateKey: string, patch: Partial<DaySchedule>) => {
     setWeeklySchedule((prev) => {
@@ -1351,27 +1369,6 @@ function ClientDashboard({ user }: { user: any }) {
     queryFn: () => db.entities.Meeting.filter({ clientId: myClient.id }),
     enabled: !!myClient,
   });
-
-  const meetingsByDayKey = React.useMemo(() => {
-    const map = new Map<string, any[]>();
-    for (const m of meetings as any[]) {
-      const scheduledAt = m?.scheduledAt ? new Date(m.scheduledAt) : null;
-      if (!scheduledAt || Number.isNaN(scheduledAt.getTime())) continue;
-      const key = toLocalDateKey(scheduledAt);
-      const arr = map.get(key) ?? [];
-      arr.push(m);
-      map.set(key, arr);
-    }
-    for (const [k, arr] of map.entries()) {
-      arr.sort((a: any, b: any) => {
-        const at = new Date(a?.scheduledAt || 0).getTime();
-        const bt = new Date(b?.scheduledAt || 0).getTime();
-        return at - bt;
-      });
-      map.set(k, arr);
-    }
-    return map;
-  }, [meetings]);
 
   const now = new Date();
   const sortedMeetings = [...meetings].sort((a: any, b: any) => {
@@ -1797,16 +1794,30 @@ function ClientDashboard({ user }: { user: any }) {
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="text-lg font-semibold text-gray-900 dark:text-white">
-            {activeSection === "profile"
-              ? "Profile"
-              : activeSection === "meetings"
-                ? "Meetings"
-                : activeSection === "workouts"
-                  ? "Workouts"
-                  : activeSection === "meals"
-                    ? "Meals"
-                    : "Calendar"}
+          <div className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-white">
+            {activeSection === "profile" ? (
+              <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            ) : activeSection === "meetings" ? (
+              <Calendar className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            ) : activeSection === "workouts" ? (
+              <Dumbbell className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            ) : activeSection === "meals" ? (
+              <UtensilsCrossed className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            ) : (
+              <CalendarDays className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            )}
+
+            <span>
+              {activeSection === "profile"
+                ? "Profile"
+                : activeSection === "meetings"
+                  ? "Meetings"
+                  : activeSection === "workouts"
+                    ? "Workouts"
+                    : activeSection === "meals"
+                      ? "Meals"
+                      : "Calendar"}
+            </span>
           </div>
 
           {activeSection === "profile" ? (
@@ -2081,148 +2092,236 @@ function ClientDashboard({ user }: { user: any }) {
                   No meetings yet
                 </div>
               ) : (
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <div>
-                    <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
-                      Upcoming
+                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                      <Clock className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                      <span>Upcoming</span>
                     </div>
                     {upcomingMeetings.length === 0 ? (
                       <div className="text-sm text-gray-500 dark:text-gray-400">
                         No upcoming meetings
                       </div>
                     ) : (
-                      <div className="space-y-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {upcomingMeetings.map((m: any) => (
-                          <div
+                          <Card
                             key={m.id}
-                            className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                            className="dark:bg-gray-800 dark:border-gray-700"
                           >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                                  {toTitleCase(m.title)}
-                                </div>
-                                <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                  {m.scheduledAt
-                                    ? format(new Date(m.scheduledAt), "PPP p")
-                                    : ""}
+                            <CardContent className="px-5 py-2">
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex items-start gap-3 min-w-0">
+                                  <div className="min-w-0 space-y-1">
+                                    <div className="font-medium text-gray-900 dark:text-white truncate">
+                                      {String(m.title ?? "")}
+                                    </div>
+                                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                                      {m.scheduledAt
+                                        ? format(
+                                          new Date(m.scheduledAt),
+                                          "PPP p"
+                                        )
+                                        : ""}
+                                    </div>
+                                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                                      {(() => {
+                                        const typeText = String(
+                                          m.type ?? "-"
+                                        ).replace(/[-_]/g, " ");
+                                        const typeLabel = toTitleCase(typeText);
+                                        const meta = getTypeSpecificMeta(m);
+                                        return (
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <span className="shrink-0">
+                                              {getMeetingIcon(m.type)}
+                                            </span>
+                                            <span className="truncate">
+                                              {typeLabel}
+                                            </span>
+                                            {meta ? (
+                                              <>
+                                                <span className="mx-1 h-4 w-px bg-gray-200 dark:bg-gray-700 shrink-0" />
+                                                <span className="truncate">
+                                                  {meta.href ? (
+                                                    <a
+                                                      href={meta.href}
+                                                      target="_blank"
+                                                      rel="noreferrer"
+                                                      className="underline underline-offset-2 hover:text-indigo-600 dark:hover:text-indigo-300"
+                                                      onClick={(e) =>
+                                                        e.stopPropagation()
+                                                      }
+                                                      onMouseDown={(e) =>
+                                                        e.stopPropagation()
+                                                      }
+                                                    >
+                                                      {meta.rawLocation}
+                                                    </a>
+                                                  ) : (
+                                                    meta.rawLocation
+                                                  )}
+                                                </span>
+                                              </>
+                                            ) : null}
+                                          </div>
+                                        );
+                                      })()}
+                                    </div>
+
+                                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 truncate">
+                                      <User className="w-4 h-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                                      <span className="truncate">
+                                        With: {coachBusinessName || "Coach"}
+                                      </span>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 truncate">
+                                      <Clock className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                                      <span className="truncate">
+                                        Duration:{" "}
+                                        {Number.isFinite(
+                                          Number(m?.durationMinutes)
+                                        )
+                                          ? `${Number(m.durationMinutes)} min`
+                                          : "-"}
+                                      </span>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
-                              <div className="flex flex-wrap gap-2 text-xs">
-                                {m.type ? (
-                                  <span className="px-2 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200 rounded-full">
-                                    {toTitleCase(m.type)}
-                                  </span>
-                                ) : null}
-                                {m.status ? (
-                                  <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200 rounded-full">
-                                    {toTitleCase(m.status)}
-                                  </span>
-                                ) : null}
-                              </div>
-                            </div>
 
-                            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                              {m.durationMinutes ? (
-                                <div className="text-gray-700 dark:text-gray-300">
-                                  <span className="text-gray-500 dark:text-gray-400">
-                                    Duration:{" "}
-                                  </span>
-                                  {m.durationMinutes} minutes
-                                </div>
-                              ) : null}
-                              {m.location ? (
-                                <div className="text-gray-700 dark:text-gray-300">
-                                  <span className="text-gray-500 dark:text-gray-400">
-                                    Location:{" "}
-                                  </span>
-                                  {toTitleCase(m.location)}
-                                </div>
-                              ) : null}
-                            </div>
-
-                            {m.notes ? (
-                              <div className="mt-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                                <span className="text-gray-500 dark:text-gray-400">
-                                  Notes:{" "}
+                              <div className="mt-2 flex justify-end">
+                                <span
+                                  className={`inline-flex items-center h-6 px-2.5 rounded-md text-xs font-medium capitalize ${statusChipClasses(
+                                    m.status
+                                  )}`}
+                                >
+                                  {String(m.status ?? "unknown").replace(
+                                    /[-_]/g,
+                                    " "
+                                  )}
                                 </span>
-                                {m.notes}
                               </div>
-                            ) : null}
-                          </div>
+                            </CardContent>
+                          </Card>
                         ))}
                       </div>
                     )}
                   </div>
 
                   <div>
-                    <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
-                      Past
+                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                      <History className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                      <span>Past</span>
                     </div>
                     {pastMeetings.length === 0 ? (
                       <div className="text-sm text-gray-500 dark:text-gray-400">
                         No past meetings
                       </div>
                     ) : (
-                      <div className="space-y-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {pastMeetings.map((m: any) => (
-                          <div
+                          <Card
                             key={m.id}
-                            className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                            className="dark:bg-gray-800 dark:border-gray-700"
                           >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                                  {toTitleCase(m.title)}
-                                </div>
-                                <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                  {m.scheduledAt
-                                    ? format(new Date(m.scheduledAt), "PPP p")
-                                    : ""}
+                            <CardContent className="px-5 py-2">
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex items-start gap-3 min-w-0">
+                                  <div className="min-w-0 space-y-1">
+                                    <div className="font-medium text-gray-900 dark:text-white truncate">
+                                      {String(m.title ?? "")}
+                                    </div>
+                                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                                      {m.scheduledAt
+                                        ? format(
+                                          new Date(m.scheduledAt),
+                                          "PPP p"
+                                        )
+                                        : ""}
+                                    </div>
+                                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                                      {(() => {
+                                        const typeText = String(
+                                          m.type ?? "-"
+                                        ).replace(/[-_]/g, " ");
+                                        const typeLabel = toTitleCase(typeText);
+                                        const meta = getTypeSpecificMeta(m);
+                                        return (
+                                          <div className="flex items-center gap-2 min-w-0">
+                                            <span className="shrink-0">
+                                              {getMeetingIcon(m.type)}
+                                            </span>
+                                            <span className="truncate">
+                                              {typeLabel}
+                                            </span>
+                                            {meta ? (
+                                              <>
+                                                <span className="mx-1 h-4 w-px bg-gray-200 dark:bg-gray-700 shrink-0" />
+                                                <span className="truncate">
+                                                  {meta.href ? (
+                                                    <a
+                                                      href={meta.href}
+                                                      target="_blank"
+                                                      rel="noreferrer"
+                                                      className="underline underline-offset-2 hover:text-indigo-600 dark:hover:text-indigo-300"
+                                                      onClick={(e) =>
+                                                        e.stopPropagation()
+                                                      }
+                                                      onMouseDown={(e) =>
+                                                        e.stopPropagation()
+                                                      }
+                                                    >
+                                                      {meta.rawLocation}
+                                                    </a>
+                                                  ) : (
+                                                    meta.rawLocation
+                                                  )}
+                                                </span>
+                                              </>
+                                            ) : null}
+                                          </div>
+                                        );
+                                      })()}
+                                    </div>
+
+                                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 truncate">
+                                      <User className="w-4 h-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                                      <span className="truncate">
+                                        With: {coachBusinessName || "Coach"}
+                                      </span>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 truncate">
+                                      <Clock className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                                      <span className="truncate">
+                                        Duration:{" "}
+                                        {Number.isFinite(
+                                          Number(m?.durationMinutes)
+                                        )
+                                          ? `${Number(m.durationMinutes)} min`
+                                          : "-"}
+                                      </span>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
-                              <div className="flex flex-wrap gap-2 text-xs">
-                                {m.type ? (
-                                  <span className="px-2 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200 rounded-full">
-                                    {toTitleCase(m.type)}
-                                  </span>
-                                ) : null}
-                                {m.status ? (
-                                  <span className="px-2 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200 rounded-full">
-                                    {toTitleCase(m.status)}
-                                  </span>
-                                ) : null}
-                              </div>
-                            </div>
 
-                            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                              {m.durationMinutes ? (
-                                <div className="text-gray-700 dark:text-gray-300">
-                                  <span className="text-gray-500 dark:text-gray-400">
-                                    Duration:{" "}
-                                  </span>
-                                  {m.durationMinutes} minutes
-                                </div>
-                              ) : null}
-                              {m.location ? (
-                                <div className="text-gray-700 dark:text-gray-300">
-                                  <span className="text-gray-500 dark:text-gray-400">
-                                    Location:{" "}
-                                  </span>
-                                  {toTitleCase(m.location)}
-                                </div>
-                              ) : null}
-                            </div>
-
-                            {m.notes ? (
-                              <div className="mt-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                                <span className="text-gray-500 dark:text-gray-400">
-                                  Notes:{" "}
+                              <div className="mt-2 flex justify-end">
+                                <span
+                                  className={`inline-flex items-center h-6 px-2.5 rounded-md text-xs font-medium capitalize ${statusChipClasses(
+                                    m.status
+                                  )}`}
+                                >
+                                  {String(m.status ?? "unknown").replace(
+                                    /[-_]/g,
+                                    " "
+                                  )}
                                 </span>
-                                {m.notes}
                               </div>
-                            ) : null}
-                          </div>
+                            </CardContent>
+                          </Card>
                         ))}
                       </div>
                     )}
@@ -2240,170 +2339,71 @@ function ClientDashboard({ user }: { user: any }) {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <CalendarDays className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                      <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                        Weekly
-                      </h2>
-                    </div>
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => shiftWeeklyAnchorDays(-7)}
+                      aria-label="Previous week"
+                      title="Previous week"
+                      className="text-gray-900 dark:text-gray-100"
+                    >
+                      <ChevronLeft className="w-4 h-4 text-gray-700 dark:text-gray-200" />
+                    </Button>
 
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className="text-sm text-gray-700 dark:text-gray-200">
-                          Week starts Monday
-                        </div>
-                        <Switch
-                          checked={weekStart === "mon"}
-                          onCheckedChange={(checked) =>
-                            setWeekStartState(checked ? "mon" : "sun")
-                          }
-                          aria-label="Week starts Monday"
-                        />
-                      </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="gap-2 text-gray-900 dark:text-gray-100"
+                    >
+                      <Calendar className="w-4 h-4 text-gray-700 dark:text-gray-200" />
+                      {format(weekStartDate, "MMM d")} –{" "}
+                      {format(
+                        new Date(
+                          new Date(weekStartDate).setDate(
+                            weekStartDate.getDate() + 6
+                          )
+                        ),
+                        "MMM d"
+                      )}
+                    </Button>
 
-                      <Popover>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            onClick={() => shiftWeeklyAnchorDays(-7)}
-                            aria-label="Previous week"
-                            title="Previous week"
-                            className="text-gray-900 dark:text-gray-100"
-                          >
-                            <ChevronLeft className="w-4 h-4 text-gray-700 dark:text-gray-200" />
-                          </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => shiftWeeklyAnchorDays(7)}
+                      aria-label="Next week"
+                      title="Next week"
+                      className="text-gray-900 dark:text-gray-100"
+                    >
+                      <ChevronRight className="w-4 h-4 text-gray-700 dark:text-gray-200" />
+                    </Button>
 
-                          <PopoverTrigger asChild>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="gap-2 text-gray-900 dark:text-gray-100"
-                            >
-                              <Calendar className="w-4 h-4 text-gray-700 dark:text-gray-200" />
-                              {format(weekStartDate, "MMM d")} –{" "}
-                              {format(
-                                new Date(
-                                  new Date(weekStartDate).setDate(
-                                    weekStartDate.getDate() + 6
-                                  )
-                                ),
-                                "MMM d"
-                              )}
-                            </Button>
-                          </PopoverTrigger>
-
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            onClick={() => shiftWeeklyAnchorDays(7)}
-                            aria-label="Next week"
-                            title="Next week"
-                            className="text-gray-900 dark:text-gray-100"
-                          >
-                            <ChevronRight className="w-4 h-4 text-gray-700 dark:text-gray-200" />
-                          </Button>
-
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            onClick={() => setWeeklyAnchorDate(new Date())}
-                            aria-label="Go to current week"
-                            title="Go to current week"
-                            className="text-gray-900 dark:text-gray-100"
-                          >
-                            <RotateCcw className="w-4 h-4 text-gray-700 dark:text-gray-200" />
-                          </Button>
-                        </div>
-
-                        <PopoverContent
-                          align="end"
-                          className="p-2 w-72"
-                          onTouchStart={(e) => {
-                            weekListTouchStartX.current =
-                              e.touches?.[0]?.clientX ?? null;
-                          }}
-                          onTouchEnd={(e) => {
-                            const startX = weekListTouchStartX.current;
-                            const endX = e.changedTouches?.[0]?.clientX;
-                            weekListTouchStartX.current = null;
-                            if (
-                              typeof startX !== "number" ||
-                              typeof endX !== "number"
-                            )
-                              return;
-                            const delta = endX - startX;
-                            if (Math.abs(delta) < 50) return;
-                            setWeekListYear((y) => (delta > 0 ? y - 1 : y + 1));
-                          }}
-                        >
-                          <div className="flex items-center justify-between px-1 py-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => setWeekListYear((y) => y - 1)}
-                              aria-label="Previous year"
-                              title="Previous year"
-                            >
-                              <ChevronLeft className="w-4 h-4" />
-                            </Button>
-                            <div className="text-sm font-medium text-gray-900 dark:text-white">
-                              {weekListYear}
-                            </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => setWeekListYear((y) => y + 1)}
-                              aria-label="Next year"
-                              title="Next year"
-                            >
-                              <ChevronRight className="w-4 h-4" />
-                            </Button>
-                          </div>
-
-                          <div className="mt-1 max-h-80 overflow-auto">
-                            {yearWeekOptions.map((opt) => {
-                              const selected =
-                                opt.key === toLocalDateKey(weekStartDate);
-                              return (
-                                <button
-                                  key={opt.key}
-                                  type="button"
-                                  onClick={() =>
-                                    setWeeklyAnchorDate(new Date(opt.start))
-                                  }
-                                  className={`w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${selected
-                                    ? "bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white font-medium"
-                                    : "text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
-                                    }`}
-                                >
-                                  {opt.label}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setWeeklyAnchorDate(new Date())}
+                      aria-label="Go to current week"
+                      title="Go to current week"
+                      className="text-gray-900 dark:text-gray-100"
+                    >
+                      <RotateCcw className="w-4 h-4 text-gray-700 dark:text-gray-200" />
+                    </Button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
                     {weekDays.map((d) => {
                       const key = toLocalDateKey(d);
                       const daySchedule = weeklySchedule?.[key] ?? {};
-                      const dayMeetings = meetingsByDayKey.get(key) ?? [];
                       const isToday = key === toLocalDateKey(new Date());
 
                       return (
                         <div
                           key={key}
-                          className={`rounded-xl border p-4 dark:border-gray-700 bg-white dark:bg-gray-900/30 flex flex-col ${isToday
+                          className={`rounded-xl border p-3 dark:border-gray-700 bg-white dark:bg-gray-900/30 flex flex-col ${isToday
                             ? "border-indigo-200 dark:border-indigo-800"
                             : "border-gray-200"
                             }`}
@@ -2423,49 +2423,58 @@ function ClientDashboard({ user }: { user: any }) {
                                   {format(d, "PPP")}
                                 </div>
                               </div>
-                              <div className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
-                                {dayMeetings.length
-                                  ? `${dayMeetings.length} meeting${dayMeetings.length === 1 ? "" : "s"
-                                  }`
-                                  : ""}
-                              </div>
                             </div>
 
-                            {dayMeetings.length ? (
-                              <div className="mt-3 space-y-2">
-                                {dayMeetings.map((m: any) => {
-                                  const t = m?.scheduledAt
-                                    ? new Date(m.scheduledAt)
-                                    : null;
-                                  return (
-                                    <div
-                                      key={m.id}
-                                      className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2"
-                                    >
-                                      <div className="flex items-center justify-between gap-2">
-                                        <div className="min-w-0 font-medium text-sm text-gray-900 dark:text-white truncate">
-                                          {String(
-                                            m.title ?? "Meeting"
-                                          ).trim() || "Meeting"}
-                                        </div>
-                                        <div className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
-                                          {t && !Number.isNaN(t.getTime())
-                                            ? format(t, "HH:mm")
-                                            : ""}
-                                        </div>
-                                      </div>
-                                      {String(m.type ?? "").trim() ? (
-                                        <div className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 capitalize">
-                                          {String(m.type).replace(/[-_]/g, " ")}
-                                        </div>
-                                      ) : null}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            ) : null}
+                            <div className="mt-3 grid grid-cols-2 gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className={`h-8 px-2 text-xs justify-start gap-1.5 ${daySchedule.workoutCompleted
+                                  ? "border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300"
+                                  : "text-gray-700 dark:text-gray-200"
+                                  }`}
+                                onClick={() =>
+                                  updateDaySchedule(key, {
+                                    workoutCompleted:
+                                      !daySchedule.workoutCompleted,
+                                  })
+                                }
+                                aria-pressed={!!daySchedule.workoutCompleted}
+                                aria-label="Mark workout completed"
+                              >
+                                <span className="w-4 h-4 inline-flex items-center justify-center">
+                                  {daySchedule.workoutCompleted ? (
+                                    <Check className="w-4 h-4" />
+                                  ) : null}
+                                </span>
+                                Workout
+                              </Button>
 
-                            <div className="mt-4 space-y-3">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                className={`h-8 px-2 text-xs justify-start gap-1.5 ${daySchedule.mealsCompleted
+                                  ? "border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300"
+                                  : "text-gray-700 dark:text-gray-200"
+                                  }`}
+                                onClick={() =>
+                                  updateDaySchedule(key, {
+                                    mealsCompleted: !daySchedule.mealsCompleted,
+                                  })
+                                }
+                                aria-pressed={!!daySchedule.mealsCompleted}
+                                aria-label="Mark meals completed"
+                              >
+                                <span className="w-4 h-4 inline-flex items-center justify-center">
+                                  {daySchedule.mealsCompleted ? (
+                                    <Check className="w-4 h-4" />
+                                  ) : null}
+                                </span>
+                                Meals
+                              </Button>
+                            </div>
+
+                            <div className="mt-3 space-y-3">
                               <div className="text-xs font-semibold text-gray-700 dark:text-gray-200">
                                 Workout
                               </div>
@@ -2524,7 +2533,7 @@ function ClientDashboard({ user }: { user: any }) {
                             </div>
                           </div>
 
-                          <div className="mt-4 space-y-2">
+                          <div className="mt-3 space-y-2">
                             <div className="text-xs font-semibold text-gray-700 dark:text-gray-200">
                               Notes
                             </div>
@@ -2535,8 +2544,8 @@ function ClientDashboard({ user }: { user: any }) {
                                   notes: e.target.value,
                                 })
                               }
-                              rows={3}
-                              placeholder="Custom text for this day"
+                              rows={2}
+                            // placeholder="Custom text for this day"
                             />
                           </div>
                         </div>

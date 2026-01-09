@@ -85,6 +85,18 @@ export default function ClientPanel({
   const router = useRouter();
   const queryClient = useQueryClient();
 
+  const statusConfig: Record<string, string> = {
+    ACTIVE:
+      "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200",
+    PENDING:
+      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/25 dark:text-yellow-200",
+    INACTIVE:
+      "bg-gray-100 text-gray-700 dark:bg-gray-800/60 dark:text-gray-200",
+    BLOCKED: "bg-red-100 text-red-800 dark:bg-red-900/25 dark:text-red-200",
+    DELETED:
+      "bg-red-50 text-red-900 dark:bg-red-950/30 dark:text-red-400 border border-red-200 dark:border-red-800",
+  };
+
   const formatBirthDateWithAge = (birthDate: unknown) => {
     const raw = String(birthDate ?? "").trim();
     if (!raw) return "-";
@@ -537,26 +549,11 @@ export default function ClientPanel({
               Current Status
             </span>
             <span
-              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                    ${status === "ACTIVE"
-                  ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                  : ""
-                }
-                    ${status === "INACTIVE"
-                  ? "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
-                  : ""
-                }
-                    ${status === "BLOCKED"
-                  ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
-                  : ""
-                }
-                    ${status === "DELETED"
-                  ? "bg-red-50 text-red-800 dark:bg-red-950/50 dark:text-red-500"
-                  : ""
-                }
-                `}
+              className={`inline-flex items-center justify-center w-20 h-7 px-3 rounded-md text-xs font-medium ${statusConfig[String(status || "PENDING")] ||
+                statusConfig.PENDING
+                }`}
             >
-              {toTitleCase(status)}
+              {String(status || "PENDING").toUpperCase()}
             </span>
           </div>
 
