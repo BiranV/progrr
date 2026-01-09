@@ -6,7 +6,22 @@ import { db } from "@/lib/db";
 import SidePanel from "@/components/ui/side-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Beef, Droplets, Edit2, Flame, Trash2, Wheat } from "lucide-react";
+import {
+  Beef,
+  Copy as CopyIcon,
+  Droplets,
+  Edit2,
+  FileDown,
+  FileText,
+  Flame,
+  Trash2,
+  Wheat,
+} from "lucide-react";
+import {
+  copyTextToClipboard,
+  downloadPdfFile,
+  downloadTextFile,
+} from "@/lib/plan-export";
 import { toast } from "sonner";
 
 interface FoodLibraryDetailsDialogProps {
@@ -29,6 +44,64 @@ export default function FoodLibraryDetailsDialog({
     null
   );
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+
+  const exportText = React.useMemo(() => {
+    if (!food) return "";
+
+    const name = String(food?.name ?? "").trim() || "-";
+    const calories = String(food?.calories ?? "").trim() || "-";
+    const protein = String(food?.protein ?? "").trim() || "-";
+    const carbs = String(food?.carbs ?? "").trim() || "-";
+    const fat = String(food?.fat ?? "").trim() || "-";
+
+    const lines: string[] = [];
+    lines.push(`Food: ${name}`);
+    lines.push("Values per 100g");
+    lines.push("");
+    lines.push(`Calories: ${calories} kcal`);
+    lines.push(`Protein: ${protein} g`);
+    lines.push(`Carbs: ${carbs} g`);
+    lines.push(`Fat: ${fat} g`);
+    return lines.join("\n");
+  }, [food]);
+
+  const exportFilenameBase = React.useMemo(() => {
+    const name = String(food?.name ?? "").trim();
+    const id = String(food?.id ?? "").trim();
+    return `food-${name || id || "item"}`;
+  }, [food]);
+
+  const handleCopy = async () => {
+    if (!food) return;
+    try {
+      await copyTextToClipboard(exportText);
+      toast.success("Copied to clipboard");
+    } catch (err) {
+      console.error("Failed to copy food", err);
+      toast.error("Failed to copy");
+    }
+  };
+
+  const handleDownloadText = () => {
+    if (!food) return;
+    try {
+      downloadTextFile(exportFilenameBase, exportText);
+    } catch (err) {
+      console.error("Failed to download food text", err);
+      toast.error("Failed to download text");
+    }
+  };
+
+  const handleDownloadPdf = () => {
+    if (!food) return;
+    try {
+      const title = String(food?.name ?? "Food").trim() || "Food";
+      downloadPdfFile(exportFilenameBase, `Food: ${title}`, exportText);
+    } catch (err) {
+      console.error("Failed to download food PDF", err);
+      toast.error("Failed to download PDF");
+    }
+  };
 
   const [formData, setFormData] = React.useState<any>({});
 
@@ -153,7 +226,41 @@ export default function FoodLibraryDetailsDialog({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="shrink-0 flex flex-wrap gap-2 items-center">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
+              title="Download PDF"
+              aria-label="Download PDF"
+              onClick={handleDownloadPdf}
+            >
+              <FileDown className="w-4 h-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
+              title="Download Text"
+              aria-label="Download Text"
+              onClick={handleDownloadText}
+            >
+              <FileText className="w-4 h-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="text-emerald-600 hover:text-emerald-700 dark:text-emerald-300 dark:hover:text-emerald-200"
+              title="Copy to clipboard"
+              aria-label="Copy to clipboard"
+              onClick={handleCopy}
+            >
+              <CopyIcon className="w-4 h-4" />
+            </Button>
+
             <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
               <Edit2 className="w-4 h-4 mr-2" />
               Edit
