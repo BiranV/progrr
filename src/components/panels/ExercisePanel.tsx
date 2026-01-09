@@ -26,19 +26,19 @@ import {
 
 type VideoKind = "upload" | "youtube" | null;
 
-interface ExerciseLibraryDetailsDialogProps {
+interface ExercisePanelProps {
   exercise: any | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onExerciseUpdate?: () => void;
 }
 
-export default function ExerciseLibraryDetailsDialog({
+export default function ExercisePanel({
   exercise,
   open,
   onOpenChange,
   onExerciseUpdate,
-}: ExerciseLibraryDetailsDialogProps) {
+}: ExercisePanelProps) {
   const queryClient = useQueryClient();
 
   const [isEditing, setIsEditing] = React.useState(false);

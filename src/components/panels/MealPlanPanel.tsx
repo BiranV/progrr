@@ -35,7 +35,7 @@ import {
 import { toast } from "sonner";
 import { Food, FoodLibrary, Meal, MealPlan, PlanFood } from "@/types";
 
-interface MealPlanDetailsDialogProps {
+interface MealPlanPanelProps {
   planId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -60,11 +60,11 @@ function toTitleCase(value: any) {
     .join(" ");
 }
 
-export default function MealPlanDetailsDialog({
+export default function MealPlanPanel({
   planId,
   open,
   onOpenChange,
-}: MealPlanDetailsDialogProps) {
+}: MealPlanPanelProps) {
   const queryClient = useQueryClient();
 
   const [isEditing, setIsEditing] = React.useState(false);

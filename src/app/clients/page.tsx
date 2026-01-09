@@ -31,7 +31,7 @@ import {
   ArrowUpDown,
   Users,
 } from "lucide-react";
-import ClientDetailsDialog from "@/components/ClientDetailsDialog";
+import ClientPanel from "@/components/panels/ClientPanel";
 import ClientAvatar from "@/components/ClientAvatar";
 import { Client } from "@/types";
 import { getCookie, setCookie } from "@/lib/client-cookies";
@@ -126,7 +126,6 @@ export default function ClientsPage() {
 
       const cmp = collator.compare(aValue, bValue);
       if (cmp !== 0) return cmp * direction;
-
       return String(a.id ?? "").localeCompare(String(b.id ?? ""));
     });
   }, [filteredClients, sortConfig]);
@@ -371,13 +370,13 @@ export default function ClientsPage() {
 
               const assignedPlanName = normalizedPlanIds.length
                 ? normalizedPlanIds
-                    .map((id) => workoutPlanNameById.get(id) || "-")
-                    .join(", ")
+                  .map((id) => workoutPlanNameById.get(id) || "-")
+                  .join(", ")
                 : "-";
               const assignedMealName = normalizedMealPlanIds.length
                 ? normalizedMealPlanIds
-                    .map((id) => mealPlanNameById.get(id) || "-")
-                    .join(", ")
+                  .map((id) => mealPlanNameById.get(id) || "-")
+                  .join(", ")
                 : "-";
 
               return (
@@ -606,15 +605,15 @@ export default function ClientsPage() {
         <div className="space-y-6">
           {primaryClients.length > 0
             ? renderClientsTable(primaryPaging.pagedRows, {
-                page: primaryPaging.page,
-                totalPages: primaryPaging.totalPages,
-                totalCount: primaryPaging.totalCount,
-                onPrev: () => setPrimaryPage((p) => Math.max(1, p - 1)),
-                onNext: () =>
-                  setPrimaryPage((p) =>
-                    Math.min(primaryPaging.totalPages, p + 1)
-                  ),
-              })
+              page: primaryPaging.page,
+              totalPages: primaryPaging.totalPages,
+              totalCount: primaryPaging.totalCount,
+              onPrev: () => setPrimaryPage((p) => Math.max(1, p - 1)),
+              onNext: () =>
+                setPrimaryPage((p) =>
+                  Math.min(primaryPaging.totalPages, p + 1)
+                ),
+            })
             : null}
 
           {inactiveClients.length > 0 ? (
@@ -668,8 +667,8 @@ export default function ClientsPage() {
                           (client as any).deletedBy === "ADMIN"
                             ? "Admin"
                             : (client as any).deletedBy === "CLIENT"
-                            ? "Client"
-                            : "Unknown";
+                              ? "Client"
+                              : "Unknown";
 
                         const deletedAtRaw = (client as any).deletedAt;
                         const deletedAt = deletedAtRaw
@@ -774,7 +773,7 @@ export default function ClientsPage() {
       )}
 
       {/* Unified Client Details Panel */}
-      <ClientDetailsDialog
+      <ClientPanel
         client={
           (detailsClientId &&
             clients.find((c: any) => c.id === detailsClientId)) ||

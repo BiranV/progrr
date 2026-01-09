@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { ArrowUpDown, Dumbbell, Plus, Search } from "lucide-react";
-import ExerciseLibraryDetailsDialog from "@/components/ExerciseLibraryDetailsDialog";
+import ExercisePanel from "@/components/panels/ExercisePanel";
 import {
   Select,
   SelectContent,
@@ -325,7 +325,7 @@ export default function ExercisesPage() {
         </div>
       )}
 
-      <ExerciseLibraryDetailsDialog
+      <ExercisePanel
         exercise={selectedExercise}
         open={detailsOpen}
         onOpenChange={handleCloseDetails}

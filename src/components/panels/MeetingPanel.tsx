@@ -35,7 +35,7 @@ const OTHER_CLIENT_ID = "__PROSPECT__";
 const OTHER_CLIENT_LABEL = "Other (not a client)";
 const OTHER_CLIENT_NAME_FIELD = "otherClientName";
 
-interface MeetingDetailsDialogProps {
+interface MeetingPanelProps {
   meetingId: string | null;
   clients: Client[];
   open: boolean;
@@ -76,12 +76,12 @@ function normalizeMeetingType(type: unknown): "zoom" | "call" | "in-person" {
   return "zoom";
 }
 
-export default function MeetingDetailsDialog({
+export default function MeetingPanel({
   meetingId,
   clients,
   open,
   onOpenChange,
-}: MeetingDetailsDialogProps) {
+}: MeetingPanelProps) {
   const queryClient = useQueryClient();
 
   const [isEditing, setIsEditing] = React.useState(false);

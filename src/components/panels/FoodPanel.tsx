@@ -24,19 +24,19 @@ import {
 } from "@/lib/plan-export";
 import { toast } from "sonner";
 
-interface FoodLibraryDetailsDialogProps {
+interface FoodPanelProps {
   food: any | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onFoodUpdate?: () => void;
 }
 
-export default function FoodLibraryDetailsDialog({
+export default function FoodPanel({
   food,
   open,
   onOpenChange,
   onFoodUpdate,
-}: FoodLibraryDetailsDialogProps) {
+}: FoodPanelProps) {
   const queryClient = useQueryClient();
 
   const [isEditing, setIsEditing] = React.useState(false);

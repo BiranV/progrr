@@ -64,7 +64,7 @@ import {
 import { Client } from "@/types";
 import ConfirmModal from "@/components/ui/confirm-modal";
 
-interface ClientDetailsDialogProps {
+interface ClientPanelProps {
   client: Client | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -76,12 +76,12 @@ interface ClientDetailsDialogProps {
 
 const REQUIRED_FIELDS: Array<keyof Client> = ["name", "email", "phone"];
 
-export default function ClientDetailsDialog({
+export default function ClientPanel({
   client,
   open,
   onOpenChange,
   onClientUpdate,
-}: ClientDetailsDialogProps) {
+}: ClientPanelProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
 

@@ -22,7 +22,7 @@ import {
   Clock,
   History,
 } from "lucide-react";
-import MeetingDetailsDialog from "@/components/MeetingDetailsDialog";
+import MeetingPanel from "@/components/panels/MeetingPanel";
 import { format } from "date-fns";
 import { Meeting, Client } from "@/types";
 import { useRefetchOnVisible } from "@/hooks/use-refetch-on-visible";
@@ -403,7 +403,7 @@ export default function MeetingsPage() {
         </div>
       )}
 
-      <MeetingDetailsDialog
+      <MeetingPanel
         meetingId={detailsMeetingId}
         clients={clients}
         open={detailsOpen}

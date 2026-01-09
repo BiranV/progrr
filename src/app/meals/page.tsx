@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowUpDown, Plus, Search, UtensilsCrossed } from "lucide-react";
-import MealPlanDetailsDialog from "@/components/MealPlanDetailsDialog";
+import MealPlanPanel from "@/components/panels/MealPlanPanel";
 import { getCookie, setCookie } from "@/lib/client-cookies";
 
 type MealPlanRow = {
@@ -347,7 +347,7 @@ export default function MealsPage() {
         </div>
       )}
 
-      <MealPlanDetailsDialog
+      <MealPlanPanel
         open={detailsOpen}
         onOpenChange={handleCloseDetails}
         planId={detailsPlanId}

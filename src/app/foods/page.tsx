@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Apple, ArrowUpDown, Plus, Search } from "lucide-react";
-import FoodLibraryDetailsDialog from "@/components/FoodLibraryDetailsDialog";
+import FoodPanel from "@/components/panels/FoodPanel";
 import { getCookie, setCookie } from "@/lib/client-cookies";
 
 type FoodRow = {
@@ -347,7 +347,7 @@ export default function FoodsPage() {
       )}
 
       {/* Unified Food Details Panel */}
-      <FoodLibraryDetailsDialog
+      <FoodPanel
         food={selectedFood}
         open={detailsOpen}
         onOpenChange={handleCloseDetails}
