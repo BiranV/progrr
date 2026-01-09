@@ -346,10 +346,10 @@ export default function PlansPage() {
                     </div>
                   </th>
                   <th
-                    className="px-4 py-3 text-right font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                    className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
                     onClick={() => handleSort("exercisesCount")}
                   >
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center gap-2">
                       Exercises
                       <ArrowUpDown className="w-4 h-4" />
                     </div>
@@ -385,7 +385,7 @@ export default function PlansPage() {
                     <td className="px-4 py-3">
                       {String(row.goal ?? "").trim() || "-"}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3">
                       {Number(row.exercisesCount ?? 0)}
                     </td>
                   </tr>
