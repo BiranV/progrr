@@ -2537,15 +2537,15 @@ function ClientDashboard({ user }: { user: any }) {
                             <div className="text-xs font-semibold text-gray-700 dark:text-gray-200">
                               Notes
                             </div>
-                            <Textarea
+                            <Input
+                              type="text"
                               value={String(daySchedule.notes ?? "")}
                               onChange={(e) =>
                                 updateDaySchedule(key, {
                                   notes: e.target.value,
                                 })
                               }
-                              rows={2}
-                            // placeholder="Custom text for this day"
+                              placeholder="Notes"
                             />
                           </div>
                         </div>
