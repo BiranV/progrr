@@ -268,5 +268,6 @@ export interface AppSettings {
   weekStartDay?: string;
   facebookUrl?: string;
   instagramUrl?: string;
+  tiktokUrl?: string;
   [key: string]: any;
 }

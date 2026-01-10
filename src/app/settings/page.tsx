@@ -6,7 +6,13 @@ import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -14,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Save, Upload, Link2, Download } from "lucide-react";
+import { Save, Upload, Link2, Download, Facebook, Instagram, Music2 } from "lucide-react";
 import { AppSettings } from "@/types";
 import { toast } from "sonner";
 import { getAllCookies, setCookie } from "@/lib/client-cookies";
@@ -27,6 +33,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import Cropper, { type Area } from "react-easy-crop";
 
 async function runMockDataAction(action: "seed" | "clear") {
   const res = await fetch("/api/admin/mock-data", {
@@ -48,20 +55,69 @@ async function runMockDataAction(action: "seed" | "clear") {
   return payload;
 }
 
-// Mock upload function
-const uploadFile = async (file: File): Promise<{ file_url: string }> => {
-  // Simulate upload delay
-  await new Promise((resolve) => setTimeout(resolve, 1000));
-
-  // Convert file to base64
+const readFileAsDataUrl = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onloadend = () => {
-      resolve({ file_url: reader.result as string });
-    };
+    reader.onloadend = () => resolve(String(reader.result || ""));
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+};
+
+const createImage = (url: string): Promise<HTMLImageElement> => {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = url;
+  });
+};
+
+const getCroppedLogoDataUrl = async (
+  imageSrc: string,
+  crop: Area,
+  shape: "square" | "circle"
+): Promise<string> => {
+  const image = await createImage(imageSrc);
+
+  const pixelRatio = window.devicePixelRatio || 1;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(crop.width * pixelRatio));
+  canvas.height = Math.max(1, Math.round(crop.height * pixelRatio));
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas 2D context not available");
+
+  ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  ctx.imageSmoothingQuality = "high";
+
+  if (shape === "circle") {
+    ctx.clearRect(0, 0, crop.width, crop.height);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(crop.width / 2, crop.height / 2, crop.width / 2, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.clip();
+  }
+
+  ctx.drawImage(
+    image,
+    crop.x,
+    crop.y,
+    crop.width,
+    crop.height,
+    0,
+    0,
+    crop.width,
+    crop.height
+  );
+
+  if (shape === "circle") {
+    ctx.restore();
+  }
+
+  // PNG keeps transparency for circle mode.
+  return canvas.toDataURL("image/png");
 };
 
 export default function SettingsPage() {
@@ -72,6 +128,15 @@ export default function SettingsPage() {
   );
   const [uploading, setUploading] = React.useState(false);
   const [dragActive, setDragActive] = React.useState(false);
+
+  const [logoCropOpen, setLogoCropOpen] = React.useState(false);
+  const [logoCropSrc, setLogoCropSrc] = React.useState<string>("");
+  const [logoCrop, setLogoCrop] = React.useState({ x: 0, y: 0 });
+  const [logoZoom, setLogoZoom] = React.useState(1);
+  const [logoCroppedAreaPixels, setLogoCroppedAreaPixels] = React.useState<
+    Area | null
+  >(null);
+  const [logoCropSaving, setLogoCropSaving] = React.useState(false);
 
   const [formData, setFormData] = React.useState<Partial<AppSettings>>({
     businessName: "",
@@ -126,7 +191,7 @@ export default function SettingsPage() {
     }
   }, [settings]);
 
-  const handleFileUpload = async (file: File) => {
+  const startLogoCrop = async (file: File) => {
     if (!file || !file.type.startsWith("image/")) {
       toast.error("Please upload an image file");
       return;
@@ -134,14 +199,24 @@ export default function SettingsPage() {
 
     setUploading(true);
     try {
-      const { file_url } = await uploadFile(file);
-      setFormData((prev) => ({ ...prev, logoUrl: file_url }));
+      const src = await readFileAsDataUrl(file);
+      if (!src) throw new Error("Failed to read image");
+
+      setLogoCropSrc(src);
+      setLogoCrop({ x: 0, y: 0 });
+      setLogoZoom(1);
+      setLogoCroppedAreaPixels(null);
+      setLogoCropOpen(true);
     } catch (error) {
       console.error(error);
-      toast.error("Failed to upload logo");
+      toast.error("Failed to load logo");
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    await startLogoCrop(file);
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -246,24 +321,33 @@ export default function SettingsPage() {
     reader.readAsText(file);
   };
 
-  const saveMutation = useMutation({
-    mutationFn: async (data: Partial<AppSettings>) => {
-      if (settings.length > 0) {
-        return db.entities.AppSettings.update(settings[0].id, data);
-      } else {
-        return db.entities.AppSettings.create(data);
-      }
-    },
+  const upsertAppSettings = async (data: Partial<AppSettings>) => {
+    if (settings.length > 0) {
+      return db.entities.AppSettings.update(settings[0].id, data);
+    }
+    return db.entities.AppSettings.create(data);
+  };
+
+  const saveBusinessMutation = useMutation({
+    mutationFn: upsertAppSettings,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["appSettings"] });
-      toast.success("Settings saved successfully!");
+      toast.success("Business info saved");
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to save business info");
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    saveMutation.mutate(formData);
-  };
+  const saveSocialMutation = useMutation({
+    mutationFn: upsertAppSettings,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["appSettings"] });
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to save social links");
+    },
+  });
 
   const seedMockMutation = useMutation({
     mutationFn: () => runMockDataAction("seed"),
@@ -354,269 +438,388 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {user?.role === "admin" ? (
-          <Card className="dark:bg-gray-800 dark:border-gray-700">
-            <CardHeader>
-              <CardTitle>Profile</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Full name
-                </label>
-                <Input
-                  value={profileFullName}
-                  onChange={(e) => setProfileFullName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      saveProfileMutation.mutate({
+      <div className="space-y-6">
+        <div className={user?.role === "admin" ? "grid grid-cols-1 gap-6 lg:grid-cols-2" : "space-y-6"}>
+          {user?.role === "admin" ? (
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader>
+                <CardTitle>Profile</CardTitle>
+              </CardHeader>
+              <CardContent className="flex-1">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Full name
+                    </label>
+                    <Input
+                      value={profileFullName}
+                      onChange={(e) => setProfileFullName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          saveProfileMutation.mutate({
+                            fullName: profileFullName,
+                            phone: profilePhone,
+                          });
+                        }
+                      }}
+                      placeholder="Your name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Phone
+                    </label>
+                    <Input
+                      value={profilePhone}
+                      onChange={(e) => setProfilePhone(e.target.value)}
+                      placeholder="Your phone"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Facebook
+                    </label>
+                    <div className="relative">
+                      <Facebook className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      <Input
+                        value={formData.facebookUrl}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            facebookUrl: e.target.value,
+                          })
+                        }
+                        placeholder="https://facebook.com/yourpage"
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Instagram
+                    </label>
+                    <div className="relative">
+                      <Instagram className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      <Input
+                        value={formData.instagramUrl}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            instagramUrl: e.target.value,
+                          })
+                        }
+                        placeholder="https://instagram.com/yourprofile"
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      TikTok
+                    </label>
+                    <div className="relative">
+                      <Music2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      <Input
+                        value={String((formData as any).tiktokUrl || "")}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            tiktokUrl: e.target.value,
+                          } as any)
+                        }
+                        placeholder="https://tiktok.com/@yourprofile"
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter className="justify-end border-t">
+                <Button
+                  type="button"
+                  onClick={async () => {
+                    if (
+                      saveProfileMutation.isPending ||
+                      saveSocialMutation.isPending
+                    ) {
+                      return;
+                    }
+                    try {
+                      await saveProfileMutation.mutateAsync({
                         fullName: profileFullName,
                         phone: profilePhone,
                       });
+
+                      await saveSocialMutation.mutateAsync({
+                        facebookUrl: formData.facebookUrl,
+                        instagramUrl: formData.instagramUrl,
+                        tiktokUrl: String((formData as any).tiktokUrl || ""),
+                      } as any);
+                    } catch {
+                      // Individual mutations already toast errors.
                     }
                   }}
-                  placeholder="Your name"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Phone
-                </label>
-                <Input
-                  value={profilePhone}
-                  onChange={(e) => setProfilePhone(e.target.value)}
-                  placeholder="Your phone"
-                />
-              </div>
-
-              <div className="flex justify-end">
-                <Button
-                  type="button"
-                  onClick={() =>
-                    saveProfileMutation.mutate({
-                      fullName: profileFullName,
-                      phone: profilePhone,
-                    })
+                  disabled={
+                    saveProfileMutation.isPending ||
+                    saveSocialMutation.isPending
                   }
-                  disabled={saveProfileMutation.isPending}
                   className="flex items-center gap-2"
                 >
                   <Save className="w-4 h-4" />
-                  {saveProfileMutation.isPending ? "Saving..." : "Save Profile"}
+                  {saveProfileMutation.isPending || saveSocialMutation.isPending
+                    ? "Saving..."
+                    : "Save Profile"}
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ) : null}
+              </CardFooter>
+            </Card>
+          ) : null}
 
-        {/* Business Information */}
-        <Card className="dark:bg-gray-800 dark:border-gray-700">
-          <CardHeader>
-            <CardTitle>Business Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Business Name
-              </label>
-              <Input
-                value={formData.businessName}
-                onChange={(e) =>
-                  setFormData({ ...formData, businessName: e.target.value })
-                }
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Description
-              </label>
-              <Textarea
-                value={formData.businessDescription}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    businessDescription: e.target.value,
-                  })
-                }
-                rows={4}
-                placeholder="Tell clients about your coaching services..."
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Website
-              </label>
-              <Input
-                value={formData.webAddress}
-                onChange={(e) =>
-                  setFormData({ ...formData, webAddress: e.target.value })
-                }
-                placeholder="https://yourwebsite.com"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Logo
-              </label>
-
-              <div className="flex items-end justify-between gap-3 mb-3">
-                <div className="flex flex-col gap-1">
-                  <div className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                    Source
-                  </div>
-                  <div className="inline-flex rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setUploadMethod("url")}
-                      className={`rounded-l-md rounded-r-none px-3 gap-2 ${uploadMethod === "url"
-                        ? "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-500 dark:bg-indigo-900/20 dark:text-indigo-200"
-                        : ""
-                        }`}
-                    >
-                      <Link2 className="w-4 h-4" />
-                      URL
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setUploadMethod("upload")}
-                      className={`rounded-r-md rounded-l-none px-3 gap-2 border-l border-gray-200 dark:border-gray-700 ${uploadMethod === "upload"
-                        ? "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-500 dark:bg-indigo-900/20 dark:text-indigo-200"
-                        : ""
-                        }`}
-                    >
-                      <Upload className="w-4 h-4" />
-                      Upload
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="flex flex-col items-end gap-1">
-                  <div className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                    Shape
-                  </div>
-                  <Select
-                    value={formData.logoShape === "circle" ? "circle" : "square"}
-                    onValueChange={(v) =>
-                      setFormData({
-                        ...formData,
-                        logoShape: v === "circle" ? "circle" : "square",
-                      })
+          {/* Business Information */}
+          <Card className="dark:bg-gray-800 dark:border-gray-700">
+            <CardHeader>
+              <CardTitle>Business Information</CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Business Name
+                  </label>
+                  <Input
+                    value={formData.businessName}
+                    onChange={(e) =>
+                      setFormData({ ...formData, businessName: e.target.value })
                     }
-                  >
-                    <SelectTrigger className="w-[140px] justify-between">
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="square">Square</SelectItem>
-                      <SelectItem value="circle">Circle</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {uploadMethod === "url" ? (
-                <Input
-                  value={formData.logoUrl}
-                  onChange={(e) =>
-                    setFormData({ ...formData, logoUrl: e.target.value })
-                  }
-                  placeholder="https://example.com/logo.png"
-                />
-              ) : (
-                <div
-                  onDragEnter={handleDrag}
-                  onDragLeave={handleDrag}
-                  onDragOver={handleDrag}
-                  onDrop={handleDrop}
-                  className={`border-2 border-dashed ${formData.logoShape === "circle" ? "rounded-lg" : "rounded-none"
-                    } p-8 text-center transition-colors ${dragActive
-                      ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20"
-                      : "border-gray-300 dark:border-gray-700"
-                    }`}
-                >
-                  {uploading ? (
-                    <p className="text-gray-600 dark:text-gray-400">
-                      Uploading...
-                    </p>
-                  ) : formData.logoUrl ? (
-                    <div className="space-y-3">
-                      <img
-                        src={formData.logoUrl}
-                        alt="Logo"
-                        className={`mx-auto h-20 w-20 object-contain ${formData.logoShape === "circle"
-                          ? "rounded-full"
-                          : "rounded-none"
-                          }`}
-                      />
-                      <div className="flex justify-center gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            document.getElementById("logo-upload")?.click()
-                          }
-                        >
-                          Change Logo
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            setFormData({ ...formData, logoUrl: "" })
-                          }
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <Upload className="w-10 h-10 mx-auto text-gray-400" />
-                      <p className="text-gray-600 dark:text-gray-400">
-                        Drag and drop your logo here
-                      </p>
-                      <p className="text-sm text-gray-500">or</p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          document.getElementById("logo-upload")?.click()
-                        }
-                      >
-                        Browse Files
-                      </Button>
-                    </div>
-                  )}
-                  <input
-                    id="logo-upload"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      if (e.target.files?.[0]) {
-                        handleFileUpload(e.target.files[0]);
-                        e.target.value = "";
-                      }
-                    }}
-                    className="hidden"
                   />
                 </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Description
+                  </label>
+                  <Textarea
+                    value={formData.businessDescription}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        businessDescription: e.target.value,
+                      })
+                    }
+                    rows={4}
+                    placeholder="Tell clients about your coaching services..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Website
+                  </label>
+                  <div className="relative">
+                    <Link2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <Input
+                      value={formData.webAddress}
+                      onChange={(e) =>
+                        setFormData({ ...formData, webAddress: e.target.value })
+                      }
+                      placeholder="https://yourwebsite.com"
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Logo
+                  </label>
+
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    {/* Upload (narrower) */}
+                    <div className="w-full sm:max-w-md">
+                      <div className="flex flex-col gap-1 mb-3">
+                        <div className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                          Source
+                        </div>
+                        <div className="inline-flex w-full rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setUploadMethod("url")}
+                            className={`flex-1 rounded-l-md rounded-r-none px-3 gap-2 ${uploadMethod === "url"
+                              ? "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-500 dark:bg-indigo-900/20 dark:text-indigo-200"
+                              : ""
+                              }`}
+                          >
+                            <Link2 className="w-4 h-4" />
+                            URL
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setUploadMethod("upload")}
+                            className={`flex-1 rounded-r-md rounded-l-none px-3 gap-2 border-l border-gray-200 dark:border-gray-700 ${uploadMethod === "upload"
+                              ? "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-500 dark:bg-indigo-900/20 dark:text-indigo-200"
+                              : ""
+                              }`}
+                          >
+                            <Upload className="w-4 h-4" />
+                            Upload
+                          </Button>
+                        </div>
+
+                        <div className="mt-3">
+                          <label className="sr-only">Shape</label>
+                          <Select
+                            value={
+                              formData.logoShape === "circle" ? "circle" : "square"
+                            }
+                            onValueChange={(v) =>
+                              setFormData({
+                                ...formData,
+                                logoShape: v === "circle" ? "circle" : "square",
+                              })
+                            }
+                          >
+                            <SelectTrigger className="w-full justify-between">
+                              <SelectValue placeholder="Shape" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="square">Square</SelectItem>
+                              <SelectItem value="circle">Circle</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      {uploadMethod === "url" ? (
+                        <Input
+                          value={formData.logoUrl}
+                          onChange={(e) =>
+                            setFormData({ ...formData, logoUrl: e.target.value })
+                          }
+                          placeholder="https://example.com/logo.png"
+                        />
+                      ) : (
+                        <div
+                          onDragEnter={handleDrag}
+                          onDragLeave={handleDrag}
+                          onDragOver={handleDrag}
+                          onDrop={handleDrop}
+                          className={`border-2 border-dashed ${formData.logoShape === "circle" ? "rounded-lg" : "rounded-none"
+                            } p-6 text-center transition-colors ${dragActive
+                              ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20"
+                              : "border-gray-300 dark:border-gray-700"
+                            }`}
+                        >
+                          {uploading ? (
+                            <p className="text-gray-600 dark:text-gray-400">
+                              Loading...
+                            </p>
+                          ) : formData.logoUrl ? (
+                            <div className="space-y-3">
+                              <div
+                                className={`mx-auto h-24 w-24 overflow-hidden ${formData.logoShape === "circle"
+                                  ? "rounded-full"
+                                  : "rounded-none"
+                                  }`}
+                              >
+                                <img
+                                  src={formData.logoUrl}
+                                  alt="Logo"
+                                  className="h-full w-full object-cover"
+                                />
+                              </div>
+                              <div className="flex justify-center gap-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    document.getElementById("logo-upload")?.click()
+                                  }
+                                >
+                                  Change Logo
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setFormData({ ...formData, logoUrl: "" })}
+                                >
+                                  Remove
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              <Upload className="w-10 h-10 mx-auto text-gray-400" />
+                              <p className="text-gray-600 dark:text-gray-400">
+                                Drag and drop your logo here
+                              </p>
+                              <p className="text-sm text-gray-500">or</p>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  document.getElementById("logo-upload")?.click()
+                                }
+                              >
+                                Browse Files
+                              </Button>
+                            </div>
+                          )}
+                          <input
+                            id="logo-upload"
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              if (e.target.files?.[0]) {
+                                handleFileUpload(e.target.files[0]);
+                                e.target.value = "";
+                              }
+                            }}
+                            className="hidden"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+                </div>
+
+              </div>
+            </CardContent>
+            <CardFooter className="justify-end border-t">
+              <Button
+                type="button"
+                onClick={() =>
+                  saveBusinessMutation.mutate({
+                    businessName: formData.businessName,
+                    businessDescription: formData.businessDescription,
+                    webAddress: formData.webAddress,
+                    logoUrl: formData.logoUrl,
+                    logoShape:
+                      formData.logoShape === "circle" ? "circle" : "square",
+                  })
+                }
+                disabled={saveBusinessMutation.isPending}
+                className="flex items-center gap-2"
+              >
+                <Save className="w-4 h-4" />
+                {saveBusinessMutation.isPending
+                  ? "Saving..."
+                  : "Save Business info"}
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
 
         {/* Mock Data (hidden) */}
         {/*
@@ -673,40 +876,6 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
           */}
-
-        {/* Social Links */}
-        <Card className="dark:bg-gray-800 dark:border-gray-700">
-          <CardHeader>
-            <CardTitle>Social Media</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Facebook
-              </label>
-              <Input
-                value={formData.facebookUrl}
-                onChange={(e) =>
-                  setFormData({ ...formData, facebookUrl: e.target.value })
-                }
-                placeholder="https://facebook.com/yourpage"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Instagram
-              </label>
-              <Input
-                value={formData.instagramUrl}
-                onChange={(e) =>
-                  setFormData({ ...formData, instagramUrl: e.target.value })
-                }
-                placeholder="https://instagram.com/yourprofile"
-              />
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Data Management */}
         <Card className="dark:bg-gray-800 dark:border-gray-700">
@@ -767,18 +936,124 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Save Button */}
-        <div className="flex justify-end">
-          <Button
-            type="submit"
-            disabled={saveMutation.isPending}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white"
-          >
-            <Save className="w-5 h-5 mr-2" />
-            {saveMutation.isPending ? "Saving..." : "Save Settings"}
-          </Button>
-        </div>
-      </form>
+      </div>
+
+      <Dialog
+        open={logoCropOpen}
+        onOpenChange={(open) => {
+          if (logoCropSaving) return;
+          setLogoCropOpen(open);
+          if (!open) {
+            setLogoCropSrc("");
+            setLogoCroppedAreaPixels(null);
+          }
+        }}
+      >
+        <DialogContent className="w-[92vw] max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Crop your logo</DialogTitle>
+            <DialogDescription>
+              Drag the image and zoom to choose what shows. The crop shape
+              follows your selected Shape (square or circle).
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-4 md:flex-row">
+            <div className="relative w-full h-[340px] rounded-md overflow-hidden bg-gray-100 dark:bg-gray-900">
+              {logoCropSrc ? (
+                <Cropper
+                  image={logoCropSrc}
+                  crop={logoCrop}
+                  zoom={logoZoom}
+                  aspect={1}
+                  cropShape={
+                    formData.logoShape === "circle" ? "round" : "rect"
+                  }
+                  showGrid={true}
+                  onCropChange={setLogoCrop}
+                  onZoomChange={setLogoZoom}
+                  onCropComplete={(_, croppedPixels) => {
+                    setLogoCroppedAreaPixels(croppedPixels);
+                  }}
+                />
+              ) : null}
+            </div>
+
+            <div className="w-full md:w-[240px] shrink-0 space-y-4">
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Zoom</div>
+                <input
+                  type="range"
+                  min={1}
+                  max={3}
+                  step={0.01}
+                  value={logoZoom}
+                  onChange={(e) => setLogoZoom(Number(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="text-sm font-medium">Shape preview</div>
+                <div
+                  className={`h-24 w-24 bg-gray-200 dark:bg-gray-800 overflow-hidden ${formData.logoShape === "circle" ? "rounded-full" : "rounded-none"
+                    }`}
+                >
+                  {logoCropSrc ? (
+                    <img
+                      src={logoCropSrc}
+                      alt="Logo preview"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : null}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  Final logo will be saved as a {formData.logoShape === "circle" ? "circle" : "square"}.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={logoCropSaving}
+              onClick={() => setLogoCropOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={
+                logoCropSaving || !logoCropSrc || !logoCroppedAreaPixels
+              }
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              onClick={async () => {
+                if (!logoCropSrc || !logoCroppedAreaPixels) return;
+                setLogoCropSaving(true);
+                try {
+                  const next = await getCroppedLogoDataUrl(
+                    logoCropSrc,
+                    logoCroppedAreaPixels,
+                    formData.logoShape === "circle" ? "circle" : "square"
+                  );
+                  setFormData((prev) => ({ ...prev, logoUrl: next }));
+                  setLogoCropOpen(false);
+                  toast.success("Logo updated");
+                } catch (err) {
+                  console.error(err);
+                  toast.error("Failed to crop logo");
+                } finally {
+                  setLogoCropSaving(false);
+                }
+              }}
+            >
+              {logoCropSaving ? "Saving..." : "Apply crop"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent showCloseButton={!deletePending}>

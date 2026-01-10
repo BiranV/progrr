@@ -1970,20 +1970,22 @@ function ClientDashboard({ user }: { user: any }) {
   };
 
   return (
-    <div className="px-8 pb-8 pt-24 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
+    <div className="px-8 pb-8 pt-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
       {coachLogoUrl || coachBusinessName ? (
         <div className="mb-6">
-          <div className="flex flex-col items-center justify-center gap-2 min-w-0 px-24 md:px-0 text-center">
+          <div
+            className="flex w-full flex-col items-center justify-center gap-2 min-w-0 px-24 md:px-0 text-center"
+          >
             {coachLogoUrl ? (
               <img
                 src={coachLogoUrl}
                 alt="Coach logo"
-                className={`h-14 w-14 object-contain shrink-0 ${coachLogoShape === "circle" ? "rounded-full" : "rounded-none"
+                className={`h-24 w-24 sm:h-28 sm:w-28 object-cover shrink-0 ${coachLogoShape === "circle" ? "rounded-full" : "rounded-none"
                   }`}
               />
             ) : null}
             {coachBusinessName ? (
-              <div className="min-w-0 truncate text-base font-semibold text-gray-900 dark:text-gray-100 text-center">
+              <div className="min-w-0 truncate text-lg font-semibold text-gray-900 dark:text-gray-100">
                 {coachBusinessName}
               </div>
             ) : null}
@@ -2590,6 +2592,34 @@ function ClientDashboard({ user }: { user: any }) {
                         </div>
                       </div>
 
+                      {String((appSettings?.[0] as any)?.webAddress ?? "").trim() ? (() => {
+                        const raw = String((appSettings?.[0] as any)?.webAddress ?? "").trim();
+                        const href = getLinkHref(raw);
+                        const Tile = (
+                          <>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Website</div>
+                            <div className="text-sm font-medium text-indigo-600 dark:text-indigo-400 truncate">
+                              {raw}
+                            </div>
+                          </>
+                        );
+
+                        return href ? (
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
+                          >
+                            {Tile}
+                          </a>
+                        ) : (
+                          <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            {Tile}
+                          </div>
+                        );
+                      })() : null}
+
                       {String((appSettings?.[0] as any)?.facebookUrl ?? "").trim() ? (
                         <a
                           href={String((appSettings?.[0] as any)?.facebookUrl)}
@@ -2621,6 +2651,23 @@ function ClientDashboard({ user }: { user: any }) {
                           </div>
                         </a>
                       ) : null}
+
+                      {String((appSettings?.[0] as any)?.tiktokUrl ?? "").trim() ? (
+                        <a
+                          href={String((appSettings?.[0] as any)?.tiktokUrl)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors"
+                        >
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            TikTok
+                          </div>
+                          <div className="text-sm font-medium text-indigo-600 dark:text-indigo-400 truncate">
+                            {String((appSettings?.[0] as any)?.tiktokUrl)}
+                          </div>
+                        </a>
+                      ) : null}
+
                     </CardContent>
                   </Card>
                 </div>
