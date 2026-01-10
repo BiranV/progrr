@@ -419,9 +419,16 @@ export default function WorkoutPlanDetailsDialog({
         goal,
       };
 
+      const optimisticPlan: any = {
+        ...(plan as any),
+        ...(payload as any),
+      };
+
       if (planId) {
         await db.entities.WorkoutPlan.update(planId, payload);
         nextPlanId = planId;
+
+        optimisticPlan.id = planId;
 
         const currentIds = planExercises
           .map((e) => String((e as any).id ?? "").trim())
@@ -435,6 +442,8 @@ export default function WorkoutPlanDetailsDialog({
       } else {
         const created = await db.entities.WorkoutPlan.create(payload);
         nextPlanId = String((created as any).id);
+
+        optimisticPlan.id = nextPlanId;
       }
 
       for (let i = 0; i < planExercises.length; i++) {
@@ -456,18 +465,48 @@ export default function WorkoutPlanDetailsDialog({
           await db.entities.PlanExercise.create(rowData);
         }
       }
+
+      return {
+        nextPlanId,
+        optimisticPlan,
+      };
     },
-    onSuccess: async () => {
-      queryClient.invalidateQueries({ queryKey: ["workoutPlans"] });
-      queryClient.invalidateQueries({ queryKey: ["workoutPlanExerciseCounts"] });
-      queryClient.invalidateQueries({ queryKey: ["planExercises"] });
-      queryClient.invalidateQueries({ queryKey: ["workoutPlan"] });
+    onSuccess: async (result: any) => {
+      const nextId = String(result?.nextPlanId ?? planId ?? "").trim();
+
+      if (nextId && result?.optimisticPlan) {
+        queryClient.setQueryData(["workoutPlan", nextId], result.optimisticPlan);
+
+        queryClient.setQueryData(["workoutPlans"], (old: any) => {
+          if (!Array.isArray(old)) return old;
+          return old.map((row: any) =>
+            String(row?.id ?? "") === nextId
+              ? { ...row, ...(result.optimisticPlan as any) }
+              : row
+          );
+        });
+      }
+
       toast.success(planId ? "Workout plan updated" : "Workout plan created");
 
       if (!planId) {
         onOpenChange(false);
-      } else {
-        setIsEditing(false);
+        return;
+      }
+
+      setIsEditing(false);
+
+      await queryClient.invalidateQueries({ queryKey: ["workoutPlans"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["workoutPlanExerciseCounts"],
+      });
+      await queryClient.invalidateQueries({ queryKey: ["planExercises"] });
+      await queryClient.invalidateQueries({ queryKey: ["workoutPlan"] });
+      if (nextId) {
+        await queryClient.invalidateQueries({ queryKey: ["workoutPlan", nextId] });
+        await queryClient.invalidateQueries({
+          queryKey: ["workoutPlanExercises", nextId],
+        });
       }
     },
     onError: (error: any) => {

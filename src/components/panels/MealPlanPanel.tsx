@@ -622,13 +622,22 @@ export default function MealPlanPanel({
         dailyVitaminB12: fmt(computedDailyTotals.vitaminB12, 2),
       };
 
+      const optimisticPlan: any = {
+        ...(plan as any),
+        ...(payload as any),
+      };
+
       let nextPlanId: string;
       if (planId) {
         await db.entities.MealPlan.update(planId, payload);
         nextPlanId = planId;
+
+        optimisticPlan.id = planId;
       } else {
         const newPlan = await db.entities.MealPlan.create(payload);
         nextPlanId = String((newPlan as any).id);
+
+        optimisticPlan.id = nextPlanId;
       }
 
       const existingMealIds = meals
@@ -707,19 +716,46 @@ export default function MealPlanPanel({
           }
         }
       }
+
+      return {
+        nextPlanId,
+        optimisticPlan,
+      };
     },
-    onSuccess: async () => {
-      queryClient.invalidateQueries({ queryKey: ["mealPlans"] });
-      queryClient.invalidateQueries({ queryKey: ["meals"] });
-      queryClient.invalidateQueries({ queryKey: ["foods"] });
-      queryClient.invalidateQueries({ queryKey: ["planFoods"] });
-      queryClient.invalidateQueries({ queryKey: ["mealPlan"] });
+    onSuccess: async (result: any) => {
+      const nextId = String(result?.nextPlanId ?? planId ?? "").trim();
+
+      if (nextId && result?.optimisticPlan) {
+        queryClient.setQueryData(["mealPlan", nextId], result.optimisticPlan);
+
+        queryClient.setQueryData(["mealPlans"], (old: any) => {
+          if (!Array.isArray(old)) return old;
+          return old.map((row: any) =>
+            String(row?.id ?? "") === nextId
+              ? { ...row, ...(result.optimisticPlan as any) }
+              : row
+          );
+        });
+      }
+
       toast.success(planId ? "Meal plan updated" : "Meal plan created");
 
       if (!planId) {
         onOpenChange(false);
-      } else {
-        setIsEditing(false);
+        return;
+      }
+
+      setIsEditing(false);
+
+      await queryClient.invalidateQueries({ queryKey: ["mealPlans"] });
+      await queryClient.invalidateQueries({ queryKey: ["meals"] });
+      await queryClient.invalidateQueries({ queryKey: ["foods"] });
+      await queryClient.invalidateQueries({ queryKey: ["planFoods"] });
+      await queryClient.invalidateQueries({ queryKey: ["mealPlan"] });
+      if (nextId) {
+        await queryClient.invalidateQueries({ queryKey: ["mealPlan", nextId] });
+        await queryClient.invalidateQueries({ queryKey: ["meals", nextId] });
+        await queryClient.invalidateQueries({ queryKey: ["meals", nextId, "details"] });
       }
     },
     onError: (error: any) => {

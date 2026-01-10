@@ -519,55 +519,61 @@ export default function PlansPage() {
           </div>
 
           {sortedArchived.length > 0 ? (
-            <div className="bg-white dark:bg-gray-800 rounded-lg border">
-              <div className="px-4 py-3 border-b bg-gray-50/60 dark:bg-gray-700/40">
-                <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                  Archived Workout Plans
-                </div>
-                <div className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">
-                  These plans are archived (usually because they were assigned to clients).
-                </div>
+            <div className="space-y-3 mt-8">
+              <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                Archived Workout Plans
               </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 dark:bg-gray-700">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-medium">Plan</th>
-                      <th className="px-4 py-3 text-left font-medium">Duration</th>
-                      <th className="px-4 py-3 text-left font-medium">Difficulty</th>
-                      <th className="px-4 py-3 text-left font-medium">Goal</th>
-                      <th className="px-4 py-3 text-left font-medium">Exercises</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedArchived.map((row) => (
-                      <tr
-                        key={row.id}
-                        className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer transition-colors"
-                        onClick={() => handleOpenDetails(row)}
-                      >
-                        <td className="px-4 py-3">
-                          <span className="font-medium">
-                            {String(row.name ?? "-")}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          {formatDurationWeeks(row.duration) || "-"}
-                        </td>
-                        <td className="px-4 py-3 capitalize">
-                          {String(row.difficulty ?? "").trim() || "-"}
-                        </td>
-                        <td className="px-4 py-3">
-                          {formatWorkoutGoalLabel(row.goal) || "-"}
-                        </td>
-                        <td className="px-4 py-3">
-                          {Number(row.exercisesCount ?? 0)}
-                        </td>
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-red-100 dark:border-red-900/30 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-red-50/50 dark:bg-red-900/10 border-b border-red-100 dark:border-red-900/30">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">
+                          Plan
+                        </th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">
+                          Duration
+                        </th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">
+                          Difficulty
+                        </th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">
+                          Goal
+                        </th>
+                        <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">
+                          Exercises
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {sortedArchived.map((row) => (
+                        <tr
+                          key={row.id}
+                          className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer transition-colors"
+                          onClick={() => handleOpenDetails(row)}
+                        >
+                          <td className="px-4 py-3">
+                            <span className="font-medium">
+                              {String(row.name ?? "-")}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {formatDurationWeeks(row.duration) || "-"}
+                          </td>
+                          <td className="px-4 py-3 capitalize">
+                            {String(row.difficulty ?? "").trim() || "-"}
+                          </td>
+                          <td className="px-4 py-3">
+                            {formatWorkoutGoalLabel(row.goal) || "-"}
+                          </td>
+                          <td className="px-4 py-3">
+                            {Number(row.exercisesCount ?? 0)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           ) : null}
