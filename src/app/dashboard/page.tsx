@@ -1970,7 +1970,7 @@ function ClientDashboard({ user }: { user: any }) {
   };
 
   return (
-    <div className="p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
+    <div className="px-8 pb-8 pt-24 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
       {coachLogoUrl || coachBusinessName ? (
         <div className="mb-6">
           <div className="flex flex-col items-center justify-center gap-2 min-w-0 px-24 md:px-0 text-center">

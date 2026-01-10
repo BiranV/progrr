@@ -22,6 +22,7 @@ import {
   FileText,
   Flame,
   Plus,
+  RotateCcw,
   Trash2,
   Wheat,
   X,
@@ -83,6 +84,24 @@ export default function MealPlanPanel({
       return (await db.entities.MealPlan.get(planId)) as MealPlan;
     },
     enabled: open && Boolean(planId),
+  });
+
+  const unarchiveMutation = useMutation({
+    mutationFn: async () => {
+      if (!planId) return null;
+      return db.entities.MealPlan.update(planId, {
+        status: "ACTIVE",
+      } as any);
+    },
+    onSuccess: () => {
+      setDeleteInfoMessage(null);
+      queryClient.invalidateQueries({ queryKey: ["mealPlans"] });
+      queryClient.invalidateQueries({ queryKey: ["mealPlan", planId] });
+      toast.success("Meal plan restored to active");
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to restore meal plan");
+    },
   });
 
   const { data: foodLibraryData } = useQuery({
@@ -844,8 +863,16 @@ export default function MealPlanPanel({
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-xl font-semibold text-gray-900 dark:text-white truncate">
-              {String(plan.name ?? "-")}
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="text-xl font-semibold text-gray-900 dark:text-white truncate">
+                {String(plan.name ?? "-")}
+              </div>
+              {String((plan as any)?.status ?? "").trim().toUpperCase() ===
+                "ARCHIVED" ? (
+                <span className="shrink-0 text-[11px] px-2 py-0.5 rounded border border-amber-200 bg-amber-50 text-amber-800 dark:bg-amber-900/10 dark:border-amber-800 dark:text-amber-200">
+                  Archived
+                </span>
+              ) : null}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               Total values
@@ -895,6 +922,19 @@ export default function MealPlanPanel({
             >
               <CopyIcon className="w-4 h-4" />
             </Button>
+
+            {String((plan as any)?.status ?? "").trim().toUpperCase() ===
+              "ARCHIVED" && !isEditing ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={unarchiveMutation.isPending}
+                onClick={() => unarchiveMutation.mutate()}
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                {unarchiveMutation.isPending ? "Restoring..." : "Return to active"}
+              </Button>
+            ) : null}
 
             <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
               <Edit2 className="w-4 h-4 mr-2" />

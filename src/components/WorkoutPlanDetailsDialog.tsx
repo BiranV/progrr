@@ -34,6 +34,25 @@ import { Exercise, ExerciseLibrary, PlanExercise, WorkoutPlan } from "@/types";
 import { extractYouTubeVideoId, toYouTubeEmbedUrl } from "@/lib/youtube";
 
 const DIFFICULTY_VALUES = ["beginner", "intermediate", "advanced"] as const;
+const CUSTOM_VALUE = "__custom__";
+
+const WORKOUT_GOAL_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "fat_loss", label: "Fat Loss" },
+  { value: "muscle_gain", label: "Muscle Gain" },
+  { value: "strength", label: "Strength" },
+  { value: "hypertrophy", label: "Hypertrophy" },
+  { value: "endurance", label: "Endurance" },
+  { value: "conditioning", label: "Conditioning" },
+  { value: "athletic_performance", label: "Athletic Performance" },
+  { value: "mobility", label: "Mobility" },
+  { value: "flexibility", label: "Flexibility" },
+  { value: "rehab", label: "Rehab / Injury Prevention" },
+  { value: "general_fitness", label: "General Fitness" },
+  { value: "beginner_foundation", label: "Beginner Foundation" },
+  { value: "powerlifting", label: "Powerlifting" },
+  { value: "weightlifting", label: "Olympic Weightlifting" },
+  { value: "cross_training", label: "Cross Training" },
+];
 
 function normalizeDifficulty(
   value: unknown
@@ -72,6 +91,13 @@ export default function WorkoutPlanDetailsDialog({
   );
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
 
+  const [difficultyMode, setDifficultyMode] = React.useState<
+    "select" | "custom"
+  >("select");
+  const [goalMode, setGoalMode] = React.useState<"select" | "custom">(
+    "select"
+  );
+
   const planExercisesHydrationRef = React.useRef<{
     planId: string | null;
     applied: boolean;
@@ -101,13 +127,26 @@ export default function WorkoutPlanDetailsDialog({
   const resetForm = (current: WorkoutPlan | null) => {
     setValidationError(null);
     if (current) {
+      const rawDifficulty = String((current as any)?.difficulty ?? "").trim();
+      const normalizedDifficulty = normalizeDifficulty(rawDifficulty);
+      const difficultyValue = normalizedDifficulty || rawDifficulty;
+
+      const rawGoal = String((current as any)?.goal ?? "").trim();
+      const goalMatch = WORKOUT_GOAL_OPTIONS.find(
+        (g) => String(g.value).toLowerCase() === rawGoal.toLowerCase()
+      );
+      const goalValue = goalMatch ? goalMatch.value : rawGoal;
+
       setFormData({
         name: current.name || "",
-        difficulty: normalizeDifficulty(current.difficulty) || "",
+        difficulty: difficultyValue,
         duration: current.duration || "",
-        goal: current.goal || "",
+        goal: goalValue,
         notes: current.notes || "",
       });
+
+      setDifficultyMode(difficultyValue && !normalizedDifficulty ? "custom" : "select");
+      setGoalMode(goalValue && !goalMatch ? "custom" : "select");
     } else {
       setFormData({
         name: "",
@@ -116,6 +155,9 @@ export default function WorkoutPlanDetailsDialog({
         goal: "",
         notes: "",
       });
+
+      setDifficultyMode("select");
+      setGoalMode("select");
     }
   };
 
@@ -330,7 +372,11 @@ export default function WorkoutPlanDetailsDialog({
       const name = String(formData.name ?? "").trim();
       if (!name) throw new Error("Plan name is required");
 
-      const difficulty = normalizeDifficulty((formData as any).difficulty);
+      const rawDifficulty = String((formData as any).difficulty ?? "").trim();
+      const difficulty =
+        difficultyMode === "custom"
+          ? rawDifficulty
+          : normalizeDifficulty(rawDifficulty);
       if (!difficulty) throw new Error("Difficulty is required");
 
       const duration = String(formData.duration ?? "").trim();
@@ -450,10 +496,19 @@ export default function WorkoutPlanDetailsDialog({
     saveMutation.mutate();
   };
 
-  const difficultySelectValue =
-    normalizeDifficulty((formData as any).difficulty) ||
-    normalizeDifficulty((plan as any)?.difficulty) ||
-    "";
+  const difficultySelectValue = React.useMemo(() => {
+    if (difficultyMode === "custom") return CUSTOM_VALUE;
+    return normalizeDifficulty((formData as any).difficulty) || "";
+  }, [difficultyMode, formData]);
+
+  const goalSelectValue = React.useMemo(() => {
+    if (goalMode === "custom") return CUSTOM_VALUE;
+    const raw = String((formData as any).goal ?? "").trim();
+    const match = WORKOUT_GOAL_OPTIONS.find(
+      (g) => String(g.value).toLowerCase() === raw.toLowerCase()
+    );
+    return match ? match.value : "";
+  }, [goalMode, formData]);
 
   const addExercise = () => {
     setPlanExercises([
@@ -526,20 +581,35 @@ export default function WorkoutPlanDetailsDialog({
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="md:flex-[2]">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Difficulty *
               </label>
               <Select
                 value={difficultySelectValue}
-                onValueChange={(value) => (
-                  validationError && setValidationError(null),
+                onValueChange={(value) => {
+                  if (validationError) setValidationError(null);
+
+                  if (value === CUSTOM_VALUE) {
+                    setDifficultyMode("custom");
+                    setFormData((prev) => {
+                      const prevRaw = String((prev as any).difficulty ?? "").trim();
+                      const prevNormalized = normalizeDifficulty(prevRaw);
+                      return {
+                        ...prev,
+                        difficulty: prevNormalized ? "" : prevRaw,
+                      };
+                    });
+                    return;
+                  }
+
+                  setDifficultyMode("select");
                   setFormData({
                     ...formData,
-                    difficulty: normalizeDifficulty(value) || "",
-                  })
-                )}
+                    difficulty: normalizeDifficulty(value) || value,
+                  });
+                }}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select difficulty" />
@@ -548,13 +618,26 @@ export default function WorkoutPlanDetailsDialog({
                   <SelectItem value="beginner">Beginner</SelectItem>
                   <SelectItem value="intermediate">Intermediate</SelectItem>
                   <SelectItem value="advanced">Advanced</SelectItem>
+                  <SelectItem value={CUSTOM_VALUE}>Custom…</SelectItem>
                 </SelectContent>
               </Select>
+
+              {difficultyMode === "custom" ? (
+                <Input
+                  className="mt-2"
+                  value={String((formData as any).difficulty ?? "")}
+                  onChange={(e) => (
+                    validationError && setValidationError(null),
+                    setFormData({ ...formData, difficulty: e.target.value })
+                  )}
+                  placeholder="Custom difficulty"
+                />
+              ) : null}
             </div>
 
-            <div>
+            <div className="md:flex-1">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Duration *
+                Duration (weeks) *
               </label>
               <Input
                 value={String(formData.duration ?? "")}
@@ -562,23 +645,60 @@ export default function WorkoutPlanDetailsDialog({
                   validationError && setValidationError(null),
                   setFormData({ ...formData, duration: e.target.value })
                 )}
-                placeholder="e.g., 8 weeks"
+                placeholder="e.g., 8"
               />
             </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Goal *
-            </label>
-            <Input
-              value={String(formData.goal ?? "")}
-              onChange={(e) => (
-                validationError && setValidationError(null),
-                setFormData({ ...formData, goal: e.target.value })
-              )}
-              placeholder="e.g., Build muscle, Lose fat"
-            />
+            <div className="md:flex-[2]">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Goal *
+              </label>
+              <Select
+                value={goalSelectValue}
+                onValueChange={(value) => {
+                  if (validationError) setValidationError(null);
+
+                  if (value === CUSTOM_VALUE) {
+                    setGoalMode("custom");
+                    setFormData((prev) => {
+                      const prevRaw = String((prev as any).goal ?? "").trim();
+                      const prevMatch = WORKOUT_GOAL_OPTIONS.find(
+                        (g) => String(g.value).toLowerCase() === prevRaw.toLowerCase()
+                      );
+                      return { ...prev, goal: prevMatch ? "" : prevRaw };
+                    });
+                    return;
+                  }
+
+                  setGoalMode("select");
+                  setFormData({ ...formData, goal: value });
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select goal" />
+                </SelectTrigger>
+                <SelectContent>
+                  {WORKOUT_GOAL_OPTIONS.map((g) => (
+                    <SelectItem key={g.value} value={g.value}>
+                      {g.label}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={CUSTOM_VALUE}>Custom…</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {goalMode === "custom" ? (
+                <Input
+                  className="mt-2"
+                  value={String((formData as any).goal ?? "")}
+                  onChange={(e) => (
+                    validationError && setValidationError(null),
+                    setFormData({ ...formData, goal: e.target.value })
+                  )}
+                  placeholder="Custom goal"
+                />
+              ) : null}
+            </div>
           </div>
 
           <div>
@@ -722,7 +842,19 @@ export default function WorkoutPlanDetailsDialog({
               {plan.duration ? (
                 <span> · {formatDurationWeeks(plan.duration)}</span>
               ) : null}
-              {plan.goal ? <span> · {plan.goal}</span> : null}
+              {plan.goal ? (
+                <span>
+                  {" "}
+                  ·{" "}
+                  {(() => {
+                    const raw = String(plan.goal ?? "").trim();
+                    const match = WORKOUT_GOAL_OPTIONS.find(
+                      (g) => String(g.value).toLowerCase() === raw.toLowerCase()
+                    );
+                    return match ? match.label : raw;
+                  })()}
+                </span>
+              ) : null}
             </div>
           </div>
 

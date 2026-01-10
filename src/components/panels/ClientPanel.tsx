@@ -490,6 +490,21 @@ export default function ClientPanel({
     queryFn: () => db.entities.MealPlan.list(),
   });
 
+  const mealPlansById = React.useMemo(() => {
+    const map = new Map<string, any>();
+    for (const plan of mealPlans as any[]) {
+      map.set(String((plan as any)?.id), plan);
+    }
+    return map;
+  }, [mealPlans]);
+
+  const activeMealPlans = React.useMemo(() => {
+    return (mealPlans as any[]).filter((plan: any) => {
+      const status = String(plan?.status ?? "ACTIVE").trim().toUpperCase();
+      return status !== "ARCHIVED" && status !== "DELETED";
+    });
+  }, [mealPlans]);
+
   // Form State
   const [formData, setFormData] = React.useState<any>({});
   const [goalMode, setGoalMode] = React.useState<"select" | "custom">(
@@ -1523,26 +1538,85 @@ export default function ClientPanel({
               </PopoverTrigger>
               <PopoverContent align="start" className="w-64 p-2">
                 <div className="max-h-60 overflow-y-auto space-y-1">
-                  {mealPlans.map((plan: any) => (
-                    <label
-                      key={plan.id}
-                      className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded cursor-pointer"
-                    >
-                      <Checkbox
-                        checked={formData.assignedMealPlanIds?.includes(
-                          String(plan.id)
-                        )}
-                        onCheckedChange={() =>
-                          toggleAssignedId(
-                            "assignedMealPlanIds",
-                            String(plan.id)
-                          )
-                        }
-                      />
-                      <span className="text-sm">{plan.name}</span>
-                    </label>
-                  ))}
-                  {mealPlans.length === 0 && (
+                  {(() => {
+                    const assignedIds: string[] = Array.isArray(
+                      formData.assignedMealPlanIds
+                    )
+                      ? (formData.assignedMealPlanIds as string[])
+                      : [];
+
+                    const archivedAssigned = assignedIds
+                      .map((id) => ({ id, plan: mealPlansById.get(String(id)) }))
+                      .filter(({ plan }) => {
+                        const status = String(plan?.status ?? "").trim().toUpperCase();
+                        return status === "ARCHIVED";
+                      });
+
+                    return (
+                      <>
+                        {archivedAssigned.length > 0 ? (
+                          <div className="p-2 rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800">
+                            <div className="text-xs font-medium text-amber-900 dark:text-amber-100">
+                              Archived meal plans (already assigned)
+                            </div>
+                            <div className="mt-1 space-y-1">
+                              {archivedAssigned.map(({ id, plan }) => (
+                                <div
+                                  key={id}
+                                  className="flex items-center justify-between gap-2 rounded px-2 py-1 bg-white/60 dark:bg-black/20"
+                                >
+                                  <div className="min-w-0">
+                                    <div className="text-xs font-medium text-amber-900 dark:text-amber-100 truncate">
+                                      {String(plan?.name ?? "(Unknown plan)")}
+                                    </div>
+                                    <div className="text-[11px] text-amber-800 dark:text-amber-200 truncate">
+                                      Cannot be assigned while archived
+                                    </div>
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 px-2 text-rose-700 hover:text-rose-800 dark:text-rose-300 dark:hover:text-rose-200"
+                                    onClick={() =>
+                                      toggleAssignedId(
+                                        "assignedMealPlanIds",
+                                        String(id)
+                                      )
+                                    }
+                                  >
+                                    Remove
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {activeMealPlans.map((plan: any) => (
+                          <label
+                            key={plan.id}
+                            className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded cursor-pointer"
+                          >
+                            <Checkbox
+                              checked={formData.assignedMealPlanIds?.includes(
+                                String(plan.id)
+                              )}
+                              onCheckedChange={() =>
+                                toggleAssignedId(
+                                  "assignedMealPlanIds",
+                                  String(plan.id)
+                                )
+                              }
+                            />
+                            <span className="text-sm">{plan.name}</span>
+                          </label>
+                        ))}
+                      </>
+                    );
+                  })()}
+
+                  {activeMealPlans.length === 0 && (
                     <div className="text-sm text-gray-500 p-2">
                       No plans available
                     </div>
