@@ -172,7 +172,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     // even if they type the URL manually.
     const adminOnlyPrefixes = [
       "/clients",
-      "/plans",
+      "/workouts",
       "/exercises",
       "/foods",
       "/meals",
@@ -202,7 +202,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
       { name: "Clients", icon: Users, href: "/clients" },
       { name: "Exercises", icon: Dumbbell, href: "/exercises" },
-      { name: "Workout Plans", icon: ClipboardList, href: "/plans" },
+      { name: "Workout Plans", icon: ClipboardList, href: "/workouts" },
       { name: "Foods", icon: Apple, href: "/foods" },
       { name: "Meal Plans", icon: UtensilsCrossed, href: "/meals" },
       { name: "Meetings", icon: Calendar, href: "/meetings" },

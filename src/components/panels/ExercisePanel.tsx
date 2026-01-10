@@ -3,7 +3,6 @@
 import React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/lib/db";
-import SidePanel from "@/components/ui/side-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,6 +31,10 @@ import {
   downloadPdfFile,
   downloadTextFile,
 } from "@/lib/plan-export";
+import {
+  GenericDetailsPanel,
+  useGenericDetailsPanel,
+} from "@/components/ui/entity/GenericDetailsPanel";
 
 type VideoKind = "upload" | "youtube" | null;
 
@@ -40,15 +43,22 @@ interface ExercisePanelProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onExerciseUpdate?: () => void;
+  createNew?: boolean;
 }
 
-export default function ExercisePanel({
+export function ExerciseDetailsContent({
   exercise,
-  open,
-  onOpenChange,
   onExerciseUpdate,
-}: ExercisePanelProps) {
+  createNew,
+}: {
+  exercise: any | null;
+  onExerciseUpdate?: () => void;
+  createNew?: boolean;
+}) {
   const queryClient = useQueryClient();
+
+  const panel = useGenericDetailsPanel();
+  const open = panel.open;
 
   const exerciseId = String(exercise?.id ?? "").trim();
 
@@ -191,9 +201,15 @@ export default function ExercisePanel({
       return;
     }
 
+    if (createNew) {
+      setIsEditing(true);
+      resetForm(null);
+      return;
+    }
+
     setIsEditing(false);
     resetForm(exercise);
-  }, [open, exerciseId]);
+  }, [open, exerciseId, createNew]);
 
   const unarchiveMutation = useMutation({
     mutationFn: async () => {
@@ -358,7 +374,7 @@ export default function ExercisePanel({
       onExerciseUpdate?.();
       toast.success(exercise ? "Exercise updated" : "Exercise created");
       if (!exercise) {
-        onOpenChange(false);
+        panel.close();
       } else {
         setIsEditing(false);
       }
@@ -405,7 +421,7 @@ export default function ExercisePanel({
 
       toast.success("Exercise deleted");
       setShowDeleteConfirm(false);
-      onOpenChange(false);
+      panel.close();
     },
     onError: (err: any) => {
       toast.error(String(err?.message ?? "Failed to delete"));
@@ -1049,43 +1065,47 @@ export default function ExercisePanel({
     );
   };
 
+  React.useEffect(() => {
+    if (!open) return;
+
+    panel.setTitle(
+      isEditing ? (exercise ? "Edit Exercise" : "New Exercise") : "Exercise Details"
+    );
+    panel.setDescription(
+      isEditing
+        ? exercise
+          ? "Update exercise"
+          : "Add a new exercise to your library"
+        : `View details for ${String(exercise?.name ?? "Exercise")}`
+    );
+
+    panel.setFooter(
+      isEditing ? (
+        <div className="flex gap-3 justify-end">
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() => (exercise ? setIsEditing(false) : panel.close())}
+            disabled={saveMutation.isPending}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" form="exercise-form" disabled={saveMutation.isPending}>
+            {saveMutation.isPending
+              ? "Saving..."
+              : exercise
+                ? "Save Changes"
+                : "Create Exercise"}
+          </Button>
+        </div>
+      ) : (
+        <div className="flex justify-start" />
+      )
+    );
+  }, [open, panel, isEditing, exercise, saveMutation.isPending]);
+
   return (
-    <SidePanel
-      open={open}
-      onOpenChange={onOpenChange}
-      title={isEditing ? (exercise ? "Edit Exercise" : "New Exercise") : "Exercise Details"}
-      description={
-        isEditing
-          ? exercise
-            ? "Update exercise"
-            : "Add a new exercise to your library"
-          : `View details for ${String(exercise?.name ?? "Exercise")}`
-      }
-      widthClassName="w-full sm:w-[520px] lg:w-[720px]"
-      footer={
-        isEditing ? (
-          <div className="flex gap-3 justify-end">
-            <Button
-              variant="outline"
-              type="button"
-              onClick={() => (exercise ? setIsEditing(false) : onOpenChange(false))}
-              disabled={saveMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" form="exercise-form" disabled={saveMutation.isPending}>
-              {saveMutation.isPending
-                ? "Saving..."
-                : exercise
-                  ? "Save Changes"
-                  : "Create Exercise"}
-            </Button>
-          </div>
-        ) : (
-          <div className="flex justify-start" />
-        )
-      }
-    >
+    <>
       {deleteInfoMessage ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800 px-3 py-2 mb-4">
           <div className="text-sm font-medium text-amber-900 dark:text-amber-100">
@@ -1106,6 +1126,29 @@ export default function ExercisePanel({
       ) : (
         renderViewMode()
       )}
-    </SidePanel>
+    </>
+  );
+}
+
+export default function ExercisePanel({
+  exercise,
+  open,
+  onOpenChange,
+  onExerciseUpdate,
+  createNew,
+}: ExercisePanelProps) {
+  return (
+    <GenericDetailsPanel
+      open={open}
+      onOpenChange={onOpenChange}
+      defaultTitle="Exercise Details"
+      widthClassName="w-full sm:w-[520px] lg:w-[720px]"
+    >
+      <ExerciseDetailsContent
+        exercise={exercise}
+        createNew={createNew}
+        onExerciseUpdate={onExerciseUpdate}
+      />
+    </GenericDetailsPanel>
   );
 }

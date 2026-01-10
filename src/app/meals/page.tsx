@@ -1,21 +1,17 @@
 ﻿"use client";
 
 import React from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { UtensilsCrossed } from "lucide-react";
 import { db } from "@/lib/db";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { ArrowUpDown, Plus, Search, UtensilsCrossed } from "lucide-react";
-import MealPlanPanel from "@/components/panels/MealPlanPanel";
+import { MealDetailsContent } from "@/components/panels/MealPlanPanel";
 import { getCookie, setCookie } from "@/lib/client-cookies";
+import { type DataTableColumn } from "@/components/ui/table/DataTable";
+import { EntityPageLayout } from "@/components/ui/entity/EntityPageLayout";
+import { EntityToolbar } from "@/components/ui/entity/EntityToolbar";
+import { EntityTableSection } from "@/components/ui/entity/EntityTableSection";
+import { GenericDetailsPanel } from "@/components/ui/entity/GenericDetailsPanel";
+import { useEntityTableState } from "@/hooks/useEntityTableState";
 
 type MealPlanRow = {
   id: string;
@@ -29,6 +25,8 @@ type MealPlanRow = {
 };
 
 export default function MealsPage() {
+  const queryClient = useQueryClient();
+
   const [search, setSearch] = React.useState("");
 
   // Unified Details/Create/Edit Panel State (mirror of CLIENTS)
@@ -49,12 +47,6 @@ export default function MealsPage() {
     return 10;
   });
 
-  const [page, setPage] = React.useState(1);
-  const [sortConfig, setSortConfig] = React.useState<{
-    key: keyof MealPlanRow;
-    direction: "asc" | "desc";
-  } | null>(null);
-
   React.useEffect(() => {
     setCookie("progrr_meal_plans_rows_per_page", String(pageSize), {
       maxAgeSeconds: 60 * 60 * 24 * 365,
@@ -66,87 +58,70 @@ export default function MealsPage() {
     queryFn: () => db.entities.MealPlan.list("-created_date"),
   });
 
-  const normalizeMealPlanStatus = React.useCallback((value: unknown) => {
-    const raw = String(value ?? "").trim().toUpperCase();
-    if (raw === "ARCHIVED") return "ARCHIVED";
-    if (raw === "DELETED") return "DELETED";
-    if (raw === "ACTIVE") return "ACTIVE";
-    // Back-compat: if missing/unknown, treat as ACTIVE.
-    return "ACTIVE";
-  }, []);
-
-  const filteredAll = (mealPlans as MealPlanRow[]).filter((p) =>
+  const filteredMealPlans = (mealPlans as MealPlanRow[]).filter((p) =>
     String(p?.name ?? "")
       .toLowerCase()
       .includes(search.toLowerCase())
   );
 
-  const activePlans = React.useMemo(() => {
-    return filteredAll.filter(
-      (p) => normalizeMealPlanStatus((p as any)?.status) !== "ARCHIVED"
-    );
-  }, [filteredAll, normalizeMealPlanStatus]);
+  const table = useEntityTableState<MealPlanRow, "status">({
+    rows: filteredMealPlans,
+    statusKey: "status",
+    pageSize,
+  });
 
-  const archivedPlans = React.useMemo(() => {
-    return filteredAll.filter(
-      (p) => normalizeMealPlanStatus((p as any)?.status) === "ARCHIVED"
-    );
-  }, [filteredAll, normalizeMealPlanStatus]);
+  const columns = React.useMemo(() => {
+    const cols: Array<DataTableColumn<MealPlanRow>> = [
+      {
+        key: "name",
+        header: "Meal Plan",
+        sortable: true,
+        renderCell: (plan) => (
+          <span className="font-medium">{String(plan.name ?? "-")}</span>
+        ),
+      },
+      {
+        key: "dailyCalories",
+        header: "Calories",
+        sortable: true,
+        renderCell: (plan) => (
+          <>{String(plan.dailyCalories ?? "").trim() || "-"} kcal</>
+        ),
+      },
+      {
+        key: "dailyProtein",
+        header: "Protein",
+        sortable: true,
+        renderCell: (plan) => (
+          <>{String(plan.dailyProtein ?? "").trim() || "-"} g</>
+        ),
+      },
+      {
+        key: "dailyCarbs",
+        header: "Carbs",
+        sortable: true,
+        renderCell: (plan) => (
+          <>{String(plan.dailyCarbs ?? "").trim() || "-"} g</>
+        ),
+      },
+      {
+        key: "dailyFat",
+        header: "Fat",
+        sortable: true,
+        renderCell: (plan) => (
+          <>{String(plan.dailyFat ?? "").trim() || "-"} g</>
+        ),
+      },
+      {
+        key: "goal",
+        header: "Goal",
+        sortable: true,
+        renderCell: (plan) => String(plan.goal ?? "").trim() || "-",
+      },
+    ];
 
-  const sortPlans = React.useCallback(
-    (rows: MealPlanRow[]) => {
-      if (!sortConfig) return rows;
-
-      const collator = new Intl.Collator(["he", "en"], {
-        sensitivity: "base",
-        numeric: true,
-      });
-
-      return [...rows].sort((a, b) => {
-        const direction = sortConfig.direction === "asc" ? 1 : -1;
-
-        const aRaw =
-          sortConfig.key === "name" ? a.name : (a as any)[sortConfig.key];
-        const bRaw =
-          sortConfig.key === "name" ? b.name : (b as any)[sortConfig.key];
-
-        const aValue = String(aRaw ?? "").trim();
-        const bValue = String(bRaw ?? "").trim();
-
-        const aEmpty = aValue.length === 0;
-        const bEmpty = bValue.length === 0;
-        if (aEmpty && !bEmpty) return 1;
-        if (!aEmpty && bEmpty) return -1;
-
-        const cmp = collator.compare(aValue, bValue);
-        if (cmp !== 0) return cmp * direction;
-        return String(a.id ?? "").localeCompare(String(b.id ?? ""));
-      });
-    },
-    [sortConfig]
-  );
-
-  const sortedActive = React.useMemo(
-    () => sortPlans(activePlans),
-    [activePlans, sortPlans]
-  );
-
-  const sortedArchived = React.useMemo(
-    () => sortPlans(archivedPlans),
-    [archivedPlans, sortPlans]
-  );
-
-  const handleSort = (key: keyof MealPlanRow) => {
-    setSortConfig((current) => {
-      if (current?.key === key) {
-        return {
-          key,
-          direction: current.direction === "asc" ? "desc" : "asc",
-        };
-      }
-      return { key, direction: "asc" };
-    });
-  };
+    return cols;
+  }, []);
 
   const handleOpenDetails = (plan: MealPlanRow) => {
     setDetailsPlanId(plan.id);
@@ -165,296 +140,101 @@ export default function MealsPage() {
     setDetailsOpen(true);
   };
 
-  React.useEffect(() => {
-    setPage(1);
-  }, [search, sortConfig?.key, sortConfig?.direction, pageSize]);
-
-  const paginate = React.useCallback(
-    (rows: MealPlanRow[], currentPage: number) => {
-      const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
-      const safePage = Math.min(Math.max(1, currentPage), totalPages);
-      const start = (safePage - 1) * pageSize;
-      const pagedRows = rows.slice(start, start + pageSize);
-      return {
-        pagedRows,
-        totalPages,
-        page: safePage,
-        totalCount: rows.length,
-      };
-    },
-    [pageSize]
-  );
-
-  const paging = React.useMemo(
-    () => paginate(sortedActive, page),
-    [paginate, sortedActive, page]
-  );
-
   return (
-    <div className="p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">Meal Plans</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Create and manage nutrition programs
-          </p>
-        </div>
+    <EntityPageLayout
+      title="Meal Plans"
+      subtitle="Create and manage nutrition programs"
+      primaryAction={{ label: "Add Meal Plan", onClick: handleCreatePlan }}
+    >
+      <EntityToolbar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search meal plans"
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
+        pageSizeOptions={PAGE_SIZE_OPTIONS}
+      />
 
-        <Button
-          onClick={handleCreatePlan}
-          className="min-w-[120px] bg-indigo-600 hover:bg-indigo-700 text-white"
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          Meal Plan
-        </Button>
-      </div>
-
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-end gap-3">
-        <div className="max-w-md relative w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search meal plans"
-            className="pl-10"
-          />
-        </div>
-
-        <div className="w-[180px]">
-          <Select
-            value={String(pageSize)}
-            onValueChange={(v) => {
-              const next = Number(v);
-              if (!Number.isFinite(next)) return;
-              setPageSize(next);
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Rows per page" />
-            </SelectTrigger>
-            <SelectContent>
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <SelectItem key={n} value={String(n)}>
-                  {n} rows
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
+      {/* Content */}
       {isLoading ? (
-        <div className="py-12 text-center text-gray-500">Loading</div>
-      ) : sortedActive.length === 0 && sortedArchived.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <UtensilsCrossed className="w-12 h-12 text-indigo-500 dark:text-indigo-400 mx-auto mb-4" />
-            <p className="text-gray-500 dark:text-gray-400">
-              {search
-                ? "No meal plans found"
-                : "No meal plans yet. Create your first one!"}
-            </p>
-          </CardContent>
-        </Card>
+        <div className="py-12 text-center text-gray-500">Loading…</div>
       ) : (
-        <div className="space-y-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg border">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 dark:bg-gray-700">
-                  <tr>
-                    <th
-                      className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                      onClick={() => handleSort("name")}
-                    >
-                      <div className="flex items-center gap-2">
-                        Plan
-                        <ArrowUpDown className="w-4 h-4" />
-                      </div>
-                    </th>
-                    <th
-                      className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                      onClick={() => handleSort("dailyCalories")}
-                    >
-                      <div className="flex items-center gap-2">
-                        Calories
-                        <ArrowUpDown className="w-4 h-4" />
-                      </div>
-                    </th>
-                    <th
-                      className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                      onClick={() => handleSort("dailyProtein")}
-                    >
-                      <div className="flex items-center gap-2">
-                        Protein
-                        <ArrowUpDown className="w-4 h-4" />
-                      </div>
-                    </th>
-                    <th
-                      className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                      onClick={() => handleSort("dailyCarbs")}
-                    >
-                      <div className="flex items-center gap-2">
-                        Carbs
-                        <ArrowUpDown className="w-4 h-4" />
-                      </div>
-                    </th>
-                    <th
-                      className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                      onClick={() => handleSort("dailyFat")}
-                    >
-                      <div className="flex items-center gap-2">
-                        Fat
-                        <ArrowUpDown className="w-4 h-4" />
-                      </div>
-                    </th>
-                    <th
-                      className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                      onClick={() => handleSort("goal")}
-                    >
-                      <div className="flex items-center gap-2">
-                        Goal
-                        <ArrowUpDown className="w-4 h-4" />
-                      </div>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paging.pagedRows.map((plan) => (
-                    <tr
-                      key={plan.id}
-                      className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer transition-colors"
-                      onClick={() => handleOpenDetails(plan)}
-                    >
-                      <td className="px-4 py-3">
-                        <span className="font-medium">
-                          {String(plan.name ?? "-")}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {String(plan.dailyCalories ?? "").trim() || "-"} kcal
-                      </td>
-                      <td className="px-4 py-3">
-                        {String(plan.dailyProtein ?? "").trim() || "-"} g
-                      </td>
-                      <td className="px-4 py-3">
-                        {String(plan.dailyCarbs ?? "").trim() || "-"} g
-                      </td>
-                      <td className="px-4 py-3">
-                        {String(plan.dailyFat ?? "").trim() || "-"} g
-                      </td>
-                      <td className="px-4 py-3">
-                        {String(plan.goal ?? "").trim() || "-"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+        <div className="space-y-8">
+          <EntityTableSection
+            totalCount={table.active.rows.length}
+            rows={table.active.paging.pagedRows}
+            columns={columns}
+            getRowId={(r) => String((r as any)?.id)}
+            onRowClick={(r) => handleOpenDetails(r)}
+            sortConfig={table.sortConfig}
+            onSort={table.onSort}
+            pagination={{
+              page: table.active.paging.page,
+              totalPages: table.active.paging.totalPages,
+              onPageChange: table.active.setPage,
+            }}
+            emptyState={{
+              icon: UtensilsCrossed,
+              title:
+                table.visibleRows.length === 0
+                  ? search
+                    ? "No meal plans found"
+                    : "No meal plans yet"
+                  : search
+                    ? "No active meal plans match your search"
+                    : "No active meal plans",
+              description:
+                table.visibleRows.length === 0
+                  ? search
+                    ? "Try searching for a different meal plan."
+                    : "Create your first one."
+                  : undefined,
+            }}
+          />
 
-            <div className="flex items-center justify-between gap-3 px-4 py-3 border-t bg-gray-50/60 dark:bg-gray-700/40">
-              <div className="text-xs text-gray-600 dark:text-gray-300">
-                Page {paging.page} of {paging.totalPages}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={paging.page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                  Previous
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={paging.page >= paging.totalPages}
-                  onClick={() =>
-                    setPage((p) => Math.min(paging.totalPages, p + 1))
-                  }
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {sortedArchived.length > 0 ? (
-            <div className="space-y-3 mt-8">
-              <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                Archived Meal Plans
-              </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-red-100 dark:border-red-900/30 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-red-50/50 dark:bg-red-900/10 border-b border-red-100 dark:border-red-900/30">
-                      <tr>
-                        <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">
-                          Plan
-                        </th>
-                        <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">
-                          Calories
-                        </th>
-                        <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">
-                          Protein
-                        </th>
-                        <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">
-                          Carbs
-                        </th>
-                        <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">
-                          Fat
-                        </th>
-                        <th className="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">
-                          Goal
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sortedArchived.map((plan) => (
-                        <tr
-                          key={plan.id}
-                          className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer transition-colors"
-                          onClick={() => handleOpenDetails(plan)}
-                        >
-                          <td className="px-4 py-3">
-                            <span className="font-medium">
-                              {String(plan.name ?? "-")}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            {String(plan.dailyCalories ?? "").trim() || "-"} kcal
-                          </td>
-                          <td className="px-4 py-3">
-                            {String(plan.dailyProtein ?? "").trim() || "-"} g
-                          </td>
-                          <td className="px-4 py-3">
-                            {String(plan.dailyCarbs ?? "").trim() || "-"} g
-                          </td>
-                          <td className="px-4 py-3">
-                            {String(plan.dailyFat ?? "").trim() || "-"} g
-                          </td>
-                          <td className="px-4 py-3">
-                            {String(plan.goal ?? "").trim() || "-"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
+          {table.archived.rows.length ? (
+            <EntityTableSection
+              title="Archived Meal Plans"
+              variant="archived"
+              totalCount={table.archived.rows.length}
+              rows={table.archived.paging.pagedRows}
+              columns={columns}
+              getRowId={(r) => String((r as any)?.id)}
+              onRowClick={(r) => handleOpenDetails(r)}
+              sortConfig={table.sortConfig}
+              onSort={table.onSort}
+              pagination={{
+                page: table.archived.paging.page,
+                totalPages: table.archived.paging.totalPages,
+                onPageChange: table.archived.setPage,
+              }}
+              emptyState={{
+                icon: UtensilsCrossed,
+                title: "No archived meal plans",
+              }}
+            />
           ) : null}
         </div>
       )}
 
-      <MealPlanPanel
+      {/* Unified Meal Plan Details Panel */}
+      <GenericDetailsPanel
         open={detailsOpen}
         onOpenChange={handleCloseDetails}
-        planId={detailsPlanId}
-      />
-    </div>
+        defaultTitle="Meal Plan Details"
+        widthClassName="w-full sm:w-[560px] lg:w-[720px]"
+      >
+        <MealDetailsContent
+          planId={detailsPlanId}
+          createNew={detailsOpen && !detailsPlanId}
+          onMealPlanUpdate={() => {
+            queryClient.invalidateQueries({ queryKey: ["mealPlans"] });
+            queryClient.invalidateQueries({ queryKey: ["meals"] });
+            queryClient.invalidateQueries({ queryKey: ["foods"] });
+            queryClient.invalidateQueries({ queryKey: ["planFoods"] });
+          }}
+        />
+      </GenericDetailsPanel>
+    </EntityPageLayout>
   );
 }

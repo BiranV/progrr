@@ -3,7 +3,6 @@
 import React from "react";
 import { db } from "@/lib/db";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -12,7 +11,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Plus,
   Calendar as CalendarIcon,
   Video,
   Phone,
@@ -25,6 +23,10 @@ import MeetingPanel from "@/components/panels/MeetingPanel";
 import { format } from "date-fns";
 import { Meeting, Client } from "@/types";
 import { useRefetchOnVisible } from "@/hooks/use-refetch-on-visible";
+import { EntityPageLayout } from "@/components/ui/entity/EntityPageLayout";
+import { EntityToolbar } from "@/components/ui/entity/EntityToolbar";
+import { EntityTableSection } from "@/components/ui/entity/EntityTableSection";
+import { GenericDetailsPanel } from "@/components/ui/entity/GenericDetailsPanel";
 
 const OTHER_CLIENT_ID = "__PROSPECT__";
 const OTHER_CLIENT_LABEL = "Other (not a client)";
@@ -132,6 +134,13 @@ export default function MeetingsPage() {
     setDetailsOpen(true);
   };
 
+  const handleCloseDetails = (open: boolean) => {
+    setDetailsOpen(open);
+    if (!open) {
+      setTimeout(() => setDetailsMeetingId(null), 200);
+    }
+  };
+
   const handleCreate = () => {
     setDetailsMeetingId(null);
     setDetailsOpen(true);
@@ -154,225 +163,71 @@ export default function MeetingsPage() {
   };
 
   return (
-    <div className="p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Meetings
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Schedule and manage appointments
-          </p>
-        </div>
-        <Button
-          onClick={handleCreate}
-          className="min-w-[180px] bg-indigo-600 hover:bg-indigo-700 text-white"
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          Schedule Meeting
-        </Button>
-      </div>
+    <EntityPageLayout
+      title="Meetings"
+      subtitle="Schedule and manage appointments"
+      primaryAction={{ label: "Schedule Meeting", onClick: handleCreate }}
+    >
+      <EntityToolbar showSearch={false} showPageSize={false} />
 
       {isLoading ? (
-        <div className="text-center py-12 text-gray-600 dark:text-gray-400">
-          Loading...
-        </div>
+        <div className="py-12 text-center text-gray-500">Loading…</div>
       ) : (
-        <div className="space-y-10">
-          {/* UPCOMING – CARDS */}
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <Clock className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Upcoming
-              </h2>
-            </div>
+        <div className="space-y-8">
+          <EntityTableSection
+            title="Upcoming Meetings"
+            totalCount={upcoming.length}
+            emptyState={{
+              icon: CalendarIcon,
+              title: "No upcoming meetings",
+              description: "Schedule your first one.",
+            }}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {upcoming.map((meeting: Meeting) => (
+                <Card
+                  key={meeting.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleDetails(meeting)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleDetails(meeting);
+                    }
+                  }}
+                  className="hover:shadow-lg cursor-pointer transition-shadow duration-200 flex flex-col h-full dark:bg-gray-800 dark:border-gray-700"
+                >
+                  <CardHeader className="flex flex-row items-start justify-between pb-2">
+                    <div className="space-y-1 min-w-0">
+                      <CardTitle className="text-xl font-semibold truncate">
+                        {meeting.title}
+                      </CardTitle>
+                      <CardDescription className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        {format(new Date(meeting.scheduledAt), "PPP p")}
+                      </CardDescription>
+                    </div>
+                  </CardHeader>
 
-            {upcoming.length === 0 ? (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <CalendarIcon className="w-12 h-12 mx-auto text-indigo-500 dark:text-indigo-400 mb-4" />
-                  <p className="text-gray-500 dark:text-gray-400">
-                    No upcoming meetings. Schedule your first one!
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {upcoming.map((meeting: Meeting) => (
-                  <Card
-                    key={meeting.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => handleDetails(meeting)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        handleDetails(meeting);
-                      }
-                    }}
-                    className="hover:shadow-lg cursor-pointer transition-shadow duration-200 flex flex-col h-full dark:bg-gray-800 dark:border-gray-700"
-                  >
-                    <CardHeader className="flex flex-row items-start justify-between pb-2">
-                      <div className="space-y-1 min-w-0">
-                        <CardTitle className="text-xl font-semibold truncate">
-                          {meeting.title}
-                        </CardTitle>
-                        <CardDescription className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          {format(new Date(meeting.scheduledAt), "PPP p")}
-                        </CardDescription>
-                      </div>
-                    </CardHeader>
+                  <CardContent className="px-5 py-2 flex flex-col flex-1">
+                    <div className="space-y-3 text-sm text-gray-600 dark:text-gray-300">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="flex items-center gap-2 truncate col-span-2">
+                          <span className="shrink-0">
+                            {getMeetingIcon(meeting.type)}
+                          </span>
+                          <span className="truncate capitalize">
+                            Type:{" "}
+                            {String(meeting.type ?? "-").replace(/[-_]/g, " ")}
+                          </span>
+                          {(() => {
+                            const meta = getTypeSpecificMeta(meeting);
+                            if (!meta) return null;
 
-                    <CardContent className="px-5 py-2 flex flex-col flex-1">
-                      <div className="space-y-3 text-sm text-gray-600 dark:text-gray-300">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="flex items-center gap-2 truncate col-span-2">
-                            <span className="shrink-0">
-                              {getMeetingIcon(meeting.type)}
-                            </span>
-                            <span className="truncate capitalize">
-                              Type:{" "}
-                              {String(meeting.type ?? "-").replace(
-                                /[-_]/g,
-                                " "
-                              )}
-                            </span>
-                            {(() => {
-                              const meta = getTypeSpecificMeta(meeting);
-                              if (!meta) return null;
-
-                              return (
-                                <>
-                                  <span className="mx-2 h-4 w-px bg-gray-200 dark:bg-gray-700 shrink-0" />
-                                  <span className="truncate">
-                                    {meta.href ? (
-                                      <a
-                                        href={meta.href}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="underline underline-offset-2 hover:text-indigo-600 dark:hover:text-indigo-300"
-                                        onClick={(e) => e.stopPropagation()}
-                                        onMouseDown={(e) => e.stopPropagation()}
-                                      >
-                                        {meta.rawLocation}
-                                      </a>
-                                    ) : (
-                                      meta.rawLocation
-                                    )}
-                                  </span>
-                                </>
-                              );
-                            })()}
-                          </div>
-
-                          <div className="flex items-center gap-2 truncate col-span-2">
-                            <User className="w-4 h-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
-                            <span className="truncate">With: {getClientName(meeting)}</span>
-                          </div>
-
-                          <div className="flex items-center gap-2 truncate col-span-2">
-                            <Clock className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                            <span className="truncate">
-                              Duration:{" "}
-                              {Number.isFinite(Number((meeting as any).durationMinutes))
-                                ? `${Number((meeting as any).durationMinutes)} min`
-                                : "-"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-auto pt-3 flex justify-end">
-                        <span
-                          className={`inline-flex items-center h-7 px-3 rounded-md text-xs font-medium capitalize ${statusChipClasses(
-                            meeting.status
-                          )}`}
-                        >
-                          {meeting.status?.replace(/[-_]/g, " ") || "unknown"}
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* PAST – ROWS */}
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <History className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Past
-              </h2>
-            </div>
-
-            {past.length === 0 ? (
-              <p className="text-gray-500 dark:text-gray-400">
-                No past meetings
-              </p>
-            ) : (
-              <div className="bg-white dark:bg-gray-800 rounded-lg border">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-gray-50 dark:bg-gray-700">
-                      <tr>
-                        <th className="px-4 py-3 text-left font-medium">Meeting</th>
-                        <th className="px-4 py-3 text-left font-medium">Date</th>
-                        <th className="px-4 py-3 text-left font-medium">Type</th>
-                        <th className="px-4 py-3 text-left font-medium">Client</th>
-                        <th className="px-4 py-3 text-left font-medium hidden lg:table-cell">
-                          Duration
-                        </th>
-                        <th className="px-4 py-3 text-left font-medium">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {past.map((meeting: Meeting) => {
-                        const scheduledAt = meeting?.scheduledAt
-                          ? new Date(meeting.scheduledAt)
-                          : null;
-                        const typeText = String((meeting as any).type ?? "-").replace(
-                          /[-_]/g,
-                          " "
-                        );
-                        const meta = getTypeSpecificMeta(meeting);
-
-                        return (
-                          <tr
-                            key={meeting.id}
-                            className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer transition-colors"
-                            onClick={() => handleDetails(meeting)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                handleDetails(meeting);
-                              }
-                            }}
-                            role="button"
-                            tabIndex={0}
-                          >
-                            <td className="px-4 py-3">
-                              <span className="font-medium text-gray-900 dark:text-white">
-                                {String((meeting as any).title ?? "").trim() || "-"}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-gray-700 dark:text-gray-200 whitespace-nowrap">
-                              {scheduledAt && !Number.isNaN(scheduledAt.getTime())
-                                ? format(scheduledAt, "PPP p")
-                                : "-"}
-                            </td>
-                            <td className="px-4 py-3 text-gray-700 dark:text-gray-200">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="shrink-0">
-                                  {getMeetingIcon(String((meeting as any).type ?? ""))}
-                                </span>
-                                <span className="truncate">{typeText}</span>
-                              </div>
-                              {meta ? (
-                                <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 truncate">
+                            return (
+                              <>
+                                <span className="mx-2 h-4 w-px bg-gray-200 dark:bg-gray-700 shrink-0" />
+                                <span className="truncate">
                                   {meta.href ? (
                                     <a
                                       href={meta.href}
@@ -387,50 +242,164 @@ export default function MeetingsPage() {
                                   ) : (
                                     meta.rawLocation
                                   )}
-                                </div>
-                              ) : null}
-                            </td>
-                            <td className="px-4 py-3 text-gray-700 dark:text-gray-200">
-                              {getClientName(meeting)}
-                            </td>
-                            <td className="px-4 py-3 text-gray-700 dark:text-gray-200 hidden lg:table-cell whitespace-nowrap">
-                              {Number.isFinite(
-                                Number((meeting as any).durationMinutes)
-                              )
-                                ? `${Number((meeting as any).durationMinutes)} min`
-                                : "-"}
-                            </td>
-                            <td className="px-4 py-3">
-                              <span
-                                className={`inline-flex items-center h-7 px-3 rounded-md text-xs font-medium capitalize ${statusChipClasses(
-                                  meeting.status
-                                )}`}
-                              >
-                                {meeting.status?.replace(/[-_]/g, " ") ||
-                                  "unknown"}
+                                </span>
+                              </>
+                            );
+                          })()}
+                        </div>
+
+                        <div className="flex items-center gap-2 truncate col-span-2">
+                          <User className="w-4 h-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                          <span className="truncate">With: {getClientName(meeting)}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2 truncate col-span-2">
+                          <Clock className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                          <span className="truncate">
+                            Duration:{" "}
+                            {Number.isFinite(Number((meeting as any).durationMinutes))
+                              ? `${Number((meeting as any).durationMinutes)} min`
+                              : "-"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-auto pt-3 flex justify-end">
+                      <span
+                        className={`inline-flex items-center h-7 px-3 rounded-md text-xs font-medium capitalize ${statusChipClasses(
+                          meeting.status
+                        )}`}
+                      >
+                        {meeting.status?.replace(/[-_]/g, " ") || "unknown"}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </EntityTableSection>
+
+          <EntityTableSection
+            title="Past Meetings"
+            totalCount={past.length}
+            emptyState={{
+              icon: History,
+              title: "No past meetings",
+            }}
+          >
+            <div className="bg-white dark:bg-gray-800 rounded-lg border">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-medium">Meeting</th>
+                      <th className="px-4 py-3 text-left font-medium">Date</th>
+                      <th className="px-4 py-3 text-left font-medium">Type</th>
+                      <th className="px-4 py-3 text-left font-medium">Client</th>
+                      <th className="px-4 py-3 text-left font-medium hidden lg:table-cell">
+                        Duration
+                      </th>
+                      <th className="px-4 py-3 text-left font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {past.map((meeting: Meeting) => {
+                      const scheduledAt = meeting?.scheduledAt
+                        ? new Date(meeting.scheduledAt)
+                        : null;
+                      const typeText = String((meeting as any).type ?? "-").replace(
+                        /[-_]/g,
+                        " "
+                      );
+                      const meta = getTypeSpecificMeta(meeting);
+
+                      return (
+                        <tr
+                          key={meeting.id}
+                          className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer transition-colors"
+                          onClick={() => handleDetails(meeting)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              handleDetails(meeting);
+                            }
+                          }}
+                          role="button"
+                          tabIndex={0}
+                        >
+                          <td className="px-4 py-3">
+                            <span className="font-medium text-gray-900 dark:text-white">
+                              {String((meeting as any).title ?? "").trim() || "-"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-gray-700 dark:text-gray-200 whitespace-nowrap">
+                            {scheduledAt && !Number.isNaN(scheduledAt.getTime())
+                              ? format(scheduledAt, "PPP p")
+                              : "-"}
+                          </td>
+                          <td className="px-4 py-3 text-gray-700 dark:text-gray-200">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="shrink-0">
+                                {getMeetingIcon(String((meeting as any).type ?? ""))}
                               </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                              <span className="truncate">{typeText}</span>
+                            </div>
+                            {meta ? (
+                              <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 truncate">
+                                {meta.href ? (
+                                  <a
+                                    href={meta.href}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="underline underline-offset-2 hover:text-indigo-600 dark:hover:text-indigo-300"
+                                    onClick={(e) => e.stopPropagation()}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                  >
+                                    {meta.rawLocation}
+                                  </a>
+                                ) : (
+                                  meta.rawLocation
+                                )}
+                              </div>
+                            ) : null}
+                          </td>
+                          <td className="px-4 py-3 text-gray-700 dark:text-gray-200">
+                            {getClientName(meeting)}
+                          </td>
+                          <td className="px-4 py-3 text-gray-700 dark:text-gray-200 hidden lg:table-cell whitespace-nowrap">
+                            {Number.isFinite(Number((meeting as any).durationMinutes))
+                              ? `${Number((meeting as any).durationMinutes)} min`
+                              : "-"}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`inline-flex items-center h-7 px-3 rounded-md text-xs font-medium capitalize ${statusChipClasses(
+                                meeting.status
+                              )}`}
+                            >
+                              {meeting.status?.replace(/[-_]/g, " ") || "unknown"}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-            )}
-          </div>
+            </div>
+          </EntityTableSection>
         </div>
       )}
 
-      <MeetingPanel
-        meetingId={detailsMeetingId}
-        clients={clients}
+      <GenericDetailsPanel
         open={detailsOpen}
-        onOpenChange={(open) => {
-          setDetailsOpen(open);
-          if (!open) setDetailsMeetingId(null);
-        }}
-      />
-    </div>
+        onOpenChange={handleCloseDetails}
+        defaultTitle="Meeting Details"
+        widthClassName="w-full sm:w-[520px]"
+      >
+        <MeetingPanel meetingId={detailsMeetingId} clients={clients} />
+      </GenericDetailsPanel>
+    </EntityPageLayout>
   );
 }

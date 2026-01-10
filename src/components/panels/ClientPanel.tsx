@@ -3,7 +3,7 @@
 import React from "react";
 import { db } from "@/lib/db";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import SidePanel from "@/components/ui/side-panel";
+import { useGenericDetailsPanel } from "@/components/ui/entity/GenericDetailsPanel";
 import ClientAvatar from "@/components/ClientAvatar";
 import {
   Ban,
@@ -67,8 +67,6 @@ import ConfirmModal from "@/components/ui/confirm-modal";
 
 interface ClientPanelProps {
   client: Client | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
   // Optional props for view mode optimization, though we fetch lists internally for edit mode
   workoutPlanNameById?: Map<string, string>;
   mealPlanNameById?: Map<string, string>;
@@ -79,16 +77,15 @@ const REQUIRED_FIELDS: Array<keyof Client> = ["name", "email", "phone"];
 
 export default function ClientPanel({
   client,
-  open,
-  onOpenChange,
   onClientUpdate,
 }: ClientPanelProps) {
+  const panel = useGenericDetailsPanel();
   const router = useRouter();
   const queryClient = useQueryClient();
 
   const { data: stepsRecent } = useQuery({
     queryKey: ["stepsRecent", "admin", String(client?.id ?? "")],
-    enabled: Boolean(open && client?.id),
+    enabled: Boolean(panel.open && client?.id),
     queryFn: async () => {
       const clientId = String(client?.id ?? "").trim();
       if (!clientId) return { ok: true, days: [] as any[] };
@@ -463,7 +460,7 @@ export default function ClientPanel({
 
   // Reset editing state when dialog opens/closes or client changes
   React.useEffect(() => {
-    if (open) {
+    if (panel.open) {
       if (!client) {
         // Create mode
         setIsEditing(true);
@@ -477,7 +474,7 @@ export default function ClientPanel({
       setShowDeleteConfirm(false);
       setDeleteConfirmText("");
     }
-  }, [open, client]);
+  }, [panel.open, client]);
 
   // Data
   const { data: workoutPlans = [] } = useQuery({
@@ -636,7 +633,7 @@ export default function ClientPanel({
       );
       onClientUpdate?.();
       if (!client) {
-        onOpenChange(false); // Close on create
+        panel.close(); // Close on create
       } else {
         setIsEditing(false); // Return to view mode on edit
       }
@@ -715,7 +712,7 @@ export default function ClientPanel({
         targetStatus === "BLOCKED" ||
         targetStatus === "INACTIVE"
       ) {
-        onOpenChange(false);
+        panel.close();
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to update status");
@@ -1715,55 +1712,55 @@ export default function ClientPanel({
     );
   };
 
+  React.useEffect(() => {
+    panel.setTitle(
+      isEditing ? (client ? "Edit Client" : "New Client") : "Client Details"
+    );
+    panel.setDescription(
+      isEditing
+        ? client
+          ? "Update client text information"
+          : "Add a new client to your roster"
+        : `View details for ${client?.name}`
+    );
+
+    panel.setFooter(
+      isEditing ? (
+        <div className="flex gap-3 justify-end">
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() => (client ? setIsEditing(false) : panel.close())}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="client-form"
+            disabled={saveMutation.isPending}
+          >
+            {saveMutation.isPending
+              ? "Saving..."
+              : client
+                ? "Save Changes"
+                : "Create Client"}
+          </Button>
+        </div>
+      ) : (
+        <div className="flex justify-start" />
+      )
+    );
+  }, [
+    panel,
+    isEditing,
+    client,
+    client?.name,
+    saveMutation.isPending,
+  ]);
+
   return (
     <>
-      <SidePanel
-        open={open}
-        onOpenChange={onOpenChange}
-        title={
-          isEditing ? (client ? "Edit Client" : "New Client") : "Client Details"
-        }
-        description={
-          isEditing
-            ? client
-              ? "Update client text information"
-              : "Add a new client to your roster"
-            : `View details for ${client?.name}`
-        }
-        widthClassName="w-full sm:w-[540px] lg:w-[600px]"
-        footer={
-          isEditing ? (
-            <div className="flex gap-3 justify-end">
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() =>
-                  client ? setIsEditing(false) : onOpenChange(false)
-                }
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                form="client-form"
-                disabled={saveMutation.isPending}
-              >
-                {saveMutation.isPending
-                  ? "Saving..."
-                  : client
-                    ? "Save Changes"
-                    : "Create Client"}
-              </Button>
-            </div>
-          ) : (
-            <div className="flex justify-start">
-              {/* View mode footer usually empty or status actions only if we moved them here */}
-            </div>
-          )
-        }
-      >
-        {isEditing ? renderEditMode() : renderViewMode()}
-      </SidePanel>
+      {isEditing ? renderEditMode() : renderViewMode()}
 
       <ConfirmModal
         open={removeImageOpen}

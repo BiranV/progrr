@@ -11,34 +11,55 @@ import {
 import { EntityEmptyState } from "@/components/ui/entity/EntityEmptyState";
 
 export function EntityTableSection<Row>({
-    title,
-    variant = "default",
-    totalCount,
-    emptyState,
-    rows,
-    columns,
-    getRowId,
-    sortConfig,
-    onSort,
-    pagination,
-    onRowClick,
-}: {
-    title?: string;
-    variant?: "default" | "archived";
-    totalCount: number;
-    emptyState: {
-        icon: LucideIcon;
-        title: string;
-        description?: string;
-    };
-    rows: Row[];
-    columns: Array<DataTableColumn<Row>>;
-    getRowId: (row: Row) => string;
-    sortConfig?: DataTableSortConfig;
-    onSort?: (key: string) => void;
-    pagination: DataTablePagination;
-    onRowClick?: (row: Row) => void;
-}) {
+    ...props
+}: (
+        | {
+            title?: string;
+            variant?: "default" | "archived";
+            totalCount: number;
+            emptyState: {
+                icon: LucideIcon;
+                title: string;
+                description?: string;
+            };
+
+            rows: Row[];
+            columns: Array<DataTableColumn<Row>>;
+            getRowId: (row: Row) => string;
+            sortConfig?: DataTableSortConfig;
+            onSort?: (key: string) => void;
+            pagination: DataTablePagination;
+            onRowClick?: (row: Row) => void;
+
+            children?: never;
+        }
+        | {
+            title?: string;
+            variant?: "default" | "archived";
+            totalCount: number;
+            emptyState: {
+                icon: LucideIcon;
+                title: string;
+                description?: string;
+            };
+
+            children: React.ReactNode;
+
+            rows?: never;
+            columns?: never;
+            getRowId?: never;
+            sortConfig?: never;
+            onSort?: never;
+            pagination?: never;
+            onRowClick?: never;
+        }
+    )) {
+    const {
+        title,
+        variant = "default",
+        totalCount,
+        emptyState,
+    } = props;
     const isArchived = variant === "archived";
 
     if (totalCount === 0) {
@@ -58,16 +79,29 @@ export function EntityTableSection<Row>({
         );
     }
 
+    if ("children" in props) {
+        return (
+            <div className={title ? "space-y-3" : undefined}>
+                {title ? (
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                        {title}
+                    </div>
+                ) : null}
+                {props.children}
+            </div>
+        );
+    }
+
     return (
         <DataTable
             title={title}
-            rows={rows}
-            columns={columns}
-            getRowId={getRowId}
-            onRowClick={onRowClick}
-            sortConfig={sortConfig}
-            onSort={onSort}
-            pagination={pagination}
+            rows={props.rows}
+            columns={props.columns}
+            getRowId={props.getRowId}
+            onRowClick={props.onRowClick}
+            sortConfig={props.sortConfig}
+            onSort={props.onSort}
+            pagination={props.pagination}
             containerClassName={
                 isArchived
                     ? "border-red-100 dark:border-red-900/30 overflow-hidden"

@@ -3,7 +3,10 @@
 import React from "react";
 import { db } from "@/lib/db";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import SidePanel from "@/components/ui/side-panel";
+import {
+  GenericDetailsPanel,
+  useGenericDetailsPanel,
+} from "@/components/ui/entity/GenericDetailsPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -74,17 +77,29 @@ function normalizeDifficulty(
   return "";
 }
 
-interface WorkoutPlanDetailsDialogProps {
+interface WorkoutPlanPanelProps {
   planId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  createNew?: boolean;
+  onWorkoutPlanUpdate?: () => void;
 }
 
-export default function WorkoutPlanDetailsDialog({
-  planId,
-  open,
-  onOpenChange,
-}: WorkoutPlanDetailsDialogProps) {
+type WorkoutDetailsContentProps = {
+  planId: string | null;
+  createNew?: boolean;
+  onWorkoutPlanUpdate?: () => void;
+};
+
+export function WorkoutDetailsContent({
+  planId: rawPlanId,
+  createNew,
+  onWorkoutPlanUpdate,
+}: WorkoutDetailsContentProps) {
+  const panel = useGenericDetailsPanel();
+  const open = panel.open;
+  const planId = createNew ? null : rawPlanId;
+
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = React.useState(false);
   const [validationError, setValidationError] = React.useState<string | null>(
@@ -137,6 +152,7 @@ export default function WorkoutPlanDetailsDialog({
       setDeleteInfoMessage(null);
       queryClient.invalidateQueries({ queryKey: ["workoutPlans"] });
       queryClient.invalidateQueries({ queryKey: ["workoutPlan", planId] });
+      onWorkoutPlanUpdate?.();
       toast.success("Workout plan restored to active");
     },
     onError: (error: any) => {
@@ -524,11 +540,14 @@ export default function WorkoutPlanDetailsDialog({
       toast.success(planId ? "Workout plan updated" : "Workout plan created");
 
       if (!planId) {
-        onOpenChange(false);
+        onWorkoutPlanUpdate?.();
+        panel.close();
         return;
       }
 
       setIsEditing(false);
+
+      onWorkoutPlanUpdate?.();
 
       await queryClient.invalidateQueries({ queryKey: ["workoutPlans"] });
       await queryClient.invalidateQueries({
@@ -574,7 +593,8 @@ export default function WorkoutPlanDetailsDialog({
 
       toast.success("Workout plan deleted");
       setShowDeleteConfirm(false);
-      onOpenChange(false);
+      onWorkoutPlanUpdate?.();
+      panel.close();
     },
     onError: (error: any) => {
       toast.error(String(error?.message || "Failed to delete workout plan"));
@@ -1242,54 +1262,75 @@ export default function WorkoutPlanDetailsDialog({
     );
   };
 
+  React.useEffect(() => {
+    if (!panel.open) return;
+
+    panel.setTitle(
+      isEditing
+        ? planId
+          ? "Edit Workout Plan"
+          : "Create Workout Plan"
+        : "Workout Plan Details"
+    );
+    panel.setDescription(plan ? String((plan as any)?.name ?? "").trim() : undefined);
+
+    panel.setFooter(
+      isEditing ? (
+        <div className="flex gap-3 justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => (planId ? setIsEditing(false) : panel.close())}
+            disabled={saveMutation.isPending}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" form="workout-plan-form" disabled={saveMutation.isPending}>
+            {saveMutation.isPending
+              ? "Saving..."
+              : planId
+                ? "Update Plan"
+                : "Create Plan"}
+          </Button>
+        </div>
+      ) : undefined
+    );
+  }, [
+    panel,
+    isEditing,
+    planId,
+    (plan as any)?.name,
+    saveMutation.isPending,
+  ]);
+
+  return !planId && !isEditing ? (
+    <div className="text-sm text-gray-600 dark:text-gray-300">No plan selected</div>
+  ) : isEditing ? (
+    renderEditMode()
+  ) : (
+    renderViewMode()
+  );
+}
+
+export default function WorkoutPlanPanel({
+  planId,
+  open,
+  onOpenChange,
+  createNew,
+  onWorkoutPlanUpdate,
+}: WorkoutPlanPanelProps) {
   return (
-    <SidePanel
+    <GenericDetailsPanel
       open={open}
       onOpenChange={onOpenChange}
-      title={
-        isEditing
-          ? planId
-            ? "Edit Workout Plan"
-            : "Create Workout Plan"
-          : "Workout Plan Details"
-      }
-      description={plan ? String(plan?.name ?? "").trim() : undefined}
+      defaultTitle="Workout Plan Details"
       widthClassName="w-full sm:w-[560px] lg:w-[720px]"
-      footer={
-        isEditing ? (
-          <div className="flex gap-3 justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => (planId ? setIsEditing(false) : onOpenChange(false))}
-              disabled={saveMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              form="workout-plan-form"
-              disabled={saveMutation.isPending}
-            >
-              {saveMutation.isPending
-                ? "Saving..."
-                : planId
-                  ? "Update Plan"
-                  : "Create Plan"}
-            </Button>
-          </div>
-        ) : undefined
-      }
     >
-      {!planId && !isEditing ? (
-        <div className="text-sm text-gray-600 dark:text-gray-300">
-          No plan selected
-        </div>
-      ) : isEditing ? (
-        renderEditMode()
-      ) : (
-        renderViewMode()
-      )}
-    </SidePanel>
+      <WorkoutDetailsContent
+        planId={planId}
+        createNew={createNew}
+        onWorkoutPlanUpdate={onWorkoutPlanUpdate}
+      />
+    </GenericDetailsPanel>
   );
 }

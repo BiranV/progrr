@@ -3,9 +3,12 @@
 import React from "react";
 import { db } from "@/lib/db";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import SidePanel from "@/components/ui/side-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  GenericDetailsPanel,
+  useGenericDetailsPanel,
+} from "@/components/ui/entity/GenericDetailsPanel";
 import {
   Select,
   SelectContent,
@@ -40,6 +43,8 @@ interface MealPlanPanelProps {
   planId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onMealPlanUpdate?: () => void;
+  createNew?: boolean;
 }
 
 type MealForm = Partial<Meal> & {
@@ -61,12 +66,19 @@ function toTitleCase(value: any) {
     .join(" ");
 }
 
-export default function MealPlanPanel({
+export function MealDetailsContent({
   planId,
-  open,
-  onOpenChange,
-}: MealPlanPanelProps) {
+  onMealPlanUpdate,
+  createNew,
+}: {
+  planId: string | null;
+  onMealPlanUpdate?: () => void;
+  createNew?: boolean;
+}) {
   const queryClient = useQueryClient();
+
+  const panel = useGenericDetailsPanel();
+  const open = panel.open;
 
   const [isEditing, setIsEditing] = React.useState(false);
   const [validationError, setValidationError] = React.useState<string | null>(
@@ -344,7 +356,7 @@ export default function MealPlanPanel({
     setShowDeleteConfirm(false);
     setDeleteInfoMessage(null);
 
-    if (!planId) {
+    if (!planId || createNew) {
       setIsEditing(true);
       setFormData({
         name: "",
@@ -360,7 +372,7 @@ export default function MealPlanPanel({
     } else {
       setIsEditing(false);
     }
-  }, [open, planId]);
+  }, [open, planId, createNew]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -774,8 +786,10 @@ export default function MealPlanPanel({
 
       toast.success(planId ? "Meal plan updated" : "Meal plan created");
 
+      onMealPlanUpdate?.();
+
       if (!planId) {
-        onOpenChange(false);
+        panel.close();
         return;
       }
 
@@ -809,6 +823,7 @@ export default function MealPlanPanel({
       if (planId) {
         queryClient.invalidateQueries({ queryKey: ["mealPlan", planId] });
       }
+      onMealPlanUpdate?.();
       const status = String(result?.status ?? "").trim().toUpperCase();
       if (status === "ARCHIVED") {
         setDeleteInfoMessage(
@@ -820,7 +835,7 @@ export default function MealPlanPanel({
         toast.success("Meal plan deleted");
       }
       setShowDeleteConfirm(false);
-      onOpenChange(false);
+      panel.close();
     },
     onError: (error: any) => {
       toast.error(String(error?.message || "Failed to delete meal plan"));
@@ -905,6 +920,45 @@ export default function MealPlanPanel({
     : plan
       ? `View details for ${String(plan?.name ?? "Meal Plan")}`
       : "No plan selected";
+
+  React.useEffect(() => {
+    if (!open) return;
+
+    panel.setTitle(panelTitle);
+    panel.setDescription(panelDescription);
+
+    panel.setFooter(
+      isEditing ? (
+        <div className="flex gap-3 justify-end">
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() => (planId ? setIsEditing(false) : panel.close())}
+            disabled={saveMutation.isPending}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" form="meal-plan-form" disabled={saveMutation.isPending}>
+            {saveMutation.isPending
+              ? "Saving..."
+              : planId
+                ? "Save Changes"
+                : "Create Meal Plan"}
+          </Button>
+        </div>
+      ) : (
+        <div className="flex justify-start" />
+      )
+    );
+  }, [
+    open,
+    panel,
+    panelTitle,
+    panelDescription,
+    isEditing,
+    planId,
+    saveMutation.isPending,
+  ]);
 
   const renderViewMode = () => {
     if (!plan) {
@@ -1585,36 +1639,7 @@ export default function MealPlanPanel({
   );
 
   return (
-    <SidePanel
-      open={open}
-      onOpenChange={onOpenChange}
-      title={panelTitle}
-      description={panelDescription}
-      widthClassName="w-full sm:w-[560px] lg:w-[720px]"
-      footer={
-        isEditing ? (
-          <div className="flex gap-3 justify-end">
-            <Button
-              variant="outline"
-              type="button"
-              onClick={() => (planId ? setIsEditing(false) : onOpenChange(false))}
-              disabled={saveMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" form="meal-plan-form" disabled={saveMutation.isPending}>
-              {saveMutation.isPending
-                ? "Saving..."
-                : planId
-                  ? "Save Changes"
-                  : "Create Meal Plan"}
-            </Button>
-          </div>
-        ) : (
-          <div className="flex justify-start" />
-        )
-      }
-    >
+    <>
       {!planId && !isEditing ? (
         <div className="text-sm text-gray-600 dark:text-gray-300">
           No plan selected
@@ -1624,6 +1649,29 @@ export default function MealPlanPanel({
       ) : (
         renderViewMode()
       )}
-    </SidePanel>
+    </>
+  );
+}
+
+export default function MealPlanPanel({
+  planId,
+  open,
+  onOpenChange,
+  onMealPlanUpdate,
+  createNew,
+}: MealPlanPanelProps) {
+  return (
+    <GenericDetailsPanel
+      open={open}
+      onOpenChange={onOpenChange}
+      defaultTitle="Meal Plan Details"
+      widthClassName="w-full sm:w-[560px] lg:w-[720px]"
+    >
+      <MealDetailsContent
+        planId={planId}
+        createNew={createNew}
+        onMealPlanUpdate={onMealPlanUpdate}
+      />
+    </GenericDetailsPanel>
   );
 }

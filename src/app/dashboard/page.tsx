@@ -211,7 +211,7 @@ function AdminDashboard({ user }: { user: any }) {
       value: plans.length,
       icon: Dumbbell,
       color: "bg-indigo-500",
-      href: "/plans",
+      href: "/workouts",
     },
     {
       label: "Upcoming Meetings",

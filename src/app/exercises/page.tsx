@@ -5,19 +5,17 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { ArrowUpDown, Dumbbell, FileText, Plus, Search, Video, X } from "lucide-react";
-import ExercisePanel from "@/components/panels/ExercisePanel";
+import { Dumbbell, FileText, Plus, Video, X } from "lucide-react";
+import { ExerciseDetailsContent } from "@/components/panels/ExercisePanel";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { getCookie, setCookie } from "@/lib/client-cookies";
 import { toast } from "sonner";
+import { DataTable, type DataTableColumn } from "@/components/ui/table/DataTable";
+import { EntityPageLayout } from "@/components/ui/entity/EntityPageLayout";
+import { EntityToolbar } from "@/components/ui/entity/EntityToolbar";
+import { EntityTableSection } from "@/components/ui/entity/EntityTableSection";
+import { GenericDetailsPanel } from "@/components/ui/entity/GenericDetailsPanel";
+import { useEntityTableState } from "@/hooks/useEntityTableState";
 
 type CatalogRow = {
   externalId: string;
@@ -37,6 +35,7 @@ type ExerciseRow = {
   bodyPart?: string;
   targetMuscle?: string;
   equipment?: string;
+  status?: string;
 };
 
 export default function ExercisesPage() {
@@ -61,13 +60,6 @@ export default function ExercisesPage() {
     return 10;
   });
 
-  const [page, setPage] = React.useState(1);
-  const [archivedPage, setArchivedPage] = React.useState(1);
-  const [sortConfig, setSortConfig] = React.useState<{
-    key: keyof ExerciseRow;
-    direction: "asc" | "desc";
-  } | null>(null);
-
   React.useEffect(() => {
     setCookie("progrr_exercises_rows_per_page", String(pageSize), {
       maxAgeSeconds: 60 * 60 * 24 * 365,
@@ -79,76 +71,17 @@ export default function ExercisesPage() {
     queryFn: () => db.entities.ExerciseLibrary.list("-created_date"),
   });
 
-  const normalizeLibraryStatus = React.useCallback((value: unknown) => {
-    const s = String(value ?? "").trim().toUpperCase();
-    if (s === "ARCHIVED" || s === "DELETED") return s as "ARCHIVED" | "DELETED";
-    return "ACTIVE" as const;
-  }, []);
-
-  const visible = (exercises as any[]).filter(
-    (e) => normalizeLibraryStatus((e as any)?.status) !== "DELETED"
-  );
-
-  const filtered = (visible as ExerciseRow[]).filter((e) =>
+  const filteredExercises = (exercises as ExerciseRow[]).filter((e) =>
     String(e?.name ?? "")
       .toLowerCase()
       .includes(search.toLowerCase())
   );
 
-  const sorted = React.useMemo(() => {
-    if (!sortConfig) return filtered;
-
-    const collator = new Intl.Collator(["he", "en"], {
-      sensitivity: "base",
-      numeric: true,
-    });
-
-    return [...filtered].sort((a, b) => {
-      const direction = sortConfig.direction === "asc" ? 1 : -1;
-      const aRaw = (a as any)[sortConfig.key];
-      const bRaw = (b as any)[sortConfig.key];
-
-      const aValue = String(aRaw ?? "").trim();
-      const bValue = String(bRaw ?? "").trim();
-
-      const aEmpty = aValue.length === 0;
-      const bEmpty = bValue.length === 0;
-      if (aEmpty && !bEmpty) return 1;
-      if (!aEmpty && bEmpty) return -1;
-
-      const cmp = collator.compare(aValue, bValue);
-      if (cmp !== 0) return cmp * direction;
-      return String(a.id ?? "").localeCompare(String(b.id ?? ""));
-    });
-  }, [filtered, sortConfig]);
-
-  const sortedActive = React.useMemo(
-    () =>
-      (sorted as any[]).filter(
-        (e) => normalizeLibraryStatus((e as any)?.status) === "ACTIVE"
-      ) as ExerciseRow[],
-    [sorted, normalizeLibraryStatus]
-  );
-
-  const sortedArchived = React.useMemo(
-    () =>
-      (sorted as any[]).filter(
-        (e) => normalizeLibraryStatus((e as any)?.status) === "ARCHIVED"
-      ) as ExerciseRow[],
-    [sorted, normalizeLibraryStatus]
-  );
-
-  const handleSort = (key: keyof ExerciseRow) => {
-    setSortConfig((current) => {
-      if (current?.key === key) {
-        return {
-          key,
-          direction: current.direction === "asc" ? "desc" : "asc",
-        };
-      }
-      return { key, direction: "asc" };
-    });
-  };
+  const table = useEntityTableState<ExerciseRow, "status">({
+    rows: filteredExercises,
+    statusKey: "status",
+    pageSize,
+  });
 
   const handleOpenDetails = (exercise: ExerciseRow) => {
     setDetailsExerciseId(String(exercise.id));
@@ -260,36 +193,138 @@ export default function ExercisesPage() {
     }
   };
 
-  React.useEffect(() => {
-    setPage(1);
-    setArchivedPage(1);
-  }, [search, sortConfig?.key, sortConfig?.direction, pageSize]);
+  const columns = React.useMemo(() => {
+    const cols: Array<DataTableColumn<ExerciseRow>> = [
+      {
+        key: "name",
+        header: "Exercise",
+        sortable: true,
+        renderCell: (exercise) => (
+          <span className="font-medium">{String(exercise.name ?? "-")}</span>
+        ),
+      },
+      {
+        key: "targetMuscle",
+        header: "Target",
+        sortable: true,
+        renderCell: (exercise) => String(exercise.targetMuscle ?? "").trim() || "-",
+      },
+      {
+        key: "bodyPart",
+        header: "Body Part",
+        sortable: true,
+        renderCell: (exercise) => String(exercise.bodyPart ?? "").trim() || "-",
+      },
+      {
+        key: "equipment",
+        header: "Equipment",
+        sortable: true,
+        renderCell: (exercise) => String(exercise.equipment ?? "").trim() || "-",
+      },
+      {
+        key: "media",
+        header: "Media",
+        renderCell: (e) => {
+          const videoKind = String(e?.videoKind ?? "").trim();
+          const videoUrl = String(e?.videoUrl ?? "").trim();
+          const hasVideo =
+            !!videoKind &&
+            (videoKind !== "youtube" || !!videoUrl) &&
+            (videoKind !== "upload" || !!videoUrl);
+          const videoLabel =
+            videoKind === "youtube" ? "YouTube" : videoKind === "upload" ? "Upload" : "-";
+          const hasGuidelines = !!String(e?.guidelines ?? "").trim();
 
-  const paginate = React.useCallback(
-    (rows: ExerciseRow[], currentPage: number) => {
-      const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
-      const safePage = Math.min(Math.max(1, currentPage), totalPages);
-      const start = (safePage - 1) * pageSize;
-      const pagedRows = rows.slice(start, start + pageSize);
-      return {
-        pagedRows,
-        totalPages,
-        page: safePage,
-        totalCount: rows.length,
-      };
-    },
-    [pageSize]
-  );
+          return (
+            <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+              {hasVideo ? (
+                <span
+                  className="inline-flex items-center"
+                  title={`Video: ${videoLabel}`}
+                  aria-label={`Video: ${videoLabel}`}
+                >
+                  <Video className="h-4 w-4" />
+                </span>
+              ) : null}
+              {hasGuidelines ? (
+                <span
+                  className="inline-flex items-center"
+                  title="Guidelines available"
+                  aria-label="Guidelines available"
+                >
+                  <FileText className="h-4 w-4" />
+                </span>
+              ) : null}
+              {!hasVideo && !hasGuidelines ? <span>-</span> : null}
+            </div>
+          );
+        },
+      },
+    ];
 
-  const paging = React.useMemo(
-    () => paginate(sortedActive, page),
-    [paginate, sortedActive, page]
-  );
+    return cols;
+  }, []);
 
-  const archivedPaging = React.useMemo(
-    () => paginate(sortedArchived, archivedPage),
-    [paginate, sortedArchived, archivedPage]
-  );
+  const catalogColumns = React.useMemo((): Array<DataTableColumn<CatalogRow>> => {
+    return [
+      {
+        key: "select",
+        header: (
+          <Checkbox
+            checked={
+              catalogResults.length > 0 &&
+              selectedCatalogIds.size === catalogResults.length
+            }
+            onCheckedChange={(v) => {
+              const checked = Boolean(v);
+              setSelectedCatalogIds(() => {
+                if (!checked) return new Set();
+                return new Set(catalogResults.map((r) => String(r.externalId)));
+              });
+            }}
+            disabled={catalogResults.length === 0}
+          />
+        ),
+        headerClassName: "w-[44px]",
+        renderCell: (r) => {
+          const id = String(r.externalId);
+          const checked = selectedCatalogIds.has(id);
+          return (
+            <Checkbox
+              checked={checked}
+              onCheckedChange={(v) => toggleCatalogId(id, Boolean(v))}
+              onClick={(e) => e.stopPropagation()}
+            />
+          );
+        },
+      },
+      {
+        key: "name",
+        header: "Exercise",
+        renderCell: (r) => (
+          <div>
+            <div className="font-medium">{String(r.name ?? "-")}</div>
+            <div className="text-xs text-gray-500">ID: {String(r.externalId)}</div>
+          </div>
+        ),
+      },
+      {
+        key: "targetMuscle",
+        header: "Target",
+        renderCell: (r) => String(r.targetMuscle ?? "-")
+      },
+      {
+        key: "bodyPart",
+        header: "Body Part",
+        renderCell: (r) => String(r.bodyPart ?? "-")
+      },
+      {
+        key: "equipment",
+        header: "Equipment",
+        renderCell: (r) => String(r.equipment ?? "-")
+      },
+    ];
+  }, [catalogResults, selectedCatalogIds, toggleCatalogId]);
 
   const selectedExercise =
     (detailsExerciseId &&
@@ -299,51 +334,44 @@ export default function ExercisesPage() {
     null;
 
   return (
-    <div className="p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Exercises
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Create reusable exercises with videos and guidelines
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() =>
-              setCatalogOpen((v) => {
-                const next = !v;
-                if (next) {
-                  setCatalogQuery("");
-                  setCatalogError(null);
-                  setCatalogResults([]);
-                  setSelectedCatalogIds(new Set());
-                }
-                return next;
-              })
-            }
-          >
-            {catalogOpen ? (
-              <X className="w-5 h-5 mr-2" />
-            ) : (
-              <Plus className="w-5 h-5 mr-2" />
-            )}
-            {catalogOpen ? "Close Catalog" : "Add from Exercise Catalog"}
-          </Button>
-
-          <Button
-            type="button"
-            onClick={handleCreate}
-            className="min-w-[120px] bg-indigo-600 hover:bg-indigo-700 text-white"
-          >
+    <EntityPageLayout
+      title="Exercises"
+      subtitle="Create reusable exercises for workout plans"
+      secondaryActions={
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() =>
+            setCatalogOpen((v) => {
+              const next = !v;
+              if (next) {
+                setCatalogQuery("");
+                setCatalogError(null);
+                setCatalogResults([]);
+                setSelectedCatalogIds(new Set());
+              }
+              return next;
+            })
+          }
+        >
+          {catalogOpen ? (
+            <X className="w-5 h-5 mr-2" />
+          ) : (
             <Plus className="w-5 h-5 mr-2" />
-            Exercise
-          </Button>
-        </div>
-      </div>
+          )}
+          {catalogOpen ? "Close Catalog" : "Add from Exercise Catalog"}
+        </Button>
+      }
+      primaryAction={{ label: "Add Exercise", onClick: handleCreate }}
+    >
+      <EntityToolbar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search exercises"
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
+        pageSizeOptions={PAGE_SIZE_OPTIONS}
+      />
 
       {catalogOpen ? (
         <div className="mb-6 rounded-lg border bg-white dark:bg-gray-800 p-4">
@@ -401,432 +429,92 @@ export default function ExercisesPage() {
           ) : null}
 
           <div className="mt-4 rounded-lg border overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 dark:bg-gray-700">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-medium w-[44px]">
-                      <Checkbox
-                        checked={
-                          catalogResults.length > 0 &&
-                          selectedCatalogIds.size === catalogResults.length
-                        }
-                        onCheckedChange={(v) => {
-                          const checked = Boolean(v);
-                          setSelectedCatalogIds(() => {
-                            if (!checked) return new Set();
-                            return new Set(catalogResults.map((r) => String(r.externalId)));
-                          });
-                        }}
-                        disabled={catalogResults.length === 0}
-                      />
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium">Exercise</th>
-                    <th className="px-4 py-3 text-left font-medium">Target</th>
-                    <th className="px-4 py-3 text-left font-medium">Body Part</th>
-                    <th className="px-4 py-3 text-left font-medium">Equipment</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {catalogResults.length === 0 ? (
-                    <tr>
-                      <td className="px-4 py-6 text-sm text-gray-500" colSpan={5}>
-                        Search to see ExerciseDB results.
-                      </td>
-                    </tr>
-                  ) : (
-                    catalogResults.map((r) => {
-                      const id = String(r.externalId);
-                      const checked = selectedCatalogIds.has(id);
-                      return (
-                        <tr
-                          key={id}
-                          className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40"
-                        >
-                          <td className="px-4 py-3">
-                            <Checkbox
-                              checked={checked}
-                              onCheckedChange={(v) => toggleCatalogId(id, Boolean(v))}
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="font-medium">{String(r.name ?? "-")}</div>
-                            <div className="text-xs text-gray-500">ID: {id}</div>
-                          </td>
-                          <td className="px-4 py-3">{String(r.targetMuscle ?? "-")}</td>
-                          <td className="px-4 py-3">{String(r.bodyPart ?? "-")}</td>
-                          <td className="px-4 py-3">{String(r.equipment ?? "-")}</td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <DataTable
+              rows={catalogResults}
+              columns={catalogColumns}
+              getRowId={(r) => String((r as any)?.externalId ?? "")}
+              emptyMessage="Search to see ExerciseDB results."
+            />
           </div>
         </div>
       ) : null}
-
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-end gap-3">
-        <div className="relative max-w-md w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search exercises"
-            className="pl-10"
-          />
-        </div>
-
-        <div className="w-[180px]">
-          <Select
-            value={String(pageSize)}
-            onValueChange={(v) => {
-              const next = Number(v);
-              if (!Number.isFinite(next)) return;
-              setPageSize(next);
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Rows per page" />
-            </SelectTrigger>
-            <SelectContent>
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <SelectItem key={n} value={String(n)}>
-                  {n} rows
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
+      {/* Content */}
       {isLoading ? (
-        <div className="text-center py-12 text-gray-600 dark:text-gray-400">
-          Loading exercises...
-        </div>
-      ) : sorted.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Dumbbell className="w-12 h-12 text-indigo-500 dark:text-indigo-400 mx-auto mb-4" />
-            <p className="text-gray-500 dark:text-gray-400">
-              {search
-                ? "No exercises found"
-                : "No exercises yet. Create your first one!"}
-            </p>
-          </CardContent>
-        </Card>
+        <div className="py-12 text-center text-gray-500">Loading…</div>
       ) : (
         <div className="space-y-8">
-          {sortedActive.length === 0 ? (
-            <Card>
-              <CardContent className="py-10 text-center">
-                <p className="text-gray-500 dark:text-gray-400">
-                  {search
+          <EntityTableSection
+            totalCount={table.active.rows.length}
+            rows={table.active.paging.pagedRows}
+            columns={columns}
+            getRowId={(r) => String((r as any)?.id)}
+            onRowClick={(r) => handleOpenDetails(r)}
+            sortConfig={table.sortConfig}
+            onSort={table.onSort}
+            pagination={{
+              page: table.active.paging.page,
+              totalPages: table.active.paging.totalPages,
+              onPageChange: table.active.setPage,
+            }}
+            emptyState={{
+              icon: Dumbbell,
+              title:
+                table.visibleRows.length === 0
+                  ? search
+                    ? "No exercises found"
+                    : "No exercises yet"
+                  : search
                     ? "No active exercises match your search"
-                    : "No active exercises"}
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="bg-white dark:bg-gray-800 rounded-lg border">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 dark:bg-gray-700">
-                    <tr>
-                      <th
-                        className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                        onClick={() => handleSort("name")}
-                      >
-                        <div className="flex items-center gap-2">
-                          Exercise
-                          <ArrowUpDown className="w-4 h-4" />
-                        </div>
-                      </th>
-                      <th
-                        className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                        onClick={() => handleSort("targetMuscle")}
-                      >
-                        <div className="flex items-center gap-2">
-                          Target
-                          <ArrowUpDown className="w-4 h-4" />
-                        </div>
-                      </th>
-                      <th
-                        className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                        onClick={() => handleSort("bodyPart")}
-                      >
-                        <div className="flex items-center gap-2">
-                          Body Part
-                          <ArrowUpDown className="w-4 h-4" />
-                        </div>
-                      </th>
-                      <th
-                        className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                        onClick={() => handleSort("equipment")}
-                      >
-                        <div className="flex items-center gap-2">
-                          Equipment
-                          <ArrowUpDown className="w-4 h-4" />
-                        </div>
-                      </th>
-                      <th className="px-4 py-3 text-left font-medium">Media</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paging.pagedRows.map((e) => {
-                      const videoKind = String(e?.videoKind ?? "").trim();
-                      const videoUrl = String(e?.videoUrl ?? "").trim();
-                      const hasVideo =
-                        !!videoKind &&
-                        (videoKind !== "youtube" || !!videoUrl) &&
-                        (videoKind !== "upload" || !!videoUrl);
-                      const videoLabel =
-                        videoKind === "youtube"
-                          ? "YouTube"
-                          : videoKind === "upload"
-                            ? "Upload"
-                            : "-";
-                      const hasGuidelines =
-                        !!String(e?.guidelines ?? "").trim();
-                      const targetMuscle = String(e?.targetMuscle ?? "").trim();
-                      const bodyPart = String(e?.bodyPart ?? "").trim();
-                      const equipment = String(e?.equipment ?? "").trim();
+                    : "No active exercises",
+              description:
+                table.visibleRows.length === 0
+                  ? search
+                    ? "Try searching for a different exercise."
+                    : "Create your first one."
+                  : undefined,
+            }}
+          />
 
-                      return (
-                        <tr
-                          key={String(e.id)}
-                          className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer transition-colors"
-                          onClick={() => handleOpenDetails(e)}
-                        >
-                          <td className="px-4 py-3">
-                            <span className="font-medium">
-                              {String(e.name ?? "-")}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">{targetMuscle || "-"}</td>
-                          <td className="px-4 py-3">{bodyPart || "-"}</td>
-                          <td className="px-4 py-3">{equipment || "-"}</td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
-                              {hasVideo ? (
-                                <span
-                                  className="inline-flex items-center"
-                                  title={`Video: ${videoLabel}`}
-                                  aria-label={`Video: ${videoLabel}`}
-                                >
-                                  <Video className="h-4 w-4" />
-                                </span>
-                              ) : null}
-                              {hasGuidelines ? (
-                                <span
-                                  className="inline-flex items-center"
-                                  title="Guidelines available"
-                                  aria-label="Guidelines available"
-                                >
-                                  <FileText className="h-4 w-4" />
-                                </span>
-                              ) : null}
-                              {!hasVideo && !hasGuidelines ? <span>-</span> : null}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="flex items-center justify-between gap-3 px-4 py-3 border-t bg-gray-50/60 dark:bg-gray-700/40">
-                <div className="text-xs text-gray-600 dark:text-gray-300">
-                  Page {paging.page} of {paging.totalPages}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={paging.page <= 1}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={paging.page >= paging.totalPages}
-                    onClick={() =>
-                      setPage((p) => Math.min(paging.totalPages, p + 1))
-                    }
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {sortedArchived.length ? (
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
-                Archived Exercises
-              </h2>
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-red-100 dark:border-red-900/30 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-red-50/50 dark:bg-red-900/10 border-b border-red-100 dark:border-red-900/30">
-                      <tr>
-                        <th
-                          className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-red-100/60 dark:hover:bg-red-900/20"
-                          onClick={() => handleSort("name")}
-                        >
-                          <div className="flex items-center gap-2">
-                            Exercise
-                            <ArrowUpDown className="w-4 h-4" />
-                          </div>
-                        </th>
-                        <th
-                          className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-red-100/60 dark:hover:bg-red-900/20"
-                          onClick={() => handleSort("targetMuscle")}
-                        >
-                          <div className="flex items-center gap-2">
-                            Target
-                            <ArrowUpDown className="w-4 h-4" />
-                          </div>
-                        </th>
-                        <th
-                          className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-red-100/60 dark:hover:bg-red-900/20"
-                          onClick={() => handleSort("bodyPart")}
-                        >
-                          <div className="flex items-center gap-2">
-                            Body Part
-                            <ArrowUpDown className="w-4 h-4" />
-                          </div>
-                        </th>
-                        <th
-                          className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-red-100/60 dark:hover:bg-red-900/20"
-                          onClick={() => handleSort("equipment")}
-                        >
-                          <div className="flex items-center gap-2">
-                            Equipment
-                            <ArrowUpDown className="w-4 h-4" />
-                          </div>
-                        </th>
-                        <th className="px-4 py-3 text-left font-medium">Media</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {archivedPaging.pagedRows.map((e) => {
-                        const videoKind = String(e?.videoKind ?? "").trim();
-                        const videoUrl = String(e?.videoUrl ?? "").trim();
-                        const hasVideo =
-                          !!videoKind &&
-                          (videoKind !== "youtube" || !!videoUrl) &&
-                          (videoKind !== "upload" || !!videoUrl);
-                        const videoLabel =
-                          videoKind === "youtube"
-                            ? "YouTube"
-                            : videoKind === "upload"
-                              ? "Upload"
-                              : "-";
-                        const hasGuidelines =
-                          !!String(e?.guidelines ?? "").trim();
-                        const targetMuscle = String(e?.targetMuscle ?? "").trim();
-                        const bodyPart = String(e?.bodyPart ?? "").trim();
-                        const equipment = String(e?.equipment ?? "").trim();
-
-                        return (
-                          <tr
-                            key={String(e.id)}
-                            className="border-t border-red-100/60 dark:border-red-900/20 hover:bg-red-50/40 dark:hover:bg-red-900/10 cursor-pointer transition-colors"
-                            onClick={() => handleOpenDetails(e)}
-                          >
-                            <td className="px-4 py-3">
-                              <span className="font-medium">
-                                {String(e.name ?? "-")}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3">{targetMuscle || "-"}</td>
-                            <td className="px-4 py-3">{bodyPart || "-"}</td>
-                            <td className="px-4 py-3">{equipment || "-"}</td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
-                                {hasVideo ? (
-                                  <span
-                                    className="inline-flex items-center"
-                                    title={`Video: ${videoLabel}`}
-                                    aria-label={`Video: ${videoLabel}`}
-                                  >
-                                    <Video className="h-4 w-4" />
-                                  </span>
-                                ) : null}
-                                {hasGuidelines ? (
-                                  <span
-                                    className="inline-flex items-center"
-                                    title="Guidelines available"
-                                    aria-label="Guidelines available"
-                                  >
-                                    <FileText className="h-4 w-4" />
-                                  </span>
-                                ) : null}
-                                {!hasVideo && !hasGuidelines ? <span>-</span> : null}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-red-100 dark:border-red-900/30 bg-red-50/40 dark:bg-red-900/10">
-                  <div className="text-xs text-gray-700 dark:text-gray-200">
-                    Page {archivedPaging.page} of {archivedPaging.totalPages}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={archivedPaging.page <= 1}
-                      onClick={() =>
-                        setArchivedPage((p) => Math.max(1, p - 1))
-                      }
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={archivedPaging.page >= archivedPaging.totalPages}
-                      onClick={() =>
-                        setArchivedPage((p) =>
-                          Math.min(archivedPaging.totalPages, p + 1)
-                        )
-                      }
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
+          {table.archived.rows.length ? (
+            <EntityTableSection
+              title="Archived Exercises"
+              variant="archived"
+              totalCount={table.archived.rows.length}
+              rows={table.archived.paging.pagedRows}
+              columns={columns}
+              getRowId={(r) => String((r as any)?.id)}
+              onRowClick={(r) => handleOpenDetails(r)}
+              sortConfig={table.sortConfig}
+              onSort={table.onSort}
+              pagination={{
+                page: table.archived.paging.page,
+                totalPages: table.archived.paging.totalPages,
+                onPageChange: table.archived.setPage,
+              }}
+              emptyState={{
+                icon: Dumbbell,
+                title: "No archived exercises",
+              }}
+            />
           ) : null}
         </div>
       )}
 
-      <ExercisePanel
-        exercise={selectedExercise}
+      {/* Unified Exercise Details Panel */}
+      <GenericDetailsPanel
         open={detailsOpen}
         onOpenChange={handleCloseDetails}
-        onExerciseUpdate={() => {
-          queryClient.invalidateQueries({ queryKey: ["exerciseLibrary"] });
-        }}
-      />
-    </div>
+        defaultTitle="Exercise Details"
+        widthClassName="w-full sm:w-[520px] lg:w-[720px]"
+      >
+        <ExerciseDetailsContent
+          exercise={selectedExercise}
+          createNew={detailsOpen && !detailsExerciseId}
+          onExerciseUpdate={() => {
+            queryClient.invalidateQueries({ queryKey: ["exerciseLibrary"] });
+          }}
+        />
+      </GenericDetailsPanel>
+    </EntityPageLayout>
   );
 }

@@ -3,7 +3,7 @@
 import React from "react";
 import { db } from "@/lib/db";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import SidePanel from "@/components/ui/side-panel";
+import { useGenericDetailsPanel } from "@/components/ui/entity/GenericDetailsPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,8 +39,6 @@ const OTHER_CLIENT_NAME_FIELD = "otherClientName";
 interface MeetingPanelProps {
   meetingId: string | null;
   clients: Client[];
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
 }
 
 function toLocalDateTimeInputValue(date: Date): string {
@@ -94,9 +92,8 @@ function normalizeMeetingStatus(
 export default function MeetingPanel({
   meetingId,
   clients,
-  open,
-  onOpenChange,
 }: MeetingPanelProps) {
+  const panel = useGenericDetailsPanel();
   const queryClient = useQueryClient();
 
   const [isEditing, setIsEditing] = React.useState(false);
@@ -111,7 +108,7 @@ export default function MeetingPanel({
       if (!meetingId) return null;
       return (await db.entities.Meeting.get(meetingId)) as Meeting;
     },
-    enabled: open && Boolean(meetingId),
+    enabled: panel.open && Boolean(meetingId),
   });
 
   const [formData, setFormData] = React.useState<Partial<Meeting>>({
@@ -129,7 +126,7 @@ export default function MeetingPanel({
   });
 
   React.useEffect(() => {
-    if (!open) return;
+    if (!panel.open) return;
 
     setValidationError(null);
     setShowDeleteConfirm(false);
@@ -151,10 +148,10 @@ export default function MeetingPanel({
     } else {
       setIsEditing(false);
     }
-  }, [open, meetingId]);
+  }, [panel.open, meetingId]);
 
   React.useEffect(() => {
-    if (!open) return;
+    if (!panel.open) return;
     if (!isEditing) return;
 
     if (meetingId && meeting) {
@@ -183,7 +180,7 @@ export default function MeetingPanel({
         ...({ shareNotesWithClient } as any),
       });
     }
-  }, [open, isEditing, meetingId, meeting]);
+  }, [panel.open, isEditing, meetingId, meeting]);
   const getClientName = (clientId: string) => {
     if (clientId === OTHER_CLIENT_ID) {
       const name = String(
@@ -229,7 +226,7 @@ export default function MeetingPanel({
 
   const minDateTimeLocal = React.useMemo(() => {
     return toLocalDateTimeInputValue(ceilToNextMinute(new Date()));
-  }, [open]);
+  }, [panel.open]);
 
   const shouldEnforceMinDateTime = React.useMemo(() => {
     if (!meeting) return true;
@@ -338,7 +335,7 @@ export default function MeetingPanel({
       toast.success(meetingId ? "Meeting updated" : "Meeting scheduled");
 
       if (!meetingId) {
-        onOpenChange(false);
+        panel.close();
       } else {
         setIsEditing(false);
       }
@@ -359,7 +356,7 @@ export default function MeetingPanel({
       await queryClient.invalidateQueries({ queryKey: ["meetings"] });
       toast.success("Meeting deleted");
       setShowDeleteConfirm(false);
-      onOpenChange(false);
+      panel.close();
     },
     onError: (error: any) => {
       toast.error(String(error?.message || "Failed to delete meeting"));
@@ -826,45 +823,51 @@ export default function MeetingPanel({
     </div>
   );
 
-  return (
-    <SidePanel
-      open={open}
-      onOpenChange={onOpenChange}
-      title={isEditing ? (meetingId ? "Edit Meeting" : "New Meeting") : "Meeting Details"}
-      widthClassName="w-full sm:w-[520px]"
-      footer={
-        isEditing ? (
-          <div className="flex gap-3 justify-end">
-            <Button
-              variant="outline"
-              type="button"
-              onClick={() => (meetingId ? setIsEditing(false) : onOpenChange(false))}
-              disabled={saveMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" form="meeting-form" disabled={saveMutation.isPending}>
-              {saveMutation.isPending
-                ? "Saving..."
-                : meetingId
-                  ? "Save Changes"
-                  : "Schedule Meeting"}
-            </Button>
-          </div>
-        ) : (
-          <div className="flex justify-start" />
-        )
-      }
-    >
-      {!meeting && !isEditing ? (
-        <div className="text-sm text-gray-600 dark:text-gray-300">
-          No meeting selected
+  React.useEffect(() => {
+    panel.setTitle(
+      isEditing
+        ? meetingId
+          ? "Edit Meeting"
+          : "New Meeting"
+        : "Meeting Details"
+    );
+
+    panel.setFooter(
+      isEditing ? (
+        <div className="flex gap-3 justify-end">
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() => (meetingId ? setIsEditing(false) : panel.close())}
+            disabled={saveMutation.isPending}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            form="meeting-form"
+            disabled={saveMutation.isPending}
+          >
+            {saveMutation.isPending
+              ? "Saving..."
+              : meetingId
+                ? "Save Changes"
+                : "Schedule Meeting"}
+          </Button>
         </div>
-      ) : isEditing ? (
-        renderEditMode()
       ) : (
-        renderViewMode(meeting as Meeting)
-      )}
-    </SidePanel>
+        <div className="flex justify-start" />
+      )
+    );
+  }, [isEditing, meetingId, panel, saveMutation.isPending]);
+
+  return !meeting && !isEditing ? (
+    <div className="text-sm text-gray-600 dark:text-gray-300">
+      No meeting selected
+    </div>
+  ) : isEditing ? (
+    renderEditMode()
+  ) : (
+    renderViewMode(meeting as Meeting)
   );
 }
