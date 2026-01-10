@@ -3,6 +3,7 @@
 import React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/lib/db";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -37,6 +38,21 @@ type PlanRow = {
 };
 
 export default function PlansPage() {
+  const { user, isLoadingAuth } = useAuth();
+
+  if (isLoadingAuth) {
+    return (
+      <div className="p-8 flex justify-center">
+        <div className="text-center text-gray-600">Loading...</div>
+      </div>
+    );
+  }
+
+  if (user?.role === "client") {
+    return <ClientPlansPage />;
+  }
+
+  // Default: admin UI
   const queryClient = useQueryClient();
   const [search, setSearch] = React.useState("");
 
@@ -430,6 +446,343 @@ export default function PlansPage() {
         onOpenChange={handleCloseDetails}
         planId={detailsPlanId}
       />
+    </div>
+  );
+}
+
+function ClientPlansPage() {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["clientPlans", "all-coaches"],
+    queryFn: async () => {
+      const res = await fetch("/api/auth/client/plans", {
+        method: "GET",
+        credentials: "include",
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || `Request failed (${res.status})`);
+      }
+      return payload as {
+        ok: boolean;
+        blocks: Array<{
+          adminId: string;
+          label: string;
+          mealPlans: Array<{
+            id: string;
+            name: string;
+            goal?: string;
+            notes?: string;
+            dailyCalories?: string;
+            dailyProtein?: string;
+            dailyCarbs?: string;
+            dailyFat?: string;
+            meals: Array<{
+              id: string;
+              type?: string;
+              name?: string;
+              order?: number;
+              foods: Array<{
+                id: string;
+                name?: string;
+                amount?: string;
+                calories?: string | number;
+                protein?: string | number;
+                carbs?: string | number;
+                fat?: string | number;
+              }>;
+            }>;
+          }>;
+          workoutPlans: Array<{
+            id: string;
+            name: string;
+            goal?: string;
+            notes?: string;
+            difficulty?: string;
+            duration?: string;
+            exercises: Array<{
+              id: string;
+              name?: string;
+              sets?: string;
+              reps?: string;
+              restSeconds?: number;
+              videoKind?: string | null;
+              videoUrl?: string | null;
+              order?: number;
+            }>;
+          }>;
+        }>;
+      };
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
+        <div className="text-gray-600 dark:text-gray-400">Loading plans...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
+        <div className="text-red-600 dark:text-red-300">
+          {String((error as any)?.message ?? "Failed to load plans")}
+        </div>
+      </div>
+    );
+  }
+
+  const blocks = Array.isArray(data?.blocks) ? data.blocks : [];
+
+  const toTitleCase = (value: any) => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return "";
+    return raw
+      .replace(/[_-]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .split(" ")
+      .map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w))
+      .join(" ");
+  };
+
+  const formatRest = (restSeconds: any) => {
+    const n = Number(restSeconds);
+    if (!Number.isFinite(n) || n <= 0) return "";
+    const m = Math.floor(n / 60);
+    const s = n % 60;
+    if (m && s) return `${m}m ${s}s`;
+    if (m) return `${m}m`;
+    return `${s}s`;
+  };
+
+  return (
+    <div className="p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          Plans
+        </h1>
+        <p className="text-gray-600 dark:text-gray-400 mt-1">
+          Reference only. No tracking or edits here.
+        </p>
+      </div>
+
+      {blocks.length === 0 ? (
+        <Card className="dark:bg-gray-800 dark:border-gray-700">
+          <CardContent className="p-6 text-sm text-gray-600 dark:text-gray-300">
+            No linked coaches found.
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-6">
+          {blocks.map((block) => {
+            return (
+              <Card
+                key={block.adminId}
+                className="dark:bg-gray-800 dark:border-gray-700"
+              >
+                <CardContent className="p-6 space-y-6">
+                  <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {String(block.label || "Coach")}
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                      Meal Plans
+                    </div>
+
+                    {block.mealPlans.length === 0 ? (
+                      <div className="text-sm text-gray-600 dark:text-gray-300">
+                        No meal plans assigned.
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {block.mealPlans.map((plan) => (
+                          <div key={plan.id} className="space-y-2">
+                            <div className="text-base font-medium text-gray-900 dark:text-white">
+                              {String(plan.name || "Meal Plan")}
+                            </div>
+
+                            <div className="text-sm text-gray-700 dark:text-gray-300">
+                              {plan.goal ? `Goal: ${toTitleCase(plan.goal)}` : ""}
+                              {plan.goal && plan.notes ? " · " : ""}
+                              {plan.notes ? String(plan.notes) : ""}
+                            </div>
+
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              Structure: Meals
+                            </div>
+
+                            {(plan.dailyCalories ||
+                              plan.dailyProtein ||
+                              plan.dailyCarbs ||
+                              plan.dailyFat) && (
+                                <div className="text-sm text-gray-700 dark:text-gray-300">
+                                  <div className="font-medium">Daily targets</div>
+                                  <div className="mt-1">
+                                    {plan.dailyCalories
+                                      ? `Calories ${String(plan.dailyCalories)} kcal`
+                                      : null}
+                                    {plan.dailyCalories &&
+                                      (plan.dailyProtein || plan.dailyCarbs || plan.dailyFat)
+                                      ? " · "
+                                      : null}
+                                    {plan.dailyProtein
+                                      ? `Protein ${String(plan.dailyProtein)} g`
+                                      : null}
+                                    {plan.dailyProtein &&
+                                      (plan.dailyCarbs || plan.dailyFat)
+                                      ? " · "
+                                      : null}
+                                    {plan.dailyCarbs
+                                      ? `Carbs ${String(plan.dailyCarbs)} g`
+                                      : null}
+                                    {plan.dailyCarbs && plan.dailyFat ? " · " : null}
+                                    {plan.dailyFat
+                                      ? `Fat ${String(plan.dailyFat)} g`
+                                      : null}
+                                  </div>
+                                </div>
+                              )}
+
+                            <div className="space-y-3">
+                              {plan.meals.map((meal, idx) => (
+                                <div key={meal.id} className="rounded-md border border-gray-200 dark:border-gray-700 p-3">
+                                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                    {idx + 1}. {toTitleCase(meal.type || "Meal")}
+                                    {meal.name ? `: ${toTitleCase(meal.name)}` : ""}
+                                  </div>
+
+                                  {meal.foods.length === 0 ? (
+                                    <div className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                                      No foods.
+                                    </div>
+                                  ) : (
+                                    <div className="mt-2 space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                                      {meal.foods.map((food, foodIdx) => {
+                                        const macros = [
+                                          food.protein != null && String(food.protein).trim()
+                                            ? `P ${String(food.protein).trim()}`
+                                            : "",
+                                          food.carbs != null && String(food.carbs).trim()
+                                            ? `C ${String(food.carbs).trim()}`
+                                            : "",
+                                          food.fat != null && String(food.fat).trim()
+                                            ? `F ${String(food.fat).trim()}`
+                                            : "",
+                                          food.calories != null && String(food.calories).trim()
+                                            ? `${String(food.calories).trim()} kcal`
+                                            : "",
+                                        ].filter(Boolean);
+
+                                        return (
+                                          <div key={food.id} className="flex gap-2">
+                                            <div className="w-5 text-right text-gray-400">
+                                              {foodIdx + 1}.
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                              <div className="truncate">
+                                                {toTitleCase(food.name || "-")}
+                                                {food.amount ? ` — ${String(food.amount)}` : ""}
+                                              </div>
+                                              {macros.length ? (
+                                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                  {macros.join(" · ")}
+                                                </div>
+                                              ) : null}
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                      Workout Plans
+                    </div>
+
+                    {block.workoutPlans.length === 0 ? (
+                      <div className="text-sm text-gray-600 dark:text-gray-300">
+                        No workout plans assigned.
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {block.workoutPlans.map((plan) => (
+                          <div key={plan.id} className="space-y-2">
+                            <div className="text-base font-medium text-gray-900 dark:text-white">
+                              {String(plan.name || "Workout Plan")}
+                            </div>
+
+                            <div className="text-sm text-gray-700 dark:text-gray-300">
+                              {plan.goal ? `Goal: ${toTitleCase(plan.goal)}` : ""}
+                              {(plan.goal && (plan.difficulty || plan.duration)) ? " · " : ""}
+                              {plan.difficulty ? `Difficulty: ${toTitleCase(plan.difficulty)}` : ""}
+                              {plan.difficulty && plan.duration ? " · " : ""}
+                              {plan.duration ? `Duration: ${String(plan.duration)}` : ""}
+                            </div>
+
+                            {plan.notes ? (
+                              <div className="text-sm text-gray-700 dark:text-gray-300">
+                                {String(plan.notes)}
+                              </div>
+                            ) : null}
+
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              Structure: Workouts
+                            </div>
+
+                            <div className="rounded-md border border-gray-200 dark:border-gray-700 p-3">
+                              {plan.exercises.length === 0 ? (
+                                <div className="text-sm text-gray-600 dark:text-gray-300">
+                                  No exercises.
+                                </div>
+                              ) : (
+                                <div className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                                  {plan.exercises.map((ex, idx) => {
+                                    const sets = String(ex.sets ?? "").trim();
+                                    const reps = String(ex.reps ?? "").trim();
+                                    const rest = formatRest(ex.restSeconds);
+                                    const detail = [
+                                      sets ? `${sets} sets` : "",
+                                      reps ? `${reps} reps` : "",
+                                      rest ? `Rest ${rest}` : "",
+                                    ]
+                                      .filter(Boolean)
+                                      .join(" · ");
+
+                                    return (
+                                      <div key={ex.id}>
+                                        <div>
+                                          {idx + 1}. {toTitleCase(ex.name || "-")}
+                                          {detail ? ` — ${detail}` : ""}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

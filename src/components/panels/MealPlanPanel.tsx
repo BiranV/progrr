@@ -230,7 +230,13 @@ export default function MealPlanPanel({
     notes: "",
   });
 
+  const [goalMode, setGoalMode] = React.useState<"select" | "custom">("select");
+
   const [meals, setMeals] = React.useState<MealForm[]>([]);
+
+  const [mealTypeModeByKey, setMealTypeModeByKey] = React.useState<
+    Record<string, "select" | "custom">
+  >({});
 
   const normalizeMealType = React.useCallback((value: unknown) => {
     const v = String(value ?? "").trim();
@@ -241,7 +247,7 @@ export default function MealPlanPanel({
       dinner: "Dinner",
       snack: "Snack",
     };
-    return map[key] || v || "Breakfast";
+    return map[key] || (v ? toTitleCase(v) : "Breakfast");
   }, []);
 
   const mealTypeOptions = React.useMemo(() => {
@@ -264,6 +270,32 @@ export default function MealPlanPanel({
     return Array.from(new Set([...defaults, ...existing]));
   }, [meals, normalizeMealType]);
 
+  const normalizeGoal = React.useCallback((value: unknown) => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return "";
+    return toTitleCase(raw);
+  }, []);
+
+  const goalOptions = React.useMemo(() => {
+    const defaults = [
+      "Weight Loss",
+      "Fat Loss",
+      "Maintenance",
+      "Muscle Gain",
+      "Strength",
+      "Endurance",
+      "Performance",
+      "Healthy Eating",
+      "Body Recomposition",
+    ];
+
+    const existing = [normalizeGoal((formData as any)?.goal)]
+      .map((x) => String(x ?? "").trim())
+      .filter(Boolean);
+
+    return Array.from(new Set([...defaults, ...existing]));
+  }, [formData, normalizeGoal]);
+
   React.useEffect(() => {
     if (!open) return;
     setValidationError(null);
@@ -281,6 +313,7 @@ export default function MealPlanPanel({
         notes: "",
       });
       setMeals([]);
+      setGoalMode("select");
     } else {
       setIsEditing(false);
     }
@@ -291,17 +324,23 @@ export default function MealPlanPanel({
     if (!isEditing) return;
 
     if (planId && plan) {
+      const normalizedGoal = normalizeGoal((plan as any)?.goal);
       setFormData({
         name: plan.name || "",
-        goal: plan.goal || "",
+        goal: normalizedGoal,
         dailyCalories: plan.dailyCalories || "",
         dailyProtein: plan.dailyProtein || "",
         dailyCarbs: plan.dailyCarbs || "",
         dailyFat: plan.dailyFat || "",
         notes: plan.notes || "",
       });
+
+      const matches = goalOptions.some(
+        (g) => g.toLowerCase() === String(normalizedGoal).toLowerCase()
+      );
+      setGoalMode(normalizedGoal && !matches ? "custom" : "select");
     }
-  }, [open, isEditing, planId, plan]);
+  }, [open, isEditing, planId, plan, goalOptions, normalizeGoal]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -678,7 +717,11 @@ export default function MealPlanPanel({
   const addMeal = () => {
     setMeals([
       ...meals,
-      { type: mealTypeOptions[0] || "Breakfast", name: "", planFoods: [] },
+      {
+        type: mealTypeOptions[0] || "Breakfast",
+        name: "",
+        planFoods: [{ foodLibraryId: "", amount: "" }],
+      },
     ]);
   };
 
@@ -1059,7 +1102,7 @@ export default function MealPlanPanel({
       ) : null}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="col-span-2">
+        <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Plan Name *
           </label>
@@ -1075,11 +1118,56 @@ export default function MealPlanPanel({
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Goal
           </label>
-          <Input
-            placeholder="e.g., Weight Loss"
-            value={formData.goal}
-            onChange={(e) => setFormData({ ...formData, goal: e.target.value })}
-          />
+          <div className="space-y-2">
+            <Select
+              value={(() => {
+                const CUSTOM_VALUE = "__custom__";
+                const raw = String((formData as any)?.goal ?? "").trim();
+                const matched = goalOptions.find(
+                  (g) => g.toLowerCase() === raw.toLowerCase()
+                );
+                if (goalMode === "custom") return CUSTOM_VALUE;
+                return matched ? matched : "";
+              })()}
+              onValueChange={(v) => {
+                const CUSTOM_VALUE = "__custom__";
+                if (v === CUSTOM_VALUE) {
+                  setGoalMode("custom");
+                  return;
+                }
+                setGoalMode("select");
+                setFormData({ ...formData, goal: v });
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select goal" />
+              </SelectTrigger>
+              <SelectContent>
+                {goalOptions.map((g) => (
+                  <SelectItem key={g} value={g}>
+                    {g}
+                  </SelectItem>
+                ))}
+                <SelectItem value="__custom__">Custom…</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {goalMode === "custom" ? (
+              <Input
+                placeholder="Custom goal"
+                value={String((formData as any)?.goal ?? "")}
+                onChange={(e) =>
+                  setFormData({ ...formData, goal: e.target.value })
+                }
+                onBlur={(e) =>
+                  setFormData({
+                    ...formData,
+                    goal: normalizeGoal(e.target.value),
+                  })
+                }
+              />
+            ) : null}
+          </div>
         </div>
         <div className="col-span-2">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -1146,23 +1234,77 @@ export default function MealPlanPanel({
               className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-3"
             >
               <div className="flex flex-col sm:flex-row gap-3">
-                <Select
-                  value={normalizeMealType(meal.type)}
-                  onValueChange={(v) =>
-                    updateMeal(mealIndex, "type", normalizeMealType(v))
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {mealTypeOptions.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {t}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="w-full">
+                  {(() => {
+                    const CUSTOM_VALUE = "__custom__";
+                    const mealKey = String((meal as any)?.id ?? mealIndex);
+                    const currentTypeRaw = String(meal.type ?? "").trim();
+                    const matchedOption = mealTypeOptions.find(
+                      (t) => String(t).toLowerCase() === currentTypeRaw.toLowerCase()
+                    );
+                    const inferredMode: "select" | "custom" =
+                      currentTypeRaw && !matchedOption ? "custom" : "select";
+                    const mode = mealTypeModeByKey[mealKey] ?? inferredMode;
+                    const isCustom = mode === "custom";
+                    const selectValue = isCustom
+                      ? CUSTOM_VALUE
+                      : matchedOption
+                        ? matchedOption
+                        : "";
+
+                    return (
+                      <div className="space-y-2">
+                        <Select
+                          value={selectValue}
+                          onValueChange={(v) => {
+                            if (v === CUSTOM_VALUE) {
+                              setMealTypeModeByKey((m) => ({
+                                ...m,
+                                [mealKey]: "custom",
+                              }));
+                              return;
+                            }
+
+                            setMealTypeModeByKey((m) => ({
+                              ...m,
+                              [mealKey]: "select",
+                            }));
+                            updateMeal(mealIndex, "type", v);
+                          }}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Meal type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {mealTypeOptions.map((t) => (
+                              <SelectItem key={t} value={t}>
+                                {t}
+                              </SelectItem>
+                            ))}
+                            <SelectItem value={CUSTOM_VALUE}>Custom…</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        {isCustom ? (
+                          <Input
+                            value={currentTypeRaw}
+                            onChange={(e) =>
+                              updateMeal(mealIndex, "type", e.target.value)
+                            }
+                            onBlur={(e) =>
+                              updateMeal(
+                                mealIndex,
+                                "type",
+                                normalizeMealType(e.target.value)
+                              )
+                            }
+                            placeholder="Custom meal type"
+                          />
+                        ) : null}
+                      </div>
+                    );
+                  })()}
+                </div>
                 <button
                   type="button"
                   onClick={() => removeMeal(mealIndex)}
@@ -1172,17 +1314,6 @@ export default function MealPlanPanel({
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Meal name
-                </label>
-                <Input
-                  value={String(meal.name ?? "")}
-                  onChange={(e) => updateMeal(mealIndex, "name", e.target.value)}
-                  placeholder="Optional"
-                />
               </div>
 
               {(meal.planFoods || []).map((row, foodIndex) => (

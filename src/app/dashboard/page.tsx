@@ -11,6 +11,7 @@ import {
   Users,
   Dumbbell,
   UtensilsCrossed,
+  ClipboardList,
   Calendar,
   CalendarDays,
   Check,
@@ -419,7 +420,7 @@ function ClientDashboard({ user }: { user: any }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [activeSection, setActiveSection] = React.useState<
-    "menu" | "profile" | "steps" | "meetings" | "workouts" | "meals" | "weekly"
+    "menu" | "profile" | "steps" | "meetings" | "plans" | "workouts" | "meals" | "weekly"
   >("menu");
 
   const [deleteOpen, setDeleteOpen] = React.useState(false);
@@ -507,6 +508,7 @@ function ClientDashboard({ user }: { user: any }) {
       await queryClient.invalidateQueries({ queryKey: ["myClient"] });
       await queryClient.invalidateQueries({ queryKey: ["assignedPlans"] });
       await queryClient.invalidateQueries({ queryKey: ["assignedMealPlans"] });
+      await queryClient.invalidateQueries({ queryKey: ["clientPlans"] });
       await queryClient.invalidateQueries({ queryKey: ["myMeetings"] });
       await queryClient.invalidateQueries({ queryKey: ["myMessages"] });
       await queryClient.invalidateQueries({
@@ -1357,6 +1359,166 @@ function ClientDashboard({ user }: { user: any }) {
         assignedMealPlanIds.length > 0,
     });
 
+  type ClientPlansApiResponse = {
+    ok: boolean;
+    blocks?: Array<{
+      adminId: string;
+      label: string;
+      mealPlans: Array<{
+        id: string;
+        name: string;
+        goal?: string;
+        notes?: string;
+        dailyCalories?: string;
+        dailyProtein?: string;
+        dailyCarbs?: string;
+        dailyFat?: string;
+        dailyFiber?: string;
+        dailySugars?: string;
+        dailySaturatedFat?: string;
+        dailyTransFat?: string;
+        dailyCholesterol?: string;
+        dailySodium?: string;
+        dailyPotassium?: string;
+        dailyCalcium?: string;
+        dailyIron?: string;
+        dailyVitaminA?: string;
+        dailyVitaminC?: string;
+        dailyVitaminD?: string;
+        dailyVitaminB12?: string;
+        meals: Array<{
+          id: string;
+          type?: string;
+          name?: string;
+          order?: number;
+          foods: Array<{
+            id: string;
+            name?: string;
+            amount?: string;
+            calories?: string | number;
+            protein?: string | number;
+            carbs?: string | number;
+            fat?: string | number;
+          }>;
+        }>;
+      }>;
+      workoutPlans: Array<{
+        id: string;
+        name: string;
+        goal?: string;
+        notes?: string;
+        difficulty?: string;
+        duration?: string;
+        exercises: Array<{
+          id: string;
+          name?: string;
+          videoKind?: string | null;
+          videoUrl?: string | null;
+          sets?: string;
+          reps?: string;
+          restSeconds?: number;
+          order?: number;
+        }>;
+      }>;
+    }>;
+  };
+
+  const {
+    data: clientPlansData,
+    isLoading: clientPlansLoading,
+    error: clientPlansError,
+  } = useQuery({
+    queryKey: ["clientPlans"],
+    enabled: activeSection === "plans",
+    queryFn: async () => {
+      const res = await fetch("/api/auth/client/plans", {
+        method: "GET",
+        credentials: "include",
+      });
+      const payload = (await res.json().catch(() => ({}))) as any;
+      if (!res.ok) {
+        throw new Error(payload?.error || `Request failed (${res.status})`);
+      }
+      return payload as ClientPlansApiResponse;
+    },
+  });
+
+  const clientPlansBlocks = Array.isArray(clientPlansData?.blocks)
+    ? clientPlansData!.blocks!
+    : [];
+
+  const hasAnyMealPlans = clientPlansBlocks.some(
+    (b) => (b?.mealPlans?.length ?? 0) > 0
+  );
+  const hasAnyWorkoutPlans = clientPlansBlocks.some(
+    (b) => (b?.workoutPlans?.length ?? 0) > 0
+  );
+
+  type ClientPlansTab = "workouts" | "meals";
+  const CLIENT_PLANS_TAB_STORAGE_KEY = "clientDashboardPlansTab";
+  const [clientPlansTab, setClientPlansTab] = React.useState<ClientPlansTab>(
+    "workouts"
+  );
+
+  React.useEffect(() => {
+    try {
+      const raw = String(
+        window.localStorage.getItem(CLIENT_PLANS_TAB_STORAGE_KEY) ?? ""
+      ).trim();
+      if (raw === "meals" || raw === "workouts") {
+        setClientPlansTab(raw);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  React.useEffect(() => {
+    try {
+      window.localStorage.setItem(CLIENT_PLANS_TAB_STORAGE_KEY, clientPlansTab);
+    } catch {
+      // ignore
+    }
+  }, [clientPlansTab]);
+
+  React.useEffect(() => {
+    if (activeSection !== "plans") return;
+    if (clientPlansTab === "workouts" && !hasAnyWorkoutPlans && hasAnyMealPlans) {
+      setClientPlansTab("meals");
+    }
+    if (clientPlansTab === "meals" && !hasAnyMealPlans && hasAnyWorkoutPlans) {
+      setClientPlansTab("workouts");
+    }
+  }, [activeSection, clientPlansTab, hasAnyMealPlans, hasAnyWorkoutPlans]);
+
+  const formatMacro = (value: unknown) => {
+    const raw = String(value ?? "").trim();
+    return raw ? raw : "-";
+  };
+
+  const formatFoodMacroNumber = (value: unknown, decimals = 2) => {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      const rounded = Number(value.toFixed(decimals));
+      return String(rounded);
+    }
+
+    const raw = String(value ?? "").trim();
+    if (!raw) return "-";
+
+    const match = raw.match(/-?\d+(?:\.\d+)?/);
+    if (!match) return raw;
+    const n = Number(match[0]);
+    if (!Number.isFinite(n)) return raw;
+    const rounded = Number(n.toFixed(decimals));
+    return String(rounded);
+  };
+
+  const formatNutrient = (value: unknown, unit: string) => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return "";
+    return unit ? `${raw} ${unit}` : raw;
+  };
+
   type DaySchedule = {
     workoutPlanId?: string;
     workoutTime?: string;
@@ -2114,12 +2276,12 @@ function ClientDashboard({ user }: { user: any }) {
 
             <Card
               className="h-32 md:h-36 dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
-              onClick={() => setActiveSection("workouts")}
+              onClick={() => setActiveSection("plans")}
             >
               <CardHeader className="h-full flex flex-col items-center justify-center text-center gap-2">
-                <Dumbbell className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+                <ClipboardList className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
                 <div className="h-10 flex items-center justify-center">
-                  <CardTitle className="text-base leading-tight">Workouts</CardTitle>
+                  <CardTitle className="text-base leading-tight">Plans</CardTitle>
                 </div>
               </CardHeader>
             </Card>
@@ -2132,18 +2294,6 @@ function ClientDashboard({ user }: { user: any }) {
                 <Activity className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
                 <div className="h-10 flex items-center justify-center">
                   <CardTitle className="text-base leading-tight">Steps</CardTitle>
-                </div>
-              </CardHeader>
-            </Card>
-
-            <Card
-              className="h-32 md:h-36 dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60"
-              onClick={() => setActiveSection("meals")}
-            >
-              <CardHeader className="h-full flex flex-col items-center justify-center text-center gap-2">
-                <UtensilsCrossed className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-                <div className="h-10 flex items-center justify-center">
-                  <CardTitle className="text-base leading-tight">Meals</CardTitle>
                 </div>
               </CardHeader>
             </Card>
@@ -2170,6 +2320,8 @@ function ClientDashboard({ user }: { user: any }) {
               <Activity className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
             ) : activeSection === "meetings" ? (
               <Calendar className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            ) : activeSection === "plans" ? (
+              <ClipboardList className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
             ) : activeSection === "workouts" ? (
               <Dumbbell className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
             ) : activeSection === "meals" ? (
@@ -2185,11 +2337,13 @@ function ClientDashboard({ user }: { user: any }) {
                   ? "Steps"
                   : activeSection === "meetings"
                     ? "Meetings"
-                    : activeSection === "workouts"
-                      ? "Workouts"
-                      : activeSection === "meals"
-                        ? "Meals"
-                        : "Calendar"}
+                    : activeSection === "plans"
+                      ? "Plans"
+                      : activeSection === "workouts"
+                        ? "Workouts"
+                        : activeSection === "meals"
+                          ? "Meals"
+                          : "Calendar"}
             </span>
           </div>
 
@@ -3041,6 +3195,483 @@ function ClientDashboard({ user }: { user: any }) {
                   <div className="text-xs text-gray-500 dark:text-gray-400">
                     Saved on this device for your account.
                   </div>
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          {activeSection === "plans" ? (
+            <div className="space-y-4">
+              {clientPlansLoading ? (
+                <p className="text-gray-500 dark:text-gray-400">Loading...</p>
+              ) : clientPlansError ? (
+                <p className="text-gray-500 dark:text-gray-400">
+                  {String((clientPlansError as any)?.message ?? "Failed to load plans")}
+                </p>
+              ) : clientPlansBlocks.length === 0 ||
+                clientPlansBlocks.every(
+                  (b) =>
+                    (b?.mealPlans?.length ?? 0) === 0 &&
+                    (b?.workoutPlans?.length ?? 0) === 0
+                ) ? (
+                <p className="text-gray-500 dark:text-gray-400">
+                  No plans assigned yet
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {hasAnyMealPlans && hasAnyWorkoutPlans ? (
+                    <div className="flex justify-center">
+                      <div className="inline-flex rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setClientPlansTab("workouts")}
+                          aria-pressed={clientPlansTab === "workouts"}
+                          className={`rounded-l-md rounded-r-none px-3 ${clientPlansTab === "workouts"
+                            ? "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-500 dark:bg-indigo-900/20 dark:text-indigo-200"
+                            : ""
+                            }`}
+                        >
+                          Workouts
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setClientPlansTab("meals")}
+                          aria-pressed={clientPlansTab === "meals"}
+                          className={`rounded-r-md rounded-l-none px-3 border-l border-gray-200 dark:border-gray-700 ${clientPlansTab === "meals"
+                            ? "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-500 dark:bg-indigo-900/20 dark:text-indigo-200"
+                            : ""
+                            }`}
+                        >
+                          Meals
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {clientPlansBlocks
+                    .filter(
+                      (b) =>
+                        (b?.mealPlans?.length ?? 0) > 0 ||
+                        (b?.workoutPlans?.length ?? 0) > 0
+                    )
+                    .map((block, idx) => (
+                      <div key={String(block.adminId)} className="space-y-4">
+                        {idx > 0 ? (
+                          <div className="h-px bg-gray-200 dark:bg-gray-800" />
+                        ) : null}
+
+                        {clientPlansTab === "meals" && (block.mealPlans ?? []).length > 0 ? (
+                          <div className="space-y-3">
+                            {(block.mealPlans ?? []).map((plan) => (
+                              <div
+                                key={String(plan.id)}
+                                className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-900/30"
+                              >
+                                <div className="font-medium text-gray-900 dark:text-white">
+                                  {String(plan.name ?? "Meal Plan").trim() || "Meal Plan"}
+                                </div>
+
+                                {String(plan.goal ?? "").trim() ? (
+                                  <div className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                                    Goal: {String(plan.goal)}
+                                  </div>
+                                ) : null}
+
+                                {String(plan.notes ?? "").trim() ? (
+                                  <div className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                                    Notes: {String(plan.notes)}
+                                  </div>
+                                ) : null}
+
+                                <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                                  <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+                                    <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                                      <Flame className="w-4 h-4 text-orange-500" />
+                                      <span>Calories</span>
+                                    </div>
+                                    <div className="mt-1 font-medium text-gray-900 dark:text-white">
+                                      {(() => {
+                                        const raw = String(
+                                          plan.dailyCalories ?? ""
+                                        ).trim();
+                                        if (!raw) return "-";
+                                        return /kcal/i.test(raw)
+                                          ? raw
+                                          : `${raw} kcal`;
+                                      })()}
+                                    </div>
+                                  </div>
+
+                                  <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+                                    <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                                      <Beef className="w-4 h-4 text-blue-500" />
+                                      <span>Protein</span>
+                                    </div>
+                                    <div className="mt-1 font-medium text-gray-900 dark:text-white">
+                                      {(() => {
+                                        const raw = String(
+                                          plan.dailyProtein ?? ""
+                                        ).trim();
+                                        if (!raw) return "-";
+                                        return /\bg\b/i.test(raw)
+                                          ? raw
+                                          : `${raw} g`;
+                                      })()}
+                                    </div>
+                                  </div>
+
+                                  <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+                                    <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                                      <Wheat className="w-4 h-4 text-yellow-500" />
+                                      <span>Carbs</span>
+                                    </div>
+                                    <div className="mt-1 font-medium text-gray-900 dark:text-white">
+                                      {(() => {
+                                        const raw = String(
+                                          plan.dailyCarbs ?? ""
+                                        ).trim();
+                                        if (!raw) return "-";
+                                        return /\bg\b/i.test(raw)
+                                          ? raw
+                                          : `${raw} g`;
+                                      })()}
+                                    </div>
+                                  </div>
+
+                                  <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
+                                    <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
+                                      <Droplets className="w-4 h-4 text-purple-500" />
+                                      <span>Fat</span>
+                                    </div>
+                                    <div className="mt-1 font-medium text-gray-900 dark:text-white">
+                                      {(() => {
+                                        const raw = String(
+                                          plan.dailyFat ?? ""
+                                        ).trim();
+                                        if (!raw) return "-";
+                                        return /\bg\b/i.test(raw)
+                                          ? raw
+                                          : `${raw} g`;
+                                      })()}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {(() => {
+                                  const items = [
+                                    {
+                                      label: "Fiber",
+                                      value: formatNutrient(plan.dailyFiber, "g"),
+                                    },
+                                    {
+                                      label: "Sugars",
+                                      value: formatNutrient(plan.dailySugars, "g"),
+                                    },
+                                    {
+                                      label: "Saturated fat",
+                                      value: formatNutrient(
+                                        plan.dailySaturatedFat,
+                                        "g"
+                                      ),
+                                    },
+                                    {
+                                      label: "Trans fat",
+                                      value: formatNutrient(plan.dailyTransFat, "g"),
+                                    },
+                                    {
+                                      label: "Cholesterol",
+                                      value: formatNutrient(
+                                        plan.dailyCholesterol,
+                                        "mg"
+                                      ),
+                                    },
+                                    {
+                                      label: "Sodium",
+                                      value: formatNutrient(plan.dailySodium, "mg"),
+                                    },
+                                    {
+                                      label: "Potassium",
+                                      value: formatNutrient(
+                                        plan.dailyPotassium,
+                                        "mg"
+                                      ),
+                                    },
+                                    {
+                                      label: "Calcium",
+                                      value: formatNutrient(plan.dailyCalcium, "mg"),
+                                    },
+                                    {
+                                      label: "Iron",
+                                      value: formatNutrient(plan.dailyIron, "mg"),
+                                    },
+                                    {
+                                      label: "Vitamin A",
+                                      value: formatNutrient(plan.dailyVitaminA, "µg"),
+                                    },
+                                    {
+                                      label: "Vitamin C",
+                                      value: formatNutrient(plan.dailyVitaminC, "mg"),
+                                    },
+                                    {
+                                      label: "Vitamin D",
+                                      value: formatNutrient(plan.dailyVitaminD, "µg"),
+                                    },
+                                    {
+                                      label: "Vitamin B12",
+                                      value: formatNutrient(
+                                        plan.dailyVitaminB12,
+                                        "µg"
+                                      ),
+                                    },
+                                  ].filter((x) => x.value);
+
+                                  if (!items.length) return null;
+
+                                  return (
+                                    <div className="mt-4">
+                                      <div className="text-sm font-semibold text-gray-900 dark:text-white mb-2">
+                                        More nutrition (daily totals)
+                                      </div>
+                                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 text-sm">
+                                        {items.map((it) => (
+                                          <div
+                                            key={it.label}
+                                            className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2"
+                                          >
+                                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                                              {it.label}
+                                            </div>
+                                            <div className="mt-0.5 font-medium text-gray-900 dark:text-white">
+                                              {it.value}
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
+
+                                <div className="mt-4 space-y-3">
+                                  {(plan.meals ?? []).length === 0 ? null : (
+                                    (plan.meals ?? []).map((meal) => (
+                                      <div
+                                        key={String(meal.id)}
+                                        className="rounded-md border border-gray-200 dark:border-gray-700 p-3"
+                                      >
+                                        <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                                          {String(meal.type ?? "Meal").trim() ||
+                                            "Meal"}
+                                        </div>
+
+                                        {(meal.foods ?? []).length === 0 ? null : (
+                                          <div className="mt-2 space-y-1 text-sm text-gray-700 dark:text-gray-200">
+                                            {(meal.foods ?? []).map((food) => {
+                                              const name =
+                                                String(food.name ?? "").trim() ||
+                                                "Food";
+                                              const calories = formatFoodMacroNumber(
+                                                food.calories,
+                                                0
+                                              );
+                                              const protein = formatFoodMacroNumber(
+                                                food.protein,
+                                                2
+                                              );
+                                              const carbs = formatFoodMacroNumber(
+                                                food.carbs,
+                                                2
+                                              );
+                                              const fat = formatFoodMacroNumber(
+                                                food.fat,
+                                                2
+                                              );
+
+                                              return (
+                                                <div
+                                                  key={String(food.id)}
+                                                  className="flex flex-wrap items-baseline justify-between gap-2"
+                                                >
+                                                  <div className="min-w-0">
+                                                    <span className="font-medium text-gray-900 dark:text-white">
+                                                      {name}
+                                                    </span>
+                                                  </div>
+                                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                    {calories} cal · P {protein} · C {carbs} · F {fat}
+                                                  </div>
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+
+                        {clientPlansTab === "workouts" && (block.workoutPlans ?? []).length > 0 ? (
+                          <div className="space-y-3">
+                            {(block.workoutPlans ?? []).map((plan) => (
+                              <div
+                                key={String(plan.id)}
+                                className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-900/30"
+                              >
+                                <div className="font-medium text-gray-900 dark:text-white">
+                                  {String(plan.name ?? "Workout Plan").trim() ||
+                                    "Workout Plan"}
+                                </div>
+
+                                {String(plan.goal ?? "").trim() ? (
+                                  <div className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                                    Goal: {String(plan.goal)}
+                                  </div>
+                                ) : null}
+
+                                {(() => {
+                                  const difficultyRaw = String(
+                                    plan.difficulty ?? ""
+                                  ).trim();
+                                  const difficulty = difficultyRaw
+                                    ? difficultyRaw.replace(/[_-]/g, " ")
+                                    : "";
+                                  const duration = formatDuration(plan.duration);
+
+                                  if (!difficulty && !duration) return null;
+
+                                  return (
+                                    <div className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                                      {difficulty ? (
+                                        <span className="capitalize">{difficulty}</span>
+                                      ) : null}
+                                      {duration ? (
+                                        <span>
+                                          {difficulty ? " · " : ""}
+                                          {duration}
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                  );
+                                })()}
+
+                                {(() => {
+                                  const notes = String(plan.notes ?? "").trim();
+                                  if (!notes) return null;
+                                  return (
+                                    <div className="mt-2 flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
+                                      <FileText className="w-4 h-4 mt-0.5 text-gray-400" />
+                                      <div>
+                                        <span className="font-medium text-gray-700 dark:text-gray-200">
+                                          Notes:
+                                        </span>{" "}
+                                        {notes}
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
+
+                                <div className="mt-4 space-y-2">
+                                  {(plan.exercises ?? []).length === 0 ? null : (
+                                    <div className="space-y-2">
+                                      {(plan.exercises ?? []).map((ex) => {
+                                        const name =
+                                          String(ex.name ?? "").trim() ||
+                                          "Exercise";
+                                        const sets = String(ex.sets ?? "").trim();
+                                        const reps = String(ex.reps ?? "").trim();
+                                        const rest = Number.isFinite(
+                                          Number(ex.restSeconds)
+                                        )
+                                          ? `${Number(ex.restSeconds)}s rest`
+                                          : "";
+
+                                        const parts = [
+                                          sets ? `${sets} sets` : "",
+                                          reps ? `${reps} reps` : "",
+                                          rest,
+                                        ].filter(Boolean);
+
+                                        return (
+                                          <div
+                                            key={String(ex.id)}
+                                            className="rounded-md border border-gray-200 dark:border-gray-700 p-3"
+                                          >
+                                            <div className="flex flex-wrap items-baseline justify-between gap-2">
+                                              <div className="font-medium text-gray-900 dark:text-white">
+                                                {name}
+                                              </div>
+                                              {parts.length ? (
+                                                <div className="text-sm text-gray-500 dark:text-gray-400">
+                                                  {parts.join(" · ")}
+                                                </div>
+                                              ) : null}
+                                            </div>
+                                            {(() => {
+                                              const rawUrl = String(
+                                                ex.videoUrl ?? ""
+                                              ).trim();
+                                              if (!rawUrl) return null;
+
+                                              const embedUrl =
+                                                (ex.videoKind === "youtube" ||
+                                                  !!extractYouTubeVideoId(rawUrl)) &&
+                                                  toYouTubeEmbedUrl(rawUrl)
+                                                  ? String(toYouTubeEmbedUrl(rawUrl))
+                                                  : "";
+
+                                              return (
+                                                <div className="mt-2 space-y-2">
+                                                  {embedUrl ? (
+                                                    <div className="aspect-video w-full overflow-hidden rounded-md border border-gray-200 dark:border-gray-700 bg-black">
+                                                      <iframe
+                                                        src={embedUrl}
+                                                        title={`${name} video`}
+                                                        className="w-full h-full"
+                                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                                        allowFullScreen
+                                                      />
+                                                    </div>
+                                                  ) : (
+                                                    <video
+                                                      controls
+                                                      src={rawUrl}
+                                                      className="w-full max-w-full rounded-md border border-gray-200 dark:border-gray-700 bg-black"
+                                                    />
+                                                  )}
+
+                                                  <a
+                                                    href={rawUrl}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="inline-flex items-center gap-2 text-xs text-indigo-600 dark:text-indigo-300 underline underline-offset-2"
+                                                    onMouseDown={(e) => e.stopPropagation()}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                  >
+                                                    <Video className="w-3.5 h-3.5" />
+                                                    Open video
+                                                  </a>
+                                                </div>
+                                              );
+                                            })()}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
                 </div>
               )}
             </div>
