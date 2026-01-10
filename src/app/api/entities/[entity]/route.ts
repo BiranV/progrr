@@ -243,8 +243,18 @@ export async function GET(
     }
 
     const adminId = new ObjectId(user.id);
+    const query: any = { entity, adminId };
+
+    // MealPlan lifecycle: hide DELETED plans from standard lists.
+    if (entity === "MealPlan") {
+      query.$or = [
+        { "data.status": { $exists: false } },
+        { "data.status": { $in: ["ACTIVE", "ARCHIVED"] } },
+      ];
+    }
+
     const docs = await c.entities
-      .find({ entity, adminId })
+      .find(query)
       .sort({ updatedAt: -1 })
       .toArray();
 
@@ -352,6 +362,18 @@ export async function POST(
 
     if (user.role !== "admin") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // MealPlan lifecycle: default to ACTIVE if not explicitly set.
+    if (entity === "MealPlan") {
+      const statusRaw = String((body as any)?.status ?? "").trim().toUpperCase();
+      const status =
+        statusRaw === "ACTIVE" || statusRaw === "ARCHIVED" || statusRaw === "DELETED"
+          ? statusRaw
+          : "";
+      if (!status) {
+        (body as any).status = "ACTIVE";
+      }
     }
 
     // Prevent replying to deleted clients (server-side enforcement)

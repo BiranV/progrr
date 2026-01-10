@@ -146,6 +146,7 @@ export interface Meal {
 
 export interface MealPlan {
   id: string;
+  status?: "ACTIVE" | "ARCHIVED" | "DELETED";
   name: string;
   goal?: string;
   dailyCalories?: string;

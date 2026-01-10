@@ -82,7 +82,7 @@ class ApiEntity {
   }
 
   async delete(id: string) {
-    await apiFetch<{ ok: true }>(`/api/entities/${this.entityName}/${id}`, {
+    return apiFetch<any>(`/api/entities/${this.entityName}/${id}`, {
       method: "DELETE",
     });
   }

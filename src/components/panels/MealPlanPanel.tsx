@@ -72,6 +72,9 @@ export default function MealPlanPanel({
     null
   );
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const [deleteInfoMessage, setDeleteInfoMessage] = React.useState<string | null>(
+    null
+  );
 
   const { data: plan } = useQuery({
     queryKey: ["mealPlan", planId],
@@ -300,6 +303,7 @@ export default function MealPlanPanel({
     if (!open) return;
     setValidationError(null);
     setShowDeleteConfirm(false);
+    setDeleteInfoMessage(null);
 
     if (!planId) {
       setIsEditing(true);
@@ -325,7 +329,7 @@ export default function MealPlanPanel({
 
     if (planId && plan) {
       const normalizedGoal = normalizeGoal((plan as any)?.goal);
-      setFormData({
+      const nextFormData: Partial<MealPlan> = {
         name: plan.name || "",
         goal: normalizedGoal,
         dailyCalories: plan.dailyCalories || "",
@@ -333,14 +337,42 @@ export default function MealPlanPanel({
         dailyCarbs: plan.dailyCarbs || "",
         dailyFat: plan.dailyFat || "",
         notes: plan.notes || "",
+      };
+
+      setFormData((prev) => {
+        const same =
+          String(prev.name ?? "") === String(nextFormData.name ?? "") &&
+          String(prev.goal ?? "") === String(nextFormData.goal ?? "") &&
+          String(prev.dailyCalories ?? "") ===
+          String(nextFormData.dailyCalories ?? "") &&
+          String(prev.dailyProtein ?? "") ===
+          String(nextFormData.dailyProtein ?? "") &&
+          String(prev.dailyCarbs ?? "") ===
+          String(nextFormData.dailyCarbs ?? "") &&
+          String(prev.dailyFat ?? "") === String(nextFormData.dailyFat ?? "") &&
+          String(prev.notes ?? "") === String(nextFormData.notes ?? "");
+        return same ? prev : nextFormData;
       });
 
-      const matches = goalOptions.some(
-        (g) => g.toLowerCase() === String(normalizedGoal).toLowerCase()
+      const goalDefaults = [
+        "weight loss",
+        "fat loss",
+        "maintenance",
+        "muscle gain",
+        "strength",
+        "endurance",
+        "performance",
+        "healthy eating",
+        "body recomposition",
+      ];
+
+      const matchesDefault = goalDefaults.includes(
+        String(normalizedGoal).trim().toLowerCase()
       );
-      setGoalMode(normalizedGoal && !matches ? "custom" : "select");
+      const nextMode = normalizedGoal && !matchesDefault ? "custom" : "select";
+      setGoalMode((prev) => (prev === nextMode ? prev : nextMode));
     }
-  }, [open, isEditing, planId, plan, goalOptions, normalizeGoal]);
+  }, [open, isEditing, planId, plan, normalizeGoal]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -681,25 +713,23 @@ export default function MealPlanPanel({
   const deleteMutation = useMutation({
     mutationFn: async () => {
       if (!planId) return;
-      const meals = await db.entities.Meal.filter({ mealPlanId: planId });
-      for (const meal of meals) {
-        const planFoods = await db.entities.PlanFood.filter({
-          mealId: meal.id,
-        });
-        await Promise.all(
-          planFoods.map((pf: PlanFood) => db.entities.PlanFood.delete(pf.id))
-        );
-        const foods = await db.entities.Food.filter({ mealId: meal.id });
-        await Promise.all(
-          foods.map((f: Food) => db.entities.Food.delete(f.id))
-        );
-        await db.entities.Meal.delete(meal.id);
-      }
-      await db.entities.MealPlan.delete(planId);
+      return db.entities.MealPlan.delete(planId);
     },
-    onSuccess: () => {
+    onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ["mealPlans"] });
-      toast.success("Meal plan deleted");
+      if (planId) {
+        queryClient.invalidateQueries({ queryKey: ["mealPlan", planId] });
+      }
+      const status = String(result?.status ?? "").trim().toUpperCase();
+      if (status === "ARCHIVED") {
+        setDeleteInfoMessage(
+          "This meal plan is currently assigned to one or more clients, so it cannot be deleted. It has been archived instead. Remove it from clients if you want to delete it."
+        );
+        setShowDeleteConfirm(false);
+        return;
+      } else {
+        toast.success("Meal plan deleted");
+      }
       setShowDeleteConfirm(false);
       onOpenChange(false);
     },
@@ -872,6 +902,17 @@ export default function MealPlanPanel({
             </Button>
           </div>
         </div>
+
+        {deleteInfoMessage ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800 px-3 py-2">
+            <div className="text-sm font-medium text-amber-900 dark:text-amber-100">
+              Archived (not deleted)
+            </div>
+            <div className="text-xs text-amber-800 dark:text-amber-200 mt-1 leading-relaxed">
+              {deleteInfoMessage}
+            </div>
+          </div>
+        ) : null}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
           <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
@@ -1262,6 +1303,11 @@ export default function MealPlanPanel({
                                 ...m,
                                 [mealKey]: "custom",
                               }));
+
+                              // If switching from a preset option to custom, start with an empty input.
+                              if (matchedOption) {
+                                updateMeal(mealIndex, "type", "");
+                              }
                               return;
                             }
 

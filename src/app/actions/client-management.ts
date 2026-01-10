@@ -40,15 +40,7 @@ function normalizeClientGenderCanonical(
 
 function normalizeClientGoalCanonical(
   value: unknown
-):
-  | "weight_loss"
-  | "muscle_gain"
-  | "maintenance"
-  | "strength"
-  | "endurance"
-  | "recomposition"
-  | "better_habits"
-  | "" {
+): string {
   const raw = String(value ?? "").trim();
   if (!raw) return "";
   if (raw === "Fat Loss") return "weight_loss";
@@ -72,21 +64,13 @@ function normalizeClientGoalCanonical(
   if (v === "recomposition") return "recomposition";
   if (v === "better_habits") return "better_habits";
 
-  if (v.includes("loss") || v.includes("cut") || v.includes("fat"))
-    return "weight_loss";
-  if (v.includes("muscle") || v.includes("gain") || v.includes("bulk"))
-    return "muscle_gain";
-  if (v.includes("maint")) return "maintenance";
-  if (v.includes("strength")) return "strength";
-  if (v.includes("endur") || v.includes("cardio")) return "endurance";
-  if (v.includes("recomp")) return "recomposition";
-  if (v.includes("habit") || v.includes("lifestyle")) return "better_habits";
-  return "";
+  // Preserve custom text as-is (trim + basic length cap).
+  return raw.length > 80 ? raw.slice(0, 80) : raw;
 }
 
 function normalizeClientActivityCanonical(
   value: unknown
-): "sedentary" | "light" | "moderate" | "active" | "very" | "extra" | "" {
+): string {
   const raw = String(value ?? "").trim();
   if (!raw) return "";
   if (raw === "Sedentary") return "sedentary";
@@ -110,7 +94,9 @@ function normalizeClientActivityCanonical(
   if (v === "very" || v === "very active" || v === "veryactive") return "very";
   if (v === "extra" || v === "extra active" || v === "extraactive")
     return "extra";
-  return "";
+
+  // Preserve custom text as-is (trim + basic length cap).
+  return raw.length > 80 ? raw.slice(0, 80) : raw;
 }
 
 function resolveAppUrlFromEnvOrHeaders(h: Headers): string {
@@ -360,16 +346,16 @@ export async function createClientAction(data: ClientFormData) {
     const inviteId = existingInvite?._id
       ? existingInvite._id
       : (
-          await c.invites.insertOne({
-            email,
-            adminId,
-            role: "client",
-            status: "PENDING",
-            expiresAt,
-            createdAt: now,
-            clientEntityId: entityId,
-          } as any)
-        ).insertedId;
+        await c.invites.insertOne({
+          email,
+          adminId,
+          role: "client",
+          status: "PENDING",
+          expiresAt,
+          createdAt: now,
+          clientEntityId: entityId,
+        } as any)
+      ).insertedId;
 
     // Best-effort: keep clientEntityId updated when reusing an invite.
     if (existingInvite?._id && entityId instanceof ObjectId) {

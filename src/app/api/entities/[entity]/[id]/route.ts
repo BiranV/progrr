@@ -750,6 +750,37 @@ export async function DELETE(
     });
     if (!existing) return NextResponse.json({ ok: true });
 
+    // MealPlan lifecycle: never physically delete meal plans.
+    // - If assigned to any clients: ARCHIVED
+    // - If not assigned: DELETED
+    if (entity === "MealPlan") {
+      const planId = id;
+      const isAssigned = await c.entities.findOne({
+        entity: "Client",
+        adminId,
+        $or: [
+          { "data.assignedMealPlanId": planId },
+          { "data.assignedMealPlanIds": planId },
+        ],
+      });
+
+      const nextStatus = isAssigned ? "ARCHIVED" : "DELETED";
+      const now = new Date();
+      await c.entities.updateOne(
+        { _id: new ObjectId(id), entity: "MealPlan", adminId },
+        {
+          $set: {
+            "data.status": nextStatus,
+            "data.archivedAt": isAssigned ? now.toISOString() : (existing as any)?.data?.archivedAt,
+            "data.deletedAt": !isAssigned ? now.toISOString() : (existing as any)?.data?.deletedAt,
+            updatedAt: now,
+          },
+        }
+      );
+
+      return NextResponse.json({ ok: true, status: nextStatus });
+    }
+
     if (entity === "Message") {
       const data = (existing.data ?? {}) as any;
       const clientId = String(data.clientId ?? "").trim();

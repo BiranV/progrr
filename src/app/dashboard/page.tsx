@@ -532,6 +532,35 @@ function ClientDashboard({ user }: { user: any }) {
       .join(" ");
   };
 
+  const formatClientGoal = (value: unknown) => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return "-";
+    const map: Record<string, string> = {
+      weight_loss: "Fat Loss",
+      muscle_gain: "Muscle Gain",
+      maintenance: "Maintenance",
+      strength: "Strength",
+      endurance: "Endurance",
+      recomposition: "Recomposition",
+      better_habits: "Better Habits",
+    };
+    return map[raw] || raw;
+  };
+
+  const formatClientActivityLevel = (value: unknown) => {
+    const raw = String(value ?? "").trim();
+    if (!raw) return "-";
+    const map: Record<string, string> = {
+      sedentary: "Sedentary",
+      light: "Light",
+      moderate: "Moderate",
+      active: "Active",
+      very: "Very Active",
+      extra: "Extra Active",
+    };
+    return map[raw] || raw;
+  };
+
   const formatBirthDateWithAge = (birthDate: unknown) => {
     const raw = String(birthDate ?? "").trim();
     if (!raw) return "-";
@@ -2462,8 +2491,7 @@ function ClientDashboard({ user }: { user: any }) {
                         Goal
                       </div>
                       <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {toTitleCase(String((myClient as any).goal ?? "")) ||
-                          "-"}
+                        {formatClientGoal((myClient as any).goal)}
                       </div>
                     </div>
                     <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
@@ -2471,9 +2499,7 @@ function ClientDashboard({ user }: { user: any }) {
                         Activity level
                       </div>
                       <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {toTitleCase(
-                          String((myClient as any).activityLevel ?? "")
-                        ) || "-"}
+                        {formatClientActivityLevel((myClient as any).activityLevel)}
                       </div>
                     </div>
                     <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">

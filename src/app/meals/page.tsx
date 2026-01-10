@@ -25,6 +25,7 @@ type MealPlanRow = {
   dailyCarbs?: string | number;
   dailyFat?: string | number;
   goal?: string;
+  status?: string;
 };
 
 export default function MealsPage() {
@@ -65,41 +66,75 @@ export default function MealsPage() {
     queryFn: () => db.entities.MealPlan.list("-created_date"),
   });
 
-  const filtered = (mealPlans as MealPlanRow[]).filter((p) =>
+  const normalizeMealPlanStatus = React.useCallback((value: unknown) => {
+    const raw = String(value ?? "").trim().toUpperCase();
+    if (raw === "ARCHIVED") return "ARCHIVED";
+    if (raw === "DELETED") return "DELETED";
+    if (raw === "ACTIVE") return "ACTIVE";
+    // Back-compat: if missing/unknown, treat as ACTIVE.
+    return "ACTIVE";
+  }, []);
+
+  const filteredAll = (mealPlans as MealPlanRow[]).filter((p) =>
     String(p?.name ?? "")
       .toLowerCase()
       .includes(search.toLowerCase())
   );
 
-  const sorted = React.useMemo(() => {
-    if (!sortConfig) return filtered;
+  const activePlans = React.useMemo(() => {
+    return filteredAll.filter(
+      (p) => normalizeMealPlanStatus((p as any)?.status) !== "ARCHIVED"
+    );
+  }, [filteredAll, normalizeMealPlanStatus]);
 
-    const collator = new Intl.Collator(["he", "en"], {
-      sensitivity: "base",
-      numeric: true,
-    });
+  const archivedPlans = React.useMemo(() => {
+    return filteredAll.filter(
+      (p) => normalizeMealPlanStatus((p as any)?.status) === "ARCHIVED"
+    );
+  }, [filteredAll, normalizeMealPlanStatus]);
 
-    return [...filtered].sort((a, b) => {
-      const direction = sortConfig.direction === "asc" ? 1 : -1;
+  const sortPlans = React.useCallback(
+    (rows: MealPlanRow[]) => {
+      if (!sortConfig) return rows;
 
-      const aRaw =
-        sortConfig.key === "name" ? a.name : (a as any)[sortConfig.key];
-      const bRaw =
-        sortConfig.key === "name" ? b.name : (b as any)[sortConfig.key];
+      const collator = new Intl.Collator(["he", "en"], {
+        sensitivity: "base",
+        numeric: true,
+      });
 
-      const aValue = String(aRaw ?? "").trim();
-      const bValue = String(bRaw ?? "").trim();
+      return [...rows].sort((a, b) => {
+        const direction = sortConfig.direction === "asc" ? 1 : -1;
 
-      const aEmpty = aValue.length === 0;
-      const bEmpty = bValue.length === 0;
-      if (aEmpty && !bEmpty) return 1;
-      if (!aEmpty && bEmpty) return -1;
+        const aRaw =
+          sortConfig.key === "name" ? a.name : (a as any)[sortConfig.key];
+        const bRaw =
+          sortConfig.key === "name" ? b.name : (b as any)[sortConfig.key];
 
-      const cmp = collator.compare(aValue, bValue);
-      if (cmp !== 0) return cmp * direction;
-      return String(a.id ?? "").localeCompare(String(b.id ?? ""));
-    });
-  }, [filtered, sortConfig]);
+        const aValue = String(aRaw ?? "").trim();
+        const bValue = String(bRaw ?? "").trim();
+
+        const aEmpty = aValue.length === 0;
+        const bEmpty = bValue.length === 0;
+        if (aEmpty && !bEmpty) return 1;
+        if (!aEmpty && bEmpty) return -1;
+
+        const cmp = collator.compare(aValue, bValue);
+        if (cmp !== 0) return cmp * direction;
+        return String(a.id ?? "").localeCompare(String(b.id ?? ""));
+      });
+    },
+    [sortConfig]
+  );
+
+  const sortedActive = React.useMemo(
+    () => sortPlans(activePlans),
+    [activePlans, sortPlans]
+  );
+
+  const sortedArchived = React.useMemo(
+    () => sortPlans(archivedPlans),
+    [archivedPlans, sortPlans]
+  );
 
   const handleSort = (key: keyof MealPlanRow) => {
     setSortConfig((current) => {
@@ -151,8 +186,8 @@ export default function MealsPage() {
   );
 
   const paging = React.useMemo(
-    () => paginate(sorted, page),
-    [paginate, sorted, page]
+    () => paginate(sortedActive, page),
+    [paginate, sortedActive, page]
   );
 
   return (
@@ -210,7 +245,7 @@ export default function MealsPage() {
 
       {isLoading ? (
         <div className="py-12 text-center text-gray-500">Loading</div>
-      ) : sorted.length === 0 ? (
+      ) : sortedActive.length === 0 && sortedArchived.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <UtensilsCrossed className="w-12 h-12 text-indigo-500 dark:text-indigo-400 mx-auto mb-4" />
@@ -222,128 +257,188 @@ export default function MealsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-lg border">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th
-                    className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                    onClick={() => handleSort("name")}
-                  >
-                    <div className="flex items-center gap-2">
-                      Plan
-                      <ArrowUpDown className="w-4 h-4" />
-                    </div>
-                  </th>
-                  <th
-                    className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                    onClick={() => handleSort("dailyCalories")}
-                  >
-                    <div className="flex items-center gap-2">
-                      Calories
-                      <ArrowUpDown className="w-4 h-4" />
-                    </div>
-                  </th>
-                  <th
-                    className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                    onClick={() => handleSort("dailyProtein")}
-                  >
-                    <div className="flex items-center gap-2">
-                      Protein
-                      <ArrowUpDown className="w-4 h-4" />
-                    </div>
-                  </th>
-                  <th
-                    className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                    onClick={() => handleSort("dailyCarbs")}
-                  >
-                    <div className="flex items-center gap-2">
-                      Carbs
-                      <ArrowUpDown className="w-4 h-4" />
-                    </div>
-                  </th>
-                  <th
-                    className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                    onClick={() => handleSort("dailyFat")}
-                  >
-                    <div className="flex items-center gap-2">
-                      Fat
-                      <ArrowUpDown className="w-4 h-4" />
-                    </div>
-                  </th>
-                  <th
-                    className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                    onClick={() => handleSort("goal")}
-                  >
-                    <div className="flex items-center gap-2">
-                      Goal
-                      <ArrowUpDown className="w-4 h-4" />
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {paging.pagedRows.map((plan) => (
-                  <tr
-                    key={plan.id}
-                    className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer transition-colors"
-                    onClick={() => handleOpenDetails(plan)}
-                  >
-                    <td className="px-4 py-3">
-                      <span className="font-medium">
-                        {String(plan.name ?? "-")}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {String(plan.dailyCalories ?? "").trim() || "-"} kcal
-                    </td>
-                    <td className="px-4 py-3">
-                      {String(plan.dailyProtein ?? "").trim() || "-"} g
-                    </td>
-                    <td className="px-4 py-3">
-                      {String(plan.dailyCarbs ?? "").trim() || "-"} g
-                    </td>
-                    <td className="px-4 py-3">
-                      {String(plan.dailyFat ?? "").trim() || "-"} g
-                    </td>
-                    <td className="px-4 py-3">
-                      {String(plan.goal ?? "").trim() || "-"}
-                    </td>
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg border">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th
+                      className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                      onClick={() => handleSort("name")}
+                    >
+                      <div className="flex items-center gap-2">
+                        Plan
+                        <ArrowUpDown className="w-4 h-4" />
+                      </div>
+                    </th>
+                    <th
+                      className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                      onClick={() => handleSort("dailyCalories")}
+                    >
+                      <div className="flex items-center gap-2">
+                        Calories
+                        <ArrowUpDown className="w-4 h-4" />
+                      </div>
+                    </th>
+                    <th
+                      className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                      onClick={() => handleSort("dailyProtein")}
+                    >
+                      <div className="flex items-center gap-2">
+                        Protein
+                        <ArrowUpDown className="w-4 h-4" />
+                      </div>
+                    </th>
+                    <th
+                      className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                      onClick={() => handleSort("dailyCarbs")}
+                    >
+                      <div className="flex items-center gap-2">
+                        Carbs
+                        <ArrowUpDown className="w-4 h-4" />
+                      </div>
+                    </th>
+                    <th
+                      className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                      onClick={() => handleSort("dailyFat")}
+                    >
+                      <div className="flex items-center gap-2">
+                        Fat
+                        <ArrowUpDown className="w-4 h-4" />
+                      </div>
+                    </th>
+                    <th
+                      className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                      onClick={() => handleSort("goal")}
+                    >
+                      <div className="flex items-center gap-2">
+                        Goal
+                        <ArrowUpDown className="w-4 h-4" />
+                      </div>
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="flex items-center justify-between gap-3 px-4 py-3 border-t bg-gray-50/60 dark:bg-gray-700/40">
-            <div className="text-xs text-gray-600 dark:text-gray-300">
-              Page {paging.page} of {paging.totalPages}
+                </thead>
+                <tbody>
+                  {paging.pagedRows.map((plan) => (
+                    <tr
+                      key={plan.id}
+                      className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer transition-colors"
+                      onClick={() => handleOpenDetails(plan)}
+                    >
+                      <td className="px-4 py-3">
+                        <span className="font-medium">
+                          {String(plan.name ?? "-")}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {String(plan.dailyCalories ?? "").trim() || "-"} kcal
+                      </td>
+                      <td className="px-4 py-3">
+                        {String(plan.dailyProtein ?? "").trim() || "-"} g
+                      </td>
+                      <td className="px-4 py-3">
+                        {String(plan.dailyCarbs ?? "").trim() || "-"} g
+                      </td>
+                      <td className="px-4 py-3">
+                        {String(plan.dailyFat ?? "").trim() || "-"} g
+                      </td>
+                      <td className="px-4 py-3">
+                        {String(plan.goal ?? "").trim() || "-"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={paging.page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Previous
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={paging.page >= paging.totalPages}
-                onClick={() =>
-                  setPage((p) => Math.min(paging.totalPages, p + 1))
-                }
-              >
-                Next
-              </Button>
+            <div className="flex items-center justify-between gap-3 px-4 py-3 border-t bg-gray-50/60 dark:bg-gray-700/40">
+              <div className="text-xs text-gray-600 dark:text-gray-300">
+                Page {paging.page} of {paging.totalPages}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={paging.page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  Previous
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={paging.page >= paging.totalPages}
+                  onClick={() =>
+                    setPage((p) => Math.min(paging.totalPages, p + 1))
+                  }
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           </div>
+
+          {sortedArchived.length > 0 ? (
+            <div className="bg-white dark:bg-gray-800 rounded-lg border">
+              <div className="px-4 py-3 border-b bg-gray-50/60 dark:bg-gray-700/40">
+                <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                  Archived Meal Plans
+                </div>
+                <div className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">
+                  These plans are archived (usually because they were assigned to clients).
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-medium">Plan</th>
+                      <th className="px-4 py-3 text-left font-medium">Calories</th>
+                      <th className="px-4 py-3 text-left font-medium">Protein</th>
+                      <th className="px-4 py-3 text-left font-medium">Carbs</th>
+                      <th className="px-4 py-3 text-left font-medium">Fat</th>
+                      <th className="px-4 py-3 text-left font-medium">Goal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedArchived.map((plan) => (
+                      <tr
+                        key={plan.id}
+                        className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer transition-colors"
+                        onClick={() => handleOpenDetails(plan)}
+                      >
+                        <td className="px-4 py-3">
+                          <span className="font-medium">
+                            {String(plan.name ?? "-")}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {String(plan.dailyCalories ?? "").trim() || "-"} kcal
+                        </td>
+                        <td className="px-4 py-3">
+                          {String(plan.dailyProtein ?? "").trim() || "-"} g
+                        </td>
+                        <td className="px-4 py-3">
+                          {String(plan.dailyCarbs ?? "").trim() || "-"} g
+                        </td>
+                        <td className="px-4 py-3">
+                          {String(plan.dailyFat ?? "").trim() || "-"} g
+                        </td>
+                        <td className="px-4 py-3">
+                          {String(plan.goal ?? "").trim() || "-"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
         </div>
       )}
 

@@ -238,7 +238,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={toggleDarkMode}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
           >
             {darkMode ? (
               <Sun className="w-5 h-5 text-gray-300" />
@@ -248,13 +248,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </button>
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
           >
-            {sidebarOpen ? (
-              <X className="w-6 h-6 dark:text-gray-300" />
-            ) : (
-              <Menu className="w-6 h-6 dark:text-gray-300" />
-            )}
+            <span className="relative block">
+              {sidebarOpen ? (
+                <X className="w-6 h-6 dark:text-gray-300" />
+              ) : (
+                <Menu className="w-6 h-6 dark:text-gray-300" />
+              )}
+              {isAdmin && unreadMessagesCount > 0 && (
+                <span className="absolute -top-2 -right-2 h-5 min-w-5 px-1 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center">
+                  {unreadMessagesCount}
+                </span>
+              )}
+            </span>
           </button>
         </div>
       </div>

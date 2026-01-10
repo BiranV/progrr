@@ -492,6 +492,30 @@ export default function ClientPanel({
 
   // Form State
   const [formData, setFormData] = React.useState<any>({});
+  const [goalMode, setGoalMode] = React.useState<"select" | "custom">(
+    "select"
+  );
+  const [activityMode, setActivityMode] = React.useState<"select" | "custom">(
+    "select"
+  );
+
+  const GOAL_PRESET_VALUES = React.useMemo(
+    () => [
+      "weight_loss",
+      "muscle_gain",
+      "maintenance",
+      "strength",
+      "endurance",
+      "recomposition",
+      "better_habits",
+    ],
+    []
+  );
+  const ACTIVITY_PRESET_VALUES = React.useMemo(
+    () => ["sedentary", "light", "moderate", "active", "very", "extra"],
+    []
+  );
+  const CUSTOM_SELECT_VALUE = "__custom__";
 
   const resetForm = (c: Client | null) => {
     setValidationError(null);
@@ -499,6 +523,9 @@ export default function ClientPanel({
       // Load existing client data
       const data: any = (c as any).data || {};
       const source = Object.keys(data).length > 0 ? data : c;
+
+      const normalizedGoal = normalizeGoal(source.goal);
+      const normalizedActivity = normalizeActivityLevel(source.activityLevel);
 
       setFormData({
         name: String(source.name ?? ""),
@@ -509,8 +536,8 @@ export default function ClientPanel({
         gender: normalizeGender(source.gender),
         height: String(source.height ?? ""),
         weight: String(source.weight ?? ""),
-        goal: normalizeGoal(source.goal),
-        activityLevel: normalizeActivityLevel(source.activityLevel),
+        goal: normalizedGoal,
+        activityLevel: normalizedActivity,
         status: normalizeStatus(c.status),
         notes: String(source.notes ?? ""),
         assignedPlanIds: normalizeIdArray(
@@ -525,6 +552,18 @@ export default function ClientPanel({
         assignedPlanId: "",
         assignedMealPlanId: "",
       });
+
+      setGoalMode(
+        normalizedGoal && !GOAL_PRESET_VALUES.includes(String(normalizedGoal))
+          ? "custom"
+          : "select"
+      );
+      setActivityMode(
+        normalizedActivity &&
+          !ACTIVITY_PRESET_VALUES.includes(String(normalizedActivity))
+          ? "custom"
+          : "select"
+      );
     } else {
       // Empty form
       setFormData({
@@ -545,6 +584,9 @@ export default function ClientPanel({
         assignedPlanId: "",
         assignedMealPlanId: "",
       });
+
+      setGoalMode("select");
+      setActivityMode("select");
     }
   };
 
@@ -1328,10 +1370,25 @@ export default function ClientPanel({
           <div className="space-y-2">
             <label className="text-sm font-medium">Goal</label>
             <Select
-              value={formData.goal}
-              onValueChange={(v) =>
-                setFormData((p: any) => ({ ...p, goal: v }))
+              value={
+                goalMode === "custom"
+                  ? CUSTOM_SELECT_VALUE
+                  : String((formData as any)?.goal ?? "")
               }
+              onValueChange={(v) => {
+                if (v === CUSTOM_SELECT_VALUE) {
+                  setGoalMode("custom");
+                  setFormData((p: any) => {
+                    const prev = String(p.goal ?? "").trim();
+                    const prevIsPreset = GOAL_PRESET_VALUES.includes(prev);
+                    return { ...p, goal: prevIsPreset ? "" : prev };
+                  });
+                  return;
+                }
+
+                setGoalMode("select");
+                setFormData((p: any) => ({ ...p, goal: v }));
+              }}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select goal" />
@@ -1344,17 +1401,43 @@ export default function ClientPanel({
                 <SelectItem value="endurance">Endurance</SelectItem>
                 <SelectItem value="recomposition">Recomposition</SelectItem>
                 <SelectItem value="better_habits">Better Habits</SelectItem>
+                <SelectItem value={CUSTOM_SELECT_VALUE}>Custom…</SelectItem>
               </SelectContent>
             </Select>
+
+            {goalMode === "custom" && (
+              <Input
+                placeholder="Custom goal"
+                value={String((formData as any)?.goal ?? "")}
+                onChange={(e) =>
+                  setFormData((p: any) => ({ ...p, goal: e.target.value }))
+                }
+              />
+            )}
           </div>
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Activity Level</label>
             <Select
-              value={formData.activityLevel}
-              onValueChange={(v) =>
-                setFormData((p: any) => ({ ...p, activityLevel: v }))
+              value={
+                activityMode === "custom"
+                  ? CUSTOM_SELECT_VALUE
+                  : String((formData as any)?.activityLevel ?? "")
               }
+              onValueChange={(v) => {
+                if (v === CUSTOM_SELECT_VALUE) {
+                  setActivityMode("custom");
+                  setFormData((p: any) => {
+                    const prev = String(p.activityLevel ?? "").trim();
+                    const prevIsPreset = ACTIVITY_PRESET_VALUES.includes(prev);
+                    return { ...p, activityLevel: prevIsPreset ? "" : prev };
+                  });
+                  return;
+                }
+
+                setActivityMode("select");
+                setFormData((p: any) => ({ ...p, activityLevel: v }));
+              }}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select activity" />
@@ -1366,8 +1449,22 @@ export default function ClientPanel({
                 <SelectItem value="active">Active</SelectItem>
                 <SelectItem value="very">Very Active</SelectItem>
                 <SelectItem value="extra">Extra Active</SelectItem>
+                <SelectItem value={CUSTOM_SELECT_VALUE}>Custom…</SelectItem>
               </SelectContent>
             </Select>
+
+            {activityMode === "custom" && (
+              <Input
+                placeholder="Custom activity level"
+                value={String((formData as any)?.activityLevel ?? "")}
+                onChange={(e) =>
+                  setFormData((p: any) => ({
+                    ...p,
+                    activityLevel: e.target.value,
+                  }))
+                }
+              />
+            )}
           </div>
 
           <div className="space-y-2">
@@ -1565,32 +1662,65 @@ function normalizeGender(value: unknown): string {
 }
 
 function normalizeActivityLevel(value: unknown): string {
-  const raw = String(value || "")
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+
+  const known = ["sedentary", "light", "moderate", "active", "very", "extra"];
+  if (known.includes(raw)) return raw;
+
+  // Canonicalize common label spellings, but avoid fuzzy matching so custom values are preserved.
+  const deCamel = raw.replace(/([a-z])([A-Z])/g, "$1 $2");
+  const v = deCamel
     .toLowerCase()
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
-  if (raw.includes("sedentary")) return "sedentary";
-  if (raw.includes("light")) return "light";
-  if (raw.includes("moderate")) return "moderate";
-  if (raw.includes("very")) return "very";
-  if (raw.includes("extra")) return "extra";
-  if (raw.includes("active")) return "active";
-  return "";
+
+  if (v === "sedentary") return "sedentary";
+  if (v === "light") return "light";
+  if (v === "moderate") return "moderate";
+  if (v === "active") return "active";
+  if (v === "very" || v === "very active" || v === "veryactive") return "very";
+  if (v === "extra" || v === "extra active" || v === "extraactive") return "extra";
+
+  return raw;
 }
 
 function normalizeGoal(value: unknown): string {
-  const raw = String(value || "").toLowerCase();
-  if (raw.includes("loss")) return "weight_loss";
-  if (raw.includes("muscle")) return "muscle_gain";
-  if (raw.includes("maint")) return "maintenance";
-  if (raw.includes("strength")) return "strength";
-  if (raw.includes("endur")) return "endurance";
-  if (raw.includes("recomp")) return "recomposition";
-  if (raw.includes("habit")) return "better_habits";
-  return "";
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+
+  const known = [
+    "weight_loss",
+    "muscle_gain",
+    "maintenance",
+    "strength",
+    "endurance",
+    "recomposition",
+    "better_habits",
+  ];
+  if (known.includes(raw)) return raw;
+
+  if (raw === "Fat Loss") return "weight_loss";
+  if (raw === "Muscle Gain") return "muscle_gain";
+  if (raw === "Maintenance") return "maintenance";
+  if (raw === "Strength") return "strength";
+  if (raw === "Endurance") return "endurance";
+  if (raw === "Recomposition") return "recomposition";
+  if (raw === "Better Habits") return "better_habits";
+
+  const v = raw
+    .toLowerCase()
+    .trim()
+    .replace(/[-\s]+/g, "_")
+    .replace(/_+/g, "_");
+  if (known.includes(v)) return v;
+
+  return raw;
 }
 
 function formatGoalLabel(value: any) {
+  const raw = String(value ?? "").trim();
   const v = normalizeGoal(value);
   const map: Record<string, string> = {
     weight_loss: "Fat Loss",
@@ -1601,20 +1731,21 @@ function formatGoalLabel(value: any) {
     recomposition: "Recomposition",
     better_habits: "Better Habits",
   };
-  return map[v] || toTitleCase(value);
+  return map[v] || raw;
 }
 
 function formatActivityLabel(value: any) {
+  const raw = String(value ?? "").trim();
   const v = normalizeActivityLevel(value);
   const map: Record<string, string> = {
     sedentary: "Sedentary",
-    light: "Light Active",
-    moderate: "Moderately Active",
+    light: "Light",
+    moderate: "Moderate",
     active: "Active",
     very: "Very Active",
     extra: "Extra Active",
   };
-  return map[v] || toTitleCase(value);
+  return map[v] || raw;
 }
 
 function normalizeIdArray(value: any, singleFallback: any): string[] {
