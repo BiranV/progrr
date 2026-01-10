@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import type { LucideIcon } from "lucide-react";
+import { Archive } from "lucide-react";
 import {
     DataTable,
     type DataTableColumn,
@@ -62,12 +63,21 @@ export function EntityTableSection<Row>({
     } = props;
     const isArchived = variant === "archived";
 
+    const titleWithIcon = title && isArchived ? (
+        <span className="inline-flex items-center gap-2">
+            <Archive className="h-4 w-4 text-red-600/80 dark:text-red-300/80" />
+            <span>{title}</span>
+        </span>
+    ) : (
+        title
+    );
+
     if (totalCount === 0) {
         return (
             <div className={title ? "space-y-3" : undefined}>
                 {title ? (
                     <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                        {title}
+                        {titleWithIcon}
                     </div>
                 ) : null}
                 <EntityEmptyState
@@ -84,7 +94,7 @@ export function EntityTableSection<Row>({
             <div className={title ? "space-y-3" : undefined}>
                 {title ? (
                     <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                        {title}
+                        {titleWithIcon}
                     </div>
                 ) : null}
                 {props.children}
@@ -94,7 +104,7 @@ export function EntityTableSection<Row>({
 
     return (
         <DataTable
-            title={title}
+            title={titleWithIcon}
             rows={props.rows}
             columns={props.columns}
             getRowId={props.getRowId}
@@ -104,22 +114,7 @@ export function EntityTableSection<Row>({
             pagination={props.pagination}
             containerClassName={
                 isArchived
-                    ? "border-red-100 dark:border-red-900/30 overflow-hidden"
-                    : undefined
-            }
-            headClassName={
-                isArchived
-                    ? "bg-red-50/50 dark:bg-red-900/10 border-b border-red-100 dark:border-red-900/30"
-                    : undefined
-            }
-            rowClassName={
-                isArchived
-                    ? "border-red-100/60 dark:border-red-900/20 hover:bg-red-50/40 dark:hover:bg-red-900/10"
-                    : undefined
-            }
-            footerClassName={
-                isArchived
-                    ? "border-red-100 dark:border-red-900/30 bg-red-50/40 dark:bg-red-900/10"
+                    ? "border-red-200 dark:border-red-900/30"
                     : undefined
             }
         />

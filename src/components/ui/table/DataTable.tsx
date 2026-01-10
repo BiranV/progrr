@@ -40,7 +40,7 @@ export function DataTable<Row>({
     footerClassName,
     emptyMessage,
 }: {
-    title?: string;
+    title?: React.ReactNode;
     rows: Row[];
     columns: Array<DataTableColumn<Row>>;
     getRowId: (row: Row) => string;
@@ -55,7 +55,12 @@ export function DataTable<Row>({
     emptyMessage?: React.ReactNode;
 }) {
     return (
-        <div className={cn("bg-white dark:bg-gray-800 rounded-lg border", containerClassName)}>
+        <div
+            className={cn(
+                "bg-white dark:bg-gray-800 rounded-lg border overflow-hidden",
+                containerClassName
+            )}
+        >
             {title ? (
                 <div className="px-4 pt-4">
                     <div className="text-sm font-semibold text-gray-900 dark:text-white">
