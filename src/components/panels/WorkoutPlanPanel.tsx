@@ -4,12 +4,15 @@ import React from "react";
 import { db } from "@/lib/db";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  GenericDetailsPanel,
   useGenericDetailsPanel,
 } from "@/components/ui/entity/GenericDetailsPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { EntityEditFooter } from "@/components/ui/entity/EntityEditFooter";
+import { EntityDeleteConfirm } from "@/components/ui/entity/EntityDeleteConfirm";
+import { EntityStatusChip } from "@/components/ui/entity/EntityStatusChip";
+import { useEntityPanelState } from "@/components/ui/entity/useEntityPanelState";
 import {
   Select,
   SelectContent,
@@ -77,14 +80,6 @@ function normalizeDifficulty(
   return "";
 }
 
-interface WorkoutPlanPanelProps {
-  planId: string | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  createNew?: boolean;
-  onWorkoutPlanUpdate?: () => void;
-}
-
 type WorkoutDetailsContentProps = {
   planId: string | null;
   createNew?: boolean;
@@ -101,11 +96,10 @@ export function WorkoutDetailsContent({
   const planId = createNew ? null : rawPlanId;
 
   const queryClient = useQueryClient();
-  const [isEditing, setIsEditing] = React.useState(false);
+  const panelState = useEntityPanelState();
   const [validationError, setValidationError] = React.useState<string | null>(
     null
   );
-  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [deleteInfoMessage, setDeleteInfoMessage] = React.useState<string | null>(
     null
   );
@@ -199,17 +193,17 @@ export function WorkoutDetailsContent({
 
   React.useEffect(() => {
     if (!open) return;
-    setShowDeleteConfirm(false);
+    panelState.cancelDelete();
 
     if (!planId) {
-      setIsEditing(true);
+      panelState.startEdit();
       resetForm(null);
       setPlanExercises([]);
       planExercisesHydrationRef.current = { planId: null, applied: false };
       return;
     }
 
-    setIsEditing(false);
+    panelState.cancelEdit();
     // keep current plan data if already loaded
     resetForm((plan as any) || null);
     setPlanExercises([]);
@@ -217,15 +211,21 @@ export function WorkoutDetailsContent({
       planId: String(planId),
       applied: false,
     };
-  }, [open, planId]);
+  }, [
+    open,
+    planId,
+    panelState.cancelDelete,
+    panelState.startEdit,
+    panelState.cancelEdit,
+  ]);
 
   React.useEffect(() => {
     if (!open) return;
     if (!planId) return;
     if (!plan) return;
-    if (isEditing) return;
+    if (panelState.isEditing) return;
     resetForm(plan as any);
-  }, [plan, open, planId, isEditing]);
+  }, [plan, open, planId, panelState.isEditing]);
   const formatDurationWeeks = (duration: any) => {
     const raw = String(duration ?? "").trim();
     if (!raw) return "";
@@ -320,7 +320,7 @@ export function WorkoutDetailsContent({
           .localeCompare(String(b.name ?? "").trim())
       );
     },
-    enabled: open && isEditing,
+    enabled: open && panelState.isEditing,
   });
 
   const normalizeExerciseLibraryStatus = React.useCallback((value: unknown) => {
@@ -354,14 +354,14 @@ export function WorkoutDetailsContent({
         (a: PlanExercise, b: PlanExercise) => (a.order || 0) - (b.order || 0)
       );
     },
-    enabled: open && isEditing && !!planId,
+    enabled: open && panelState.isEditing && !!planId,
   });
 
   const existingPlanExercises = queryPlanExercises || [];
 
   React.useEffect(() => {
     if (!open) return;
-    if (!isEditing) return;
+    if (!panelState.isEditing) return;
     if (!planId) return;
     if (!queryPlanExercises) return;
 
@@ -375,7 +375,7 @@ export function WorkoutDetailsContent({
       planId: currentPlanId,
       applied: true,
     };
-  }, [queryPlanExercises, planId, open, isEditing]);
+  }, [queryPlanExercises, planId, open, panelState.isEditing]);
 
   const exportText = React.useMemo(() => {
     if (!plan) return "";
@@ -545,7 +545,7 @@ export function WorkoutDetailsContent({
         return;
       }
 
-      setIsEditing(false);
+      panelState.cancelEdit();
 
       onWorkoutPlanUpdate?.();
 
@@ -587,12 +587,12 @@ export function WorkoutDetailsContent({
         setDeleteInfoMessage(
           "This workout plan is currently assigned to one or more clients, so it cannot be deleted. It has been archived instead. Remove it from clients if you want to delete it."
         );
-        setShowDeleteConfirm(false);
+        panelState.cancelDelete();
         return;
       }
 
       toast.success("Workout plan deleted");
-      setShowDeleteConfirm(false);
+      panelState.cancelDelete();
       onWorkoutPlanUpdate?.();
       panel.close();
     },
@@ -977,9 +977,7 @@ export function WorkoutDetailsContent({
               </div>
               {String((plan as any)?.status ?? "").trim().toUpperCase() ===
                 "ARCHIVED" ? (
-                <span className="shrink-0 text-[11px] px-2 py-0.5 rounded border border-amber-200 bg-amber-50 text-amber-800 dark:bg-amber-900/10 dark:border-amber-800 dark:text-amber-200">
-                  Archived
-                </span>
+                <EntityStatusChip status="ARCHIVED" size="sm" className="shrink-0" />
               ) : null}
             </div>
             <div className="text-sm text-gray-600 dark:text-gray-300">
@@ -1047,7 +1045,7 @@ export function WorkoutDetailsContent({
             </Button>
 
             {String((plan as any)?.status ?? "").trim().toUpperCase() ===
-              "ARCHIVED" && !isEditing ? (
+              "ARCHIVED" && !panelState.isEditing ? (
               <Button
                 variant="outline"
                 size="sm"
@@ -1064,7 +1062,7 @@ export function WorkoutDetailsContent({
               size="sm"
               onClick={() => {
                 setValidationError(null);
-                setIsEditing(true);
+                panelState.startEdit();
                 resetForm(plan as any);
                 setPlanExercises([]);
                 planExercisesHydrationRef.current = {
@@ -1214,48 +1212,26 @@ export function WorkoutDetailsContent({
         </div>
 
         <div className="pt-2">
-          {!showDeleteConfirm ? (
+          {!panelState.showDeleteConfirm ? (
             <Button
               type="button"
               variant="destructive"
-              onClick={() => setShowDeleteConfirm(true)}
+              onClick={() => panelState.requestDelete()}
               disabled={!planId}
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Delete Workout Plan
             </Button>
           ) : (
-            <div className="p-4 border border-red-200 bg-red-50 dark:bg-red-900/10 rounded-lg space-y-3">
-              <div className="space-y-1">
-                <div className="text-sm font-semibold text-red-900 dark:text-red-100">
-                  Delete workout plan?
-                </div>
-                <div className="text-xs text-red-800 dark:text-red-200 leading-relaxed font-medium">
-                  If this plan is assigned to any clients, it will be archived instead of deleted.
-                </div>
-              </div>
-
-              <div className="flex gap-2 justify-end pt-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  type="button"
-                  disabled={deleteMutation.isPending}
-                  onClick={() => setShowDeleteConfirm(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  type="button"
-                  disabled={!planId || deleteMutation.isPending}
-                  onClick={() => deleteMutation.mutate()}
-                >
-                  {deleteMutation.isPending ? "Deleting..." : "Delete"}
-                </Button>
-              </div>
-            </div>
+            <EntityDeleteConfirm
+              title="Delete workout plan?"
+              description="If this plan is assigned to any clients, it will be archived instead of deleted."
+              onCancel={() => panelState.cancelDelete()}
+              onConfirm={() => deleteMutation.mutate()}
+              cancelDisabled={deleteMutation.isPending}
+              confirmDisabled={!planId || deleteMutation.isPending}
+              confirmLabel={deleteMutation.isPending ? "Deleting..." : "Delete"}
+            />
           )}
         </div>
       </div>
@@ -1266,7 +1242,7 @@ export function WorkoutDetailsContent({
     if (!panel.open) return;
 
     panel.setTitle(
-      isEditing
+      panelState.isEditing
         ? planId
           ? "Edit Workout Plan"
           : "Create Workout Plan"
@@ -1275,62 +1251,32 @@ export function WorkoutDetailsContent({
     panel.setDescription(plan ? String((plan as any)?.name ?? "").trim() : undefined);
 
     panel.setFooter(
-      isEditing ? (
-        <div className="flex gap-3 justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => (planId ? setIsEditing(false) : panel.close())}
-            disabled={saveMutation.isPending}
-          >
-            Cancel
-          </Button>
-          <Button type="submit" form="workout-plan-form" disabled={saveMutation.isPending}>
-            {saveMutation.isPending
-              ? "Saving..."
-              : planId
-                ? "Update Plan"
-                : "Create Plan"}
-          </Button>
-        </div>
+      panelState.isEditing ? (
+        <EntityEditFooter
+          isNew={!planId}
+          isLoading={saveMutation.isPending}
+          formId="workout-plan-form"
+          onCancel={() => (planId ? panelState.cancelEdit() : panel.close())}
+          createLabel="Create Plan"
+          editLabel="Update Plan"
+          creatingLabel="Saving..."
+          savingLabel="Saving..."
+        />
       ) : undefined
     );
   }, [
     panel,
-    isEditing,
+    panelState,
     planId,
     (plan as any)?.name,
     saveMutation.isPending,
   ]);
 
-  return !planId && !isEditing ? (
+  return !planId && !panelState.isEditing ? (
     <div className="text-sm text-gray-600 dark:text-gray-300">No plan selected</div>
-  ) : isEditing ? (
+  ) : panelState.isEditing ? (
     renderEditMode()
   ) : (
     renderViewMode()
-  );
-}
-
-export default function WorkoutPlanPanel({
-  planId,
-  open,
-  onOpenChange,
-  createNew,
-  onWorkoutPlanUpdate,
-}: WorkoutPlanPanelProps) {
-  return (
-    <GenericDetailsPanel
-      open={open}
-      onOpenChange={onOpenChange}
-      defaultTitle="Workout Plan Details"
-      widthClassName="w-full sm:w-[560px] lg:w-[720px]"
-    >
-      <WorkoutDetailsContent
-        planId={planId}
-        createNew={createNew}
-        onWorkoutPlanUpdate={onWorkoutPlanUpdate}
-      />
-    </GenericDetailsPanel>
   );
 }

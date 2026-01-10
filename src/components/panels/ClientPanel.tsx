@@ -33,6 +33,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { EntityEditFooter } from "@/components/ui/entity/EntityEditFooter";
+import { EntityDeleteConfirm } from "@/components/ui/entity/EntityDeleteConfirm";
+import { EntityStatusChip } from "@/components/ui/entity/EntityStatusChip";
+import { EntityInfoGrid } from "@/components/ui/entity/EntityInfoGrid";
+import { ReadonlyInfoCard } from "@/components/ui/entity/ReadonlyInfoCard";
+import { useEntityPanelState } from "@/components/ui/entity/useEntityPanelState";
 import {
   Select,
   SelectContent,
@@ -48,7 +54,6 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 import {
   createClientAction,
   updateClientAction,
@@ -80,8 +85,8 @@ export default function ClientPanel({
   onClientUpdate,
 }: ClientPanelProps) {
   const panel = useGenericDetailsPanel();
-  const router = useRouter();
   const queryClient = useQueryClient();
+  const panelState = useEntityPanelState();
 
   const { data: stepsRecent } = useQuery({
     queryKey: ["stepsRecent", "admin", String(client?.id ?? "")],
@@ -126,18 +131,6 @@ export default function ClientPanel({
       toast.error(err?.message || "Failed to update steps settings");
     },
   });
-
-  const statusConfig: Record<string, string> = {
-    ACTIVE:
-      "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200",
-    PENDING:
-      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/25 dark:text-yellow-200",
-    INACTIVE:
-      "bg-gray-100 text-gray-700 dark:bg-gray-800/60 dark:text-gray-200",
-    BLOCKED: "bg-red-100 text-red-800 dark:bg-red-900/25 dark:text-red-200",
-    DELETED:
-      "bg-red-50 text-red-900 dark:bg-red-950/30 dark:text-red-400 border border-red-200 dark:border-red-800",
-  };
 
   const formatBirthDateWithAge = (birthDate: unknown) => {
     const raw = String(birthDate ?? "").trim();
@@ -447,7 +440,6 @@ export default function ClientPanel({
   };
 
   // State
-  const [isEditing, setIsEditing] = React.useState(false);
   const [validationError, setValidationError] = React.useState<string | null>(
     null
   );
@@ -455,26 +447,31 @@ export default function ClientPanel({
   const [statusUpdating, setStatusUpdating] = React.useState<string | null>(
     null
   );
-  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = React.useState("");
 
   // Reset editing state when dialog opens/closes or client changes
   React.useEffect(() => {
-    if (panel.open) {
-      if (!client) {
-        // Create mode
-        setIsEditing(true);
-        resetForm(null);
-      } else {
-        // View mode
-        setIsEditing(false);
-        resetForm(client);
-      }
-      // Reset delete confirmation state
-      setShowDeleteConfirm(false);
-      setDeleteConfirmText("");
+    if (!panel.open) return;
+    panelState.cancelDelete();
+    setDeleteConfirmText("");
+
+    if (!client) {
+      // Create mode
+      panelState.startEdit();
+      resetForm(null);
+      return;
     }
-  }, [panel.open, client]);
+
+    // View mode
+    panelState.cancelEdit();
+    resetForm(client);
+  }, [
+    panel.open,
+    client?.id,
+    panelState.cancelDelete,
+    panelState.startEdit,
+    panelState.cancelEdit,
+  ]);
 
   // Data
   const { data: workoutPlans = [] } = useQuery({
@@ -635,7 +632,7 @@ export default function ClientPanel({
       if (!client) {
         panel.close(); // Close on create
       } else {
-        setIsEditing(false); // Return to view mode on edit
+        panelState.cancelEdit(); // Return to view mode on edit
       }
     },
     onError: (error) => {
@@ -706,7 +703,6 @@ export default function ClientPanel({
       toast.success(`Client ${label} successfully`);
       queryClient.invalidateQueries({ queryKey: ["clients"] });
       onClientUpdate?.();
-      router.refresh();
       if (
         targetStatus === "DELETED" ||
         targetStatus === "BLOCKED" ||
@@ -780,11 +776,9 @@ export default function ClientPanel({
             <div>
               <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                 {client?.name}
-                {status === "DELETED" && (
-                  <span className="text-xs font-normal px-2 py-0.5 rounded bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800">
-                    Deleted
-                  </span>
-                )}
+                {status === "DELETED" ? (
+                  <EntityStatusChip status="DELETED" size="sm" />
+                ) : null}
               </h3>
               <div className="flex flex-col text-sm text-gray-500 dark:text-gray-400 mt-1 space-y-0.5">
                 <div className="flex items-center gap-2">
@@ -806,7 +800,7 @@ export default function ClientPanel({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setIsEditing(true)}
+                onClick={() => panelState.startEdit()}
               >
                 <Edit2 className="w-4 h-4 mr-2" />
                 Edit
@@ -816,40 +810,36 @@ export default function ClientPanel({
         </div>
 
         {/* Info Grid */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-3 rounded-lg border bg-white dark:bg-gray-800">
-            <div className="text-xs text-gray-400 mb-1 flex items-center gap-1.5">
-              <Calendar className="w-3 h-3" /> Birth Date
-            </div>
-            <div className="font-medium">
-              {formatBirthDateWithAge((client as any)?.birthDate)}
-            </div>
-          </div>
-          <div className="p-3 rounded-lg border bg-white dark:bg-gray-800">
-            <div className="text-xs text-gray-400 mb-1 flex items-center gap-1.5">
-              <Users className="w-3 h-3" /> Gender
-            </div>
-            <div className="font-medium capitalize">
-              {(client as any)?.gender || "-"}
-            </div>
-          </div>
-          <div className="p-3 rounded-lg border bg-white dark:bg-gray-800">
-            <div className="text-xs text-gray-400 mb-1 flex items-center gap-1.5">
-              <Ruler className="w-3 h-3" /> Height
-            </div>
-            <div className="font-medium">
-              {(client as any)?.height ? `${(client as any)?.height} cm` : "-"}
-            </div>
-          </div>
-          <div className="p-3 rounded-lg border bg-white dark:bg-gray-800">
-            <div className="text-xs text-gray-400 mb-1 flex items-center gap-1.5">
-              <Weight className="w-3 h-3" /> Weight
-            </div>
-            <div className="font-medium">
-              {(client as any)?.weight ? `${(client as any)?.weight} kg` : "-"}
-            </div>
-          </div>
-        </div>
+        <EntityInfoGrid>
+          <ReadonlyInfoCard
+            icon={Calendar}
+            label="Birth Date"
+            value={formatBirthDateWithAge((client as any)?.birthDate)}
+          />
+          <ReadonlyInfoCard
+            icon={Users}
+            label="Gender"
+            value={String((client as any)?.gender ?? "-")}
+          />
+          <ReadonlyInfoCard
+            icon={Ruler}
+            label="Height"
+            value={
+              (client as any)?.height
+                ? `${String((client as any)?.height)} cm`
+                : "-"
+            }
+          />
+          <ReadonlyInfoCard
+            icon={Weight}
+            label="Weight"
+            value={
+              (client as any)?.weight
+                ? `${String((client as any)?.weight)} kg`
+                : "-"
+            }
+          />
+        </EntityInfoGrid>
 
         {/* Goals & Plans */}
         <div className="space-y-4">
@@ -913,7 +903,12 @@ export default function ClientPanel({
               <div className="flex items-center gap-2">
                 <Switch
                   checked={stepsEnabledByAdmin}
-                  onCheckedChange={(v) => toggleStepsEnabledMutation.mutate(v)}
+                  onCheckedChange={(next) => {
+                    if (!client?.id) return;
+                    if (toggleStepsEnabledMutation.isPending) return;
+                    if (next === stepsEnabledByAdmin) return;
+                    toggleStepsEnabledMutation.mutate(next);
+                  }}
                   disabled={!client?.id || toggleStepsEnabledMutation.isPending}
                   className="disabled:cursor-default"
                 />
@@ -969,13 +964,7 @@ export default function ClientPanel({
             <span className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
               Current Status
             </span>
-            <span
-              className={`inline-flex items-center justify-center w-20 h-7 px-3 rounded-md text-xs font-medium ${statusConfig[String(status || "PENDING")] ||
-                statusConfig.PENDING
-                }`}
-            >
-              {String(status || "PENDING").toUpperCase()}
-            </span>
+            <EntityStatusChip status={String(status || "PENDING")} />
           </div>
 
           {/* Lifecycle Actions */}
@@ -1021,86 +1010,67 @@ export default function ClientPanel({
                     variant="destructive"
                     className="justify-start h-auto py-2.5 cursor-pointer bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 dark:bg-red-900/10 dark:hover:bg-red-900/20"
                     disabled={statusUpdating !== null}
-                    onClick={() => setShowDeleteConfirm(true)}
+                    onClick={() => panelState.requestDelete()}
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
                     <span>Permanently Delete</span>
                   </Button>
                 </div>
 
-                {showDeleteConfirm && (
-                  <div className="p-4 border border-red-200 bg-red-50 dark:bg-red-900/10 rounded-lg space-y-3 mt-4">
-                    <div className="space-y-1">
-                      <div className="text-sm font-semibold text-red-900 dark:text-red-100 flex items-center gap-2">
-                        <ShieldAlert className="w-4 h-4" />
-                        Danger Zone: Permanent Deletion
+                {panelState.showDeleteConfirm ? (
+                  <EntityDeleteConfirm
+                    title="Danger Zone: Permanent Deletion"
+                    description={
+                      <div className="space-y-3">
+                        <div className="text-xs leading-relaxed font-medium">
+                          This action CANNOT be undone. All data will be
+                          physically removed from the database.
+                        </div>
+                        <div className="space-y-2">
+                          <label
+                            className="text-xs font-semibold uppercase text-red-600 dark:text-red-400 block mb-1 select-none"
+                            onCopy={(e) => e.preventDefault()}
+                            onCut={(e) => e.preventDefault()}
+                            onContextMenu={(e) => e.preventDefault()}
+                          >
+                            Type DELETE to confirm
+                          </label>
+                          <Input
+                            value={deleteConfirmText}
+                            onChange={(e) =>
+                              setDeleteConfirmText(e.target.value)
+                            }
+                            onPaste={(e) => e.preventDefault()}
+                            onDrop={(e) => e.preventDefault()}
+                            autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="none"
+                            spellCheck={false}
+                            placeholder="DELETE"
+                            className="bg-white dark:bg-black/20"
+                          />
+                        </div>
                       </div>
-                      <div className="text-xs text-red-800 dark:text-red-200 leading-relaxed font-medium">
-                        This action CANNOT be undone. All data will be
-                        physically removed from the database.
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label
-                        className="text-xs font-semibold uppercase text-red-600 dark:text-red-400 block mb-1 select-none"
-                        onCopy={(e) => e.preventDefault()}
-                        onCut={(e) => e.preventDefault()}
-                        onContextMenu={(e) => e.preventDefault()}
-                      >
-                        Type DELETE to confirm
-                      </label>
-                      <Input
-                        value={deleteConfirmText}
-                        onChange={(e) => setDeleteConfirmText(e.target.value)}
-                        onPaste={(e) => e.preventDefault()}
-                        onDrop={(e) => e.preventDefault()}
-                        autoComplete="off"
-                        autoCorrect="off"
-                        autoCapitalize="none"
-                        spellCheck={false}
-                        placeholder="DELETE"
-                        className="bg-white dark:bg-black/20"
-                      />
-                    </div>
-
-                    <div className="flex gap-2 justify-end pt-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setShowDeleteConfirm(false);
-                          setDeleteConfirmText("");
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        disabled={
-                          deleteConfirmText !== "DELETE" ||
-                          statusUpdating !== null
-                        }
-                        onClick={() =>
-                          handleStatusAction(
-                            permanentlyDeleteClientAction,
-                            "permanently deleted",
-                            "DELETED",
-                            "permanent_delete"
-                          )
-                        }
-                      >
-                        {statusUpdating === "permanent_delete" ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-4 h-4 mr-2" />
-                        )}
-                        Confirm Permanent Delete
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                    }
+                    confirmLabel="Confirm Permanent Delete"
+                    onCancel={() => {
+                      panelState.cancelDelete();
+                      setDeleteConfirmText("");
+                    }}
+                    onConfirm={() =>
+                      handleStatusAction(
+                        permanentlyDeleteClientAction,
+                        "permanently deleted",
+                        "DELETED",
+                        "permanent_delete"
+                      )
+                    }
+                    cancelDisabled={statusUpdating !== null}
+                    confirmDisabled={
+                      deleteConfirmText !== "DELETE" || statusUpdating !== null
+                    }
+                  />
+                ) : null}
 
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   Restoring will set status to Pending.
@@ -1233,59 +1203,36 @@ export default function ClientPanel({
                   </>
                 )}
 
-                {showDeleteConfirm ? (
-                  <div className="p-4 border border-orange-200 bg-orange-50 dark:bg-orange-900/10 rounded-lg space-y-3 col-span-1 sm:col-span-2">
-                    <div className="space-y-1">
-                      <div className="text-sm font-semibold text-orange-900 dark:text-orange-100 flex items-center gap-2">
-                        <Archive className="w-4 h-4" />
-                        Remove from active use?
-                      </div>
-                      <div className="text-xs text-orange-800 dark:text-orange-200 leading-relaxed">
-                        This client will be moved to the Deleted list. You can
-                        restore them later if needed.
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2 justify-end pt-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setShowDeleteConfirm(false);
-                          setDeleteConfirmText("");
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        variant="default"
-                        className="bg-orange-600 hover:bg-orange-700 text-white"
-                        size="sm"
-                        disabled={statusUpdating !== null}
-                        onClick={() =>
-                          handleStatusAction(
-                            deleteClientAction,
-                            "archived",
-                            "DELETED",
-                            "soft_delete"
-                          )
-                        }
-                      >
-                        {statusUpdating === "soft_delete" ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Archive className="w-4 h-4 mr-2" />
-                        )}
-                        Archive Client
-                      </Button>
-                    </div>
+                {panelState.showDeleteConfirm ? (
+                  <div className="col-span-1 sm:col-span-2">
+                    <EntityDeleteConfirm
+                      title="Archive Client?"
+                      description={
+                        "This client will be moved to the Deleted list. You can restore them later if needed."
+                      }
+                      confirmLabel="Archive"
+                      onCancel={() => {
+                        panelState.cancelDelete();
+                        setDeleteConfirmText("");
+                      }}
+                      onConfirm={() =>
+                        handleStatusAction(
+                          deleteClientAction,
+                          "archived",
+                          "DELETED",
+                          "soft_delete"
+                        )
+                      }
+                      cancelDisabled={statusUpdating !== null}
+                      confirmDisabled={statusUpdating !== null}
+                    />
                   </div>
                 ) : (
                   <Button
                     variant="outline"
                     className="justify-start h-auto py-2.5 hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-800 cursor-pointer"
                     disabled={statusUpdating !== null}
-                    onClick={() => setShowDeleteConfirm(true)}
+                    onClick={() => panelState.requestDelete()}
                   >
                     <Archive className="w-4 h-4 mr-2" />
                     <span>Archive / Delete</span>
@@ -1714,10 +1661,14 @@ export default function ClientPanel({
 
   React.useEffect(() => {
     panel.setTitle(
-      isEditing ? (client ? "Edit Client" : "New Client") : "Client Details"
+      panelState.isEditing
+        ? client
+          ? "Edit Client"
+          : "New Client"
+        : "Client Details"
     );
     panel.setDescription(
-      isEditing
+      panelState.isEditing
         ? client
           ? "Update client text information"
           : "Add a new client to your roster"
@@ -1725,34 +1676,21 @@ export default function ClientPanel({
     );
 
     panel.setFooter(
-      isEditing ? (
-        <div className="flex gap-3 justify-end">
-          <Button
-            variant="outline"
-            type="button"
-            onClick={() => (client ? setIsEditing(false) : panel.close())}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            form="client-form"
-            disabled={saveMutation.isPending}
-          >
-            {saveMutation.isPending
-              ? "Saving..."
-              : client
-                ? "Save Changes"
-                : "Create Client"}
-          </Button>
-        </div>
-      ) : (
-        <div className="flex justify-start" />
-      )
+      panelState.isEditing ? (
+        <EntityEditFooter
+          isNew={!client}
+          isLoading={saveMutation.isPending}
+          formId="client-form"
+          onCancel={() => (client ? panelState.cancelEdit() : panel.close())}
+          createLabel="Create Client"
+          creatingLabel="Saving..."
+          savingLabel="Saving..."
+        />
+      ) : undefined
     );
   }, [
     panel,
-    isEditing,
+    panelState,
     client,
     client?.name,
     saveMutation.isPending,
@@ -1760,7 +1698,7 @@ export default function ClientPanel({
 
   return (
     <>
-      {isEditing ? renderEditMode() : renderViewMode()}
+      {panelState.isEditing ? renderEditMode() : renderViewMode()}
 
       <ConfirmModal
         open={removeImageOpen}

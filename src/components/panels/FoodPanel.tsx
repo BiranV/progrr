@@ -5,10 +5,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  GenericDetailsPanel,
-  useGenericDetailsPanel,
-} from "@/components/ui/entity/GenericDetailsPanel";
+import { useGenericDetailsPanel } from "@/components/ui/entity/GenericDetailsPanel";
+import { useEntityPanelState } from "@/components/ui/entity/useEntityPanelState";
+import { EntityEditFooter } from "@/components/ui/entity/EntityEditFooter";
+import { EntityDeleteConfirm } from "@/components/ui/entity/EntityDeleteConfirm";
+import { EntityStatusChip } from "@/components/ui/entity/EntityStatusChip";
+import { EntityInfoGrid } from "@/components/ui/entity/EntityInfoGrid";
+import { ReadonlyInfoCard } from "@/components/ui/entity/ReadonlyInfoCard";
 import {
   Beef,
   Copy as CopyIcon,
@@ -29,14 +32,6 @@ import {
 } from "@/lib/plan-export";
 import { toast } from "sonner";
 
-interface FoodPanelProps {
-  food: any | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onFoodUpdate?: () => void;
-  createNew?: boolean;
-}
-
 export function FoodDetailsContent({
   food,
   onFoodUpdate,
@@ -51,13 +46,13 @@ export function FoodDetailsContent({
   const panel = useGenericDetailsPanel();
   const open = panel.open;
 
+  const panelState = useEntityPanelState();
+
   const foodId = String(food?.id ?? "").trim();
 
-  const [isEditing, setIsEditing] = React.useState(false);
   const [validationError, setValidationError] = React.useState<string | null>(
     null
   );
-  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [deleteInfoMessage, setDeleteInfoMessage] = React.useState<string | null>(
     null
   );
@@ -231,16 +226,27 @@ export function FoodDetailsContent({
   // Reset editing state when panel opens/closes or selected food changes
   React.useEffect(() => {
     if (!open) return;
-    setShowDeleteConfirm(false);
+    panelState.cancelDelete();
     setDeleteInfoMessage(null);
     if (!food) {
       resetForm(null);
-      setIsEditing(Boolean(createNew));
+      if (createNew) {
+        panelState.startEdit();
+      } else {
+        panelState.cancelEdit();
+      }
       return;
     }
-    setIsEditing(false);
+    panelState.cancelEdit();
     resetForm(food);
-  }, [open, foodId, createNew]);
+  }, [
+    open,
+    foodId,
+    createNew,
+    panelState.cancelDelete,
+    panelState.startEdit,
+    panelState.cancelEdit,
+  ]);
 
   const unarchiveMutation = useMutation({
     mutationFn: async () => {
@@ -313,7 +319,7 @@ export function FoodDetailsContent({
       if (!food) {
         panel.close();
       } else {
-        setIsEditing(false);
+        panelState.cancelEdit();
       }
     },
     onError: (err: any) => {
@@ -337,12 +343,12 @@ export function FoodDetailsContent({
         setDeleteInfoMessage(
           "This food is currently used inside one or more active meal plans, so it cannot be deleted. It has been archived instead. Remove it from active plans if you want to delete it."
         );
-        setShowDeleteConfirm(false);
+        panelState.cancelDelete();
         return;
       }
 
       toast.success("Food deleted");
-      setShowDeleteConfirm(false);
+      panelState.cancelDelete();
       panel.close();
     },
     onError: (err: any) => {
@@ -390,9 +396,11 @@ export function FoodDetailsContent({
               </div>
               {String((food as any)?.status ?? "").trim().toUpperCase() ===
                 "ARCHIVED" ? (
-                <span className="shrink-0 text-[11px] px-2 py-0.5 rounded border border-amber-200 bg-amber-50 text-amber-800 dark:bg-amber-900/10 dark:border-amber-800 dark:text-amber-200">
-                  Archived
-                </span>
+                <EntityStatusChip
+                  status={String((food as any)?.status ?? "")}
+                  size="sm"
+                  className="shrink-0"
+                />
               ) : null}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -436,7 +444,7 @@ export function FoodDetailsContent({
             </Button>
 
             {String((food as any)?.status ?? "").trim().toUpperCase() ===
-              "ARCHIVED" && !isEditing ? (
+              "ARCHIVED" && !panelState.isEditing ? (
               <Button
                 variant="outline"
                 size="sm"
@@ -455,7 +463,7 @@ export function FoodDetailsContent({
               size="sm"
               onClick={() => {
                 resetForm(food);
-                setIsEditing(true);
+                panelState.startEdit();
               }}
             >
               <Edit2 className="w-4 h-4 mr-2" />
@@ -464,44 +472,32 @@ export function FoodDetailsContent({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-              <Flame className="w-4 h-4 text-orange-500" />
-              <span>Calories</span>
-            </div>
-            <div className="mt-1 font-medium text-gray-900 dark:text-white">
-              {calories} kcal
-            </div>
-          </div>
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-              <Beef className="w-4 h-4 text-blue-500" />
-              <span>Protein</span>
-            </div>
-            <div className="mt-1 font-medium text-gray-900 dark:text-white">
-              {protein} g
-            </div>
-          </div>
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-              <Wheat className="w-4 h-4 text-yellow-500" />
-              <span>Carbs</span>
-            </div>
-            <div className="mt-1 font-medium text-gray-900 dark:text-white">
-              {carbs} g
-            </div>
-          </div>
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-              <Droplets className="w-4 h-4 text-purple-500" />
-              <span>Fat</span>
-            </div>
-            <div className="mt-1 font-medium text-gray-900 dark:text-white">
-              {fat} g
-            </div>
-          </div>
-        </div>
+        <EntityInfoGrid>
+          <ReadonlyInfoCard
+            icon={Flame}
+            label="Calories"
+            value={`${calories} kcal`}
+            iconClassName="text-orange-500"
+          />
+          <ReadonlyInfoCard
+            icon={Beef}
+            label="Protein"
+            value={`${protein} g`}
+            iconClassName="text-blue-500"
+          />
+          <ReadonlyInfoCard
+            icon={Wheat}
+            label="Carbs"
+            value={`${carbs} g`}
+            iconClassName="text-yellow-500"
+          />
+          <ReadonlyInfoCard
+            icon={Droplets}
+            label="Fat"
+            value={`${fat} g`}
+            iconClassName="text-purple-500"
+          />
+        </EntityInfoGrid>
 
         <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/20">
           <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800">
@@ -567,49 +563,30 @@ export function FoodDetailsContent({
         </div>
 
         <div className="pt-2">
-          {!showDeleteConfirm ? (
+          {!panelState.showDeleteConfirm ? (
             <Button
               type="button"
               variant="destructive"
-              onClick={() => setShowDeleteConfirm(true)}
+              onClick={panelState.requestDelete}
               disabled={!food?.id}
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Delete Food
             </Button>
           ) : (
-            <div className="p-4 border border-red-200 bg-red-50 dark:bg-red-900/10 rounded-lg space-y-3">
-              <div className="space-y-1">
-                <div className="text-sm font-semibold text-red-900 dark:text-red-100">
-                  Delete food?
-                </div>
-                <div className="text-xs text-red-800 dark:text-red-200 leading-relaxed font-medium">
+            <EntityDeleteConfirm
+              title="Delete food?"
+              description={
+                <>
                   This will remove <strong>{String(food?.name ?? "this food")}</strong> from the
                   library. This cannot be undone.
-                </div>
-              </div>
-
-              <div className="flex gap-2 justify-end pt-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  type="button"
-                  disabled={deleteMutation.isPending}
-                  onClick={() => setShowDeleteConfirm(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  type="button"
-                  disabled={!food?.id || deleteMutation.isPending}
-                  onClick={async () => await deleteMutation.mutateAsync()}
-                >
-                  {deleteMutation.isPending ? "Deleting..." : "Delete"}
-                </Button>
-              </div>
-            </div>
+                </>
+              }
+              confirmLabel={deleteMutation.isPending ? "Deleting..." : "Delete"}
+              disabled={!food?.id || deleteMutation.isPending}
+              onCancel={panelState.cancelDelete}
+              onConfirm={async () => await deleteMutation.mutateAsync()}
+            />
           )}
         </div>
       </div>
@@ -784,9 +761,11 @@ export function FoodDetailsContent({
   React.useEffect(() => {
     if (!open) return;
 
-    panel.setTitle(isEditing ? (food ? "Edit Food" : "New Food") : "Food Details");
+    panel.setTitle(
+      panelState.isEditing ? (food ? "Edit Food" : "New Food") : "Food Details"
+    );
     panel.setDescription(
-      isEditing
+      panelState.isEditing
         ? food
           ? "Update food text information"
           : "Add a new food to your library"
@@ -794,32 +773,22 @@ export function FoodDetailsContent({
     );
 
     panel.setFooter(
-      isEditing ? (
-        <div className="flex gap-3 justify-end">
-          <Button
-            variant="outline"
-            type="button"
-            onClick={() => (food ? setIsEditing(false) : panel.close())}
-            disabled={saveMutation.isPending}
-          >
-            Cancel
-          </Button>
-          <Button type="submit" form="food-form" disabled={saveMutation.isPending}>
-            {saveMutation.isPending
-              ? "Saving..."
-              : food
-                ? "Save Changes"
-                : "Create Food"}
-          </Button>
-        </div>
-      ) : (
-        <div className="flex justify-start" />
-      )
+      panelState.isEditing ? (
+        <EntityEditFooter
+          isNew={!food}
+          isLoading={saveMutation.isPending}
+          formId="food-form"
+          onCancel={() => (food ? panelState.cancelEdit() : panel.close())}
+          createLabel="Create Food"
+          creatingLabel="Saving..."
+          savingLabel="Saving..."
+        />
+      ) : undefined
     );
   }, [
     open,
     panel,
-    isEditing,
+    panelState,
     food,
     saveMutation.isPending,
   ]);
@@ -837,38 +806,15 @@ export function FoodDetailsContent({
         </div>
       ) : null}
 
-      {!food && !isEditing ? (
+      {!food && !panelState.isEditing ? (
         <div className="text-sm text-gray-600 dark:text-gray-300">
           No food selected
         </div>
-      ) : isEditing ? (
+      ) : panelState.isEditing ? (
         renderEditMode()
       ) : (
         renderViewMode()
       )}
     </>
-  );
-}
-
-export default function FoodPanel({
-  food,
-  open,
-  onOpenChange,
-  onFoodUpdate,
-  createNew,
-}: FoodPanelProps) {
-  return (
-    <GenericDetailsPanel
-      open={open}
-      onOpenChange={onOpenChange}
-      defaultTitle="Food Details"
-      widthClassName="w-full sm:w-[540px] lg:w-[600px]"
-    >
-      <FoodDetailsContent
-        food={food}
-        createNew={createNew}
-        onFoodUpdate={onFoodUpdate}
-      />
-    </GenericDetailsPanel>
   );
 }

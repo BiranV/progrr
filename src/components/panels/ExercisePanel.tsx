@@ -6,6 +6,12 @@ import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { EntityEditFooter } from "@/components/ui/entity/EntityEditFooter";
+import { EntityDeleteConfirm } from "@/components/ui/entity/EntityDeleteConfirm";
+import { EntityStatusChip } from "@/components/ui/entity/EntityStatusChip";
+import { EntityInfoGrid } from "@/components/ui/entity/EntityInfoGrid";
+import { ReadonlyInfoCard } from "@/components/ui/entity/ReadonlyInfoCard";
+import { useEntityPanelState } from "@/components/ui/entity/useEntityPanelState";
 import {
   Select,
   SelectContent,
@@ -32,19 +38,10 @@ import {
   downloadTextFile,
 } from "@/lib/plan-export";
 import {
-  GenericDetailsPanel,
   useGenericDetailsPanel,
 } from "@/components/ui/entity/GenericDetailsPanel";
 
 type VideoKind = "upload" | "youtube" | null;
-
-interface ExercisePanelProps {
-  exercise: any | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onExerciseUpdate?: () => void;
-  createNew?: boolean;
-}
 
 export function ExerciseDetailsContent({
   exercise,
@@ -60,13 +57,13 @@ export function ExerciseDetailsContent({
   const panel = useGenericDetailsPanel();
   const open = panel.open;
 
+  const panelState = useEntityPanelState();
+
   const exerciseId = String(exercise?.id ?? "").trim();
 
-  const [isEditing, setIsEditing] = React.useState(false);
   const [validationError, setValidationError] = React.useState<string | null>(
     null
   );
-  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [deleteInfoMessage, setDeleteInfoMessage] = React.useState<string | null>(
     null
   );
@@ -76,34 +73,44 @@ export function ExerciseDetailsContent({
   const exportText = React.useMemo(() => {
     if (!exercise) return "";
 
-    const name = String(exercise?.name ?? "").trim() || "-";
-    const guidelines = String(exercise?.guidelines ?? "").trim();
-    const videoKind = String(exercise?.videoKind ?? "").trim();
-    const videoUrl = String(exercise?.videoUrl ?? "").trim();
-
-    const bodyPart = String(exercise?.bodyPart ?? "").trim();
-    const targetMuscle = String(exercise?.targetMuscle ?? "").trim();
-    const equipment = String(exercise?.equipment ?? "").trim();
-    const gifUrl = String(exercise?.gifUrl ?? "").trim();
-    const source = String(exercise?.source ?? "").trim();
-    const externalId = String(exercise?.externalId ?? "").trim();
-
     const lines: string[] = [];
-    lines.push(`Exercise: ${name}`);
-    if (bodyPart) lines.push(`Body part: ${bodyPart}`);
-    if (targetMuscle) lines.push(`Target muscle: ${targetMuscle}`);
-    if (equipment) lines.push(`Equipment: ${equipment}`);
-    if (gifUrl) lines.push(`GIF: ${gifUrl}`);
-    if (source) lines.push(`Source: ${source}`);
-    if (externalId) lines.push(`External ID: ${externalId}`);
-    if (videoKind || videoUrl) {
-      lines.push(`Video: ${videoKind || "-"}${videoUrl ? ` (${videoUrl})` : ""}`);
-    }
+
+    const name = String(exercise?.name ?? "").trim() || "-";
+    lines.push("Exercise");
+    lines.push(`Name: ${name}`);
+
+    const guidelines = String(exercise?.guidelines ?? "").trim();
     if (guidelines) {
       lines.push("");
-      lines.push("Guidelines:");
+      lines.push("Guidelines");
       lines.push(guidelines);
     }
+
+    const infoLines: string[] = [];
+    const bodyPart = String(exercise?.bodyPart ?? "").trim();
+    if (bodyPart) infoLines.push(`Body part: ${bodyPart}`);
+    const targetMuscle = String(exercise?.targetMuscle ?? "").trim();
+    if (targetMuscle) infoLines.push(`Target: ${targetMuscle}`);
+    const equipment = String(exercise?.equipment ?? "").trim();
+    if (equipment) infoLines.push(`Equipment: ${equipment}`);
+    const gifUrl = String(exercise?.gifUrl ?? "").trim();
+    if (gifUrl) infoLines.push(`GIF URL: ${gifUrl}`);
+    const source = String(exercise?.source ?? "").trim();
+    if (source) infoLines.push(`Source: ${source}`);
+    const externalId = String(exercise?.externalId ?? "").trim();
+    if (externalId) infoLines.push(`External ID: ${externalId}`);
+
+    const videoKind = String(exercise?.videoKind ?? "").trim();
+    const videoUrl = String(exercise?.videoUrl ?? "").trim();
+    if (videoKind) infoLines.push(`Video kind: ${videoKind}`);
+    if (videoUrl) infoLines.push(`Video URL: ${videoUrl}`);
+
+    if (infoLines.length) {
+      lines.push("");
+      lines.push("Info");
+      lines.push(...infoLines);
+    }
+
     return lines.join("\n");
   }, [exercise]);
 
@@ -191,25 +198,26 @@ export function ExerciseDetailsContent({
 
   React.useEffect(() => {
     if (!open) return;
-    setShowDeleteConfirm(false);
+    panelState.cancelDelete();
     setShowRemoveVideoConfirm(false);
     setDeleteInfoMessage(null);
 
-    if (!exercise) {
-      setIsEditing(true);
+    if (!exercise || createNew) {
+      panelState.startEdit();
       resetForm(null);
       return;
     }
 
-    if (createNew) {
-      setIsEditing(true);
-      resetForm(null);
-      return;
-    }
-
-    setIsEditing(false);
+    panelState.cancelEdit();
     resetForm(exercise);
-  }, [open, exerciseId, createNew]);
+  }, [
+    open,
+    exerciseId,
+    createNew,
+    panelState.cancelDelete,
+    panelState.startEdit,
+    panelState.cancelEdit,
+  ]);
 
   const unarchiveMutation = useMutation({
     mutationFn: async () => {
@@ -376,7 +384,7 @@ export function ExerciseDetailsContent({
       if (!exercise) {
         panel.close();
       } else {
-        setIsEditing(false);
+        panelState.cancelEdit();
       }
     },
     onError: (err: any) => {
@@ -415,12 +423,12 @@ export function ExerciseDetailsContent({
         setDeleteInfoMessage(
           "This exercise is currently used inside one or more active workout plans, so it cannot be deleted. It has been archived instead. Remove it from active plans if you want to delete it."
         );
-        setShowDeleteConfirm(false);
+        panelState.cancelDelete();
         return;
       }
 
       toast.success("Exercise deleted");
-      setShowDeleteConfirm(false);
+      panelState.cancelDelete();
       panel.close();
     },
     onError: (err: any) => {
@@ -500,9 +508,11 @@ export function ExerciseDetailsContent({
               </div>
               {String((exercise as any)?.status ?? "").trim().toUpperCase() ===
                 "ARCHIVED" ? (
-                <span className="shrink-0 text-[11px] px-2 py-0.5 rounded border border-amber-200 bg-amber-50 text-amber-800 dark:bg-amber-900/10 dark:border-amber-800 dark:text-amber-200">
-                  Archived
-                </span>
+                <EntityStatusChip
+                  status={String((exercise as any)?.status ?? "")}
+                  size="sm"
+                  className="shrink-0"
+                />
               ) : null}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -546,7 +556,7 @@ export function ExerciseDetailsContent({
             </Button>
 
             {String((exercise as any)?.status ?? "").trim().toUpperCase() ===
-              "ARCHIVED" && !isEditing ? (
+              "ARCHIVED" && !panelState.isEditing ? (
               <Button
                 variant="outline"
                 size="sm"
@@ -565,7 +575,7 @@ export function ExerciseDetailsContent({
               size="sm"
               onClick={() => {
                 resetForm(exercise);
-                setIsEditing(true);
+                panelState.startEdit();
               }}
             >
               <Edit2 className="w-4 h-4 mr-2" />
@@ -574,26 +584,18 @@ export function ExerciseDetailsContent({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-              <Video className="w-4 h-4" />
-              <span>Video</span>
-            </div>
-            <div className="mt-1 font-medium text-gray-900 dark:text-white">
-              {hasVideo ? videoLabel : "-"}
-            </div>
-          </div>
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-              <FileText className="w-4 h-4" />
-              <span>Guidelines</span>
-            </div>
-            <div className="mt-1 font-medium text-gray-900 dark:text-white">
-              {guidelines ? "Available" : "-"}
-            </div>
-          </div>
-        </div>
+        <EntityInfoGrid>
+          <ReadonlyInfoCard
+            icon={Video}
+            label="Video"
+            value={hasVideo ? videoLabel : "-"}
+          />
+          <ReadonlyInfoCard
+            icon={FileText}
+            label="Guidelines"
+            value={guidelines ? "Available" : "-"}
+          />
+        </EntityInfoGrid>
 
         {(bodyPart || targetMuscle || equipment || gifUrl || source || externalId) ? (
           <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/20">
@@ -711,49 +713,30 @@ export function ExerciseDetailsContent({
         ) : null}
 
         <div className="pt-2">
-          {!showDeleteConfirm ? (
+          {!panelState.showDeleteConfirm ? (
             <Button
               type="button"
               variant="destructive"
-              onClick={() => setShowDeleteConfirm(true)}
+              onClick={panelState.requestDelete}
               disabled={!exercise?.id}
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Delete Exercise
             </Button>
           ) : (
-            <div className="p-4 border border-red-200 bg-red-50 dark:bg-red-900/10 rounded-lg space-y-3">
-              <div className="space-y-1">
-                <div className="text-sm font-semibold text-red-900 dark:text-red-100">
-                  Delete exercise?
-                </div>
-                <div className="text-xs text-red-800 dark:text-red-200 leading-relaxed font-medium">
-                  This will remove <strong>{String(exercise?.name ?? "this exercise")}</strong> from the
-                  library. This cannot be undone.
-                </div>
-              </div>
-
-              <div className="flex gap-2 justify-end pt-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  type="button"
-                  disabled={deleteMutation.isPending}
-                  onClick={() => setShowDeleteConfirm(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  type="button"
-                  disabled={!exercise?.id || deleteMutation.isPending}
-                  onClick={async () => await deleteMutation.mutateAsync()}
-                >
-                  {deleteMutation.isPending ? "Deleting..." : "Delete"}
-                </Button>
-              </div>
-            </div>
+            <EntityDeleteConfirm
+              title="Delete exercise?"
+              description={
+                <>
+                  This will remove <strong>{String(exercise?.name ?? "this exercise")}</strong> from
+                  the library. This cannot be undone.
+                </>
+              }
+              confirmLabel={deleteMutation.isPending ? "Deleting..." : "Delete"}
+              disabled={!exercise?.id || deleteMutation.isPending}
+              onCancel={panelState.cancelDelete}
+              onConfirm={async () => await deleteMutation.mutateAsync()}
+            />
           )}
         </div>
       </div>
@@ -1069,10 +1052,14 @@ export function ExerciseDetailsContent({
     if (!open) return;
 
     panel.setTitle(
-      isEditing ? (exercise ? "Edit Exercise" : "New Exercise") : "Exercise Details"
+      panelState.isEditing
+        ? exercise
+          ? "Edit Exercise"
+          : "New Exercise"
+        : "Exercise Details"
     );
     panel.setDescription(
-      isEditing
+      panelState.isEditing
         ? exercise
           ? "Update exercise"
           : "Add a new exercise to your library"
@@ -1080,29 +1067,19 @@ export function ExerciseDetailsContent({
     );
 
     panel.setFooter(
-      isEditing ? (
-        <div className="flex gap-3 justify-end">
-          <Button
-            variant="outline"
-            type="button"
-            onClick={() => (exercise ? setIsEditing(false) : panel.close())}
-            disabled={saveMutation.isPending}
-          >
-            Cancel
-          </Button>
-          <Button type="submit" form="exercise-form" disabled={saveMutation.isPending}>
-            {saveMutation.isPending
-              ? "Saving..."
-              : exercise
-                ? "Save Changes"
-                : "Create Exercise"}
-          </Button>
-        </div>
-      ) : (
-        <div className="flex justify-start" />
-      )
+      panelState.isEditing ? (
+        <EntityEditFooter
+          isNew={!exercise}
+          isLoading={saveMutation.isPending}
+          formId="exercise-form"
+          onCancel={() => (exercise ? panelState.cancelEdit() : panel.close())}
+          createLabel="Create Exercise"
+          creatingLabel="Saving..."
+          savingLabel="Saving..."
+        />
+      ) : undefined
     );
-  }, [open, panel, isEditing, exercise, saveMutation.isPending]);
+  }, [open, panel, panelState, exercise, saveMutation.isPending]);
 
   return (
     <>
@@ -1117,38 +1094,15 @@ export function ExerciseDetailsContent({
         </div>
       ) : null}
 
-      {!exercise && !isEditing ? (
+      {!exercise && !panelState.isEditing ? (
         <div className="text-sm text-gray-600 dark:text-gray-300">
           No exercise selected
         </div>
-      ) : isEditing ? (
+      ) : panelState.isEditing ? (
         renderEditMode()
       ) : (
         renderViewMode()
       )}
     </>
-  );
-}
-
-export default function ExercisePanel({
-  exercise,
-  open,
-  onOpenChange,
-  onExerciseUpdate,
-  createNew,
-}: ExercisePanelProps) {
-  return (
-    <GenericDetailsPanel
-      open={open}
-      onOpenChange={onOpenChange}
-      defaultTitle="Exercise Details"
-      widthClassName="w-full sm:w-[520px] lg:w-[720px]"
-    >
-      <ExerciseDetailsContent
-        exercise={exercise}
-        createNew={createNew}
-        onExerciseUpdate={onExerciseUpdate}
-      />
-    </GenericDetailsPanel>
   );
 }

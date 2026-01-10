@@ -5,10 +5,13 @@ import { db } from "@/lib/db";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  GenericDetailsPanel,
-  useGenericDetailsPanel,
-} from "@/components/ui/entity/GenericDetailsPanel";
+import { useGenericDetailsPanel } from "@/components/ui/entity/GenericDetailsPanel";
+import { useEntityPanelState } from "@/components/ui/entity/useEntityPanelState";
+import { EntityEditFooter } from "@/components/ui/entity/EntityEditFooter";
+import { EntityDeleteConfirm } from "@/components/ui/entity/EntityDeleteConfirm";
+import { EntityStatusChip } from "@/components/ui/entity/EntityStatusChip";
+import { EntityInfoGrid } from "@/components/ui/entity/EntityInfoGrid";
+import { ReadonlyInfoCard } from "@/components/ui/entity/ReadonlyInfoCard";
 import {
   Select,
   SelectContent,
@@ -38,14 +41,6 @@ import {
 } from "@/lib/plan-export";
 import { toast } from "sonner";
 import { Food, FoodLibrary, Meal, MealPlan, PlanFood } from "@/types";
-
-interface MealPlanPanelProps {
-  planId: string | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onMealPlanUpdate?: () => void;
-  createNew?: boolean;
-}
 
 type MealForm = Partial<Meal> & {
   planFoods?: Array<Partial<PlanFood> & { legacyName?: string }>;
@@ -80,11 +75,11 @@ export function MealDetailsContent({
   const panel = useGenericDetailsPanel();
   const open = panel.open;
 
-  const [isEditing, setIsEditing] = React.useState(false);
+  const panelState = useEntityPanelState();
+
   const [validationError, setValidationError] = React.useState<string | null>(
     null
   );
-  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [deleteInfoMessage, setDeleteInfoMessage] = React.useState<string | null>(
     null
   );
@@ -126,7 +121,7 @@ export function MealDetailsContent({
           .localeCompare(String(b.name ?? "").trim())
       );
     },
-    enabled: open && isEditing,
+    enabled: open && panelState.isEditing,
   });
 
   const foodLibraryAll = (foodLibraryData ?? EMPTY_FOOD_LIBRARY) as FoodLibrary[];
@@ -232,7 +227,7 @@ export function MealDetailsContent({
         (a: Meal, b: Meal) => (a.order || 0) - (b.order || 0)
       );
     },
-    enabled: open && Boolean(planId) && !isEditing,
+    enabled: open && Boolean(planId) && !panelState.isEditing,
   });
 
   const { data: queryMealsData } = useQuery({
@@ -269,7 +264,7 @@ export function MealDetailsContent({
         (a: Meal, b: Meal) => (a.order || 0) - (b.order || 0)
       );
     },
-    enabled: open && Boolean(planId) && isEditing,
+    enabled: open && Boolean(planId) && panelState.isEditing,
   });
 
   const existingMeals = (queryMealsData ?? EMPTY_MEALS) as any[];
@@ -353,11 +348,11 @@ export function MealDetailsContent({
   React.useEffect(() => {
     if (!open) return;
     setValidationError(null);
-    setShowDeleteConfirm(false);
+    panelState.cancelDelete();
     setDeleteInfoMessage(null);
 
     if (!planId || createNew) {
-      setIsEditing(true);
+      panelState.startEdit();
       setFormData({
         name: "",
         goal: "",
@@ -370,13 +365,20 @@ export function MealDetailsContent({
       setMeals([]);
       setGoalMode("select");
     } else {
-      setIsEditing(false);
+      panelState.cancelEdit();
     }
-  }, [open, planId, createNew]);
+  }, [
+    open,
+    planId,
+    createNew,
+    panelState.cancelDelete,
+    panelState.startEdit,
+    panelState.cancelEdit,
+  ]);
 
   React.useEffect(() => {
     if (!open) return;
-    if (!isEditing) return;
+    if (!panelState.isEditing) return;
 
     if (planId && plan) {
       const normalizedGoal = normalizeGoal((plan as any)?.goal);
@@ -423,11 +425,11 @@ export function MealDetailsContent({
       const nextMode = normalizedGoal && !matchesDefault ? "custom" : "select";
       setGoalMode((prev) => (prev === nextMode ? prev : nextMode));
     }
-  }, [open, isEditing, planId, plan, normalizeGoal]);
+  }, [open, panelState.isEditing, planId, plan, normalizeGoal]);
 
   React.useEffect(() => {
     if (!open) return;
-    if (!isEditing) return;
+    if (!panelState.isEditing) return;
     if (!planId) return; // create mode: do not sync
 
     const queryMeals = existingMeals;
@@ -480,7 +482,7 @@ export function MealDetailsContent({
     } else {
       setMeals((prev) => (prev.length ? [] : prev));
     }
-  }, [open, isEditing, planId, existingMeals, foodLibraryAll, normalizeMealType]);
+  }, [open, panelState.isEditing, planId, existingMeals, foodLibraryAll, normalizeMealType]);
 
   const computedDailyTotals = React.useMemo(() => {
     const byId = new Map<string, FoodLibrary>();
@@ -793,7 +795,7 @@ export function MealDetailsContent({
         return;
       }
 
-      setIsEditing(false);
+      panelState.cancelEdit();
 
       await queryClient.invalidateQueries({ queryKey: ["mealPlans"] });
       await queryClient.invalidateQueries({ queryKey: ["meals"] });
@@ -829,12 +831,12 @@ export function MealDetailsContent({
         setDeleteInfoMessage(
           "This meal plan is currently assigned to one or more clients, so it cannot be deleted. It has been archived instead. Remove it from clients if you want to delete it."
         );
-        setShowDeleteConfirm(false);
+        panelState.cancelDelete();
         return;
       } else {
         toast.success("Meal plan deleted");
       }
-      setShowDeleteConfirm(false);
+      panelState.cancelDelete();
       panel.close();
     },
     onError: (error: any) => {
@@ -907,13 +909,13 @@ export function MealDetailsContent({
     }
   };
 
-  const panelTitle = isEditing
+  const panelTitle = panelState.isEditing
     ? planId
       ? "Edit Meal Plan"
       : "New Meal Plan"
     : "Meal Plan Details";
 
-  const panelDescription = isEditing
+  const panelDescription = panelState.isEditing
     ? planId
       ? "Update meal plan"
       : "Create a new meal plan"
@@ -928,34 +930,24 @@ export function MealDetailsContent({
     panel.setDescription(panelDescription);
 
     panel.setFooter(
-      isEditing ? (
-        <div className="flex gap-3 justify-end">
-          <Button
-            variant="outline"
-            type="button"
-            onClick={() => (planId ? setIsEditing(false) : panel.close())}
-            disabled={saveMutation.isPending}
-          >
-            Cancel
-          </Button>
-          <Button type="submit" form="meal-plan-form" disabled={saveMutation.isPending}>
-            {saveMutation.isPending
-              ? "Saving..."
-              : planId
-                ? "Save Changes"
-                : "Create Meal Plan"}
-          </Button>
-        </div>
-      ) : (
-        <div className="flex justify-start" />
-      )
+      panelState.isEditing ? (
+        <EntityEditFooter
+          isNew={!planId}
+          isLoading={saveMutation.isPending}
+          formId="meal-plan-form"
+          onCancel={() => (planId ? panelState.cancelEdit() : panel.close())}
+          createLabel="Create Meal Plan"
+          creatingLabel="Saving..."
+          savingLabel="Saving..."
+        />
+      ) : undefined
     );
   }, [
     open,
     panel,
     panelTitle,
     panelDescription,
-    isEditing,
+    panelState,
     planId,
     saveMutation.isPending,
   ]);
@@ -993,9 +985,11 @@ export function MealDetailsContent({
               </div>
               {String((plan as any)?.status ?? "").trim().toUpperCase() ===
                 "ARCHIVED" ? (
-                <span className="shrink-0 text-[11px] px-2 py-0.5 rounded border border-amber-200 bg-amber-50 text-amber-800 dark:bg-amber-900/10 dark:border-amber-800 dark:text-amber-200">
-                  Archived
-                </span>
+                <EntityStatusChip
+                  status={String((plan as any)?.status ?? "")}
+                  size="sm"
+                  className="shrink-0"
+                />
               ) : null}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -1048,7 +1042,7 @@ export function MealDetailsContent({
             </Button>
 
             {String((plan as any)?.status ?? "").trim().toUpperCase() ===
-              "ARCHIVED" && !isEditing ? (
+              "ARCHIVED" && !panelState.isEditing ? (
               <Button
                 variant="outline"
                 size="sm"
@@ -1060,7 +1054,7 @@ export function MealDetailsContent({
               </Button>
             ) : null}
 
-            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+            <Button variant="outline" size="sm" onClick={panelState.startEdit}>
               <Edit2 className="w-4 h-4 mr-2" />
               Edit
             </Button>
@@ -1078,44 +1072,32 @@ export function MealDetailsContent({
           </div>
         ) : null}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-              <Flame className="w-4 h-4 text-orange-500" />
-              <span>Calories</span>
-            </div>
-            <div className="mt-1 font-medium text-gray-900 dark:text-white">
-              {plan.dailyCalories ? `${plan.dailyCalories} kcal` : "-"}
-            </div>
-          </div>
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-              <Beef className="w-4 h-4 text-blue-500" />
-              <span>Protein</span>
-            </div>
-            <div className="mt-1 font-medium text-gray-900 dark:text-white">
-              {plan.dailyProtein ? `${plan.dailyProtein} g` : "-"}
-            </div>
-          </div>
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-              <Wheat className="w-4 h-4 text-yellow-500" />
-              <span>Carbs</span>
-            </div>
-            <div className="mt-1 font-medium text-gray-900 dark:text-white">
-              {plan.dailyCarbs ? `${plan.dailyCarbs} g` : "-"}
-            </div>
-          </div>
-          <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-            <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-              <Droplets className="w-4 h-4 text-purple-500" />
-              <span>Fat</span>
-            </div>
-            <div className="mt-1 font-medium text-gray-900 dark:text-white">
-              {plan.dailyFat ? `${plan.dailyFat} g` : "-"}
-            </div>
-          </div>
-        </div>
+        <EntityInfoGrid>
+          <ReadonlyInfoCard
+            icon={Flame}
+            label="Calories"
+            value={plan.dailyCalories ? `${plan.dailyCalories} kcal` : "-"}
+            iconClassName="text-orange-500"
+          />
+          <ReadonlyInfoCard
+            icon={Beef}
+            label="Protein"
+            value={plan.dailyProtein ? `${plan.dailyProtein} g` : "-"}
+            iconClassName="text-blue-500"
+          />
+          <ReadonlyInfoCard
+            icon={Wheat}
+            label="Carbs"
+            value={plan.dailyCarbs ? `${plan.dailyCarbs} g` : "-"}
+            iconClassName="text-yellow-500"
+          />
+          <ReadonlyInfoCard
+            icon={Droplets}
+            label="Fat"
+            value={plan.dailyFat ? `${plan.dailyFat} g` : "-"}
+            iconClassName="text-purple-500"
+          />
+        </EntityInfoGrid>
 
         <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/20">
           <div className="px-3 py-2 border-b border-gray-100 dark:border-gray-800">
@@ -1249,49 +1231,30 @@ export function MealDetailsContent({
         </div>
 
         <div className="pt-2">
-          {!showDeleteConfirm ? (
+          {!panelState.showDeleteConfirm ? (
             <Button
               type="button"
               variant="destructive"
-              onClick={() => setShowDeleteConfirm(true)}
+              onClick={panelState.requestDelete}
               disabled={!planId}
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Delete Meal Plan
             </Button>
           ) : (
-            <div className="p-4 border border-red-200 bg-red-50 dark:bg-red-900/10 rounded-lg space-y-3">
-              <div className="space-y-1">
-                <div className="text-sm font-semibold text-red-900 dark:text-red-100">
-                  Delete meal plan?
-                </div>
-                <div className="text-xs text-red-800 dark:text-red-200 leading-relaxed font-medium">
+            <EntityDeleteConfirm
+              title="Delete meal plan?"
+              description={
+                <>
                   This will delete <strong>{String(plan?.name ?? "this plan")}</strong>. This
                   cannot be undone.
-                </div>
-              </div>
-
-              <div className="flex gap-2 justify-end pt-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  type="button"
-                  disabled={deleteMutation.isPending}
-                  onClick={() => setShowDeleteConfirm(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  type="button"
-                  disabled={!planId || deleteMutation.isPending}
-                  onClick={async () => await deleteMutation.mutateAsync()}
-                >
-                  {deleteMutation.isPending ? "Deleting..." : "Delete"}
-                </Button>
-              </div>
-            </div>
+                </>
+              }
+              confirmLabel={deleteMutation.isPending ? "Deleting..." : "Delete"}
+              disabled={!planId || deleteMutation.isPending}
+              onCancel={panelState.cancelDelete}
+              onConfirm={async () => await deleteMutation.mutateAsync()}
+            />
           )}
         </div>
       </div>
@@ -1640,38 +1603,15 @@ export function MealDetailsContent({
 
   return (
     <>
-      {!planId && !isEditing ? (
+      {!planId && !panelState.isEditing ? (
         <div className="text-sm text-gray-600 dark:text-gray-300">
           No plan selected
         </div>
-      ) : isEditing ? (
+      ) : panelState.isEditing ? (
         renderEditMode()
       ) : (
         renderViewMode()
       )}
     </>
-  );
-}
-
-export default function MealPlanPanel({
-  planId,
-  open,
-  onOpenChange,
-  onMealPlanUpdate,
-  createNew,
-}: MealPlanPanelProps) {
-  return (
-    <GenericDetailsPanel
-      open={open}
-      onOpenChange={onOpenChange}
-      defaultTitle="Meal Plan Details"
-      widthClassName="w-full sm:w-[560px] lg:w-[720px]"
-    >
-      <MealDetailsContent
-        planId={planId}
-        createNew={createNew}
-        onMealPlanUpdate={onMealPlanUpdate}
-      />
-    </GenericDetailsPanel>
   );
 }

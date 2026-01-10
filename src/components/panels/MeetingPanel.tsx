@@ -26,11 +26,18 @@ import {
   Trash2,
   User,
   Video,
-  XCircle,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Client, Meeting } from "@/types";
 import { toast } from "sonner";
+import { EntityHeader } from "@/components/ui/entity/EntityHeader";
+import { ReadonlyInfoCard } from "@/components/ui/entity/ReadonlyInfoCard";
+import { EntityFormShell } from "@/components/ui/entity/EntityFormShell";
+import { EntityDeleteConfirm } from "@/components/ui/entity/EntityDeleteConfirm";
+import { useEntityPanelState } from "@/components/ui/entity/useEntityPanelState";
+import { EntityEditFooter } from "@/components/ui/entity/EntityEditFooter";
+import { EntityStatusChip } from "@/components/ui/entity/EntityStatusChip";
+import { EntityInfoGrid } from "@/components/ui/entity/EntityInfoGrid";
 
 const OTHER_CLIENT_ID = "__PROSPECT__";
 const OTHER_CLIENT_LABEL = "Other (not a client)";
@@ -96,11 +103,10 @@ export default function MeetingPanel({
   const panel = useGenericDetailsPanel();
   const queryClient = useQueryClient();
 
-  const [isEditing, setIsEditing] = React.useState(false);
+  const panelState = useEntityPanelState();
   const [validationError, setValidationError] = React.useState<string | null>(
     null
   );
-  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
 
   const { data: meeting } = useQuery({
     queryKey: ["meeting", meetingId],
@@ -129,10 +135,10 @@ export default function MeetingPanel({
     if (!panel.open) return;
 
     setValidationError(null);
-    setShowDeleteConfirm(false);
+    panelState.cancelDelete();
 
     if (!meetingId) {
-      setIsEditing(true);
+      panelState.startEdit();
       setFormData({
         title: "",
         type: "zoom",
@@ -146,13 +152,19 @@ export default function MeetingPanel({
         ...({ shareNotesWithClient: false } as any),
       });
     } else {
-      setIsEditing(false);
+      panelState.cancelEdit();
     }
-  }, [panel.open, meetingId]);
+  }, [
+    panel.open,
+    meetingId,
+    panelState.cancelDelete,
+    panelState.startEdit,
+    panelState.cancelEdit,
+  ]);
 
   React.useEffect(() => {
     if (!panel.open) return;
-    if (!isEditing) return;
+    if (!panelState.isEditing) return;
 
     if (meetingId && meeting) {
       const shareNotesWithClient = Boolean(
@@ -180,7 +192,7 @@ export default function MeetingPanel({
         ...({ shareNotesWithClient } as any),
       });
     }
-  }, [panel.open, isEditing, meetingId, meeting]);
+  }, [panel.open, panelState.isEditing, meetingId, meeting]);
   const getClientName = (clientId: string) => {
     if (clientId === OTHER_CLIENT_ID) {
       const name = String(
@@ -200,22 +212,6 @@ export default function MeetingPanel({
         return <Phone className="w-4 h-4" />;
       default:
         return <MapPin className="w-4 h-4" />;
-    }
-  };
-
-  const statusChipClasses = (status?: string) => {
-    switch (status) {
-      case "scheduled":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200";
-      case "completed":
-        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200";
-      case "cancelled":
-        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200";
-      case "no_show":
-      case "no-show":
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/25 dark:text-yellow-200";
-      default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-800/60 dark:text-gray-200";
     }
   };
 
@@ -337,7 +333,7 @@ export default function MeetingPanel({
       if (!meetingId) {
         panel.close();
       } else {
-        setIsEditing(false);
+        panelState.cancelEdit();
       }
     },
     onError: (error: any) => {
@@ -355,7 +351,7 @@ export default function MeetingPanel({
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["meetings"] });
       toast.success("Meeting deleted");
-      setShowDeleteConfirm(false);
+      panelState.cancelDelete();
       panel.close();
     },
     onError: (error: any) => {
@@ -398,20 +394,12 @@ export default function MeetingPanel({
   ).trim();
 
   const renderEditMode = () => (
-    <form id="meeting-form" onSubmit={handleSubmit} noValidate className="space-y-4">
-      {validationError ? (
-        <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-50 dark:bg-slate-900/60 px-4 min-h-12 py-2">
-          <div className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-red-500/15 text-red-600 dark:text-red-300">
-            <XCircle className="h-3.5 w-3.5" />
-          </div>
-          <div className="min-w-0">
-            <div className="text-sm text-slate-700 dark:text-slate-200 break-words">
-              {validationError}
-            </div>
-          </div>
-        </div>
-      ) : null}
-
+    <EntityFormShell
+      id="meeting-form"
+      onSubmit={handleSubmit}
+      validationError={validationError}
+      className="space-y-4"
+    >
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           Title *
@@ -647,94 +635,68 @@ export default function MeetingPanel({
       </div>
 
       <div className="h-2" />
-    </form>
+    </EntityFormShell>
   );
 
   const renderViewMode = (meeting: Meeting) => (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="text-xl font-semibold text-gray-900 dark:text-white truncate">
-            {meeting.title}
-          </div>
-          <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-            {scheduledAt && !Number.isNaN(scheduledAt.getTime())
-              ? format(scheduledAt, "PPP p")
-              : "-"}
-          </div>
-        </div>
+      <EntityHeader
+        title={meeting.title}
+        subtitle={
+          scheduledAt && !Number.isNaN(scheduledAt.getTime())
+            ? format(scheduledAt, "PPP p")
+            : "-"
+        }
+        status={
+          <EntityStatusChip status={String(meeting.status ?? "")} />
+        }
+        editIcon={Edit2}
+        onEdit={() => {
+          panelState.startEdit();
+          setValidationError(null);
+        }}
+      />
 
-        <span
-          className={`inline-flex items-center h-7 px-3 rounded-md text-xs font-medium capitalize ${statusChipClasses(
-            meeting.status
-          )}`}
-        >
-          {meeting.status?.replace(/[-_]/g, " ") || "unknown"}
-        </span>
+      <EntityInfoGrid>
+        <ReadonlyInfoCard
+          icon={(() => {
+            const t = String(meeting.type ?? "").trim().toLowerCase();
+            if (t === "call") return Phone;
+            if (t === "zoom") return Video;
+            return MapPin;
+          })()}
+          label="Type"
+          value={String(meeting.type ?? "-").replace(/[-_]/g, " ")}
+          valueClassName="mt-1 font-medium text-gray-900 dark:text-white capitalize"
+        />
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setIsEditing(true);
-            setValidationError(null);
-            setShowDeleteConfirm(false);
-          }}
-        >
-          <Edit2 className="w-4 h-4 mr-2" />
-          Edit
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-          <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-            {getMeetingIcon(meeting.type)}
-            <span>Type</span>
-          </div>
-          <div className="mt-1 font-medium text-gray-900 dark:text-white capitalize">
-            {String(meeting.type ?? "-").replace(/[-_]/g, " ")}
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-          <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-            {isPast ? (
-              <History className="w-4 h-4" />
-            ) : (
-              <CalendarIcon className="w-4 h-4" />
-            )}
-            <span>When</span>
-          </div>
-          <div className="mt-1 font-medium text-gray-900 dark:text-white">
-            {scheduledAt && !Number.isNaN(scheduledAt.getTime())
+        <ReadonlyInfoCard
+          icon={isPast ? History : CalendarIcon}
+          label="When"
+          value={
+            scheduledAt && !Number.isNaN(scheduledAt.getTime())
               ? format(scheduledAt, "PPP")
-              : "-"}
-          </div>
-        </div>
+              : "-"
+          }
+        />
 
-        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-          <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-            <Clock className="w-4 h-4" />
-            <span>Duration</span>
-          </div>
-          <div className="mt-1 font-medium text-gray-900 dark:text-white">
-            {String((meeting as any)?.durationMinutes ?? "").trim()
+        <ReadonlyInfoCard
+          icon={Clock}
+          label="Duration"
+          value={
+            String((meeting as any)?.durationMinutes ?? "").trim()
               ? `${String((meeting as any)?.durationMinutes).trim()} min`
-              : "-"}
-          </div>
-        </div>
+              : "-"
+          }
+        />
 
-        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30 px-3 py-2">
-          <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-            <User className="w-4 h-4" />
-            <span>With</span>
-          </div>
-          <div className="mt-1 font-medium text-gray-900 dark:text-white truncate">
-            {meeting.clientId ? getClientName(meeting.clientId) : "-"}
-          </div>
-        </div>
-      </div>
+        <ReadonlyInfoCard
+          icon={User}
+          label="With"
+          value={meeting.clientId ? getClientName(meeting.clientId) : "-"}
+          valueClassName="mt-1 font-medium text-gray-900 dark:text-white truncate"
+        />
+      </EntityInfoGrid>
 
       {meeting.location ? (
         <div>
@@ -775,49 +737,30 @@ export default function MeetingPanel({
       ) : null}
 
       <div className="pt-2">
-        {!showDeleteConfirm ? (
+        {!panelState.showDeleteConfirm ? (
           <Button
             type="button"
             variant="destructive"
-            onClick={() => setShowDeleteConfirm(true)}
+            onClick={panelState.requestDelete}
             disabled={!meetingId}
           >
             <Trash2 className="w-4 h-4 mr-2" />
             Delete Meeting
           </Button>
         ) : (
-          <div className="p-4 border border-red-200 bg-red-50 dark:bg-red-900/10 rounded-lg space-y-3">
-            <div className="space-y-1">
-              <div className="text-sm font-semibold text-red-900 dark:text-red-100">
-                Delete meeting?
-              </div>
-              <div className="text-xs text-red-800 dark:text-red-200 leading-relaxed font-medium">
+          <EntityDeleteConfirm
+            title="Delete meeting?"
+            description={
+              <>
                 This will delete <strong>{String(meeting?.title ?? "this meeting")}</strong>. This
                 cannot be undone.
-              </div>
-            </div>
-
-            <div className="flex gap-2 justify-end pt-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                type="button"
-                disabled={deleteMutation.isPending}
-                onClick={() => setShowDeleteConfirm(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                type="button"
-                disabled={!meetingId || deleteMutation.isPending}
-                onClick={async () => await deleteMutation.mutateAsync()}
-              >
-                {deleteMutation.isPending ? "Deleting..." : "Delete"}
-              </Button>
-            </div>
-          </div>
+              </>
+            }
+            confirmLabel={deleteMutation.isPending ? "Deleting..." : "Delete"}
+            disabled={!meetingId || deleteMutation.isPending}
+            onCancel={panelState.cancelDelete}
+            onConfirm={async () => await deleteMutation.mutateAsync()}
+          />
         )}
       </div>
     </div>
@@ -825,7 +768,7 @@ export default function MeetingPanel({
 
   React.useEffect(() => {
     panel.setTitle(
-      isEditing
+      panelState.isEditing
         ? meetingId
           ? "Edit Meeting"
           : "New Meeting"
@@ -833,39 +776,25 @@ export default function MeetingPanel({
     );
 
     panel.setFooter(
-      isEditing ? (
-        <div className="flex gap-3 justify-end">
-          <Button
-            variant="outline"
-            type="button"
-            onClick={() => (meetingId ? setIsEditing(false) : panel.close())}
-            disabled={saveMutation.isPending}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            form="meeting-form"
-            disabled={saveMutation.isPending}
-          >
-            {saveMutation.isPending
-              ? "Saving..."
-              : meetingId
-                ? "Save Changes"
-                : "Schedule Meeting"}
-          </Button>
-        </div>
-      ) : (
-        <div className="flex justify-start" />
-      )
+      panelState.isEditing ? (
+        <EntityEditFooter
+          isNew={!meetingId}
+          isLoading={saveMutation.isPending}
+          formId="meeting-form"
+          onCancel={() => (meetingId ? panelState.cancelEdit() : panel.close())}
+          createLabel="Schedule Meeting"
+          creatingLabel="Saving..."
+          savingLabel="Saving..."
+        />
+      ) : undefined
     );
-  }, [isEditing, meetingId, panel, saveMutation.isPending]);
+  }, [panelState.isEditing, meetingId, panel, saveMutation.isPending, panelState]);
 
-  return !meeting && !isEditing ? (
+  return !meeting && !panelState.isEditing ? (
     <div className="text-sm text-gray-600 dark:text-gray-300">
       No meeting selected
     </div>
-  ) : isEditing ? (
+  ) : panelState.isEditing ? (
     renderEditMode()
   ) : (
     renderViewMode(meeting as Meeting)
