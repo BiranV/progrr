@@ -138,6 +138,12 @@ export default function SettingsPage() {
   >(null);
   const [logoCropSaving, setLogoCropSaving] = React.useState(false);
 
+  // Persist the latest crop input/area so switching shape updates the preview
+  // even after the crop dialog is closed.
+  const [logoLastCropSrc, setLogoLastCropSrc] = React.useState<string>("");
+  const [logoLastCroppedAreaPixels, setLogoLastCroppedAreaPixels] =
+    React.useState<Area | null>(null);
+
   const [formData, setFormData] = React.useState<Partial<AppSettings>>({
     businessName: "",
     businessDescription: "",
@@ -190,6 +196,38 @@ export default function SettingsPage() {
       });
     }
   }, [settings]);
+
+  React.useEffect(() => {
+    if (uploadMethod !== "upload") return;
+    if (!String(formData.logoUrl ?? "").trim()) return;
+    if (!logoLastCropSrc || !logoLastCroppedAreaPixels) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const next = await getCroppedLogoDataUrl(
+          logoLastCropSrc,
+          logoLastCroppedAreaPixels,
+          formData.logoShape === "circle" ? "circle" : "square"
+        );
+
+        if (cancelled) return;
+        setFormData((prev) => ({ ...prev, logoUrl: next }));
+      } catch (err) {
+        console.error(err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    uploadMethod,
+    formData.logoShape,
+    formData.logoUrl,
+    logoLastCropSrc,
+    logoLastCroppedAreaPixels,
+  ]);
 
   const startLogoCrop = async (file: File) => {
     if (!file || !file.type.startsWith("image/")) {
@@ -750,7 +788,11 @@ export default function SettingsPage() {
                                   type="button"
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => setFormData({ ...formData, logoUrl: "" })}
+                                  onClick={() => {
+                                    setFormData({ ...formData, logoUrl: "" });
+                                    setLogoLastCropSrc("");
+                                    setLogoLastCroppedAreaPixels(null);
+                                  }}
                                 >
                                   Remove
                                 </Button>
@@ -1038,6 +1080,8 @@ export default function SettingsPage() {
                     logoCroppedAreaPixels,
                     formData.logoShape === "circle" ? "circle" : "square"
                   );
+                  setLogoLastCropSrc(logoCropSrc);
+                  setLogoLastCroppedAreaPixels(logoCroppedAreaPixels);
                   setFormData((prev) => ({ ...prev, logoUrl: next }));
                   setLogoCropOpen(false);
                   toast.success("Logo updated");
