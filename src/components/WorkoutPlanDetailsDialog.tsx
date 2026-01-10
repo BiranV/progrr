@@ -20,6 +20,7 @@ import {
   FileDown,
   FileText,
   Plus,
+  RotateCcw,
   Trash2,
   XCircle,
 } from "lucide-react";
@@ -90,6 +91,9 @@ export default function WorkoutPlanDetailsDialog({
     null
   );
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const [deleteInfoMessage, setDeleteInfoMessage] = React.useState<string | null>(
+    null
+  );
 
   const [difficultyMode, setDifficultyMode] = React.useState<
     "select" | "custom"
@@ -122,6 +126,22 @@ export default function WorkoutPlanDetailsDialog({
       return (await db.entities.WorkoutPlan.get(String(planId))) as any;
     },
     enabled: !!planId && open,
+  });
+
+  const unarchiveMutation = useMutation({
+    mutationFn: async () => {
+      if (!planId) return null;
+      return db.entities.WorkoutPlan.update(planId, { status: "ACTIVE" } as any);
+    },
+    onSuccess: () => {
+      setDeleteInfoMessage(null);
+      queryClient.invalidateQueries({ queryKey: ["workoutPlans"] });
+      queryClient.invalidateQueries({ queryKey: ["workoutPlan", planId] });
+      toast.success("Workout plan restored to active");
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to restore workout plan");
+    },
   });
 
   const resetForm = (current: WorkoutPlan | null) => {
@@ -460,27 +480,25 @@ export default function WorkoutPlanDetailsDialog({
   const deleteMutation = useMutation({
     mutationFn: async () => {
       if (!planId) return;
-      await db.entities.WorkoutPlan.delete(planId);
-
-      const planExercisesRows = await db.entities.PlanExercise.filter({
-        workoutPlanId: planId,
-      });
-      await Promise.all(
-        (planExercisesRows as any[]).map((e: any) =>
-          db.entities.PlanExercise.delete(e.id)
-        )
-      );
-
-      const legacyExercises = await db.entities.Exercise.filter({
-        workoutPlanId: planId,
-      });
-      await Promise.all(
-        (legacyExercises as any[]).map((e: any) => db.entities.Exercise.delete(e.id))
-      );
+      return db.entities.WorkoutPlan.delete(planId);
     },
-    onSuccess: () => {
+    onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ["workoutPlans"] });
       queryClient.invalidateQueries({ queryKey: ["workoutPlanExerciseCounts"] });
+
+      if (planId) {
+        queryClient.invalidateQueries({ queryKey: ["workoutPlan", planId] });
+      }
+
+      const status = String(result?.status ?? "").trim().toUpperCase();
+      if (status === "ARCHIVED") {
+        setDeleteInfoMessage(
+          "This workout plan is currently assigned to one or more clients, so it cannot be deleted. It has been archived instead. Remove it from clients if you want to delete it."
+        );
+        setShowDeleteConfirm(false);
+        return;
+      }
+
       toast.success("Workout plan deleted");
       setShowDeleteConfirm(false);
       onOpenChange(false);
@@ -826,8 +844,16 @@ export default function WorkoutPlanDetailsDialog({
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1 min-w-0">
-            <div className="text-xl font-semibold text-gray-900 dark:text-white truncate">
-              {plan.name}
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="text-xl font-semibold text-gray-900 dark:text-white truncate">
+                {plan.name}
+              </div>
+              {String((plan as any)?.status ?? "").trim().toUpperCase() ===
+                "ARCHIVED" ? (
+                <span className="shrink-0 text-[11px] px-2 py-0.5 rounded border border-amber-200 bg-amber-50 text-amber-800 dark:bg-amber-900/10 dark:border-amber-800 dark:text-amber-200">
+                  Archived
+                </span>
+              ) : null}
             </div>
             <div className="text-sm text-gray-600 dark:text-gray-300">
               {plan.difficulty ? (
@@ -893,6 +919,19 @@ export default function WorkoutPlanDetailsDialog({
               <CopyIcon className="w-4 h-4" />
             </Button>
 
+            {String((plan as any)?.status ?? "").trim().toUpperCase() ===
+              "ARCHIVED" && !isEditing ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={unarchiveMutation.isPending}
+                onClick={() => unarchiveMutation.mutate()}
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                {unarchiveMutation.isPending ? "Restoring..." : "Return to active"}
+              </Button>
+            ) : null}
+
             <Button
               variant="outline"
               size="sm"
@@ -912,6 +951,17 @@ export default function WorkoutPlanDetailsDialog({
             </Button>
           </div>
         </div>
+
+        {deleteInfoMessage ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800 px-3 py-2">
+            <div className="text-sm font-medium text-amber-900 dark:text-amber-100">
+              Archived (not deleted)
+            </div>
+            <div className="text-xs text-amber-800 dark:text-amber-200 mt-1 leading-relaxed">
+              {deleteInfoMessage}
+            </div>
+          </div>
+        ) : null}
 
         {plan.notes ? (
           <div>
@@ -1054,7 +1104,7 @@ export default function WorkoutPlanDetailsDialog({
                   Delete workout plan?
                 </div>
                 <div className="text-xs text-red-800 dark:text-red-200 leading-relaxed font-medium">
-                  This will permanently delete <strong>{String(plan?.name ?? "this workout plan")}</strong>. This cannot be undone.
+                  If this plan is assigned to any clients, it will be archived instead of deleted.
                 </div>
               </div>
 

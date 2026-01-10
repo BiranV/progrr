@@ -781,6 +781,41 @@ export async function DELETE(
       return NextResponse.json({ ok: true, status: nextStatus });
     }
 
+    // WorkoutPlan lifecycle: mirror MealPlan behavior.
+    // - If assigned to any clients: ARCHIVED
+    // - If not assigned: DELETED
+    if (entity === "WorkoutPlan") {
+      const planId = id;
+      const isAssigned = await c.entities.findOne({
+        entity: "Client",
+        adminId,
+        $or: [
+          { "data.assignedPlanId": planId },
+          { "data.assignedPlanIds": planId },
+        ],
+      });
+
+      const nextStatus = isAssigned ? "ARCHIVED" : "DELETED";
+      const now = new Date();
+      await c.entities.updateOne(
+        { _id: new ObjectId(id), entity: "WorkoutPlan", adminId },
+        {
+          $set: {
+            "data.status": nextStatus,
+            "data.archivedAt": isAssigned
+              ? now.toISOString()
+              : (existing as any)?.data?.archivedAt,
+            "data.deletedAt": !isAssigned
+              ? now.toISOString()
+              : (existing as any)?.data?.deletedAt,
+            updatedAt: now,
+          },
+        }
+      );
+
+      return NextResponse.json({ ok: true, status: nextStatus });
+    }
+
     if (entity === "Message") {
       const data = (existing.data ?? {}) as any;
       const clientId = String(data.clientId ?? "").trim();
