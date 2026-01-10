@@ -178,9 +178,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       "/meals",
       "/meetings",
       "/settings",
-      "/boards",
-      "/board",
-      "/analytics",
     ];
 
     if (adminOnlyPrefixes.some((p) => pathname.startsWith(p))) {
