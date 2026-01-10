@@ -62,6 +62,7 @@ export default function ExercisesPage() {
   });
 
   const [page, setPage] = React.useState(1);
+  const [archivedPage, setArchivedPage] = React.useState(1);
   const [sortConfig, setSortConfig] = React.useState<{
     key: keyof ExerciseRow;
     direction: "asc" | "desc";
@@ -78,7 +79,17 @@ export default function ExercisesPage() {
     queryFn: () => db.entities.ExerciseLibrary.list("-created_date"),
   });
 
-  const filtered = (exercises as ExerciseRow[]).filter((e) =>
+  const normalizeLibraryStatus = React.useCallback((value: unknown) => {
+    const s = String(value ?? "").trim().toUpperCase();
+    if (s === "ARCHIVED" || s === "DELETED") return s as "ARCHIVED" | "DELETED";
+    return "ACTIVE" as const;
+  }, []);
+
+  const visible = (exercises as any[]).filter(
+    (e) => normalizeLibraryStatus((e as any)?.status) !== "DELETED"
+  );
+
+  const filtered = (visible as ExerciseRow[]).filter((e) =>
     String(e?.name ?? "")
       .toLowerCase()
       .includes(search.toLowerCase())
@@ -110,6 +121,22 @@ export default function ExercisesPage() {
       return String(a.id ?? "").localeCompare(String(b.id ?? ""));
     });
   }, [filtered, sortConfig]);
+
+  const sortedActive = React.useMemo(
+    () =>
+      (sorted as any[]).filter(
+        (e) => normalizeLibraryStatus((e as any)?.status) === "ACTIVE"
+      ) as ExerciseRow[],
+    [sorted, normalizeLibraryStatus]
+  );
+
+  const sortedArchived = React.useMemo(
+    () =>
+      (sorted as any[]).filter(
+        (e) => normalizeLibraryStatus((e as any)?.status) === "ARCHIVED"
+      ) as ExerciseRow[],
+    [sorted, normalizeLibraryStatus]
+  );
 
   const handleSort = (key: keyof ExerciseRow) => {
     setSortConfig((current) => {
@@ -235,6 +262,7 @@ export default function ExercisesPage() {
 
   React.useEffect(() => {
     setPage(1);
+    setArchivedPage(1);
   }, [search, sortConfig?.key, sortConfig?.direction, pageSize]);
 
   const paginate = React.useCallback(
@@ -254,8 +282,13 @@ export default function ExercisesPage() {
   );
 
   const paging = React.useMemo(
-    () => paginate(sorted, page),
-    [paginate, sorted, page]
+    () => paginate(sortedActive, page),
+    [paginate, sortedActive, page]
+  );
+
+  const archivedPaging = React.useMemo(
+    () => paginate(sortedArchived, archivedPage),
+    [paginate, sortedArchived, archivedPage]
   );
 
   const selectedExercise =
@@ -484,137 +517,305 @@ export default function ExercisesPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-lg border">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th
-                    className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                    onClick={() => handleSort("name")}
-                  >
-                    <div className="flex items-center gap-2">
-                      Exercise
-                      <ArrowUpDown className="w-4 h-4" />
-                    </div>
-                  </th>
-                  <th
-                    className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                    onClick={() => handleSort("targetMuscle")}
-                  >
-                    <div className="flex items-center gap-2">
-                      Target
-                      <ArrowUpDown className="w-4 h-4" />
-                    </div>
-                  </th>
-                  <th
-                    className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                    onClick={() => handleSort("bodyPart")}
-                  >
-                    <div className="flex items-center gap-2">
-                      Body Part
-                      <ArrowUpDown className="w-4 h-4" />
-                    </div>
-                  </th>
-                  <th
-                    className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                    onClick={() => handleSort("equipment")}
-                  >
-                    <div className="flex items-center gap-2">
-                      Equipment
-                      <ArrowUpDown className="w-4 h-4" />
-                    </div>
-                  </th>
-                  <th className="px-4 py-3 text-left font-medium">Media</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paging.pagedRows.map((e) => {
-                  const videoKind = String(e?.videoKind ?? "").trim();
-                  const videoUrl = String(e?.videoUrl ?? "").trim();
-                  const hasVideo =
-                    !!videoKind &&
-                    (videoKind !== "youtube" || !!videoUrl) &&
-                    (videoKind !== "upload" || !!videoUrl);
-                  const videoLabel =
-                    videoKind === "youtube"
-                      ? "YouTube"
-                      : videoKind === "upload"
-                        ? "Upload"
-                        : "-";
-                  const hasGuidelines = !!String(e?.guidelines ?? "").trim();
-                  const targetMuscle = String(e?.targetMuscle ?? "").trim();
-                  const bodyPart = String(e?.bodyPart ?? "").trim();
-                  const equipment = String(e?.equipment ?? "").trim();
-
-                  return (
-                    <tr
-                      key={String(e.id)}
-                      className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer transition-colors"
-                      onClick={() => handleOpenDetails(e)}
-                    >
-                      <td className="px-4 py-3">
-                        <span className="font-medium">{String(e.name ?? "-")}</span>
-                      </td>
-                      <td className="px-4 py-3">{targetMuscle || "-"}</td>
-                      <td className="px-4 py-3">{bodyPart || "-"}</td>
-                      <td className="px-4 py-3">{equipment || "-"}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
-                          {hasVideo ? (
-                            <span
-                              className="inline-flex items-center"
-                              title={`Video: ${videoLabel}`}
-                              aria-label={`Video: ${videoLabel}`}
-                            >
-                              <Video className="h-4 w-4" />
-                            </span>
-                          ) : null}
-                          {hasGuidelines ? (
-                            <span
-                              className="inline-flex items-center"
-                              title="Guidelines available"
-                              aria-label="Guidelines available"
-                            >
-                              <FileText className="h-4 w-4" />
-                            </span>
-                          ) : null}
-                          {!hasVideo && !hasGuidelines ? <span>-</span> : null}
+        <div className="space-y-8">
+          {sortedActive.length === 0 ? (
+            <Card>
+              <CardContent className="py-10 text-center">
+                <p className="text-gray-500 dark:text-gray-400">
+                  {search
+                    ? "No active exercises match your search"
+                    : "No active exercises"}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="bg-white dark:bg-gray-800 rounded-lg border">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th
+                        className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                        onClick={() => handleSort("name")}
+                      >
+                        <div className="flex items-center gap-2">
+                          Exercise
+                          <ArrowUpDown className="w-4 h-4" />
                         </div>
-                      </td>
+                      </th>
+                      <th
+                        className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                        onClick={() => handleSort("targetMuscle")}
+                      >
+                        <div className="flex items-center gap-2">
+                          Target
+                          <ArrowUpDown className="w-4 h-4" />
+                        </div>
+                      </th>
+                      <th
+                        className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                        onClick={() => handleSort("bodyPart")}
+                      >
+                        <div className="flex items-center gap-2">
+                          Body Part
+                          <ArrowUpDown className="w-4 h-4" />
+                        </div>
+                      </th>
+                      <th
+                        className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
+                        onClick={() => handleSort("equipment")}
+                      >
+                        <div className="flex items-center gap-2">
+                          Equipment
+                          <ArrowUpDown className="w-4 h-4" />
+                        </div>
+                      </th>
+                      <th className="px-4 py-3 text-left font-medium">Media</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody>
+                    {paging.pagedRows.map((e) => {
+                      const videoKind = String(e?.videoKind ?? "").trim();
+                      const videoUrl = String(e?.videoUrl ?? "").trim();
+                      const hasVideo =
+                        !!videoKind &&
+                        (videoKind !== "youtube" || !!videoUrl) &&
+                        (videoKind !== "upload" || !!videoUrl);
+                      const videoLabel =
+                        videoKind === "youtube"
+                          ? "YouTube"
+                          : videoKind === "upload"
+                            ? "Upload"
+                            : "-";
+                      const hasGuidelines =
+                        !!String(e?.guidelines ?? "").trim();
+                      const targetMuscle = String(e?.targetMuscle ?? "").trim();
+                      const bodyPart = String(e?.bodyPart ?? "").trim();
+                      const equipment = String(e?.equipment ?? "").trim();
 
-          <div className="flex items-center justify-between gap-3 px-4 py-3 border-t bg-gray-50/60 dark:bg-gray-700/40">
-            <div className="text-xs text-gray-600 dark:text-gray-300">
-              Page {paging.page} of {paging.totalPages}
-            </div>
+                      return (
+                        <tr
+                          key={String(e.id)}
+                          className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer transition-colors"
+                          onClick={() => handleOpenDetails(e)}
+                        >
+                          <td className="px-4 py-3">
+                            <span className="font-medium">
+                              {String(e.name ?? "-")}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">{targetMuscle || "-"}</td>
+                          <td className="px-4 py-3">{bodyPart || "-"}</td>
+                          <td className="px-4 py-3">{equipment || "-"}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                              {hasVideo ? (
+                                <span
+                                  className="inline-flex items-center"
+                                  title={`Video: ${videoLabel}`}
+                                  aria-label={`Video: ${videoLabel}`}
+                                >
+                                  <Video className="h-4 w-4" />
+                                </span>
+                              ) : null}
+                              {hasGuidelines ? (
+                                <span
+                                  className="inline-flex items-center"
+                                  title="Guidelines available"
+                                  aria-label="Guidelines available"
+                                >
+                                  <FileText className="h-4 w-4" />
+                                </span>
+                              ) : null}
+                              {!hasVideo && !hasGuidelines ? <span>-</span> : null}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
 
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={paging.page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Previous
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={paging.page >= paging.totalPages}
-                onClick={() => setPage((p) => Math.min(paging.totalPages, p + 1))}
-              >
-                Next
-              </Button>
+              <div className="flex items-center justify-between gap-3 px-4 py-3 border-t bg-gray-50/60 dark:bg-gray-700/40">
+                <div className="text-xs text-gray-600 dark:text-gray-300">
+                  Page {paging.page} of {paging.totalPages}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={paging.page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={paging.page >= paging.totalPages}
+                    onClick={() =>
+                      setPage((p) => Math.min(paging.totalPages, p + 1))
+                    }
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
+
+          {sortedArchived.length ? (
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+                Archived Exercises
+              </h2>
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-red-100 dark:border-red-900/30 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-red-50/50 dark:bg-red-900/10 border-b border-red-100 dark:border-red-900/30">
+                      <tr>
+                        <th
+                          className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-red-100/60 dark:hover:bg-red-900/20"
+                          onClick={() => handleSort("name")}
+                        >
+                          <div className="flex items-center gap-2">
+                            Exercise
+                            <ArrowUpDown className="w-4 h-4" />
+                          </div>
+                        </th>
+                        <th
+                          className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-red-100/60 dark:hover:bg-red-900/20"
+                          onClick={() => handleSort("targetMuscle")}
+                        >
+                          <div className="flex items-center gap-2">
+                            Target
+                            <ArrowUpDown className="w-4 h-4" />
+                          </div>
+                        </th>
+                        <th
+                          className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-red-100/60 dark:hover:bg-red-900/20"
+                          onClick={() => handleSort("bodyPart")}
+                        >
+                          <div className="flex items-center gap-2">
+                            Body Part
+                            <ArrowUpDown className="w-4 h-4" />
+                          </div>
+                        </th>
+                        <th
+                          className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-red-100/60 dark:hover:bg-red-900/20"
+                          onClick={() => handleSort("equipment")}
+                        >
+                          <div className="flex items-center gap-2">
+                            Equipment
+                            <ArrowUpDown className="w-4 h-4" />
+                          </div>
+                        </th>
+                        <th className="px-4 py-3 text-left font-medium">Media</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {archivedPaging.pagedRows.map((e) => {
+                        const videoKind = String(e?.videoKind ?? "").trim();
+                        const videoUrl = String(e?.videoUrl ?? "").trim();
+                        const hasVideo =
+                          !!videoKind &&
+                          (videoKind !== "youtube" || !!videoUrl) &&
+                          (videoKind !== "upload" || !!videoUrl);
+                        const videoLabel =
+                          videoKind === "youtube"
+                            ? "YouTube"
+                            : videoKind === "upload"
+                              ? "Upload"
+                              : "-";
+                        const hasGuidelines =
+                          !!String(e?.guidelines ?? "").trim();
+                        const targetMuscle = String(e?.targetMuscle ?? "").trim();
+                        const bodyPart = String(e?.bodyPart ?? "").trim();
+                        const equipment = String(e?.equipment ?? "").trim();
+
+                        return (
+                          <tr
+                            key={String(e.id)}
+                            className="border-t border-red-100/60 dark:border-red-900/20 hover:bg-red-50/40 dark:hover:bg-red-900/10 cursor-pointer transition-colors"
+                            onClick={() => handleOpenDetails(e)}
+                          >
+                            <td className="px-4 py-3">
+                              <span className="font-medium">
+                                {String(e.name ?? "-")}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">{targetMuscle || "-"}</td>
+                            <td className="px-4 py-3">{bodyPart || "-"}</td>
+                            <td className="px-4 py-3">{equipment || "-"}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                                {hasVideo ? (
+                                  <span
+                                    className="inline-flex items-center"
+                                    title={`Video: ${videoLabel}`}
+                                    aria-label={`Video: ${videoLabel}`}
+                                  >
+                                    <Video className="h-4 w-4" />
+                                  </span>
+                                ) : null}
+                                {hasGuidelines ? (
+                                  <span
+                                    className="inline-flex items-center"
+                                    title="Guidelines available"
+                                    aria-label="Guidelines available"
+                                  >
+                                    <FileText className="h-4 w-4" />
+                                  </span>
+                                ) : null}
+                                {!hasVideo && !hasGuidelines ? <span>-</span> : null}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-red-100 dark:border-red-900/30 bg-red-50/40 dark:bg-red-900/10">
+                  <div className="text-xs text-gray-700 dark:text-gray-200">
+                    Page {archivedPaging.page} of {archivedPaging.totalPages}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={archivedPaging.page <= 1}
+                      onClick={() =>
+                        setArchivedPage((p) => Math.max(1, p - 1))
+                      }
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={archivedPaging.page >= archivedPaging.totalPages}
+                      onClick={() =>
+                        setArchivedPage((p) =>
+                          Math.min(archivedPaging.totalPages, p + 1)
+                        )
+                      }
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
       )}
 

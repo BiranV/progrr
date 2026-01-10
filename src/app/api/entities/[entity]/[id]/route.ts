@@ -816,6 +816,155 @@ export async function DELETE(
       return NextResponse.json({ ok: true, status: nextStatus });
     }
 
+    // FoodLibrary lifecycle: never physically delete foods.
+    // - If referenced by any ACTIVE meal plan: ARCHIVED
+    // - Otherwise: DELETED
+    if (entity === "FoodLibrary") {
+      const foodLibraryId = id;
+      const planFoodDocs = await c.entities
+        .find({
+          entity: "PlanFood",
+          adminId,
+          "data.foodLibraryId": foodLibraryId,
+        })
+        .project({ _id: 1, "data.mealId": 1 })
+        .toArray();
+
+      const mealIds = Array.from(
+        new Set(
+          planFoodDocs
+            .map((d) => String((d as any)?.data?.mealId ?? "").trim())
+            .filter((mealId) => mealId && ObjectId.isValid(mealId))
+        )
+      );
+
+      let isReferencedByActivePlan = false;
+      if (mealIds.length) {
+        const mealDocs = await c.entities
+          .find({
+            entity: "Meal",
+            adminId,
+            _id: { $in: mealIds.map((mid) => new ObjectId(mid)) },
+          })
+          .project({ _id: 1, "data.mealPlanId": 1 })
+          .toArray();
+
+        const mealPlanIds = Array.from(
+          new Set(
+            mealDocs
+              .map((d) => String((d as any)?.data?.mealPlanId ?? "").trim())
+              .filter((mpId) => mpId && ObjectId.isValid(mpId))
+          )
+        );
+
+        if (mealPlanIds.length) {
+          const mealPlanDocs = await c.entities
+            .find({
+              entity: "MealPlan",
+              adminId,
+              _id: { $in: mealPlanIds.map((mpId) => new ObjectId(mpId)) },
+            })
+            .project({ _id: 1, "data.status": 1 })
+            .toArray();
+
+          const normalize = (value: unknown) => {
+            const s = String(value ?? "").trim().toUpperCase();
+            if (s === "ARCHIVED" || s === "DELETED") return s;
+            return "ACTIVE";
+          };
+
+          isReferencedByActivePlan = mealPlanDocs.some(
+            (d) => normalize((d as any)?.data?.status) === "ACTIVE"
+          );
+        }
+      }
+
+      const nextStatus = isReferencedByActivePlan ? "ARCHIVED" : "DELETED";
+      const now = new Date();
+      await c.entities.updateOne(
+        { _id: new ObjectId(id), entity: "FoodLibrary", adminId },
+        {
+          $set: {
+            "data.status": nextStatus,
+            "data.archivedAt": isReferencedByActivePlan
+              ? now.toISOString()
+              : (existing as any)?.data?.archivedAt,
+            "data.deletedAt": !isReferencedByActivePlan
+              ? now.toISOString()
+              : (existing as any)?.data?.deletedAt,
+            updatedAt: now,
+          },
+        }
+      );
+
+      return NextResponse.json({ ok: true, status: nextStatus });
+    }
+
+    // ExerciseLibrary lifecycle: never physically delete exercises.
+    // - If referenced by any ACTIVE workout plan: ARCHIVED
+    // - Otherwise: DELETED
+    if (entity === "ExerciseLibrary") {
+      const exerciseLibraryId = id;
+      const planExerciseDocs = await c.entities
+        .find({
+          entity: "PlanExercise",
+          adminId,
+          "data.exerciseLibraryId": exerciseLibraryId,
+        })
+        .project({ _id: 1, "data.workoutPlanId": 1 })
+        .toArray();
+
+      const workoutPlanIds = Array.from(
+        new Set(
+          planExerciseDocs
+            .map((d) => String((d as any)?.data?.workoutPlanId ?? "").trim())
+            .filter((wpId) => wpId && ObjectId.isValid(wpId))
+        )
+      );
+
+      let isReferencedByActivePlan = false;
+      if (workoutPlanIds.length) {
+        const workoutPlanDocs = await c.entities
+          .find({
+            entity: "WorkoutPlan",
+            adminId,
+            _id: { $in: workoutPlanIds.map((wpId) => new ObjectId(wpId)) },
+          })
+          .project({ _id: 1, "data.status": 1 })
+          .toArray();
+
+        const normalize = (value: unknown) => {
+          const s = String(value ?? "").trim().toUpperCase();
+          if (s === "ARCHIVED" || s === "DELETED") return s;
+          return "ACTIVE";
+        };
+
+        isReferencedByActivePlan = workoutPlanDocs.some(
+          (d) => normalize((d as any)?.data?.status) === "ACTIVE"
+        );
+      }
+
+      const nextStatus = isReferencedByActivePlan ? "ARCHIVED" : "DELETED";
+      const now = new Date();
+      await c.entities.updateOne(
+        { _id: new ObjectId(id), entity: "ExerciseLibrary", adminId },
+        {
+          $set: {
+            "data.status": nextStatus,
+            "data.archivedAt": isReferencedByActivePlan
+              ? now.toISOString()
+              : (existing as any)?.data?.archivedAt,
+            "data.deletedAt": !isReferencedByActivePlan
+              ? now.toISOString()
+              : (existing as any)?.data?.deletedAt,
+            updatedAt: now,
+          },
+        }
+      );
+
+      return NextResponse.json({ ok: true, status: nextStatus });
+    }
+
     if (entity === "Message") {
       const data = (existing.data ?? {}) as any;
       const clientId = String(data.clientId ?? "").trim();

@@ -117,7 +117,27 @@ export default function MealPlanPanel({
     enabled: open && isEditing,
   });
 
-  const foodLibrary = (foodLibraryData ?? EMPTY_FOOD_LIBRARY) as FoodLibrary[];
+  const foodLibraryAll = (foodLibraryData ?? EMPTY_FOOD_LIBRARY) as FoodLibrary[];
+
+  const normalizeFoodLibraryStatus = React.useCallback((value: unknown) => {
+    const s = String(value ?? "").trim().toUpperCase();
+    if (s === "ARCHIVED" || s === "DELETED") return s as "ARCHIVED" | "DELETED";
+    return "ACTIVE" as const;
+  }, []);
+
+  const foodLibraryById = React.useMemo(() => {
+    return new Map(
+      foodLibraryAll
+        .map((f) => [String((f as any).id ?? "").trim(), f] as const)
+        .filter(([id]) => Boolean(id))
+    );
+  }, [foodLibraryAll]);
+
+  const activeFoodLibrary = React.useMemo(() => {
+    return foodLibraryAll.filter(
+      (f) => normalizeFoodLibraryStatus((f as any).status) === "ACTIVE"
+    );
+  }, [foodLibraryAll, normalizeFoodLibraryStatus]);
 
   const { data: detailsMeals = [] } = useQuery({
     queryKey: ["meals", planId, "details"],
@@ -401,7 +421,7 @@ export default function MealPlanPanel({
     const queryMeals = existingMeals;
     if (Array.isArray(queryMeals) && queryMeals.length > 0) {
       const byName = new Map<string, string>();
-      for (const f of foodLibrary) {
+      for (const f of foodLibraryAll) {
         const key = String(f.name ?? "")
           .trim()
           .toLowerCase();
@@ -448,11 +468,11 @@ export default function MealPlanPanel({
     } else {
       setMeals((prev) => (prev.length ? [] : prev));
     }
-  }, [open, isEditing, planId, existingMeals, foodLibrary, normalizeMealType]);
+  }, [open, isEditing, planId, existingMeals, foodLibraryAll, normalizeMealType]);
 
   const computedDailyTotals = React.useMemo(() => {
     const byId = new Map<string, FoodLibrary>();
-    for (const f of foodLibrary) {
+    for (const f of foodLibraryAll) {
       if (f?.id) byId.set(String(f.id), f);
     }
 
@@ -531,7 +551,7 @@ export default function MealPlanPanel({
       vitaminD,
       vitaminB12,
     };
-  }, [meals, foodLibrary]);
+  }, [meals, foodLibraryAll]);
 
   const exportText = React.useMemo(() => {
     if (!plan) return "";
@@ -589,6 +609,20 @@ export default function MealPlanPanel({
           const foodLibraryId = String((row as any)?.foodLibraryId ?? "").trim();
           if (!foodLibraryId) {
             throw new Error("Each food must be selected from the library");
+          }
+
+          const lib = foodLibraryById.get(foodLibraryId);
+          if (!lib) {
+            throw new Error(
+              "One or more selected foods no longer exist. Remove them from the plan before saving."
+            );
+          }
+
+          const status = normalizeFoodLibraryStatus((lib as any).status);
+          if (status !== "ACTIVE") {
+            throw new Error(
+              "One or more selected foods are archived/deleted. Remove them from the plan before saving."
+            );
           }
         }
       }
@@ -1443,29 +1477,66 @@ export default function MealPlanPanel({
                   key={String((row as any).id ?? "") || foodIndex}
                   className="ml-4 flex flex-col sm:flex-row gap-2 items-start"
                 >
-                  <Select
-                    value={String((row as any).foodLibraryId ?? "")}
-                    onValueChange={(v) =>
-                      updatePlanFood(mealIndex, foodIndex, {
-                        foodLibraryId: v,
-                      })
-                    }
-                  >
-                    <SelectTrigger className="w-full sm:flex-1">
-                      <SelectValue
-                        placeholder={
-                          String((row as any)?.legacyName ?? "").trim() || "Food"
-                        }
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {foodLibrary.map((f) => (
-                        <SelectItem key={f.id} value={f.id}>
-                          {f.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {(() => {
+                    const selectedId = String((row as any).foodLibraryId ?? "")
+                      .trim();
+                    const lib = selectedId ? foodLibraryById.get(selectedId) : null;
+                    const status = lib
+                      ? normalizeFoodLibraryStatus((lib as any).status)
+                      : selectedId
+                        ? ("DELETED" as const)
+                        : null;
+                    const showWarning = Boolean(selectedId) && status !== "ACTIVE";
+
+                    return (
+                      <div className="w-full sm:flex-1 space-y-1">
+                        {showWarning ? (
+                          <div className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800 px-2 py-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="text-xs text-amber-900 dark:text-amber-100">
+                                This selected food is {String(status).toLowerCase()} and
+                                cannot be used in an active plan.
+                              </div>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2"
+                                onClick={() => removeFood(mealIndex, foodIndex)}
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                          </div>
+                        ) : null}
+
+                        <Select
+                          value={String((row as any).foodLibraryId ?? "")}
+                          onValueChange={(v) =>
+                            updatePlanFood(mealIndex, foodIndex, {
+                              foodLibraryId: v,
+                            })
+                          }
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue
+                              placeholder={
+                                String((row as any)?.legacyName ?? "").trim() ||
+                                "Food"
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {activeFoodLibrary.map((f) => (
+                              <SelectItem key={f.id} value={f.id}>
+                                {f.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  })()}
                   <Input
                     value={String((row as any).amount ?? "")}
                     onChange={(e) =>

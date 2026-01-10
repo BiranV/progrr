@@ -3,9 +3,12 @@
 import React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/lib/db";
-import SidePanel from "@/components/ui/side-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  GenericDetailsPanel,
+  useGenericDetailsPanel,
+} from "@/components/ui/entity/GenericDetailsPanel";
 import {
   Beef,
   Copy as CopyIcon,
@@ -14,6 +17,7 @@ import {
   FileDown,
   FileText,
   Flame,
+  RotateCcw,
   Trash2,
   Wheat,
   XCircle,
@@ -33,20 +37,30 @@ interface FoodPanelProps {
   createNew?: boolean;
 }
 
-export default function FoodPanel({
+export function FoodDetailsContent({
   food,
-  open,
-  onOpenChange,
   onFoodUpdate,
   createNew,
-}: FoodPanelProps) {
+}: {
+  food: any | null;
+  onFoodUpdate?: () => void;
+  createNew?: boolean;
+}) {
   const queryClient = useQueryClient();
+
+  const panel = useGenericDetailsPanel();
+  const open = panel.open;
+
+  const foodId = String(food?.id ?? "").trim();
 
   const [isEditing, setIsEditing] = React.useState(false);
   const [validationError, setValidationError] = React.useState<string | null>(
     null
   );
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const [deleteInfoMessage, setDeleteInfoMessage] = React.useState<string | null>(
+    null
+  );
 
   const exportText = React.useMemo(() => {
     if (!food) return "";
@@ -218,6 +232,7 @@ export default function FoodPanel({
   React.useEffect(() => {
     if (!open) return;
     setShowDeleteConfirm(false);
+    setDeleteInfoMessage(null);
     if (!food) {
       resetForm(null);
       setIsEditing(Boolean(createNew));
@@ -225,7 +240,27 @@ export default function FoodPanel({
     }
     setIsEditing(false);
     resetForm(food);
-  }, [open, food, createNew]);
+  }, [open, foodId, createNew]);
+
+  const unarchiveMutation = useMutation({
+    mutationFn: async () => {
+      if (!food?.id) return null;
+      return db.entities.FoodLibrary.update(String(food.id), {
+        status: "ACTIVE",
+      } as any);
+    },
+    onSuccess: () => {
+      setDeleteInfoMessage(null);
+      queryClient.invalidateQueries({ queryKey: ["foodLibrary"] });
+      queryClient.invalidateQueries({ queryKey: ["mealPlans"] });
+      queryClient.invalidateQueries({ queryKey: ["meals"] });
+      onFoodUpdate?.();
+      toast.success("Food restored to active");
+    },
+    onError: (err: any) => {
+      toast.error(String(err?.message ?? "Failed to restore"));
+    },
+  });
 
   const getInputProps = (field: string) => ({
     value: formData[field] || "",
@@ -276,7 +311,7 @@ export default function FoodPanel({
       onFoodUpdate?.();
       toast.success(food ? "Food updated" : "Food created");
       if (!food) {
-        onOpenChange(false);
+        panel.close();
       } else {
         setIsEditing(false);
       }
@@ -289,16 +324,26 @@ export default function FoodPanel({
   const deleteMutation = useMutation({
     mutationFn: async () => {
       if (!food?.id) return;
-      await db.entities.FoodLibrary.delete(String(food.id));
+      return db.entities.FoodLibrary.delete(String(food.id));
     },
-    onSuccess: () => {
+    onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ["foodLibrary"] });
       queryClient.invalidateQueries({ queryKey: ["mealPlans"] });
       queryClient.invalidateQueries({ queryKey: ["meals"] });
       onFoodUpdate?.();
+
+      const status = String(result?.status ?? "").trim().toUpperCase();
+      if (status === "ARCHIVED") {
+        setDeleteInfoMessage(
+          "This food is currently used inside one or more active meal plans, so it cannot be deleted. It has been archived instead. Remove it from active plans if you want to delete it."
+        );
+        setShowDeleteConfirm(false);
+        return;
+      }
+
       toast.success("Food deleted");
       setShowDeleteConfirm(false);
-      onOpenChange(false);
+      panel.close();
     },
     onError: (err: any) => {
       toast.error(String(err?.message ?? "Failed to delete"));
@@ -339,8 +384,16 @@ export default function FoodPanel({
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-xl font-semibold text-gray-900 dark:text-white truncate">
-              {String(food?.name ?? "-")}
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="text-xl font-semibold text-gray-900 dark:text-white truncate">
+                {String(food?.name ?? "-")}
+              </div>
+              {String((food as any)?.status ?? "").trim().toUpperCase() ===
+                "ARCHIVED" ? (
+                <span className="shrink-0 text-[11px] px-2 py-0.5 rounded border border-amber-200 bg-amber-50 text-amber-800 dark:bg-amber-900/10 dark:border-amber-800 dark:text-amber-200">
+                  Archived
+                </span>
+              ) : null}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               Values per 100g
@@ -382,7 +435,29 @@ export default function FoodPanel({
               <CopyIcon className="w-4 h-4" />
             </Button>
 
-            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+            {String((food as any)?.status ?? "").trim().toUpperCase() ===
+              "ARCHIVED" && !isEditing ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={unarchiveMutation.isPending}
+                onClick={() => unarchiveMutation.mutate()}
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                {unarchiveMutation.isPending
+                  ? "Restoring..."
+                  : "Return to active"}
+              </Button>
+            ) : null}
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                resetForm(food);
+                setIsEditing(true);
+              }}
+            >
               <Edit2 className="w-4 h-4 mr-2" />
               Edit
             </Button>
@@ -706,54 +781,94 @@ export default function FoodPanel({
     </form>
   );
 
+  React.useEffect(() => {
+    if (!open) return;
+
+    panel.setTitle(isEditing ? (food ? "Edit Food" : "New Food") : "Food Details");
+    panel.setDescription(
+      isEditing
+        ? food
+          ? "Update food text information"
+          : "Add a new food to your library"
+        : `View details for ${String(food?.name ?? "Food")}`
+    );
+
+    panel.setFooter(
+      isEditing ? (
+        <div className="flex gap-3 justify-end">
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() => (food ? setIsEditing(false) : panel.close())}
+            disabled={saveMutation.isPending}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" form="food-form" disabled={saveMutation.isPending}>
+            {saveMutation.isPending
+              ? "Saving..."
+              : food
+                ? "Save Changes"
+                : "Create Food"}
+          </Button>
+        </div>
+      ) : (
+        <div className="flex justify-start" />
+      )
+    );
+  }, [
+    open,
+    panel,
+    isEditing,
+    food,
+    saveMutation.isPending,
+  ]);
+
   return (
     <>
-      <SidePanel
-        open={open}
-        onOpenChange={onOpenChange}
-        title={isEditing ? (food ? "Edit Food" : "New Food") : "Food Details"}
-        description={
-          isEditing
-            ? food
-              ? "Update food text information"
-              : "Add a new food to your library"
-            : `View details for ${String(food?.name ?? "Food")}`
-        }
-        widthClassName="w-full sm:w-[540px] lg:w-[600px]"
-        footer={
-          isEditing ? (
-            <div className="flex gap-3 justify-end">
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() => (food ? setIsEditing(false) : onOpenChange(false))}
-                disabled={saveMutation.isPending}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" form="food-form" disabled={saveMutation.isPending}>
-                {saveMutation.isPending
-                  ? "Saving..."
-                  : food
-                    ? "Save Changes"
-                    : "Create Food"}
-              </Button>
-            </div>
-          ) : (
-            <div className="flex justify-start" />
-          )
-        }
-      >
-        {!food && !isEditing ? (
-          <div className="text-sm text-gray-600 dark:text-gray-300">
-            No food selected
+      {deleteInfoMessage ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800 px-3 py-2 mb-4">
+          <div className="text-sm font-medium text-amber-900 dark:text-amber-100">
+            Archived (not deleted)
           </div>
-        ) : isEditing ? (
-          renderEditMode()
-        ) : (
-          renderViewMode()
-        )}
-      </SidePanel>
+          <div className="text-xs text-amber-800 dark:text-amber-200 mt-1 leading-relaxed">
+            {deleteInfoMessage}
+          </div>
+        </div>
+      ) : null}
+
+      {!food && !isEditing ? (
+        <div className="text-sm text-gray-600 dark:text-gray-300">
+          No food selected
+        </div>
+      ) : isEditing ? (
+        renderEditMode()
+      ) : (
+        renderViewMode()
+      )}
     </>
+  );
+}
+
+export default function FoodPanel({
+  food,
+  open,
+  onOpenChange,
+  onFoodUpdate,
+  createNew,
+}: FoodPanelProps) {
+  return (
+    <GenericDetailsPanel
+      open={open}
+      onOpenChange={onOpenChange}
+      defaultTitle="Food Details"
+      widthClassName="w-full sm:w-[540px] lg:w-[600px]"
+    >
+      <FoodDetailsContent
+        food={food}
+        createNew={createNew}
+        onFoodUpdate={onFoodUpdate}
+      />
+    </GenericDetailsPanel>
   );
 }

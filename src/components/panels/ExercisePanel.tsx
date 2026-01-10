@@ -20,6 +20,7 @@ import {
   FileDown,
   FileText,
   Loader2,
+  RotateCcw,
   Trash2,
   Video,
   XCircle,
@@ -49,11 +50,16 @@ export default function ExercisePanel({
 }: ExercisePanelProps) {
   const queryClient = useQueryClient();
 
+  const exerciseId = String(exercise?.id ?? "").trim();
+
   const [isEditing, setIsEditing] = React.useState(false);
   const [validationError, setValidationError] = React.useState<string | null>(
     null
   );
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const [deleteInfoMessage, setDeleteInfoMessage] = React.useState<string | null>(
+    null
+  );
   const [showRemoveVideoConfirm, setShowRemoveVideoConfirm] =
     React.useState(false);
 
@@ -177,6 +183,7 @@ export default function ExercisePanel({
     if (!open) return;
     setShowDeleteConfirm(false);
     setShowRemoveVideoConfirm(false);
+    setDeleteInfoMessage(null);
 
     if (!exercise) {
       setIsEditing(true);
@@ -186,7 +193,24 @@ export default function ExercisePanel({
 
     setIsEditing(false);
     resetForm(exercise);
-  }, [open, exercise]);
+  }, [open, exerciseId]);
+
+  const unarchiveMutation = useMutation({
+    mutationFn: async () => {
+      const id = String(exercise?.id ?? "").trim();
+      if (!id) return null;
+      return db.entities.ExerciseLibrary.update(id, { status: "ACTIVE" } as any);
+    },
+    onSuccess: () => {
+      setDeleteInfoMessage(null);
+      queryClient.invalidateQueries({ queryKey: ["exerciseLibrary"] });
+      onExerciseUpdate?.();
+      toast.success("Exercise restored to active");
+    },
+    onError: (err: any) => {
+      toast.error(String(err?.message ?? "Failed to restore"));
+    },
+  });
 
   React.useEffect(() => {
     if (!open) return;
@@ -349,17 +373,36 @@ export default function ExercisePanel({
       if (!exercise?.id) return;
       const id = String(exercise.id);
 
-      try {
-        await removeVideo(id);
-      } catch {
-        // ignore best-effort
+      const result = await db.entities.ExerciseLibrary.delete(id);
+
+      const status = String((result as any)?.status ?? "").trim().toUpperCase();
+      if (status === "DELETED") {
+        // Only remove the video if the exercise actually got deleted.
+        try {
+          await removeVideo(id);
+          await db.entities.ExerciseLibrary.update(id, {
+            videoKind: null,
+            videoUrl: null,
+          });
+        } catch {
+          // ignore best-effort
+        }
       }
 
-      await db.entities.ExerciseLibrary.delete(id);
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ["exerciseLibrary"] });
       onExerciseUpdate?.();
+      const status = String(result?.status ?? "").trim().toUpperCase();
+      if (status === "ARCHIVED") {
+        setDeleteInfoMessage(
+          "This exercise is currently used inside one or more active workout plans, so it cannot be deleted. It has been archived instead. Remove it from active plans if you want to delete it."
+        );
+        setShowDeleteConfirm(false);
+        return;
+      }
+
       toast.success("Exercise deleted");
       setShowDeleteConfirm(false);
       onOpenChange(false);
@@ -435,8 +478,16 @@ export default function ExercisePanel({
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-xl font-semibold text-gray-900 dark:text-white truncate">
-              {name}
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="text-xl font-semibold text-gray-900 dark:text-white truncate">
+                {name}
+              </div>
+              {String((exercise as any)?.status ?? "").trim().toUpperCase() ===
+                "ARCHIVED" ? (
+                <span className="shrink-0 text-[11px] px-2 py-0.5 rounded border border-amber-200 bg-amber-50 text-amber-800 dark:bg-amber-900/10 dark:border-amber-800 dark:text-amber-200">
+                  Archived
+                </span>
+              ) : null}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               Exercise library
@@ -478,7 +529,29 @@ export default function ExercisePanel({
               <CopyIcon className="w-4 h-4" />
             </Button>
 
-            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+            {String((exercise as any)?.status ?? "").trim().toUpperCase() ===
+              "ARCHIVED" && !isEditing ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={unarchiveMutation.isPending}
+                onClick={() => unarchiveMutation.mutate()}
+              >
+                <RotateCcw className="w-4 h-4 mr-2" />
+                {unarchiveMutation.isPending
+                  ? "Restoring..."
+                  : "Return to active"}
+              </Button>
+            ) : null}
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                resetForm(exercise);
+                setIsEditing(true);
+              }}
+            >
               <Edit2 className="w-4 h-4 mr-2" />
               Edit
             </Button>
@@ -1013,6 +1086,17 @@ export default function ExercisePanel({
         )
       }
     >
+      {deleteInfoMessage ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800 px-3 py-2 mb-4">
+          <div className="text-sm font-medium text-amber-900 dark:text-amber-100">
+            Archived (not deleted)
+          </div>
+          <div className="text-xs text-amber-800 dark:text-amber-200 mt-1 leading-relaxed">
+            {deleteInfoMessage}
+          </div>
+        </div>
+      ) : null}
+
       {!exercise && !isEditing ? (
         <div className="text-sm text-gray-600 dark:text-gray-300">
           No exercise selected

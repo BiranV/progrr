@@ -294,7 +294,7 @@ export default function WorkoutPlanDetailsDialog({
     enabled: !!planId && open,
   });
 
-  const { data: exerciseLibrary = [] } = useQuery({
+  const { data: exerciseLibraryAll = [] } = useQuery({
     queryKey: ["exerciseLibrary"],
     queryFn: async () => {
       const rows = await db.entities.ExerciseLibrary.list();
@@ -306,6 +306,26 @@ export default function WorkoutPlanDetailsDialog({
     },
     enabled: open && isEditing,
   });
+
+  const normalizeExerciseLibraryStatus = React.useCallback((value: unknown) => {
+    const s = String(value ?? "").trim().toUpperCase();
+    if (s === "ARCHIVED" || s === "DELETED") return s as "ARCHIVED" | "DELETED";
+    return "ACTIVE" as const;
+  }, []);
+
+  const exerciseLibraryById = React.useMemo(() => {
+    return new Map(
+      (exerciseLibraryAll as any[])
+        .map((e: any) => [String(e?.id ?? "").trim(), e] as const)
+        .filter(([id]) => Boolean(id))
+    );
+  }, [exerciseLibraryAll]);
+
+  const activeExerciseLibrary = React.useMemo(() => {
+    return (exerciseLibraryAll as any[]).filter(
+      (e: any) => normalizeExerciseLibraryStatus(e?.status) === "ACTIVE"
+    );
+  }, [exerciseLibraryAll, normalizeExerciseLibraryStatus]);
 
   const { data: queryPlanExercises } = useQuery({
     queryKey: ["planExercises", planId, "edit"],
@@ -408,6 +428,20 @@ export default function WorkoutPlanDetailsDialog({
       for (const row of planExercises) {
         const exId = String((row as any)?.exerciseLibraryId ?? "").trim();
         if (!exId) throw new Error("Each exercise must be selected from the library");
+
+        const lib = exerciseLibraryById.get(exId);
+        if (!lib) {
+          throw new Error(
+            "One or more selected exercises no longer exist. Remove them from the plan before saving."
+          );
+        }
+
+        const status = normalizeExerciseLibraryStatus((lib as any).status);
+        if (status !== "ACTIVE") {
+          throw new Error(
+            "One or more selected exercises are archived/deleted. Remove them from the plan before saving."
+          );
+        }
       }
 
       let nextPlanId: string;
@@ -798,6 +832,40 @@ export default function WorkoutPlanDetailsDialog({
                 <div className="flex-1 space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-6 gap-3">
                     <div className="sm:col-span-3">
+                      {(() => {
+                        const selectedId = String(
+                          (row as any).exerciseLibraryId ?? ""
+                        ).trim();
+                        const lib = selectedId
+                          ? exerciseLibraryById.get(selectedId)
+                          : null;
+                        const status = lib
+                          ? normalizeExerciseLibraryStatus((lib as any).status)
+                          : selectedId
+                            ? ("DELETED" as const)
+                            : null;
+                        const showWarning = Boolean(selectedId) && status !== "ACTIVE";
+
+                        return showWarning ? (
+                          <div className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-900/10 dark:border-amber-800 px-2 py-1 mb-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="text-xs text-amber-900 dark:text-amber-100">
+                                This selected exercise is {String(status).toLowerCase()} and
+                                cannot be used in an active plan.
+                              </div>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2"
+                                onClick={() => removeExercise(index)}
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                          </div>
+                        ) : null;
+                      })()}
                       <Select
                         value={String((row as any).exerciseLibraryId ?? "")}
                         onValueChange={(value) =>
@@ -810,7 +878,7 @@ export default function WorkoutPlanDetailsDialog({
                           <SelectValue placeholder="Select exercise" />
                         </SelectTrigger>
                         <SelectContent>
-                          {(exerciseLibrary as any[]).map((ex: any) => (
+                          {(activeExerciseLibrary as any[]).map((ex: any) => (
                             <SelectItem key={ex.id} value={ex.id}>
                               {ex.name}
                             </SelectItem>

@@ -5,19 +5,20 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Apple, ArrowUpDown, Plus, Search, X } from "lucide-react";
-import FoodPanel from "@/components/panels/FoodPanel";
+import { Apple, Plus, X } from "lucide-react";
+import { FoodDetailsContent } from "@/components/panels/FoodPanel";
 import { getCookie, setCookie } from "@/lib/client-cookies";
 import { toast } from "sonner";
+import {
+  type DataTableColumn,
+} from "@/components/ui/table/DataTable";
+import { DataTable } from "@/components/ui/table/DataTable";
+import { EntityPageLayout } from "@/components/ui/entity/EntityPageLayout";
+import { EntityToolbar } from "@/components/ui/entity/EntityToolbar";
+import { EntityTableSection } from "@/components/ui/entity/EntityTableSection";
+import { GenericDetailsPanel } from "@/components/ui/entity/GenericDetailsPanel";
+import { useEntityTableState } from "@/hooks/useEntityTableState";
 
 type CatalogRow = {
   fdcId: number;
@@ -37,6 +38,7 @@ type FoodRow = {
   protein?: string | number;
   carbs?: string | number;
   fat?: string | number;
+  status?: string;
 };
 
 export default function FoodsPage() {
@@ -62,11 +64,7 @@ export default function FoodsPage() {
     return 10;
   });
 
-  const [page, setPage] = React.useState(1);
-  const [sortConfig, setSortConfig] = React.useState<{
-    key: keyof FoodRow;
-    direction: "asc" | "desc";
-  } | null>(null);
+
 
   // Persist page size
   React.useEffect(() => {
@@ -86,47 +84,55 @@ export default function FoodsPage() {
       .includes(search.toLowerCase())
   );
 
-  const sortedFoods = React.useMemo(() => {
-    if (!sortConfig) return filteredFoods;
+  const table = useEntityTableState<FoodRow, "status">({
+    rows: filteredFoods,
+    statusKey: "status",
+    pageSize,
+  });
 
-    const collator = new Intl.Collator(["he", "en"], {
-      sensitivity: "base",
-      numeric: true,
-    });
-
-    return [...filteredFoods].sort((a, b) => {
-      const direction = sortConfig.direction === "asc" ? 1 : -1;
-
-      const aRaw =
-        sortConfig.key === "name" ? a.name : (a as any)[sortConfig.key];
-      const bRaw =
-        sortConfig.key === "name" ? b.name : (b as any)[sortConfig.key];
-
-      const aValue = String(aRaw ?? "").trim();
-      const bValue = String(bRaw ?? "").trim();
-
-      const aEmpty = aValue.length === 0;
-      const bEmpty = bValue.length === 0;
-      if (aEmpty && !bEmpty) return 1;
-      if (!aEmpty && bEmpty) return -1;
-
-      const cmp = collator.compare(aValue, bValue);
-      if (cmp !== 0) return cmp * direction;
-      return String(a.id ?? "").localeCompare(String(b.id ?? ""));
-    });
-  }, [filteredFoods, sortConfig]);
-
-  const handleSort = (key: keyof FoodRow) => {
-    setSortConfig((current) => {
-      if (current?.key === key) {
-        return {
-          key,
-          direction: current.direction === "asc" ? "desc" : "asc",
-        };
-      }
-      return { key, direction: "asc" };
-    });
-  };
+  const columns = React.useMemo(() => {
+    const cols: Array<DataTableColumn<FoodRow>> = [
+      {
+        key: "name",
+        header: "Food",
+        sortable: true,
+        renderCell: (food) => (
+          <span className="font-medium">{String(food.name ?? "-")}</span>
+        ),
+      },
+      {
+        key: "calories",
+        header: "Calories",
+        sortable: true,
+        renderCell: (food) => (
+          <>{String(food.calories ?? "").trim() || "-"} kcal</>
+        ),
+      },
+      {
+        key: "protein",
+        header: "Protein",
+        sortable: true,
+        renderCell: (food) => (
+          <>{String(food.protein ?? "").trim() || "-"} g</>
+        ),
+      },
+      {
+        key: "carbs",
+        header: "Carbs",
+        sortable: true,
+        renderCell: (food) => (
+          <>{String(food.carbs ?? "").trim() || "-"} g</>
+        ),
+      },
+      {
+        key: "fat",
+        header: "Fat",
+        sortable: true,
+        renderCell: (food) => <>{String(food.fat ?? "").trim() || "-"} g</>,
+      },
+    ];
+    return cols;
+  }, []);
 
   const handleOpenDetails = (food: FoodRow) => {
     setDetailsFoodId(food.id);
@@ -239,31 +245,74 @@ export default function FoodsPage() {
     }
   };
 
-  // Reset pagination on search/sort/page size change
-  React.useEffect(() => {
-    setPage(1);
-  }, [search, sortConfig?.key, sortConfig?.direction, pageSize]);
-
-  const paginate = React.useCallback(
-    (rows: FoodRow[], currentPage: number) => {
-      const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
-      const safePage = Math.min(Math.max(1, currentPage), totalPages);
-      const start = (safePage - 1) * pageSize;
-      const pagedRows = rows.slice(start, start + pageSize);
-      return {
-        pagedRows,
-        totalPages,
-        page: safePage,
-        totalCount: rows.length,
-      };
-    },
-    [pageSize]
-  );
-
-  const paging = React.useMemo(
-    () => paginate(sortedFoods, page),
-    [paginate, sortedFoods, page]
-  );
+  const catalogColumns = React.useMemo((): Array<DataTableColumn<CatalogRow>> => {
+    return [
+      {
+        key: "select",
+        header: (
+          <Checkbox
+            checked={
+              catalogResults.length > 0 &&
+              selectedCatalogIds.size === catalogResults.length
+            }
+            onCheckedChange={(v) => {
+              const checked = Boolean(v);
+              setSelectedCatalogIds(() => {
+                if (!checked) return new Set();
+                return new Set(catalogResults.map((r) => Number(r.fdcId)));
+              });
+            }}
+            disabled={catalogResults.length === 0}
+          />
+        ),
+        headerClassName: "w-[44px]",
+        renderCell: (r) => {
+          const id = Number(r.fdcId);
+          const checked = selectedCatalogIds.has(id);
+          return (
+            <Checkbox
+              checked={checked}
+              onCheckedChange={(v) => toggleCatalogId(id, Boolean(v))}
+              onClick={(e) => e.stopPropagation()}
+            />
+          );
+        },
+      },
+      {
+        key: "food",
+        header: "Food",
+        renderCell: (r) => (
+          <div>
+            <div className="font-medium">{String(r.description ?? "-")}</div>
+            <div className="text-xs text-gray-500">FDC ID: {Number(r.fdcId)}</div>
+          </div>
+        ),
+      },
+      {
+        key: "brand",
+        header: "Brand",
+        renderCell: (r) =>
+          String(r.brandName ?? r.brandOwner ?? "").trim() || "-",
+      },
+      {
+        key: "type",
+        header: "Type",
+        renderCell: (r) => String(r.dataType ?? "-"),
+      },
+      {
+        key: "serving",
+        header: "Serving",
+        renderCell: (r) =>
+          typeof r.servingSize === "number" && r.servingSize ? (
+            <>
+              {r.servingSize} {String(r.servingSizeUnit ?? "").trim()}
+            </>
+          ) : (
+            "-"
+          ),
+      },
+    ];
+  }, [catalogResults, selectedCatalogIds, toggleCatalogId]);
 
   const selectedFood =
     (detailsFoodId &&
@@ -271,86 +320,44 @@ export default function FoodsPage() {
     null;
 
   return (
-    <div className="p-8 bg-[#F5F6F8] dark:bg-gray-900 min-h-screen">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">Foods</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Create reusable foods for meal plans
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() =>
-              setCatalogOpen((v) => {
-                const next = !v;
-                if (next) {
-                  setCatalogQuery("");
-                  setCatalogError(null);
-                  setCatalogResults([]);
-                  setSelectedCatalogIds(new Set());
-                }
-                return next;
-              })
-            }
-          >
-            {catalogOpen ? (
-              <X className="w-5 h-5 mr-2" />
-            ) : (
-              <Plus className="w-5 h-5 mr-2" />
-            )}
-            {catalogOpen ? "Close Catalog" : "Add from Food Catalog"}
-          </Button>
-
-          <Button
-            type="button"
-            onClick={handleCreateFood}
-            className="min-w-[140px] bg-indigo-600 hover:bg-indigo-700 text-white"
-          >
+    <EntityPageLayout
+      title="Foods"
+      subtitle="Create reusable foods for meal plans"
+      secondaryActions={
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() =>
+            setCatalogOpen((v) => {
+              const next = !v;
+              if (next) {
+                setCatalogQuery("");
+                setCatalogError(null);
+                setCatalogResults([]);
+                setSelectedCatalogIds(new Set());
+              }
+              return next;
+            })
+          }
+        >
+          {catalogOpen ? (
+            <X className="w-5 h-5 mr-2" />
+          ) : (
             <Plus className="w-5 h-5 mr-2" />
-            Add Food
-          </Button>
-        </div>
-      </div>
-
-      {/* Search + Pagination settings */}
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-end gap-3">
-        <div className="max-w-md relative w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search foods"
-            className="pl-10"
-          />
-        </div>
-
-        <div className="w-[180px]">
-          <Select
-            value={String(pageSize)}
-            onValueChange={(v) => {
-              const next = Number(v);
-              if (!Number.isFinite(next)) return;
-              setPageSize(next);
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Rows per page" />
-            </SelectTrigger>
-            <SelectContent>
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <SelectItem key={n} value={String(n)}>
-                  {n} rows
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+          )}
+          {catalogOpen ? "Close Catalog" : "Add from Food Catalog"}
+        </Button>
+      }
+      primaryAction={{ label: "Add Food", onClick: handleCreateFood }}
+    >
+      <EntityToolbar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search foods"
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
+        pageSizeOptions={PAGE_SIZE_OPTIONS}
+      />
 
       {catalogOpen ? (
         <div className="mb-6 rounded-lg border bg-white dark:bg-gray-800 p-4">
@@ -402,75 +409,12 @@ export default function FoodsPage() {
           ) : null}
 
           <div className="mt-4 rounded-lg border overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 dark:bg-gray-700">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-medium w-[44px]">
-                      <Checkbox
-                        checked={
-                          catalogResults.length > 0 &&
-                          selectedCatalogIds.size === catalogResults.length
-                        }
-                        onCheckedChange={(v) => {
-                          const checked = Boolean(v);
-                          setSelectedCatalogIds(() => {
-                            if (!checked) return new Set();
-                            return new Set(catalogResults.map((r) => Number(r.fdcId)));
-                          });
-                        }}
-                        disabled={catalogResults.length === 0}
-                      />
-                    </th>
-                    <th className="px-4 py-3 text-left font-medium">Food</th>
-                    <th className="px-4 py-3 text-left font-medium">Brand</th>
-                    <th className="px-4 py-3 text-left font-medium">Type</th>
-                    <th className="px-4 py-3 text-left font-medium">Serving</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {catalogResults.length === 0 ? (
-                    <tr>
-                      <td className="px-4 py-6 text-sm text-gray-500" colSpan={5}>
-                        Search to see USDA results.
-                      </td>
-                    </tr>
-                  ) : (
-                    catalogResults.map((r) => {
-                      const id = Number(r.fdcId);
-                      const checked = selectedCatalogIds.has(id);
-                      return (
-                        <tr key={id} className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40">
-                          <td className="px-4 py-3">
-                            <Checkbox
-                              checked={checked}
-                              onCheckedChange={(v) => toggleCatalogId(id, Boolean(v))}
-                            />
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="font-medium">{String(r.description ?? "-")}</div>
-                            <div className="text-xs text-gray-500">FDC ID: {id}</div>
-                          </td>
-                          <td className="px-4 py-3">
-                            {String(r.brandName ?? r.brandOwner ?? "").trim() || "-"}
-                          </td>
-                          <td className="px-4 py-3">{String(r.dataType ?? "-")}</td>
-                          <td className="px-4 py-3">
-                            {typeof r.servingSize === "number" && r.servingSize ? (
-                              <>
-                                {r.servingSize} {String(r.servingSizeUnit ?? "").trim()}
-                              </>
-                            ) : (
-                              "-"
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <DataTable
+              rows={catalogResults}
+              columns={catalogColumns}
+              getRowId={(r) => String(Number((r as any)?.fdcId ?? 0))}
+              emptyMessage="Search to see USDA results."
+            />
           </div>
         </div>
       ) : null}
@@ -478,144 +422,83 @@ export default function FoodsPage() {
       {/* Content */}
       {isLoading ? (
         <div className="py-12 text-center text-gray-500">Loading…</div>
-      ) : sortedFoods.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Apple className="w-12 h-12 text-indigo-500 dark:text-indigo-400 mx-auto mb-4" />
-            <p className="text-gray-500 dark:text-gray-400">
-              {search
-                ? "No foods found"
-                : "No foods yet. Create your first one!"}
-            </p>
-          </CardContent>
-        </Card>
       ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-lg border">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th
-                    className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                    onClick={() => handleSort("name")}
-                  >
-                    <div className="flex items-center gap-2">
-                      Food
-                      <ArrowUpDown className="w-4 h-4" />
-                    </div>
-                  </th>
-                  <th
-                    className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                    onClick={() => handleSort("calories")}
-                  >
-                    <div className="flex items-center gap-2">
-                      Calories
-                      <ArrowUpDown className="w-4 h-4" />
-                    </div>
-                  </th>
-                  <th
-                    className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                    onClick={() => handleSort("protein")}
-                  >
-                    <div className="flex items-center gap-2">
-                      Protein
-                      <ArrowUpDown className="w-4 h-4" />
-                    </div>
-                  </th>
-                  <th
-                    className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                    onClick={() => handleSort("carbs")}
-                  >
-                    <div className="flex items-center gap-2">
-                      Carbs
-                      <ArrowUpDown className="w-4 h-4" />
-                    </div>
-                  </th>
-                  <th
-                    className="px-4 py-3 text-left font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
-                    onClick={() => handleSort("fat")}
-                  >
-                    <div className="flex items-center gap-2">
-                      Fat
-                      <ArrowUpDown className="w-4 h-4" />
-                    </div>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {paging.pagedRows.map((food) => (
-                  <tr
-                    key={food.id}
-                    className="border-t hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-pointer transition-colors"
-                    onClick={() => handleOpenDetails(food)}
-                  >
-                    <td className="px-4 py-3">
-                      <span className="font-medium">
-                        {String(food.name ?? "-")}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {String(food.calories ?? "").trim() || "-"} kcal
-                    </td>
-                    <td className="px-4 py-3">
-                      {String(food.protein ?? "").trim() || "-"} g
-                    </td>
-                    <td className="px-4 py-3">
-                      {String(food.carbs ?? "").trim() || "-"} g
-                    </td>
-                    <td className="px-4 py-3">
-                      {String(food.fat ?? "").trim() || "-"} g
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="space-y-8">
+          <EntityTableSection
+            totalCount={table.active.rows.length}
+            rows={table.active.paging.pagedRows}
+            columns={columns}
+            getRowId={(r) => String((r as any)?.id)}
+            onRowClick={(r) => handleOpenDetails(r)}
+            sortConfig={table.sortConfig}
+            onSort={table.onSort}
+            pagination={{
+              page: table.active.paging.page,
+              totalPages: table.active.paging.totalPages,
+              onPageChange: table.active.setPage,
+            }}
+            emptyState={{
+              icon: Apple,
+              title:
+                table.visibleRows.length === 0
+                  ? search
+                    ? "No foods found"
+                    : "No foods yet"
+                  : search
+                    ? "No active foods match your search"
+                    : "No active foods",
+              description:
+                table.visibleRows.length === 0
+                  ? search
+                    ? "Try searching for a different food."
+                    : "Create your first one."
+                  : undefined,
+            }}
+          />
 
-          <div className="flex items-center justify-between gap-3 px-4 py-3 border-t bg-gray-50/60 dark:bg-gray-700/40">
-            <div className="text-xs text-gray-600 dark:text-gray-300">
-              Page {paging.page} of {paging.totalPages}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={paging.page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Previous
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={paging.page >= paging.totalPages}
-                onClick={() =>
-                  setPage((p) => Math.min(paging.totalPages, p + 1))
-                }
-              >
-                Next
-              </Button>
-            </div>
-          </div>
+          {table.archived.rows.length ? (
+            <EntityTableSection
+              title="Archived Foods"
+              variant="archived"
+              totalCount={table.archived.rows.length}
+              rows={table.archived.paging.pagedRows}
+              columns={columns}
+              getRowId={(r) => String((r as any)?.id)}
+              onRowClick={(r) => handleOpenDetails(r)}
+              sortConfig={table.sortConfig}
+              onSort={table.onSort}
+              pagination={{
+                page: table.archived.paging.page,
+                totalPages: table.archived.paging.totalPages,
+                onPageChange: table.archived.setPage,
+              }}
+              emptyState={{
+                icon: Apple,
+                title: "No archived foods",
+              }}
+            />
+          ) : null}
         </div>
       )}
 
       {/* Unified Food Details Panel */}
-      <FoodPanel
-        food={selectedFood}
+      <GenericDetailsPanel
         open={detailsOpen}
         onOpenChange={handleCloseDetails}
-        createNew={detailsOpen && !detailsFoodId}
-        onFoodUpdate={() => {
-          queryClient.invalidateQueries({ queryKey: ["foodLibrary"] });
-          queryClient.invalidateQueries({ queryKey: ["mealPlans"] });
-          queryClient.invalidateQueries({ queryKey: ["meals"] });
-        }}
-      />
-    </div>
+        defaultTitle="Food Details"
+        widthClassName="w-full sm:w-[540px] lg:w-[600px]"
+      >
+        <FoodDetailsContent
+          food={selectedFood}
+          createNew={detailsOpen && !detailsFoodId}
+          onFoodUpdate={() => {
+            queryClient.invalidateQueries({ queryKey: ["foodLibrary"] });
+            queryClient.invalidateQueries({ queryKey: ["mealPlans"] });
+            queryClient.invalidateQueries({ queryKey: ["meals"] });
+          }}
+        />
+      </GenericDetailsPanel>
+    </EntityPageLayout>
   );
 }
 
