@@ -12,6 +12,11 @@ This app uses email-only OTP (no SMS). To run password reset and OTP flows you m
 - `AUTH_JWT_SECRET` - secret used to sign auth cookies (long random string)
 - `MONGODB_URI` - Mongo connection string
 
+Optional (recommended) for branded emails:
+
+- `EMAIL_LOGO_URL` - public https URL to your logo image (e.g. `https://yourdomain.com/logo.png`)
+- `EMAIL_PUBLIC_ORIGIN` - public origin used to build asset URLs if `EMAIL_LOGO_URL` is not set (falls back to `APP_URL`, `NEXT_PUBLIC_APP_URL`, or `VERCEL_URL`)
+
 Local development: set these in `.env.local` and restart `npm run dev` after changing env vars.
 
 Production (e.g. Vercel): `.env.local` is not used; set the same variables in your hosting provider's environment settings.
