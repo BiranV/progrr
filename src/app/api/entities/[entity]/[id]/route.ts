@@ -4,6 +4,11 @@ import { z } from "zod";
 import { collections } from "@/server/collections";
 import { requireAppUser } from "@/server/auth";
 import { getMessageHub } from "@/server/realtime/messageHub";
+import {
+  buildMeetingScheduledMessage,
+  pickLocaleFromAcceptLanguage,
+  shouldNotifyMeetingClient,
+} from "@/server/meeting-notifications";
 
 export const runtime = "nodejs";
 
@@ -635,6 +640,9 @@ export async function PATCH(
 
     const patch = patchBodySchema.parse(await req.json());
 
+    let meetingScheduledAtChanged = false;
+    let nextMeetingScheduledAt: Date | null = null;
+
     if (
       entity === "Meeting" &&
       Object.prototype.hasOwnProperty.call(patch, "scheduledAt")
@@ -647,15 +655,13 @@ export async function PATCH(
         );
       }
 
-      if (nextScheduledAt.getTime() < Date.now()) {
-        const prevScheduledAt = parseDate(
-          ((existing.data ?? {}) as any)?.scheduledAt
-        );
-        const unchanged =
-          prevScheduledAt &&
-          prevScheduledAt.getTime() === nextScheduledAt.getTime();
+      const prevScheduledAt = parseDate(((existing.data ?? {}) as any)?.scheduledAt);
+      meetingScheduledAtChanged =
+        !prevScheduledAt || prevScheduledAt.getTime() !== nextScheduledAt.getTime();
+      nextMeetingScheduledAt = nextScheduledAt;
 
-        if (!unchanged) {
+      if (nextScheduledAt.getTime() < Date.now()) {
+        if (meetingScheduledAtChanged) {
           return NextResponse.json(
             { error: "Meeting date & time cannot be in the past" },
             { status: 400 }
@@ -689,6 +695,49 @@ export async function PATCH(
     const row = await c.entities.findOne({ _id: new ObjectId(id) });
     if (!row) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    if (entity === "Meeting" && meetingScheduledAtChanged && nextMeetingScheduledAt) {
+      const meetingData = (row.data ?? {}) as any;
+      const clientIdRaw = meetingData.clientId;
+
+      if (shouldNotifyMeetingClient(clientIdRaw)) {
+        const locale = pickLocaleFromAcceptLanguage(
+          req.headers.get("accept-language")
+        );
+        const msg = buildMeetingScheduledMessage({
+          meetingTitle: String(meetingData.title ?? "").trim(),
+          scheduledAt: nextMeetingScheduledAt,
+          locale,
+        });
+
+        const now = new Date();
+        const messageInsert = await c.entities.insertOne({
+          entity: "Message",
+          adminId,
+          data: {
+            clientId: String(clientIdRaw).trim(),
+            senderRole: "admin",
+            readByAdmin: true,
+            readByClient: false,
+            isSystemMessage: true,
+            type: "system",
+            title: msg.title,
+            body: msg.body,
+            text: msg.text,
+            relatedEntity: id,
+            relatedEntityType: "Meeting",
+          },
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        hub.publishMessageChanged({
+          adminId: adminId.toHexString(),
+          clientId: String(clientIdRaw).trim(),
+          messageId: messageInsert.insertedId.toHexString(),
+        });
+      }
     }
 
     if (entity === "Message") {
