@@ -20,7 +20,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Save, Upload, Link2, Download, Facebook, Instagram, Music2 } from "lucide-react";
+import {
+  Save,
+  Upload,
+  Link2,
+  Download,
+  Facebook,
+  Instagram,
+  Music2,
+} from "lucide-react";
 import { AppSettings } from "@/types";
 import { toast } from "sonner";
 import { getAllCookies, setCookie } from "@/lib/client-cookies";
@@ -133,9 +141,8 @@ export default function SettingsPage() {
   const [logoCropSrc, setLogoCropSrc] = React.useState<string>("");
   const [logoCrop, setLogoCrop] = React.useState({ x: 0, y: 0 });
   const [logoZoom, setLogoZoom] = React.useState(1);
-  const [logoCroppedAreaPixels, setLogoCroppedAreaPixels] = React.useState<
-    Area | null
-  >(null);
+  const [logoCroppedAreaPixels, setLogoCroppedAreaPixels] =
+    React.useState<Area | null>(null);
   const [logoCropSaving, setLogoCropSaving] = React.useState(false);
 
   // Persist the latest crop input/area so switching shape updates the preview
@@ -230,8 +237,20 @@ export default function SettingsPage() {
   ]);
 
   const startLogoCrop = async (file: File) => {
-    if (!file || !file.type.startsWith("image/")) {
-      toast.error("Please upload an image file");
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file (PNG, JPG, SVG).");
+      return;
+    }
+
+    // Validate file size (Max 1MB)
+    const MAX_SIZE_MB = 1;
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      toast.error(
+        `Logo image must be under ${MAX_SIZE_MB}MB. Please upload a smaller file.`
+      );
       return;
     }
 
@@ -477,7 +496,13 @@ export default function SettingsPage() {
       </div>
 
       <div className="space-y-6">
-        <div className={user?.role === "admin" ? "grid grid-cols-1 gap-6 lg:grid-cols-2" : "space-y-6"}>
+        <div
+          className={
+            user?.role === "admin"
+              ? "grid grid-cols-1 gap-6 lg:grid-cols-2"
+              : "space-y-6"
+          }
+        >
           {user?.role === "admin" ? (
             <Card className="dark:bg-gray-800 dark:border-gray-700">
               <CardHeader>
@@ -688,10 +713,11 @@ export default function SettingsPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => setUploadMethod("url")}
-                            className={`flex-1 rounded-l-md rounded-r-none px-3 gap-2 ${uploadMethod === "url"
-                              ? "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-500 dark:bg-indigo-900/20 dark:text-indigo-200"
-                              : ""
-                              }`}
+                            className={`flex-1 rounded-l-md rounded-r-none px-3 gap-2 ${
+                              uploadMethod === "url"
+                                ? "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-500 dark:bg-indigo-900/20 dark:text-indigo-200"
+                                : ""
+                            }`}
                           >
                             <Link2 className="w-4 h-4" />
                             URL
@@ -701,10 +727,11 @@ export default function SettingsPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => setUploadMethod("upload")}
-                            className={`flex-1 rounded-r-md rounded-l-none px-3 gap-2 border-l border-gray-200 dark:border-gray-700 ${uploadMethod === "upload"
-                              ? "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-500 dark:bg-indigo-900/20 dark:text-indigo-200"
-                              : ""
-                              }`}
+                            className={`flex-1 rounded-r-md rounded-l-none px-3 gap-2 border-l border-gray-200 dark:border-gray-700 ${
+                              uploadMethod === "upload"
+                                ? "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-500 dark:bg-indigo-900/20 dark:text-indigo-200"
+                                : ""
+                            }`}
                           >
                             <Upload className="w-4 h-4" />
                             Upload
@@ -715,7 +742,9 @@ export default function SettingsPage() {
                           <label className="sr-only">Shape</label>
                           <Select
                             value={
-                              formData.logoShape === "circle" ? "circle" : "square"
+                              formData.logoShape === "circle"
+                                ? "circle"
+                                : "square"
                             }
                             onValueChange={(v) =>
                               setFormData({
@@ -739,7 +768,10 @@ export default function SettingsPage() {
                         <Input
                           value={formData.logoUrl}
                           onChange={(e) =>
-                            setFormData({ ...formData, logoUrl: e.target.value })
+                            setFormData({
+                              ...formData,
+                              logoUrl: e.target.value,
+                            })
                           }
                           placeholder="https://example.com/logo.png"
                         />
@@ -749,11 +781,15 @@ export default function SettingsPage() {
                           onDragLeave={handleDrag}
                           onDragOver={handleDrag}
                           onDrop={handleDrop}
-                          className={`border-2 border-dashed ${formData.logoShape === "circle" ? "rounded-lg" : "rounded-none"
-                            } p-6 text-center transition-colors ${dragActive
+                          className={`border-2 border-dashed ${
+                            formData.logoShape === "circle"
+                              ? "rounded-lg"
+                              : "rounded-none"
+                          } p-6 text-center transition-colors ${
+                            dragActive
                               ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20"
                               : "border-gray-300 dark:border-gray-700"
-                            }`}
+                          }`}
                         >
                           {uploading ? (
                             <p className="text-gray-600 dark:text-gray-400">
@@ -762,10 +798,11 @@ export default function SettingsPage() {
                           ) : formData.logoUrl ? (
                             <div className="space-y-3">
                               <div
-                                className={`mx-auto h-24 w-24 overflow-hidden ${formData.logoShape === "circle"
-                                  ? "rounded-full"
-                                  : "rounded-none"
-                                  }`}
+                                className={`mx-auto h-24 w-24 overflow-hidden ${
+                                  formData.logoShape === "circle"
+                                    ? "rounded-full"
+                                    : "rounded-none"
+                                }`}
                               >
                                 <img
                                   src={formData.logoUrl}
@@ -779,7 +816,9 @@ export default function SettingsPage() {
                                   variant="outline"
                                   size="sm"
                                   onClick={() =>
-                                    document.getElementById("logo-upload")?.click()
+                                    document
+                                      .getElementById("logo-upload")
+                                      ?.click()
                                   }
                                 >
                                   Change Logo
@@ -810,11 +849,16 @@ export default function SettingsPage() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() =>
-                                  document.getElementById("logo-upload")?.click()
+                                  document
+                                    .getElementById("logo-upload")
+                                    ?.click()
                                 }
                               >
                                 Browse Files
                               </Button>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 pt-2">
+                                Max file size: 1MB.
+                              </p>
                             </div>
                           )}
                           <input
@@ -832,10 +876,8 @@ export default function SettingsPage() {
                         </div>
                       )}
                     </div>
-
                   </div>
                 </div>
-
               </div>
             </CardContent>
             <CardFooter className="justify-end border-t">
@@ -977,7 +1019,6 @@ export default function SettingsPage() {
             </Button>
           </CardContent>
         </Card>
-
       </div>
 
       <Dialog
@@ -1008,9 +1049,7 @@ export default function SettingsPage() {
                   crop={logoCrop}
                   zoom={logoZoom}
                   aspect={1}
-                  cropShape={
-                    formData.logoShape === "circle" ? "round" : "rect"
-                  }
+                  cropShape={formData.logoShape === "circle" ? "round" : "rect"}
                   showGrid={true}
                   onCropChange={setLogoCrop}
                   onZoomChange={setLogoZoom}
@@ -1038,8 +1077,11 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 <div className="text-sm font-medium">Shape preview</div>
                 <div
-                  className={`h-24 w-24 bg-gray-200 dark:bg-gray-800 overflow-hidden ${formData.logoShape === "circle" ? "rounded-full" : "rounded-none"
-                    }`}
+                  className={`h-24 w-24 bg-gray-200 dark:bg-gray-800 overflow-hidden ${
+                    formData.logoShape === "circle"
+                      ? "rounded-full"
+                      : "rounded-none"
+                  }`}
                 >
                   {logoCropSrc ? (
                     <img
@@ -1050,7 +1092,8 @@ export default function SettingsPage() {
                   ) : null}
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-400">
-                  Final logo will be saved as a {formData.logoShape === "circle" ? "circle" : "square"}.
+                  Final logo will be saved as a{" "}
+                  {formData.logoShape === "circle" ? "circle" : "square"}.
                 </div>
               </div>
             </div>
