@@ -81,23 +81,36 @@ export async function POST(req: Request) {
             "data.date": payload.date,
         } as any;
 
-        const update = {
+        const set: Record<string, any> = {
+            "data.clientId": mine.clientEntityId,
+            "data.date": payload.date,
+            "data.complianceStatus": payload.complianceStatus,
+            "data.clientReportedAt": now,
+            updatedAt: now,
+        };
+        const unset: Record<string, ""> = {};
+
+        if (mealPlanId) set["data.mealPlanId"] = mealPlanId;
+        else unset["data.mealPlanId"] = "";
+
+        const trimmedClientNote = payload.clientNote?.trim() ? payload.clientNote.trim() : "";
+        if (trimmedClientNote) {
+            set["data.clientNote"] = trimmedClientNote;
+            set["data.clientNoteAt"] = now;
+        } else {
+            unset["data.clientNote"] = "";
+            unset["data.clientNoteAt"] = "";
+        }
+
+        const update: any = {
             $setOnInsert: {
                 entity: "DailyNutritionLog",
                 adminId,
                 createdAt: now,
             },
-            $set: {
-                data: {
-                    clientId: mine.clientEntityId,
-                    date: payload.date,
-                    mealPlanId: mealPlanId ?? undefined,
-                    complianceStatus: payload.complianceStatus,
-                    clientNote: payload.clientNote?.trim() ? payload.clientNote.trim() : undefined,
-                },
-                updatedAt: now,
-            },
+            $set: set,
         };
+        if (Object.keys(unset).length) update.$unset = unset;
 
         const result = await c.entities.findOneAndUpdate(filter, update, {
             upsert: true,

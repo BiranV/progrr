@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, addDays, startOfWeek, startOfMonth, endOfMonth } from "date-fns";
+import { useRouter } from "next/navigation";
 import {
     Calendar as CalendarIcon,
     ChevronLeft,
@@ -75,6 +76,14 @@ function dotClassForNutrition(status?: string | null) {
     return "bg-gray-300 dark:bg-gray-600";
 }
 
+function formatDateTime(value: any): string | null {
+    const raw = String(value ?? "").trim();
+    if (!raw) return null;
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return null;
+    return format(d, "PP p");
+}
+
 export function DailyComplianceCalendar(props: {
     assignedWorkoutPlans?: Array<{ id: string; name: string }>;
     assignedMealPlans?: Array<{ id: string; name: string }>;
@@ -82,9 +91,11 @@ export function DailyComplianceCalendar(props: {
     readOnly?: boolean;
 }) {
     const queryClient = useQueryClient();
+    const router = useRouter();
 
     const clientId = String(props.clientId ?? "").trim();
     const isReadOnly = props.readOnly === true || Boolean(clientId);
+    const canReplyInMessages = Boolean(clientId);
 
     const todayKey = React.useMemo(() => toLocalDateKey(new Date()), []);
 
@@ -106,6 +117,34 @@ export function DailyComplianceCalendar(props: {
     const [mode, setMode] = React.useState<"week" | "month">("week");
     const [anchorDate, setAnchorDate] = React.useState<Date>(() => new Date());
     const [selectedDate, setSelectedDate] = React.useState<Date | null>(null);
+
+    const handleReplyInMessages = React.useCallback(
+        (opts: { kind: "workout" | "nutrition"; note: string; dateKey: string }) => {
+            const trimmed = String(opts.note ?? "").trim();
+            if (typeof window !== "undefined" && trimmed && clientId) {
+                const contextId = `daily-log:${opts.kind}:${opts.dateKey}:${trimmed.length}`;
+                const payload = {
+                    v: 1,
+                    contextId,
+                    clientId,
+                    kind: opts.kind,
+                    dateKey: opts.dateKey,
+                    note: trimmed,
+                };
+                try {
+                    window.sessionStorage.setItem(
+                        "messages.replyContext.v1",
+                        JSON.stringify(payload)
+                    );
+                } catch {
+                    // ignore (storage may be unavailable)
+                }
+            }
+
+            router.push(`/messages?clientId=${encodeURIComponent(clientId)}`);
+        },
+        [clientId, router]
+    );
 
     const range = React.useMemo(() => {
         if (mode === "week") {
@@ -407,9 +446,7 @@ export function DailyComplianceCalendar(props: {
                                             {format(d, "PPP")}
                                         </div>
                                     </div>
-                                    {entry?.flagged ? (
-                                        <span className="text-xs font-medium text-amber-700 dark:text-amber-300">Flag</span>
-                                    ) : null}
+                                    {null}
                                 </div>
 
                                 {w || n ? (
@@ -590,16 +627,44 @@ export function DailyComplianceCalendar(props: {
                                     </div>
                                 </>
                             ) : isReadOnly ? (
-                                <div className="mt-3">
-                                    <div className="text-xs text-gray-500">
-                                        {workoutStatus ? "Client-reported changes" : "No report submitted."}
+                                <div className="mt-3 space-y-3">
+                                    <div>
+                                        <div className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                                            Client-reported note
+                                        </div>
+                                        <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                            {formatDateTime(selectedEntry?.workout?.clientNoteAt) ||
+                                                formatDateTime(selectedEntry?.workout?.clientReportedAt) ||
+                                                formatDateTime(selectedEntry?.workout?.updated_date) ||
+                                                ""}
+                                        </div>
+                                        {workoutNote?.trim() ? (
+                                            <div className="mt-2 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/20 p-3 text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
+                                                {workoutNote}
+                                            </div>
+                                        ) : (
+                                            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                                No client note submitted.
+                                            </div>
+                                        )}
                                     </div>
-                                    {workoutNote?.trim() ? (
-                                        <Textarea
-                                            value={workoutNote}
-                                            readOnly
-                                            className="mt-2"
-                                        />
+
+                                    {canReplyInMessages && Boolean(workoutNote?.trim()) ? (
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            className="w-full"
+                                            onClick={() =>
+                                                handleReplyInMessages({
+                                                    kind: "workout",
+                                                    note: workoutNote,
+                                                    dateKey: selectedKey || "",
+                                                })
+                                            }
+                                        >
+                                            Reply in Messages
+                                        </Button>
                                     ) : null}
                                 </div>
                             ) : null}
@@ -650,16 +715,44 @@ export function DailyComplianceCalendar(props: {
                                     </div>
                                 </>
                             ) : isReadOnly ? (
-                                <div className="mt-3">
-                                    <div className="text-xs text-gray-500">
-                                        {nutritionStatus ? "Client-reported changes" : "No report submitted."}
+                                <div className="mt-3 space-y-3">
+                                    <div>
+                                        <div className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                                            Client-reported note
+                                        </div>
+                                        <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                            {formatDateTime(selectedEntry?.nutrition?.clientNoteAt) ||
+                                                formatDateTime(selectedEntry?.nutrition?.clientReportedAt) ||
+                                                formatDateTime(selectedEntry?.nutrition?.updated_date) ||
+                                                ""}
+                                        </div>
+                                        {nutritionNote?.trim() ? (
+                                            <div className="mt-2 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/20 p-3 text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
+                                                {nutritionNote}
+                                            </div>
+                                        ) : (
+                                            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                                No client note submitted.
+                                            </div>
+                                        )}
                                     </div>
-                                    {nutritionNote?.trim() ? (
-                                        <Textarea
-                                            value={nutritionNote}
-                                            readOnly
-                                            className="mt-2"
-                                        />
+
+                                    {canReplyInMessages && Boolean(nutritionNote?.trim()) ? (
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            className="w-full"
+                                            onClick={() =>
+                                                handleReplyInMessages({
+                                                    kind: "nutrition",
+                                                    note: nutritionNote,
+                                                    dateKey: selectedKey || "",
+                                                })
+                                            }
+                                        >
+                                            Reply in Messages
+                                        </Button>
                                     ) : null}
                                 </div>
                             ) : null}

@@ -10,6 +10,7 @@ import { Send, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/context/AuthContext";
 import { Client, Message } from "@/types";
+import { useSearchParams } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -46,9 +47,17 @@ export default function MessagesPage() {
 
 function AdminMessages({ user }: { user: any }) {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
   const [selectedClientId, setSelectedClientId] = React.useState<string | null>(
     null
   );
+
+  const replyContextInFlightRef = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    const initial = String(searchParams.get("clientId") ?? "").trim();
+    if (initial) setSelectedClientId(initial);
+  }, [searchParams]);
 
   const [broadcastOpen, setBroadcastOpen] = React.useState(false);
   const [broadcastText, setBroadcastText] = React.useState("");
@@ -66,6 +75,73 @@ function AdminMessages({ user }: { user: any }) {
     queryKey: ["messages"],
     queryFn: () => db.entities.Message.list("-created_date"),
   });
+
+  // If Daily Logs deep-links into Messages, attach the client note as a system message
+  // so both sides have the context in the thread.
+  React.useEffect(() => {
+    if (!selectedClientId) return;
+    if (typeof window === "undefined") return;
+
+    const key = "messages.replyContext.v1";
+    const raw = window.sessionStorage.getItem(key);
+    if (!raw) return;
+
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return;
+    }
+
+    const clientId = String(parsed?.clientId ?? "").trim();
+    if (!clientId || clientId !== selectedClientId) return;
+
+    const note = String(parsed?.note ?? "").trim();
+    if (!note) return;
+
+    const kind = String(parsed?.kind ?? "").trim();
+    const dateKey = String(parsed?.dateKey ?? "").trim();
+    const contextId = String(parsed?.contextId ?? "").trim() || `${kind}:${dateKey}:${note.length}`;
+
+    if (replyContextInFlightRef.current === contextId) return;
+
+    const alreadyExists = allMessages.some((m: any) =>
+      m?.clientId === clientId &&
+      Boolean(m?.isSystemMessage) &&
+      String(m?.contextId ?? "") === contextId
+    );
+    if (alreadyExists) {
+      window.sessionStorage.removeItem(key);
+      return;
+    }
+
+    replyContextInFlightRef.current = contextId;
+
+    const label = kind === "nutrition" ? "Nutrition" : kind === "workout" ? "Workout" : "Daily";
+    const text = `${label} note${dateKey ? ` (${dateKey})` : ""}:\n${note}`;
+
+    (async () => {
+      try {
+        await db.entities.Message.create({
+          clientId,
+          senderRole: "admin",
+          readByAdmin: true,
+          readByClient: true,
+          isSystemMessage: true,
+          type: "daily-log-context",
+          contextId,
+          contextKind: kind,
+          contextDate: dateKey,
+          text,
+        });
+
+        window.sessionStorage.removeItem(key);
+        queryClient.invalidateQueries({ queryKey: ["messages"] });
+      } finally {
+        replyContextInFlightRef.current = null;
+      }
+    })();
+  }, [selectedClientId, allMessages, queryClient]);
 
   useRefetchOnVisible(() => {
     queryClient.invalidateQueries({ queryKey: ["messages"] });
@@ -168,11 +244,10 @@ function AdminMessages({ user }: { user: any }) {
                       key={client.id}
                       type="button"
                       onClick={() => setSelectedClientId(client.id)}
-                      className={`w-full p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
-                        selectedClientId === client.id
-                          ? "bg-indigo-50 dark:bg-indigo-900/20"
-                          : ""
-                      }`}
+                      className={`w-full p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${selectedClientId === client.id
+                        ? "bg-indigo-50 dark:bg-indigo-900/20"
+                        : ""
+                        }`}
                     >
                       <div className="flex items-start gap-3">
                         <div className="flex-1 min-w-0">
@@ -500,18 +575,16 @@ function MessageThread({
             return (
               <div
                 key={message.id}
-                className={`flex w-full items-end ${
-                  isMe ? "justify-end" : "justify-start"
-                }`}
+                className={`flex w-full items-end ${isMe ? "justify-end" : "justify-start"
+                  }`}
               >
                 <div
-                  className={`max-w-md px-4 py-2 rounded-lg ${
-                    isSystem
-                      ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                      : isMe
+                  className={`max-w-md px-4 py-2 rounded-lg ${isSystem
+                    ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                    : isMe
                       ? "bg-indigo-600 text-white"
                       : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                  }`}
+                    }`}
                 >
                   <p className="whitespace-pre-wrap">{message.text}</p>
                   {isSystem ? (
@@ -520,13 +593,12 @@ function MessageThread({
                     </p>
                   ) : null}
                   <p
-                    className={`text-xs mt-1 ${
-                      isSystem
-                        ? "text-gray-500 dark:text-gray-400"
-                        : isMe
+                    className={`text-xs mt-1 ${isSystem
+                      ? "text-gray-500 dark:text-gray-400"
+                      : isMe
                         ? "text-indigo-200"
                         : "text-gray-500 dark:text-gray-400"
-                    }`}
+                      }`}
                   >
                     {format(new Date(message.created_date || new Date()), "p")}
                   </p>
