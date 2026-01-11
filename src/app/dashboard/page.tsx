@@ -47,6 +47,7 @@ import {
   History,
 } from "lucide-react";
 import { format } from "date-fns";
+import { DailyComplianceCalendar } from "@/components/tracking/DailyComplianceCalendar";
 import {
   Dialog,
   DialogContent,
@@ -511,9 +512,7 @@ function ClientDashboard({ user }: { user: any }) {
       await queryClient.invalidateQueries({ queryKey: ["clientPlans"] });
       await queryClient.invalidateQueries({ queryKey: ["myMeetings"] });
       await queryClient.invalidateQueries({ queryKey: ["myMessages"] });
-      await queryClient.invalidateQueries({
-        queryKey: ["clientWeeklySchedule"],
-      });
+      await queryClient.invalidateQueries({ queryKey: ["dailyLogsRange"] });
 
       toast.success("Coach updated");
     },
@@ -1106,9 +1105,8 @@ function ClientDashboard({ user }: { user: any }) {
         await queryClient.invalidateQueries({
           queryKey: ["myMessages", clientId],
         });
-        await queryClient.invalidateQueries({
-          queryKey: ["clientWeeklySchedule", clientId],
-        });
+        // Daily compliance calendar (week/month range queries)
+        await queryClient.invalidateQueries({ queryKey: ["dailyLogsRange"] });
       }
 
       if (activeSection === "workouts") {
@@ -1384,7 +1382,9 @@ function ClientDashboard({ user }: { user: any }) {
         return plans.filter(Boolean);
       },
       enabled:
-        (activeSection === "meals" || activeSection === "profile") &&
+        (activeSection === "meals" ||
+          activeSection === "profile" ||
+          activeSection === "weekly") &&
         assignedMealPlanIds.length > 0,
     });
 
@@ -1548,146 +1548,7 @@ function ClientDashboard({ user }: { user: any }) {
     return unit ? `${raw} ${unit}` : raw;
   };
 
-  type DaySchedule = {
-    workoutPlanId?: string;
-    workoutTime?: string;
-    workoutCompleted?: boolean;
-    mealsCompleted?: boolean;
-    notes?: string;
-  };
-
-  const [weeklyAnchorDate, setWeeklyAnchorDate] = React.useState<Date>(
-    () => new Date()
-  );
-
-  const [weeklySchedule, setWeeklySchedule] = React.useState<
-    Record<string, DaySchedule>
-  >({});
-
-  const { data: weeklyScheduleDocs = [] } = useQuery({
-    queryKey: ["clientWeeklySchedule", myClient?.id ?? ""],
-    queryFn: async () => {
-      const clientId = String(myClient?.id ?? "").trim();
-      if (!clientId) return [];
-      return db.entities.ClientWeeklySchedule.filter({ clientId });
-    },
-    enabled: activeSection === "weekly" && !!String(myClient?.id ?? "").trim(),
-  });
-
-  const weeklyScheduleDoc = (weeklyScheduleDocs as any[])?.[0] ?? null;
-  const weeklyScheduleDocId = String(weeklyScheduleDoc?.id ?? "").trim();
-
-  const didInitWeeklyScheduleRef = React.useRef(false);
-  const lastSavedWeeklyScheduleJsonRef = React.useRef<string>("");
-  const saveWeeklyScheduleTimerRef = React.useRef<number | null>(null);
-
-  React.useEffect(() => {
-    didInitWeeklyScheduleRef.current = false;
-    lastSavedWeeklyScheduleJsonRef.current = "";
-  }, [myClient?.id]);
-
-  React.useEffect(() => {
-    if (activeSection !== "weekly") return;
-    if (didInitWeeklyScheduleRef.current) return;
-
-    const days = (weeklyScheduleDoc?.days ?? {}) as Record<string, DaySchedule>;
-    if (days && typeof days === "object") {
-      setWeeklySchedule(days);
-      lastSavedWeeklyScheduleJsonRef.current = JSON.stringify(days);
-    } else {
-      setWeeklySchedule({});
-      lastSavedWeeklyScheduleJsonRef.current = "{ }";
-    }
-
-    didInitWeeklyScheduleRef.current = true;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSection, weeklyScheduleDocId]);
-
-  const saveWeeklyScheduleMutation = useMutation({
-    mutationFn: async (days: Record<string, DaySchedule>) => {
-      const clientId = String(myClient?.id ?? "").trim();
-      if (!clientId) throw new Error("Client profile not found");
-
-      const payload = { clientId, days };
-      if (weeklyScheduleDocId) {
-        return db.entities.ClientWeeklySchedule.update(
-          weeklyScheduleDocId,
-          payload
-        );
-      }
-      return db.entities.ClientWeeklySchedule.create(payload);
-    },
-    onSuccess: () => {
-      const clientId = String(myClient?.id ?? "").trim();
-      queryClient.invalidateQueries({
-        queryKey: ["clientWeeklySchedule", clientId],
-      });
-    },
-  });
-
-  React.useEffect(() => {
-    if (activeSection !== "weekly") return;
-    if (!didInitWeeklyScheduleRef.current) return;
-    if (!String(myClient?.id ?? "").trim()) return;
-
-    const nextJson = JSON.stringify(weeklySchedule ?? {});
-    if (nextJson === lastSavedWeeklyScheduleJsonRef.current) return;
-
-    if (saveWeeklyScheduleTimerRef.current) {
-      window.clearTimeout(saveWeeklyScheduleTimerRef.current);
-    }
-
-    saveWeeklyScheduleTimerRef.current = window.setTimeout(() => {
-      saveWeeklyScheduleMutation.mutate(weeklySchedule ?? {});
-      lastSavedWeeklyScheduleJsonRef.current = nextJson;
-    }, 500);
-
-    return () => {
-      if (saveWeeklyScheduleTimerRef.current) {
-        window.clearTimeout(saveWeeklyScheduleTimerRef.current);
-        saveWeeklyScheduleTimerRef.current = null;
-      }
-    };
-  }, [activeSection, myClient?.id, weeklySchedule, saveWeeklyScheduleMutation]);
-
-  const pad2 = (n: number) => String(n).padStart(2, "0");
-  const toLocalDateKey = (d: Date) => {
-    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-  };
-  const startOfDay = (d: Date) => {
-    const date = new Date(d);
-    date.setHours(0, 0, 0, 0);
-    return date;
-  };
-
-  const weekStartDate = React.useMemo(
-    () => startOfDay(weeklyAnchorDate),
-    [weeklyAnchorDate]
-  );
-  const weekDays = React.useMemo(() => {
-    const days: Date[] = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(weekStartDate);
-      d.setDate(d.getDate() + i);
-      days.push(d);
-    }
-    return days;
-  }, [weekStartDate]);
-
-  const shiftWeeklyAnchorDays = (deltaDays: number) => {
-    setWeeklyAnchorDate((prev) => {
-      const next = new Date(prev);
-      next.setDate(next.getDate() + deltaDays);
-      return next;
-    });
-  };
-
-  const updateDaySchedule = (dateKey: string, patch: Partial<DaySchedule>) => {
-    setWeeklySchedule((prev) => {
-      const current = prev?.[dateKey] ?? {};
-      return { ...prev, [dateKey]: { ...current, ...patch } };
-    });
-  };
+  // Calendar is a daily compliance tracker (no time selection).
 
   const {
     data: mealPlanMealsByPlanId = {},
@@ -3148,225 +3009,16 @@ function ClientDashboard({ user }: { user: any }) {
                   No client profile found
                 </div>
               ) : (
-                <div className="space-y-4">
-                  <div className="flex flex-wrap items-center justify-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => shiftWeeklyAnchorDays(-7)}
-                      aria-label="Previous week"
-                      title="Previous week"
-                      className="text-gray-900 dark:text-gray-100"
-                    >
-                      <ChevronLeft className="w-4 h-4 text-gray-700 dark:text-gray-200" />
-                    </Button>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="gap-2 text-gray-900 dark:text-gray-100"
-                    >
-                      <Calendar className="w-4 h-4 text-gray-700 dark:text-gray-200" />
-                      {format(weekStartDate, "MMM d")} –{" "}
-                      {format(
-                        new Date(
-                          new Date(weekStartDate).setDate(
-                            weekStartDate.getDate() + 6
-                          )
-                        ),
-                        "MMM d"
-                      )}
-                    </Button>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => shiftWeeklyAnchorDays(7)}
-                      aria-label="Next week"
-                      title="Next week"
-                      className="text-gray-900 dark:text-gray-100"
-                    >
-                      <ChevronRight className="w-4 h-4 text-gray-700 dark:text-gray-200" />
-                    </Button>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setWeeklyAnchorDate(new Date())}
-                      aria-label="Go to current week"
-                      title="Go to current week"
-                      className="text-gray-900 dark:text-gray-100"
-                    >
-                      <RotateCcw className="w-4 h-4 text-gray-700 dark:text-gray-200" />
-                    </Button>
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-                    {weekDays.map((d) => {
-                      const key = toLocalDateKey(d);
-                      const daySchedule = weeklySchedule?.[key] ?? {};
-                      const isToday = key === toLocalDateKey(new Date());
-
-                      return (
-                        <div
-                          key={key}
-                          className={`rounded-xl border p-3 dark:border-gray-700 bg-white dark:bg-gray-900/30 flex flex-col ${isToday
-                            ? "border-indigo-200 dark:border-indigo-800"
-                            : "border-gray-200"
-                            }`}
-                        >
-                          <div className="flex-1">
-                            <div className="flex items-baseline justify-between gap-2">
-                              <div className="min-w-0">
-                                <div className="font-semibold text-gray-900 dark:text-white">
-                                  {format(d, "EEE")}
-                                  {isToday ? (
-                                    <span className="ml-2 text-xs font-medium text-indigo-700 dark:text-indigo-300">
-                                      Today
-                                    </span>
-                                  ) : null}
-                                </div>
-                                <div className="text-xs text-gray-500 dark:text-gray-400">
-                                  {format(d, "PPP")}
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="mt-3 grid grid-cols-2 gap-2">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                className={`h-8 px-2 text-xs justify-start gap-1.5 ${daySchedule.workoutCompleted
-                                  ? "border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300"
-                                  : "text-gray-700 dark:text-gray-200"
-                                  }`}
-                                onClick={() =>
-                                  updateDaySchedule(key, {
-                                    workoutCompleted:
-                                      !daySchedule.workoutCompleted,
-                                  })
-                                }
-                                aria-pressed={!!daySchedule.workoutCompleted}
-                                aria-label="Mark workout completed"
-                              >
-                                <span className="w-4 h-4 inline-flex items-center justify-center">
-                                  {daySchedule.workoutCompleted ? (
-                                    <Check className="w-4 h-4" />
-                                  ) : null}
-                                </span>
-                                Workout
-                              </Button>
-
-                              <Button
-                                type="button"
-                                variant="outline"
-                                className={`h-8 px-2 text-xs justify-start gap-1.5 ${daySchedule.mealsCompleted
-                                  ? "border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300"
-                                  : "text-gray-700 dark:text-gray-200"
-                                  }`}
-                                onClick={() =>
-                                  updateDaySchedule(key, {
-                                    mealsCompleted: !daySchedule.mealsCompleted,
-                                  })
-                                }
-                                aria-pressed={!!daySchedule.mealsCompleted}
-                                aria-label="Mark meals completed"
-                              >
-                                <span className="w-4 h-4 inline-flex items-center justify-center">
-                                  {daySchedule.mealsCompleted ? (
-                                    <Check className="w-4 h-4" />
-                                  ) : null}
-                                </span>
-                                Meals
-                              </Button>
-                            </div>
-
-                            <div className="mt-3 space-y-3">
-                              <div className="text-xs font-semibold text-gray-700 dark:text-gray-200">
-                                Workout
-                              </div>
-
-                              {assignedPlansLoading ? (
-                                <div className="text-xs text-gray-500 dark:text-gray-400">
-                                  Loading workout plans...
-                                </div>
-                              ) : assignedPlans.length === 0 ? (
-                                <div className="text-xs text-gray-500 dark:text-gray-400">
-                                  No workout plans assigned
-                                </div>
-                              ) : (
-                                <div className="grid grid-cols-2 gap-2">
-                                  <Select
-                                    value={String(
-                                      daySchedule.workoutPlanId ?? ""
-                                    )}
-                                    onValueChange={(v) =>
-                                      updateDaySchedule(key, {
-                                        workoutPlanId: v,
-                                      })
-                                    }
-                                  >
-                                    <SelectTrigger className="w-full">
-                                      <SelectValue placeholder="Plan" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {assignedPlans.map((p: any) => (
-                                        <SelectItem
-                                          key={String(p.id)}
-                                          value={String(p.id)}
-                                        >
-                                          {String(
-                                            p.name ?? "Workout Plan"
-                                          ).trim() || "Workout Plan"}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-
-                                  <Input
-                                    type="time"
-                                    value={String(
-                                      daySchedule.workoutTime ?? ""
-                                    )}
-                                    onChange={(e) =>
-                                      updateDaySchedule(key, {
-                                        workoutTime: e.target.value,
-                                      })
-                                    }
-                                    placeholder="Time"
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="mt-3 space-y-2">
-                            <div className="text-xs font-semibold text-gray-700 dark:text-gray-200">
-                              Notes
-                            </div>
-                            <Input
-                              type="text"
-                              value={String(daySchedule.notes ?? "")}
-                              onChange={(e) =>
-                                updateDaySchedule(key, {
-                                  notes: e.target.value,
-                                })
-                              }
-                              placeholder="Notes"
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    Saved on this device for your account.
-                  </div>
-                </div>
+                <DailyComplianceCalendar
+                  assignedWorkoutPlans={(assignedPlans as any[]).map((p: any) => ({
+                    id: String(p?.id ?? ""),
+                    name: String(p?.name ?? "Workout Plan").trim() || "Workout Plan",
+                  }))}
+                  assignedMealPlans={(assignedMealPlans as any[]).map((p: any) => ({
+                    id: String(p?.id ?? ""),
+                    name: String(p?.name ?? "Meal Plan").trim() || "Meal Plan",
+                  }))}
+                />
               )}
             </div>
           ) : null}

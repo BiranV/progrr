@@ -69,6 +69,8 @@ import {
 } from "@/app/actions/client-management";
 import { Client } from "@/types";
 import ConfirmModal from "@/components/ui/confirm-modal";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DailyComplianceCalendar } from "@/components/tracking/DailyComplianceCalendar";
 
 interface ClientPanelProps {
   client: Client | null;
@@ -762,8 +764,20 @@ export default function ClientPanel({
       ? ((stepsRecent as any).days as any[])
       : [];
 
+    const assignedWorkoutPlans = currentPlanIds
+      .map((id) => workoutPlansById.get(String(id)))
+      .filter(Boolean)
+      .map((p: any) => ({ id: String(p.id), name: String(p.name ?? "") }))
+      .filter((p: any) => p.id && p.name);
+
+    const assignedMealPlans = currentMealIds
+      .map((id) => mealPlansById.get(String(id)))
+      .filter(Boolean)
+      .map((p: any) => ({ id: String(p.id), name: String(p.name ?? "") }))
+      .filter((p: any) => p.id && p.name);
+
     return (
-      <div className="space-y-8">
+      <div className="space-y-6">
         {/* Header Section */}
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
@@ -809,447 +823,477 @@ export default function ClientPanel({
           </div>
         </div>
 
-        {/* Info Grid */}
-        <EntityInfoGrid>
-          <ReadonlyInfoCard
-            icon={Calendar}
-            label="Birth Date"
-            value={formatBirthDateWithAge((client as any)?.birthDate)}
-          />
-          <ReadonlyInfoCard
-            icon={Users}
-            label="Gender"
-            value={String((client as any)?.gender ?? "-")}
-          />
-          <ReadonlyInfoCard
-            icon={Ruler}
-            label="Height"
-            value={
-              (client as any)?.height
-                ? `${String((client as any)?.height)} cm`
-                : "-"
-            }
-          />
-          <ReadonlyInfoCard
-            icon={Weight}
-            label="Weight"
-            value={
-              (client as any)?.weight
-                ? `${String((client as any)?.weight)} kg`
-                : "-"
-            }
-          />
-        </EntityInfoGrid>
+        <Tabs defaultValue="overview">
+          <TabsList className="grid h-auto w-full grid-cols-3 gap-1">
+            <TabsTrigger className="w-full" value="overview">
+              Overview
+            </TabsTrigger>
+            <TabsTrigger className="w-full" value="activity">
+              Activity Log
+            </TabsTrigger>
+            <TabsTrigger className="w-full" value="actions">
+              Actions
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Goals & Plans */}
-        <div className="space-y-4">
-          <div className="p-4 rounded-lg border bg-white dark:bg-gray-800">
-            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
-              <Target className="w-4 h-4 text-indigo-500" /> Goals & Activity
-            </h4>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <div className="text-xs text-gray-500 mb-1">Goal</div>
-                <div className="text-sm font-medium">
-                  {formatGoalLabel((client as any)?.goal)}
+          <TabsContent value="overview">
+            <div className="space-y-4">
+              <EntityInfoGrid>
+                <ReadonlyInfoCard
+                  icon={Calendar}
+                  label="Birth Date"
+                  value={formatBirthDateWithAge((client as any)?.birthDate)}
+                />
+                <ReadonlyInfoCard
+                  icon={Users}
+                  label="Gender"
+                  value={String((client as any)?.gender ?? "-")}
+                />
+                <ReadonlyInfoCard
+                  icon={Ruler}
+                  label="Height"
+                  value={
+                    (client as any)?.height
+                      ? `${String((client as any)?.height)} cm`
+                      : "-"
+                  }
+                />
+                <ReadonlyInfoCard
+                  icon={Weight}
+                  label="Weight"
+                  value={
+                    (client as any)?.weight
+                      ? `${String((client as any)?.weight)} kg`
+                      : "-"
+                  }
+                />
+              </EntityInfoGrid>
+
+              <div className="p-4 rounded-lg border bg-white dark:bg-gray-800">
+                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+                  <Target className="w-4 h-4 text-indigo-500" /> Goals &amp; Activity
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-xs text-gray-500 mb-1">Goal</div>
+                    <div className="text-sm font-medium">
+                      {formatGoalLabel((client as any)?.goal)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500 mb-1">Activity Level</div>
+                    <div className="text-sm font-medium">
+                      {formatActivityLabel(client?.activityLevel)}
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div>
-                <div className="text-xs text-gray-500 mb-1">Activity Level</div>
-                <div className="text-sm font-medium">
-                  {formatActivityLabel(client?.activityLevel)}
+
+              <div className="p-4 rounded-lg border bg-white dark:bg-gray-800">
+                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-emerald-500" /> Assigned Plans
+                </h4>
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <div className="text-xs text-gray-500 mb-1">Workout Plans</div>
+                    <div className="text-sm font-medium">
+                      {getPlanNames(currentPlanIds, workoutPlans)}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-xs text-gray-500 mb-1">Meal Plans</div>
+                    <div className="text-sm font-medium">
+                      {getPlanNames(currentMealIds, mealPlans)}
+                    </div>
+                  </div>
                 </div>
               </div>
+
+              {(client as any)?.notes ? (
+                <div className="p-4 rounded-lg border bg-white dark:bg-gray-800">
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
+                    <StickyNote className="w-4 h-4 text-amber-500" /> Notes
+                  </h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
+                    {(client as any)?.notes}
+                  </p>
+                </div>
+              ) : null}
             </div>
-          </div>
+          </TabsContent>
 
-          <div className="p-4 rounded-lg border bg-white dark:bg-gray-800">
-            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-emerald-500" /> Assigned Plans
-            </h4>
-            <div className="grid grid-cols-1 gap-3">
-              <div>
-                <div className="text-xs text-gray-500 mb-1">Workout Plans</div>
-                <div className="text-sm font-medium">
-                  {getPlanNames(currentPlanIds, workoutPlans)}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-xs text-gray-500 mb-1">Meal Plans</div>
-                <div className="text-sm font-medium">
-                  {getPlanNames(currentMealIds, mealPlans)}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-lg border bg-white dark:bg-gray-800">
-            <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-emerald-500" /> Steps
-            </h4>
-
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <div className="min-w-0">
-                <div className="text-sm font-medium">Enable steps tracking</div>
-                <div className="text-xs text-gray-500">
-                  Client sharing is currently{" "}
-                  <span className="font-medium">
-                    {stepsSharingEnabled ? "ON" : "OFF"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={stepsEnabledByAdmin}
-                  onCheckedChange={(next) => {
-                    if (!client?.id) return;
-                    if (toggleStepsEnabledMutation.isPending) return;
-                    if (next === stepsEnabledByAdmin) return;
-                    toggleStepsEnabledMutation.mutate(next);
-                  }}
-                  disabled={!client?.id || toggleStepsEnabledMutation.isPending}
-                  className="disabled:cursor-default"
+          <TabsContent value="activity">
+            <div className="space-y-6">
+              <div className="p-4 rounded-lg border bg-white dark:bg-gray-800">
+                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
+                  Daily Compliance
+                </h4>
+                <DailyComplianceCalendar
+                  clientId={String(client?.id ?? "")}
+                  readOnly
+                  assignedWorkoutPlans={assignedWorkoutPlans}
+                  assignedMealPlans={assignedMealPlans}
                 />
               </div>
-            </div>
 
-            {recentDays.length > 0 ? (
-              <div className="mb-3">
-                <StepsProgressGraph days={recentDays} />
-              </div>
-            ) : null}
+              <div className="p-4 rounded-lg border bg-white dark:bg-gray-800">
+                <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-emerald-500" /> Steps
+                </h4>
 
-            {recentDays.length > 0 ? (
-              <div className="rounded-md border overflow-hidden">
-                <div className="grid grid-cols-2 text-xs font-medium bg-gray-50 dark:bg-gray-900/40 px-3 py-2">
-                  <div>Date</div>
-                  <div className="text-right">Steps</div>
-                </div>
-                {recentDays.map((d, idx) => (
-                  <div
-                    key={`${String(d?.date ?? idx)}-${idx}`}
-                    className="grid grid-cols-2 px-3 py-2 text-sm border-t bg-white dark:bg-gray-800"
-                  >
-                    <div className="text-gray-700 dark:text-gray-200">
-                      {formatDateDDMMYYYY(d?.date)}
-                    </div>
-                    <div className="text-right font-medium">
-                      {Number(d?.steps ?? 0).toLocaleString()}
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium">Enable steps tracking</div>
+                    <div className="text-xs text-gray-500">
+                      Client sharing is currently{" "}
+                      <span className="font-medium">
+                        {stepsSharingEnabled ? "ON" : "OFF"}
+                      </span>
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-sm text-gray-500">No recent steps</div>
-            )}
-          </div>
 
-          {(client as any)?.notes && (
-            <div className="p-4 rounded-lg border bg-white dark:bg-gray-800">
-              <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-2">
-                <StickyNote className="w-4 h-4 text-amber-500" /> Notes
-              </h4>
-              <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
-                {(client as any)?.notes}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Status Banner */}
-        <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-              Current Status
-            </span>
-            <EntityStatusChip status={String(status || "PENDING")} />
-          </div>
-
-          {/* Lifecycle Actions */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {status === "DELETED" ? (
-              <div className="col-span-1 sm:col-span-2 space-y-3">
-                <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex items-start gap-3">
-                  <Archive className="w-5 h-5 text-gray-500 shrink-0 mt-0.5" />
-                  <div className="text-sm text-gray-600 dark:text-gray-300">
-                    <p className="font-medium text-gray-900 dark:text-gray-100">
-                      Client Archived
-                    </p>
-                    <p className="mt-1">
-                      This client is currently in the deleted list (soft
-                      delete). Data is preserved.
-                    </p>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={stepsEnabledByAdmin}
+                      onCheckedChange={(next) => {
+                        if (!client?.id) return;
+                        if (toggleStepsEnabledMutation.isPending) return;
+                        if (next === stepsEnabledByAdmin) return;
+                        toggleStepsEnabledMutation.mutate(next);
+                      }}
+                      disabled={!client?.id || toggleStepsEnabledMutation.isPending}
+                      className="disabled:cursor-default"
+                    />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    variant="outline"
-                    className="justify-start h-auto py-2.5 cursor-pointer"
-                    disabled={statusUpdating !== null}
-                    onClick={() =>
-                      handleStatusAction(
-                        restoreClientAction,
-                        "restored",
-                        "PENDING",
-                        "restore"
-                      )
-                    }
-                  >
-                    {statusUpdating === "restore" ? (
-                      <Loader2 className="w-4 h-4 mr-2 text-green-600 animate-spin" />
-                    ) : (
-                      <RotateCcw className="w-4 h-4 mr-2 text-green-600" />
-                    )}
-                    <span>Restore Client</span>
-                  </Button>
-
-                  <Button
-                    variant="destructive"
-                    className="justify-start h-auto py-2.5 cursor-pointer bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 dark:bg-red-900/10 dark:hover:bg-red-900/20"
-                    disabled={statusUpdating !== null}
-                    onClick={() => panelState.requestDelete()}
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    <span>Permanently Delete</span>
-                  </Button>
-                </div>
-
-                {panelState.showDeleteConfirm ? (
-                  <EntityDeleteConfirm
-                    title="Danger Zone: Permanent Deletion"
-                    description={
-                      <div className="space-y-3">
-                        <div className="text-xs leading-relaxed font-medium">
-                          This action CANNOT be undone. All data will be
-                          physically removed from the database.
-                        </div>
-                        <div className="space-y-2">
-                          <label
-                            className="text-xs font-semibold uppercase text-red-600 dark:text-red-400 block mb-1 select-none"
-                            onCopy={(e) => e.preventDefault()}
-                            onCut={(e) => e.preventDefault()}
-                            onContextMenu={(e) => e.preventDefault()}
-                          >
-                            Type DELETE to confirm
-                          </label>
-                          <Input
-                            value={deleteConfirmText}
-                            onChange={(e) =>
-                              setDeleteConfirmText(e.target.value)
-                            }
-                            onPaste={(e) => e.preventDefault()}
-                            onDrop={(e) => e.preventDefault()}
-                            autoComplete="off"
-                            autoCorrect="off"
-                            autoCapitalize="none"
-                            spellCheck={false}
-                            placeholder="DELETE"
-                            className="bg-white dark:bg-black/20"
-                          />
-                        </div>
-                      </div>
-                    }
-                    confirmLabel="Confirm Permanent Delete"
-                    onCancel={() => {
-                      panelState.cancelDelete();
-                      setDeleteConfirmText("");
-                    }}
-                    onConfirm={() =>
-                      handleStatusAction(
-                        permanentlyDeleteClientAction,
-                        "permanently deleted",
-                        "DELETED",
-                        "permanent_delete"
-                      )
-                    }
-                    cancelDisabled={statusUpdating !== null}
-                    confirmDisabled={
-                      deleteConfirmText !== "DELETE" || statusUpdating !== null
-                    }
-                  />
+                {recentDays.length > 0 ? (
+                  <div className="mb-3">
+                    <StepsProgressGraph days={recentDays} />
+                  </div>
                 ) : null}
 
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Restoring will set status to Pending.
-                </p>
+                {recentDays.length > 0 ? (
+                  <div className="rounded-md border overflow-hidden">
+                    <div className="grid grid-cols-2 text-xs font-medium bg-gray-50 dark:bg-gray-900/40 px-3 py-2">
+                      <div>Date</div>
+                      <div className="text-right">Steps</div>
+                    </div>
+                    {recentDays.map((d, idx) => (
+                      <div
+                        key={`${String(d?.date ?? idx)}-${idx}`}
+                        className="grid grid-cols-2 px-3 py-2 text-sm border-t bg-white dark:bg-gray-800"
+                      >
+                        <div className="text-gray-700 dark:text-gray-200">
+                          {formatDateDDMMYYYY(d?.date)}
+                        </div>
+                        <div className="text-right font-medium">
+                          {Number(d?.steps ?? 0).toLocaleString()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500">No recent steps</div>
+                )}
               </div>
-            ) : (
-              <>
-                {status === "PENDING" ? (
-                  <>
-                    <div className="col-span-1 sm:col-span-2 p-3 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-100 dark:border-yellow-900/30 rounded-lg flex items-start gap-3">
-                      <Mail className="w-5 h-5 text-yellow-600 dark:text-yellow-500 shrink-0 mt-0.5" />
-                      <div className="text-sm text-yellow-800 dark:text-yellow-200">
-                        <p className="font-medium">Invitation Sent</p>
-                        <p className="mt-1 opacity-90">
-                          Client must accept the invitation and set up their
-                          account before you can change their status.
+            </div>
+          </TabsContent>
+
+          <TabsContent value="actions">
+            <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Current Status
+                </span>
+                <EntityStatusChip status={String(status || "PENDING")} />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {status === "DELETED" ? (
+                  <div className="col-span-1 sm:col-span-2 space-y-3">
+                    <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 flex items-start gap-3">
+                      <Archive className="w-5 h-5 text-gray-500 shrink-0 mt-0.5" />
+                      <div className="text-sm text-gray-600 dark:text-gray-300">
+                        <p className="font-medium text-gray-900 dark:text-gray-100">
+                          Client Archived
+                        </p>
+                        <p className="mt-1">
+                          This client is currently in the deleted list (soft
+                          delete). Data is preserved.
                         </p>
                       </div>
                     </div>
-                    <Button
-                      variant="outline"
-                      className="col-span-1 sm:col-span-2 justify-start h-auto py-2.5 cursor-pointer"
-                      disabled={statusUpdating !== null}
-                      onClick={() =>
-                        handleStatusAction(
-                          resendClientInviteAction,
-                          "Invite sent",
-                          "PENDING",
-                          "resend_invite"
-                        )
-                      }
-                    >
-                      {statusUpdating === "resend_invite" ? (
-                        <Loader2 className="w-4 h-4 mr-2 text-blue-500 animate-spin" />
-                      ) : (
-                        <Send className="w-4 h-4 mr-2 text-blue-500" />
-                      )}
-                      <span>Resend Invite</span>
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    {status !== "ACTIVE" && (
+
+                    <div className="grid grid-cols-2 gap-3">
                       <Button
                         variant="outline"
                         className="justify-start h-auto py-2.5 cursor-pointer"
                         disabled={statusUpdating !== null}
                         onClick={() =>
                           handleStatusAction(
-                            activateClientAction,
-                            "activated",
-                            "ACTIVE",
-                            "activate"
+                            restoreClientAction,
+                            "restored",
+                            "PENDING",
+                            "restore"
                           )
                         }
                       >
-                        {statusUpdating === "activate" ? (
+                        {statusUpdating === "restore" ? (
                           <Loader2 className="w-4 h-4 mr-2 text-green-600 animate-spin" />
                         ) : (
-                          <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                          <RotateCcw className="w-4 h-4 mr-2 text-green-600" />
                         )}
-                        <span>Activate Access</span>
+                        <span>Restore Client</span>
                       </Button>
-                    )}
-                    {status === "ACTIVE" && (
+
                       <Button
-                        variant="outline"
-                        className="justify-start h-auto py-2.5 cursor-pointer"
+                        variant="destructive"
+                        className="justify-start h-auto py-2.5 cursor-pointer bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 dark:bg-red-900/10 dark:hover:bg-red-900/20"
                         disabled={statusUpdating !== null}
-                        onClick={() =>
+                        onClick={() => panelState.requestDelete()}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        <span>Permanently Delete</span>
+                      </Button>
+                    </div>
+
+                    {panelState.showDeleteConfirm ? (
+                      <EntityDeleteConfirm
+                        title="Danger Zone: Permanent Deletion"
+                        description={
+                          <div className="space-y-3">
+                            <div className="text-xs leading-relaxed font-medium">
+                              This action CANNOT be undone. All data will be
+                              physically removed from the database.
+                            </div>
+                            <div className="space-y-2">
+                              <label
+                                className="text-xs font-semibold uppercase text-red-600 dark:text-red-400 block mb-1 select-none"
+                                onCopy={(e) => e.preventDefault()}
+                                onCut={(e) => e.preventDefault()}
+                                onContextMenu={(e) => e.preventDefault()}
+                              >
+                                Type DELETE to confirm
+                              </label>
+                              <Input
+                                value={deleteConfirmText}
+                                onChange={(e) =>
+                                  setDeleteConfirmText(e.target.value)
+                                }
+                                onPaste={(e) => e.preventDefault()}
+                                onDrop={(e) => e.preventDefault()}
+                                autoComplete="off"
+                                autoCorrect="off"
+                                autoCapitalize="none"
+                                spellCheck={false}
+                                placeholder="DELETE"
+                                className="bg-white dark:bg-black/20"
+                              />
+                            </div>
+                          </div>
+                        }
+                        confirmLabel="Confirm Permanent Delete"
+                        onCancel={() => {
+                          panelState.cancelDelete();
+                          setDeleteConfirmText("");
+                        }}
+                        onConfirm={() =>
                           handleStatusAction(
-                            deactivateClientAction,
-                            "deactivated",
-                            "INACTIVE",
-                            "deactivate"
+                            permanentlyDeleteClientAction,
+                            "permanently deleted",
+                            "DELETED",
+                            "permanent_delete"
                           )
                         }
-                      >
-                        {statusUpdating === "deactivate" ? (
-                          <Loader2 className="w-4 h-4 mr-2 text-orange-500 animate-spin" />
-                        ) : (
-                          <PauseCircle className="w-4 h-4 mr-2 text-orange-500" />
-                        )}
-                        <span>Deactivate</span>
-                      </Button>
-                    )}
-                    {status === "BLOCKED" ? (
-                      <Button
-                        variant="outline"
-                        className="justify-start h-auto py-2.5 cursor-pointer"
-                        disabled={statusUpdating !== null}
-                        onClick={() =>
-                          handleStatusAction(
-                            unblockClientAction,
-                            "unblocked",
-                            "ACTIVE",
-                            "unblock"
-                          )
+                        cancelDisabled={statusUpdating !== null}
+                        confirmDisabled={
+                          deleteConfirmText !== "DELETE" || statusUpdating !== null
                         }
-                      >
-                        {statusUpdating === "unblock" ? (
-                          <Loader2 className="w-4 h-4 mr-2 text-amber-500 animate-spin" />
-                        ) : (
-                          <ShieldAlert className="w-4 h-4 mr-2 text-amber-500" />
+                      />
+                    ) : null}
+
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Restoring will set status to Pending.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {status === "PENDING" ? (
+                      <>
+                        <div className="col-span-1 sm:col-span-2 p-3 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-100 dark:border-yellow-900/30 rounded-lg flex items-start gap-3">
+                          <Mail className="w-5 h-5 text-yellow-600 dark:text-yellow-500 shrink-0 mt-0.5" />
+                          <div className="text-sm text-yellow-800 dark:text-yellow-200">
+                            <p className="font-medium">Invitation Sent</p>
+                            <p className="mt-1 opacity-90">
+                              Client must accept the invitation and set up their
+                              account before you can change their status.
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          className="col-span-1 sm:col-span-2 justify-start h-auto py-2.5 cursor-pointer"
+                          disabled={statusUpdating !== null}
+                          onClick={() =>
+                            handleStatusAction(
+                              resendClientInviteAction,
+                              "Invite sent",
+                              "PENDING",
+                              "resend_invite"
+                            )
+                          }
+                        >
+                          {statusUpdating === "resend_invite" ? (
+                            <Loader2 className="w-4 h-4 mr-2 text-blue-500 animate-spin" />
+                          ) : (
+                            <Send className="w-4 h-4 mr-2 text-blue-500" />
+                          )}
+                          <span>Resend Invite</span>
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        {status !== "ACTIVE" && (
+                          <Button
+                            variant="outline"
+                            className="justify-start h-auto py-2.5 cursor-pointer"
+                            disabled={statusUpdating !== null}
+                            onClick={() =>
+                              handleStatusAction(
+                                activateClientAction,
+                                "activated",
+                                "ACTIVE",
+                                "activate"
+                              )
+                            }
+                          >
+                            {statusUpdating === "activate" ? (
+                              <Loader2 className="w-4 h-4 mr-2 text-green-600 animate-spin" />
+                            ) : (
+                              <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                            )}
+                            <span>Activate Access</span>
+                          </Button>
                         )}
-                        <span>Unblock</span>
-                      </Button>
+                        {status === "ACTIVE" && (
+                          <Button
+                            variant="outline"
+                            className="justify-start h-auto py-2.5 cursor-pointer"
+                            disabled={statusUpdating !== null}
+                            onClick={() =>
+                              handleStatusAction(
+                                deactivateClientAction,
+                                "deactivated",
+                                "INACTIVE",
+                                "deactivate"
+                              )
+                            }
+                          >
+                            {statusUpdating === "deactivate" ? (
+                              <Loader2 className="w-4 h-4 mr-2 text-orange-500 animate-spin" />
+                            ) : (
+                              <PauseCircle className="w-4 h-4 mr-2 text-orange-500" />
+                            )}
+                            <span>Deactivate</span>
+                          </Button>
+                        )}
+                        {status === "BLOCKED" ? (
+                          <Button
+                            variant="outline"
+                            className="justify-start h-auto py-2.5 cursor-pointer"
+                            disabled={statusUpdating !== null}
+                            onClick={() =>
+                              handleStatusAction(
+                                unblockClientAction,
+                                "unblocked",
+                                "ACTIVE",
+                                "unblock"
+                              )
+                            }
+                          >
+                            {statusUpdating === "unblock" ? (
+                              <Loader2 className="w-4 h-4 mr-2 text-amber-500 animate-spin" />
+                            ) : (
+                              <ShieldAlert className="w-4 h-4 mr-2 text-amber-500" />
+                            )}
+                            <span>Unblock</span>
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            className="justify-start h-auto py-2.5 cursor-pointer"
+                            disabled={statusUpdating !== null}
+                            onClick={() =>
+                              handleStatusAction(
+                                blockClientAction,
+                                "blocked",
+                                "BLOCKED",
+                                "block"
+                              )
+                            }
+                          >
+                            {statusUpdating === "block" ? (
+                              <Loader2 className="w-4 h-4 mr-2 text-red-500 animate-spin" />
+                            ) : (
+                              <Ban className="w-4 h-4 mr-2 text-red-500" />
+                            )}
+                            <span>Block Access</span>
+                          </Button>
+                        )}
+                      </>
+                    )}
+
+                    {panelState.showDeleteConfirm ? (
+                      <div className="col-span-1 sm:col-span-2">
+                        <EntityDeleteConfirm
+                          title="Archive Client?"
+                          description={
+                            "This client will be moved to the Deleted list. You can restore them later if needed."
+                          }
+                          confirmLabel="Archive"
+                          onCancel={() => {
+                            panelState.cancelDelete();
+                            setDeleteConfirmText("");
+                          }}
+                          onConfirm={() =>
+                            handleStatusAction(
+                              deleteClientAction,
+                              "archived",
+                              "DELETED",
+                              "soft_delete"
+                            )
+                          }
+                          cancelDisabled={statusUpdating !== null}
+                          confirmDisabled={statusUpdating !== null}
+                        />
+                      </div>
                     ) : (
                       <Button
                         variant="outline"
-                        className="justify-start h-auto py-2.5 cursor-pointer"
+                        className="justify-start h-auto py-2.5 hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-800 cursor-pointer"
                         disabled={statusUpdating !== null}
-                        onClick={() =>
-                          handleStatusAction(
-                            blockClientAction,
-                            "blocked",
-                            "BLOCKED",
-                            "block"
-                          )
-                        }
+                        onClick={() => panelState.requestDelete()}
                       >
-                        {statusUpdating === "block" ? (
-                          <Loader2 className="w-4 h-4 mr-2 text-red-500 animate-spin" />
-                        ) : (
-                          <Ban className="w-4 h-4 mr-2 text-red-500" />
-                        )}
-                        <span>Block Access</span>
+                        <Archive className="w-4 h-4 mr-2" />
+                        <span>Archive / Delete</span>
                       </Button>
                     )}
                   </>
                 )}
+              </div>
 
-                {panelState.showDeleteConfirm ? (
-                  <div className="col-span-1 sm:col-span-2">
-                    <EntityDeleteConfirm
-                      title="Archive Client?"
-                      description={
-                        "This client will be moved to the Deleted list. You can restore them later if needed."
-                      }
-                      confirmLabel="Archive"
-                      onCancel={() => {
-                        panelState.cancelDelete();
-                        setDeleteConfirmText("");
-                      }}
-                      onConfirm={() =>
-                        handleStatusAction(
-                          deleteClientAction,
-                          "archived",
-                          "DELETED",
-                          "soft_delete"
-                        )
-                      }
-                      cancelDisabled={statusUpdating !== null}
-                      confirmDisabled={statusUpdating !== null}
-                    />
-                  </div>
-                ) : (
-                  <Button
-                    variant="outline"
-                    className="justify-start h-auto py-2.5 hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-800 cursor-pointer"
-                    disabled={statusUpdating !== null}
-                    onClick={() => panelState.requestDelete()}
-                  >
-                    <Archive className="w-4 h-4 mr-2" />
-                    <span>Archive / Delete</span>
-                  </Button>
-                )}
-              </>
-            )}
-          </div>
-
-          {status === "DELETED" && deletedBy && (
-            <div className="text-sm text-gray-500 flex items-center gap-2 mt-2">
-              <Users className="w-4 h-4" />
-              Deleted by {deletedBy} on{" "}
-              {new Date((client as any).deletedAt).toLocaleDateString()}
+              {status === "DELETED" && deletedBy && (
+                <div className="text-sm text-gray-500 flex items-center gap-2 mt-2">
+                  <Users className="w-4 h-4" />
+                  Deleted by {deletedBy} on{" "}
+                  {new Date((client as any).deletedAt).toLocaleDateString()}
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
     );
   };

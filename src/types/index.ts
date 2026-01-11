@@ -77,6 +77,36 @@ export interface Client {
   [key: string]: any;
 }
 
+export type DailyWorkoutStatus = "PLANNED" | "COMPLETED" | "SKIPPED";
+export type DailyNutritionComplianceStatus =
+  | "FOLLOWED"
+  | "PARTIALLY_FOLLOWED"
+  | "NOT_FOLLOWED";
+
+export interface DailyWorkoutLog {
+  id: string;
+  clientId: string;
+  date: string; // YYYY-MM-DD (local date key)
+  workoutPlanId?: string;
+  status: DailyWorkoutStatus;
+  clientNote?: string;
+  created_date?: string;
+  updated_date?: string;
+  [key: string]: any;
+}
+
+export interface DailyNutritionLog {
+  id: string;
+  clientId: string;
+  date: string; // YYYY-MM-DD (local date key)
+  mealPlanId?: string;
+  complianceStatus: DailyNutritionComplianceStatus;
+  clientNote?: string;
+  created_date?: string;
+  updated_date?: string;
+  [key: string]: any;
+}
+
 export interface Food {
   id: string;
   mealId: string;

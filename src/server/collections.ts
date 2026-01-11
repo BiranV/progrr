@@ -21,11 +21,11 @@ export type AdminDoc = {
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
   subscriptionStatus?:
-    | "ACTIVE"
-    | "TRIALING"
-    | "PAST_DUE"
-    | "CANCELED"
-    | "UNPAID";
+  | "ACTIVE"
+  | "TRIALING"
+  | "PAST_DUE"
+  | "CANCELED"
+  | "UNPAID";
   subscriptionEndDate?: Date;
 };
 
@@ -178,6 +178,21 @@ export async function ensureIndexes() {
 
   await c.entities.createIndex({ entity: 1, adminId: 1 });
   await c.entities.createIndex({ adminId: 1 });
+
+  // Daily compliance logs: one per client per date.
+  // IMPORTANT: This must be a partial index; otherwise it would apply to every
+  // entity doc (many don't have clientId/date) and would block inserts.
+  await c.entities.createIndex(
+    { entity: 1, adminId: 1, "data.clientId": 1, "data.date": 1 },
+    {
+      unique: true,
+      partialFilterExpression: {
+        entity: { $in: ["DailyWorkoutLog", "DailyNutritionLog"] },
+        "data.clientId": { $type: "string" },
+        "data.date": { $type: "string" },
+      },
+    }
+  );
 
   await c.invites.createIndex({ email: 1, adminId: 1, status: 1 });
   await c.invites.createIndex({ adminId: 1 });
