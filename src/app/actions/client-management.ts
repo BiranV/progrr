@@ -721,6 +721,84 @@ export async function deleteClientAction(id: string) {
 }
 
 export async function restoreClientAction(id: string) {
+  const adminUser = await requireAppUser();
+  if (adminUser.role !== "admin") throw new Error("Unauthorized");
+
+  await ensureIndexes();
+  const c = await collections();
+
+  if (!ObjectId.isValid(id)) throw new Error("Client not found");
+
+  const adminId = new ObjectId(adminUser.id);
+  const entityId = new ObjectId(id);
+
+  const existing = await c.entities.findOne({
+    _id: entityId,
+    entity: "Client",
+    adminId,
+  });
+  if (!existing) throw new Error("Client not found");
+
+  const email = String((existing.data as any)?.email ?? "").trim();
+  if (!email) throw new Error("Client has no email");
+
+  // Send a fresh invite immediately when restoring (so the PENDING UI is accurate).
+  // Invalidate old pending invites first.
+  await c.invites.updateMany(
+    { email, adminId, status: "PENDING" },
+    { $set: { status: "REVOKED", updatedAt: new Date() } }
+  );
+
+  const now = new Date();
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  const insertResult = await c.invites.insertOne({
+    email,
+    adminId,
+    role: "client",
+    status: "PENDING",
+    expiresAt,
+    createdAt: now,
+    clientEntityId: entityId,
+  } as any);
+
+  const inviteId = insertResult.insertedId;
+  const h = await headers();
+  const appUrl = resolveAppUrlFromEnvOrHeaders(h);
+
+  const inviteToken = await signClientInviteToken({
+    inviteId: inviteId.toHexString(),
+    adminId: adminId.toHexString(),
+    email,
+    expiresAt,
+  });
+
+  const inviteLink = `${appUrl}/invite/${encodeURIComponent(inviteToken)}`;
+
+  const inviteEmail = buildInviteEmail({
+    inviteLink,
+    expiresDays: 7,
+    subject: "You've been invited to Progrr",
+    title: "You’ve been invited",
+  });
+
+  await sendEmail({
+    to: email,
+    subject: inviteEmail.subject,
+    text: inviteEmail.text,
+    html: inviteEmail.html,
+  });
+
+  await c.entities.updateOne(
+    { _id: entityId },
+    {
+      $set: {
+        "data.lastInviteSentAt": now,
+        "data.lastInviteSentBy": adminId,
+      },
+    }
+  );
+
   return updateClientStatus(id, "PENDING");
 }
 

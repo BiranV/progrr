@@ -1122,36 +1122,46 @@ export default function ClientPanel({
                   <>
                     {status === "PENDING" ? (
                       <>
-                        <div className="col-span-1 sm:col-span-2 p-3 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-100 dark:border-yellow-900/30 rounded-lg flex items-start gap-3">
-                          <Mail className="w-5 h-5 text-yellow-600 dark:text-yellow-500 shrink-0 mt-0.5" />
-                          <div className="text-sm text-yellow-800 dark:text-yellow-200">
-                            <p className="font-medium">Invitation Sent</p>
-                            <p className="mt-1 opacity-90">
-                              Client must accept the invitation and set up their
-                              account before you can change their status.
-                            </p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="outline"
-                          className="col-span-1 sm:col-span-2 justify-start h-auto py-2.5 cursor-pointer"
-                          disabled={statusUpdating !== null}
-                          onClick={() =>
-                            handleStatusAction(
-                              resendClientInviteAction,
-                              "Invite sent",
-                              "PENDING",
-                              "resend_invite"
-                            )
-                          }
-                        >
-                          {statusUpdating === "resend_invite" ? (
-                            <Loader2 className="w-4 h-4 mr-2 text-blue-500 animate-spin" />
-                          ) : (
-                            <Send className="w-4 h-4 mr-2 text-blue-500" />
-                          )}
-                          <span>Resend Invite</span>
-                        </Button>
+                        {(() => {
+                          const hasInvite = Boolean((client as any)?.lastInviteSentAt);
+                          return (
+                            <>
+                              <div className="col-span-1 sm:col-span-2 p-3 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-100 dark:border-yellow-900/30 rounded-lg flex items-start gap-3">
+                                <Mail className="w-5 h-5 text-yellow-600 dark:text-yellow-500 shrink-0 mt-0.5" />
+                                <div className="text-sm text-yellow-800 dark:text-yellow-200">
+                                  <p className="font-medium">
+                                    {hasInvite ? "Invitation Sent" : "Invitation not sent"}
+                                  </p>
+                                  <p className="mt-1 opacity-90">
+                                    {hasInvite
+                                      ? "Client must accept the invitation and set up their account before you can change their status."
+                                      : "No invite has been sent yet. Use the button below to send one."}
+                                  </p>
+                                </div>
+                              </div>
+                              <Button
+                                variant="outline"
+                                className="col-span-1 sm:col-span-2 justify-start h-auto py-2.5 cursor-pointer"
+                                disabled={statusUpdating !== null}
+                                onClick={() =>
+                                  handleStatusAction(
+                                    resendClientInviteAction,
+                                    "Invite sent",
+                                    "PENDING",
+                                    "resend_invite"
+                                  )
+                                }
+                              >
+                                {statusUpdating === "resend_invite" ? (
+                                  <Loader2 className="w-4 h-4 mr-2 text-blue-500 animate-spin" />
+                                ) : (
+                                  <Send className="w-4 h-4 mr-2 text-blue-500" />
+                                )}
+                                <span>{hasInvite ? "Resend Invite" : "Send Invite"}</span>
+                              </Button>
+                            </>
+                          );
+                        })()}
                       </>
                     ) : (
                       <>
