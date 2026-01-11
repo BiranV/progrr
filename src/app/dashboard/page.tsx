@@ -1889,6 +1889,104 @@ function ClientDashboard({ user }: { user: any }) {
     }
   };
 
+  const getClientPlansWorkoutPlanFilenameBase = (plan: any) => {
+    const name = String(plan?.name ?? "").trim();
+    const id = String(plan?.id ?? "").trim();
+    return `workout-plan-${name || id || "plan"}`;
+  };
+
+  const getClientPlansMealPlanFilenameBase = (plan: any) => {
+    const name = String(plan?.name ?? "").trim();
+    const id = String(plan?.id ?? "").trim();
+    return `meal-plan-${name || id || "plan"}`;
+  };
+
+  const getClientPlansWorkoutPlanText = (plan: any) => {
+    const exercises = Array.isArray(plan?.exercises) ? plan.exercises : [];
+    return formatWorkoutPlanText(plan as any, exercises as any);
+  };
+
+  const getClientPlansMealPlanText = (plan: any) => {
+    const meals = Array.isArray(plan?.meals) ? plan.meals : [];
+    return formatMealPlanText(plan as any, meals as any);
+  };
+
+  const copyClientPlansWorkoutPlan = async (plan: any) => {
+    if (!plan?.id) return;
+    try {
+      const text = getClientPlansWorkoutPlanText(plan);
+      await copyTextToClipboard(text);
+      toast.success("Copied to clipboard");
+    } catch (err) {
+      console.error("Failed to copy workout plan", err);
+      toast.error("Failed to copy");
+    }
+  };
+
+  const downloadClientPlansWorkoutPlanText = (plan: any) => {
+    if (!plan?.id) return;
+    try {
+      const text = getClientPlansWorkoutPlanText(plan);
+      downloadTextFile(getClientPlansWorkoutPlanFilenameBase(plan), text);
+    } catch (err) {
+      console.error("Failed to download workout plan text", err);
+      toast.error("Failed to download text");
+    }
+  };
+
+  const downloadClientPlansWorkoutPlanPdf = (plan: any) => {
+    if (!plan?.id) return;
+    try {
+      const text = getClientPlansWorkoutPlanText(plan);
+      downloadPdfFile(
+        getClientPlansWorkoutPlanFilenameBase(plan),
+        String(plan?.name ?? "Workout Plan").trim() || "Workout Plan",
+        text
+      );
+    } catch (err) {
+      console.error("Failed to download workout plan PDF", err);
+      toast.error("Failed to download PDF");
+    }
+  };
+
+  const copyClientPlansMealPlan = async (plan: any) => {
+    if (!plan?.id) return;
+    try {
+      const text = getClientPlansMealPlanText(plan);
+      await copyTextToClipboard(text);
+      toast.success("Copied to clipboard");
+    } catch (err) {
+      console.error("Failed to copy meal plan", err);
+      toast.error("Failed to copy");
+    }
+  };
+
+  const downloadClientPlansMealPlanText = (plan: any) => {
+    if (!plan?.id) return;
+    try {
+      const text = getClientPlansMealPlanText(plan);
+      downloadTextFile(getClientPlansMealPlanFilenameBase(plan), text);
+    } catch (err) {
+      console.error("Failed to download meal plan text", err);
+      toast.error("Failed to download text");
+    }
+  };
+
+  const downloadClientPlansMealPlanPdf = (plan: any) => {
+    if (!plan?.id) return;
+    try {
+      const text = getClientPlansMealPlanText(plan);
+      downloadPdfFile(
+        getClientPlansMealPlanFilenameBase(plan),
+        String(plan?.name ?? "Meal Plan").trim() || "Meal Plan",
+        text
+      );
+    } catch (err) {
+      console.error("Failed to download meal plan PDF", err);
+      toast.error("Failed to download PDF");
+    }
+  };
+
   const { data: messages = [] } = useQuery({
     queryKey: ["myMessages", myClient?.id],
     queryFn: () => db.entities.Message.filter({ clientId: myClient.id }),
@@ -3344,8 +3442,45 @@ function ClientDashboard({ user }: { user: any }) {
                                 key={String(plan.id)}
                                 className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-900/30"
                               >
-                                <div className="font-medium text-gray-900 dark:text-white">
-                                  {String(plan.name ?? "Meal Plan").trim() || "Meal Plan"}
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="font-medium text-gray-900 dark:text-white">
+                                    {String(plan.name ?? "Meal Plan").trim() || "Meal Plan"}
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon-sm"
+                                      className="text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
+                                      title="Download PDF"
+                                      aria-label="Download PDF"
+                                      onClick={() => downloadClientPlansMealPlanPdf(plan)}
+                                    >
+                                      <FileDown className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon-sm"
+                                      className="text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
+                                      title="Download Text"
+                                      aria-label="Download Text"
+                                      onClick={() => downloadClientPlansMealPlanText(plan)}
+                                    >
+                                      <FileText className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon-sm"
+                                      className="text-green-600 hover:text-green-700 dark:text-green-300 dark:hover:text-green-200"
+                                      title="Copy to clipboard"
+                                      aria-label="Copy to clipboard"
+                                      onClick={() => void copyClientPlansMealPlan(plan)}
+                                    >
+                                      <CopyIcon className="w-4 h-4" />
+                                    </Button>
+                                  </div>
                                 </div>
 
                                 {String(plan.goal ?? "").trim() ? (
@@ -3597,9 +3732,46 @@ function ClientDashboard({ user }: { user: any }) {
                                 key={String(plan.id)}
                                 className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-900/30"
                               >
-                                <div className="font-medium text-gray-900 dark:text-white">
-                                  {String(plan.name ?? "Workout Plan").trim() ||
-                                    "Workout Plan"}
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="font-medium text-gray-900 dark:text-white">
+                                    {String(plan.name ?? "Workout Plan").trim() ||
+                                      "Workout Plan"}
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon-sm"
+                                      className="text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
+                                      title="Download PDF"
+                                      aria-label="Download PDF"
+                                      onClick={() => downloadClientPlansWorkoutPlanPdf(plan)}
+                                    >
+                                      <FileDown className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon-sm"
+                                      className="text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
+                                      title="Download Text"
+                                      aria-label="Download Text"
+                                      onClick={() => downloadClientPlansWorkoutPlanText(plan)}
+                                    >
+                                      <FileText className="w-4 h-4" />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon-sm"
+                                      className="text-green-600 hover:text-green-700 dark:text-green-300 dark:hover:text-green-200"
+                                      title="Copy to clipboard"
+                                      aria-label="Copy to clipboard"
+                                      onClick={() => void copyClientPlansWorkoutPlan(plan)}
+                                    >
+                                      <CopyIcon className="w-4 h-4" />
+                                    </Button>
+                                  </div>
                                 </div>
 
                                 {String(plan.goal ?? "").trim() ? (
@@ -3789,67 +3961,79 @@ function ClientDashboard({ user }: { user: any }) {
                               {plan.name}
                             </CardTitle>
                           </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setExpandedWorkoutPlanIds((m) => ({
-                                ...m,
-                                [planId]: !m[planId],
-                              }));
-                            }}
-                            aria-label={expanded ? "Collapse" : "Expand"}
-                          >
-                            {expanded ? (
-                              <ChevronUp className="w-4 h-4" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4" />
-                            )}
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              className="text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
+                              title="Download PDF"
+                              aria-label="Download PDF"
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                downloadWorkoutPlanPdf(plan);
+                              }}
+                            >
+                              <FileDown className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              className="text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
+                              title="Download Text"
+                              aria-label="Download Text"
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                downloadWorkoutPlanText(plan);
+                              }}
+                            >
+                              <FileText className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              className="text-green-600 hover:text-green-700 dark:text-green-300 dark:hover:text-green-200"
+                              title="Copy to clipboard"
+                              aria-label="Copy to clipboard"
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void copyWorkoutPlan(plan);
+                              }}
+                            >
+                              <CopyIcon className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedWorkoutPlanIds((m) => ({
+                                  ...m,
+                                  [planId]: !m[planId],
+                                }));
+                              }}
+                              aria-label={expanded ? "Collapse" : "Expand"}
+                            >
+                              {expanded ? (
+                                <ChevronUp className="w-4 h-4" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </div>
                         </div>
                       </CardHeader>
 
                       {expanded ? (
                         <CardContent>
                           <div className="space-y-4">
-                            <div className="flex flex-wrap gap-2">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                className="text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
-                                title="Download PDF"
-                                aria-label="Download PDF"
-                                onClick={() => downloadWorkoutPlanPdf(plan)}
-                              >
-                                <FileDown className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                className="text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
-                                title="Download Text"
-                                aria-label="Download Text"
-                                onClick={() => downloadWorkoutPlanText(plan)}
-                              >
-                                <FileText className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                className="text-green-600 hover:text-green-700 dark:text-green-300 dark:hover:text-green-200"
-                                title="Copy to clipboard"
-                                aria-label="Copy to clipboard"
-                                onClick={() => void copyWorkoutPlan(plan)}
-                              >
-                                <CopyIcon className="w-4 h-4" />
-                              </Button>
-                            </div>
-
                             <div className="text-sm text-gray-600 dark:text-gray-300">
                               {plan.difficulty ? (
                                 <span className="capitalize">
@@ -4071,67 +4255,79 @@ function ClientDashboard({ user }: { user: any }) {
                               {plan.name}
                             </CardTitle>
                           </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setExpandedMealPlanIds((m) => ({
-                                ...m,
-                                [planId]: !m[planId],
-                              }));
-                            }}
-                            aria-label={expanded ? "Collapse" : "Expand"}
-                          >
-                            {expanded ? (
-                              <ChevronUp className="w-4 h-4" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4" />
-                            )}
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              className="text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
+                              title="Download PDF"
+                              aria-label="Download PDF"
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                downloadMealPlanPdf(plan);
+                              }}
+                            >
+                              <FileDown className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              className="text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
+                              title="Download Text"
+                              aria-label="Download Text"
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                downloadMealPlanText(plan);
+                              }}
+                            >
+                              <FileText className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              className="text-green-600 hover:text-green-700 dark:text-green-300 dark:hover:text-green-200"
+                              title="Copy to clipboard"
+                              aria-label="Copy to clipboard"
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void copyMealPlan(plan);
+                              }}
+                            >
+                              <CopyIcon className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedMealPlanIds((m) => ({
+                                  ...m,
+                                  [planId]: !m[planId],
+                                }));
+                              }}
+                              aria-label={expanded ? "Collapse" : "Expand"}
+                            >
+                              {expanded ? (
+                                <ChevronUp className="w-4 h-4" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </div>
                         </div>
                       </CardHeader>
 
                       {expanded ? (
                         <CardContent>
                           <div className="space-y-4">
-                            <div className="flex flex-wrap gap-2">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                className="text-rose-600 hover:text-rose-700 dark:text-rose-300 dark:hover:text-rose-200"
-                                title="Download PDF"
-                                aria-label="Download PDF"
-                                onClick={() => downloadMealPlanPdf(plan)}
-                              >
-                                <FileDown className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                className="text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200"
-                                title="Download Text"
-                                aria-label="Download Text"
-                                onClick={() => downloadMealPlanText(plan)}
-                              >
-                                <FileText className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                className="text-green-600 hover:text-green-700 dark:text-green-300 dark:hover:text-green-200"
-                                title="Copy to clipboard"
-                                aria-label="Copy to clipboard"
-                                onClick={() => void copyMealPlan(plan)}
-                              >
-                                <CopyIcon className="w-4 h-4" />
-                              </Button>
-                            </div>
-
                             {plan.goal ? (
                               <div className="text-sm text-gray-600 dark:text-gray-400">
                                 Goal: {toTitleCase(plan.goal)}
