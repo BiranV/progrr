@@ -107,6 +107,9 @@ export default function ExercisesPage() {
   // Exercise Catalog (RapidAPI - ExerciseDB) bulk add
   const [catalogOpen, setCatalogOpen] = React.useState(false);
   const [catalogQuery, setCatalogQuery] = React.useState("");
+  const [catalogSearchMessage, setCatalogSearchMessage] = React.useState<
+    string | null
+  >(null);
   const {
     search: triggerCatalogSearch,
     results: catalogResults,
@@ -124,6 +127,12 @@ export default function ExercisesPage() {
     const q = String(catalogQuery ?? "").trim();
     if (!q) return;
 
+    if (q.length < 3) {
+      setCatalogSearchMessage("Please enter at least 3 characters to search.");
+      return;
+    }
+
+    setCatalogSearchMessage(null);
     triggerCatalogSearch(q);
     setSelectedCatalogIds(new Set());
     // Reset search box after searching, keep results visible.
@@ -168,8 +177,8 @@ export default function ExercisesPage() {
         inserted
           ? `Added ${inserted} exercise${inserted === 1 ? "" : "s"}`
           : skipped
-          ? "All selected exercises already exist"
-          : "No exercises added"
+            ? "All selected exercises already exist"
+            : "No exercises added"
       );
 
       await queryClient.invalidateQueries({ queryKey: ["exerciseLibrary"] });
@@ -229,8 +238,8 @@ export default function ExercisesPage() {
             videoKind === "youtube"
               ? "YouTube"
               : videoKind === "upload"
-              ? "Upload"
-              : "-";
+                ? "Upload"
+                : "-";
           const hasGuidelines = !!String(e?.guidelines ?? "").trim();
 
           return (
@@ -348,6 +357,7 @@ export default function ExercisesPage() {
               const next = !v;
               if (next) {
                 setCatalogQuery("");
+                setCatalogSearchMessage(null);
                 resetSearch();
                 setSelectedCatalogIds(new Set());
               }
@@ -396,7 +406,13 @@ export default function ExercisesPage() {
             <div className="flex-1">
               <Input
                 value={catalogQuery}
-                onChange={(e) => setCatalogQuery(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setCatalogQuery(next);
+                  if (catalogSearchMessage && String(next ?? "").trim().length >= 3) {
+                    setCatalogSearchMessage(null);
+                  }
+                }}
                 placeholder="Search exercises (e.g. push up, squat, bench press)"
                 onKeyDown={(e) => {
                   if (e.key !== "Enter") return;
@@ -430,6 +446,12 @@ export default function ExercisesPage() {
               </Button>
             </div>
           </div>
+
+          {catalogSearchMessage ? (
+            <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-200">
+              {catalogSearchMessage}
+            </div>
+          ) : null}
 
           {catalogError ? (
             <div className="mt-3 text-sm text-red-600 dark:text-red-400">
@@ -473,8 +495,8 @@ export default function ExercisesPage() {
                     ? "No exercises found"
                     : "No exercises yet"
                   : search
-                  ? "No active exercises match your search"
-                  : "No active exercises",
+                    ? "No active exercises match your search"
+                    : "No active exercises",
               description:
                 table.visibleRows.length === 0
                   ? search

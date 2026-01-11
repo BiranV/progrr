@@ -1,8 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-// Requirements: Cache TTL 5-15 minutes
-const CACHE_TTL_MS = 1000 * 60 * 15; // 15 minutes
+const MIN_SEARCH_LEN = 3;
+
+// Requirements: Cache TTL 30 minutes (in-memory React Query cache only)
+const CACHE_TTL_MS = 1000 * 60 * 30; // 30 minutes
 
 type CatalogType = "exercise" | "food";
 
@@ -12,16 +14,18 @@ export function useCatalogSearch<T>(type: CatalogType) {
 
   const queryKey = ["catalogSearch", type, activeQuery];
 
+  const trimmedActiveQuery = activeQuery.trim();
+
   const query = useQuery({
     queryKey,
     queryFn: async () => {
-      // Don't fetch if empty
-      if (!activeQuery.trim()) return [];
+      // Safety guard (UI should already enforce min length)
+      if (trimmedActiveQuery.length < MIN_SEARCH_LEN) return [];
 
       const endpoint =
         type === "exercise"
-          ? `/api/exercises/catalog/search?q=${encodeURIComponent(activeQuery)}`
-          : `/api/foods/catalog/search?q=${encodeURIComponent(activeQuery)}`;
+          ? `/api/exercises/catalog/search?q=${encodeURIComponent(trimmedActiveQuery)}`
+          : `/api/foods/catalog/search?q=${encodeURIComponent(trimmedActiveQuery)}`;
 
       const res = await fetch(endpoint, {
         method: "GET",
@@ -34,7 +38,7 @@ export function useCatalogSearch<T>(type: CatalogType) {
       }
       return (Array.isArray(payload?.results) ? payload.results : []) as T[];
     },
-    enabled: !!activeQuery.trim(),
+    enabled: trimmedActiveQuery.length >= MIN_SEARCH_LEN,
     staleTime: CACHE_TTL_MS,
     gcTime: CACHE_TTL_MS,
     refetchOnWindowFocus: false,

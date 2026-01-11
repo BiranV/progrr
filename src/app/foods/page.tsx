@@ -147,6 +147,9 @@ export default function FoodsPage() {
   // USDA Food Catalog (bulk add)
   const [catalogOpen, setCatalogOpen] = React.useState(false);
   const [catalogQuery, setCatalogQuery] = React.useState("");
+  const [catalogSearchMessage, setCatalogSearchMessage] = React.useState<
+    string | null
+  >(null);
   const {
     search: triggerCatalogSearch,
     results: catalogResults,
@@ -164,6 +167,12 @@ export default function FoodsPage() {
     const q = String(catalogQuery ?? "").trim();
     if (!q) return;
 
+    if (q.length < 3) {
+      setCatalogSearchMessage("Please enter at least 3 characters to search.");
+      return;
+    }
+
+    setCatalogSearchMessage(null);
     triggerCatalogSearch(q);
     setSelectedCatalogIds(new Set());
     // Reset the search box after searching, but keep results visible.
@@ -208,8 +217,8 @@ export default function FoodsPage() {
         inserted
           ? `Added ${inserted} food${inserted === 1 ? "" : "s"}`
           : skipped
-          ? "All selected foods already exist"
-          : "No foods added"
+            ? "All selected foods already exist"
+            : "No foods added"
       );
 
       await queryClient.invalidateQueries({ queryKey: ["foodLibrary"] });
@@ -316,6 +325,7 @@ export default function FoodsPage() {
               const next = !v;
               if (next) {
                 setCatalogQuery("");
+                setCatalogSearchMessage(null);
                 resetSearch();
                 setSelectedCatalogIds(new Set());
               }
@@ -362,7 +372,13 @@ export default function FoodsPage() {
             <div className="flex-1">
               <Input
                 value={catalogQuery}
-                onChange={(e) => setCatalogQuery(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setCatalogQuery(next);
+                  if (catalogSearchMessage && String(next ?? "").trim().length >= 3) {
+                    setCatalogSearchMessage(null);
+                  }
+                }}
                 placeholder="Search USDA foods (e.g. banana, chicken breast, rice)"
                 onKeyDown={(e) => {
                   if (e.key !== "Enter") return;
@@ -396,6 +412,12 @@ export default function FoodsPage() {
               </Button>
             </div>
           </div>
+
+          {catalogSearchMessage ? (
+            <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-200">
+              {catalogSearchMessage}
+            </div>
+          ) : null}
 
           {catalogError ? (
             <div className="mt-3 text-sm text-red-600 dark:text-red-400">
@@ -440,8 +462,8 @@ export default function FoodsPage() {
                     ? "No foods found"
                     : "No foods yet"
                   : search
-                  ? "No active foods match your search"
-                  : "No active foods",
+                    ? "No active foods match your search"
+                    : "No active foods",
               description:
                 table.visibleRows.length === 0
                   ? search
