@@ -10,12 +10,16 @@ import { ExerciseDetailsContent } from "@/components/panels/ExercisePanel";
 import { Checkbox } from "@/components/ui/checkbox";
 import { getCookie, setCookie } from "@/lib/client-cookies";
 import { toast } from "sonner";
-import { DataTable, type DataTableColumn } from "@/components/ui/table/DataTable";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "@/components/ui/table/DataTable";
 import { EntityPageLayout } from "@/components/ui/entity/EntityPageLayout";
 import { EntityToolbar } from "@/components/ui/entity/EntityToolbar";
 import { EntityTableSection } from "@/components/ui/entity/EntityTableSection";
 import { GenericDetailsPanel } from "@/components/ui/entity/GenericDetailsPanel";
 import { useEntityTableState } from "@/hooks/useEntityTableState";
+import { useCatalogSearch } from "@/hooks/use-catalog-search";
 
 type CatalogRow = {
   externalId: string;
@@ -42,9 +46,9 @@ export default function ExercisesPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = React.useState("");
   const [detailsOpen, setDetailsOpen] = React.useState(false);
-  const [detailsExerciseId, setDetailsExerciseId] = React.useState<string | null>(
-    null
-  );
+  const [detailsExerciseId, setDetailsExerciseId] = React.useState<
+    string | null
+  >(null);
 
   const PAGE_SIZE_OPTIONS = [5, 10, 25, 50, 100] as const;
   const [pageSize, setPageSize] = React.useState(() => {
@@ -103,40 +107,27 @@ export default function ExercisesPage() {
   // Exercise Catalog (RapidAPI - ExerciseDB) bulk add
   const [catalogOpen, setCatalogOpen] = React.useState(false);
   const [catalogQuery, setCatalogQuery] = React.useState("");
-  const [catalogLoading, setCatalogLoading] = React.useState(false);
-  const [catalogError, setCatalogError] = React.useState<string | null>(null);
-  const [catalogResults, setCatalogResults] = React.useState<CatalogRow[]>([]);
-  const [selectedCatalogIds, setSelectedCatalogIds] = React.useState<Set<string>>(
-    () => new Set()
-  );
+  const {
+    search: triggerCatalogSearch,
+    results: catalogResults,
+    isLoading: catalogLoading,
+    error: catalogError,
+    reset: resetSearch,
+  } = useCatalogSearch<CatalogRow>("exercise");
+  // Local state for the import operation (separate from search loading)
+  const [importing, setImporting] = React.useState(false);
+  const [selectedCatalogIds, setSelectedCatalogIds] = React.useState<
+    Set<string>
+  >(() => new Set());
 
-  const runCatalogSearch = async () => {
+  const runCatalogSearch = () => {
     const q = String(catalogQuery ?? "").trim();
     if (!q) return;
 
-    setCatalogError(null);
-    setCatalogLoading(true);
-    try {
-      const res = await fetch(`/api/exercises/catalog/search?q=${encodeURIComponent(q)}`,
-        {
-          method: "GET",
-          credentials: "include",
-        }
-      );
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(payload?.error || `Request failed (${res.status})`);
-      }
-      const results = Array.isArray(payload?.results) ? payload.results : [];
-      setCatalogResults(results);
-      setSelectedCatalogIds(new Set());
-      // Reset search box after searching, keep results visible.
-      setCatalogQuery("");
-    } catch (err: any) {
-      setCatalogError(err?.message || "Failed to search exercise catalog");
-    } finally {
-      setCatalogLoading(false);
-    }
+    triggerCatalogSearch(q);
+    setSelectedCatalogIds(new Set());
+    // Reset search box after searching, keep results visible.
+    setCatalogQuery("");
   };
 
   const toggleCatalogId = (id: string, checked: boolean) => {
@@ -150,14 +141,15 @@ export default function ExercisesPage() {
 
   const selectedCatalogItems = React.useMemo(() => {
     if (!selectedCatalogIds.size) return [] as CatalogRow[];
-    return catalogResults.filter((r) => selectedCatalogIds.has(String(r.externalId)));
+    return catalogResults.filter((r) =>
+      selectedCatalogIds.has(String(r.externalId))
+    );
   }, [catalogResults, selectedCatalogIds]);
 
   const addSelectedFromCatalog = async () => {
     if (!selectedCatalogItems.length) return;
 
-    setCatalogError(null);
-    setCatalogLoading(true);
+    setImporting(true);
     try {
       const res = await fetch("/api/exercises/catalog/import", {
         method: "POST",
@@ -176,8 +168,8 @@ export default function ExercisesPage() {
         inserted
           ? `Added ${inserted} exercise${inserted === 1 ? "" : "s"}`
           : skipped
-            ? "All selected exercises already exist"
-            : "No exercises added"
+          ? "All selected exercises already exist"
+          : "No exercises added"
       );
 
       await queryClient.invalidateQueries({ queryKey: ["exerciseLibrary"] });
@@ -185,11 +177,11 @@ export default function ExercisesPage() {
       setSelectedCatalogIds(new Set());
       // Reset catalog state after importing to start fresh.
       setCatalogQuery("");
-      setCatalogResults([]);
+      resetSearch();
     } catch (err: any) {
-      setCatalogError(err?.message || "Failed to import exercises");
+      toast.error(err?.message || "Failed to import exercises");
     } finally {
-      setCatalogLoading(false);
+      setImporting(false);
     }
   };
 
@@ -207,7 +199,8 @@ export default function ExercisesPage() {
         key: "targetMuscle",
         header: "Target",
         sortable: true,
-        renderCell: (exercise) => String(exercise.targetMuscle ?? "").trim() || "-",
+        renderCell: (exercise) =>
+          String(exercise.targetMuscle ?? "").trim() || "-",
       },
       {
         key: "bodyPart",
@@ -219,7 +212,8 @@ export default function ExercisesPage() {
         key: "equipment",
         header: "Equipment",
         sortable: true,
-        renderCell: (exercise) => String(exercise.equipment ?? "").trim() || "-",
+        renderCell: (exercise) =>
+          String(exercise.equipment ?? "").trim() || "-",
       },
       {
         key: "media",
@@ -232,7 +226,11 @@ export default function ExercisesPage() {
             (videoKind !== "youtube" || !!videoUrl) &&
             (videoKind !== "upload" || !!videoUrl);
           const videoLabel =
-            videoKind === "youtube" ? "YouTube" : videoKind === "upload" ? "Upload" : "-";
+            videoKind === "youtube"
+              ? "YouTube"
+              : videoKind === "upload"
+              ? "Upload"
+              : "-";
           const hasGuidelines = !!String(e?.guidelines ?? "").trim();
 
           return (
@@ -265,7 +263,9 @@ export default function ExercisesPage() {
     return cols;
   }, []);
 
-  const catalogColumns = React.useMemo((): Array<DataTableColumn<CatalogRow>> => {
+  const catalogColumns = React.useMemo((): Array<
+    DataTableColumn<CatalogRow>
+  > => {
     return [
       {
         key: "select",
@@ -304,24 +304,26 @@ export default function ExercisesPage() {
         renderCell: (r) => (
           <div>
             <div className="font-medium">{String(r.name ?? "-")}</div>
-            <div className="text-xs text-gray-500">ID: {String(r.externalId)}</div>
+            <div className="text-xs text-gray-500">
+              ID: {String(r.externalId)}
+            </div>
           </div>
         ),
       },
       {
         key: "targetMuscle",
         header: "Target",
-        renderCell: (r) => String(r.targetMuscle ?? "-")
+        renderCell: (r) => String(r.targetMuscle ?? "-"),
       },
       {
         key: "bodyPart",
         header: "Body Part",
-        renderCell: (r) => String(r.bodyPart ?? "-")
+        renderCell: (r) => String(r.bodyPart ?? "-"),
       },
       {
         key: "equipment",
         header: "Equipment",
-        renderCell: (r) => String(r.equipment ?? "-")
+        renderCell: (r) => String(r.equipment ?? "-"),
       },
     ];
   }, [catalogResults, selectedCatalogIds, toggleCatalogId]);
@@ -346,8 +348,7 @@ export default function ExercisesPage() {
               const next = !v;
               if (next) {
                 setCatalogQuery("");
-                setCatalogError(null);
-                setCatalogResults([]);
+                resetSearch();
                 setSelectedCatalogIds(new Set());
               }
               return next;
@@ -376,7 +377,9 @@ export default function ExercisesPage() {
       {catalogOpen ? (
         <div className="mb-6 rounded-lg border bg-white dark:bg-gray-800 p-4">
           <div className="flex items-start justify-between gap-3 mb-3">
-            <div className="text-sm font-medium">Exercise Catalog (ExerciseDB)</div>
+            <div className="text-sm font-medium">
+              Exercise Catalog (ExerciseDB)
+            </div>
             <Button
               type="button"
               variant="ghost"
@@ -407,17 +410,23 @@ export default function ExercisesPage() {
                 type="button"
                 variant="outline"
                 onClick={runCatalogSearch}
-                disabled={catalogLoading}
+                disabled={catalogLoading || importing}
               >
                 {catalogLoading ? "Searching..." : "Search"}
               </Button>
               <Button
                 type="button"
                 onClick={addSelectedFromCatalog}
-                disabled={catalogLoading || selectedCatalogItems.length === 0}
+                disabled={
+                  catalogLoading ||
+                  importing ||
+                  selectedCatalogItems.length === 0
+                }
               >
                 Add selected
-                {selectedCatalogItems.length ? ` (${selectedCatalogItems.length})` : ""}
+                {selectedCatalogItems.length
+                  ? ` (${selectedCatalogItems.length})`
+                  : ""}
               </Button>
             </div>
           </div>
@@ -464,8 +473,8 @@ export default function ExercisesPage() {
                     ? "No exercises found"
                     : "No exercises yet"
                   : search
-                    ? "No active exercises match your search"
-                    : "No active exercises",
+                  ? "No active exercises match your search"
+                  : "No active exercises",
               description:
                 table.visibleRows.length === 0
                   ? search

@@ -10,15 +10,14 @@ import { Apple, Plus, X } from "lucide-react";
 import { FoodDetailsContent } from "@/components/panels/FoodPanel";
 import { getCookie, setCookie } from "@/lib/client-cookies";
 import { toast } from "sonner";
-import {
-  type DataTableColumn,
-} from "@/components/ui/table/DataTable";
+import { type DataTableColumn } from "@/components/ui/table/DataTable";
 import { DataTable } from "@/components/ui/table/DataTable";
 import { EntityPageLayout } from "@/components/ui/entity/EntityPageLayout";
 import { EntityToolbar } from "@/components/ui/entity/EntityToolbar";
 import { EntityTableSection } from "@/components/ui/entity/EntityTableSection";
 import { GenericDetailsPanel } from "@/components/ui/entity/GenericDetailsPanel";
 import { useEntityTableState } from "@/hooks/useEntityTableState";
+import { useCatalogSearch } from "@/hooks/use-catalog-search";
 
 type CatalogRow = {
   fdcId: number;
@@ -63,8 +62,6 @@ export default function FoodsPage() {
     }
     return 10;
   });
-
-
 
   // Persist page size
   React.useEffect(() => {
@@ -112,17 +109,13 @@ export default function FoodsPage() {
         key: "protein",
         header: "Protein",
         sortable: true,
-        renderCell: (food) => (
-          <>{String(food.protein ?? "").trim() || "-"} g</>
-        ),
+        renderCell: (food) => <>{String(food.protein ?? "").trim() || "-"} g</>,
       },
       {
         key: "carbs",
         header: "Carbs",
         sortable: true,
-        renderCell: (food) => (
-          <>{String(food.carbs ?? "").trim() || "-"} g</>
-        ),
+        renderCell: (food) => <>{String(food.carbs ?? "").trim() || "-"} g</>,
       },
       {
         key: "fat",
@@ -154,41 +147,27 @@ export default function FoodsPage() {
   // USDA Food Catalog (bulk add)
   const [catalogOpen, setCatalogOpen] = React.useState(false);
   const [catalogQuery, setCatalogQuery] = React.useState("");
-  const [catalogLoading, setCatalogLoading] = React.useState(false);
-  const [catalogError, setCatalogError] = React.useState<string | null>(null);
-  const [catalogResults, setCatalogResults] = React.useState<CatalogRow[]>([]);
-  const [selectedCatalogIds, setSelectedCatalogIds] = React.useState<Set<number>>(
-    () => new Set()
-  );
+  const {
+    search: triggerCatalogSearch,
+    results: catalogResults,
+    isLoading: catalogLoading,
+    error: catalogError,
+    reset: resetSearch,
+  } = useCatalogSearch<CatalogRow>("food");
+  // Local state for the import operation (separate from search loading)
+  const [importing, setImporting] = React.useState(false);
+  const [selectedCatalogIds, setSelectedCatalogIds] = React.useState<
+    Set<number>
+  >(() => new Set());
 
-  const runCatalogSearch = async () => {
+  const runCatalogSearch = () => {
     const q = String(catalogQuery ?? "").trim();
     if (!q) return;
 
-    setCatalogError(null);
-    setCatalogLoading(true);
-    try {
-      const res = await fetch(
-        `/api/foods/catalog/search?q=${encodeURIComponent(q)}`,
-        {
-          method: "GET",
-          credentials: "include",
-        }
-      );
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(payload?.error || `Request failed (${res.status})`);
-      }
-      const results = Array.isArray(payload?.results) ? payload.results : [];
-      setCatalogResults(results);
-      setSelectedCatalogIds(new Set());
-      // Reset the search box after searching, but keep results visible.
-      setCatalogQuery("");
-    } catch (err: any) {
-      setCatalogError(err?.message || "Failed to search USDA catalog");
-    } finally {
-      setCatalogLoading(false);
-    }
+    triggerCatalogSearch(q);
+    setSelectedCatalogIds(new Set());
+    // Reset the search box after searching, but keep results visible.
+    setCatalogQuery("");
   };
 
   const toggleCatalogId = (id: number, checked: boolean) => {
@@ -202,14 +181,15 @@ export default function FoodsPage() {
 
   const selectedCatalogItems = React.useMemo(() => {
     if (!selectedCatalogIds.size) return [] as CatalogRow[];
-    return catalogResults.filter((r) => selectedCatalogIds.has(Number(r.fdcId)));
+    return catalogResults.filter((r) =>
+      selectedCatalogIds.has(Number(r.fdcId))
+    );
   }, [catalogResults, selectedCatalogIds]);
 
   const addSelectedFromCatalog = async () => {
     if (!selectedCatalogItems.length) return;
 
-    setCatalogError(null);
-    setCatalogLoading(true);
+    setImporting(true);
     try {
       const res = await fetch("/api/foods/catalog/import", {
         method: "POST",
@@ -228,8 +208,8 @@ export default function FoodsPage() {
         inserted
           ? `Added ${inserted} food${inserted === 1 ? "" : "s"}`
           : skipped
-            ? "All selected foods already exist"
-            : "No foods added"
+          ? "All selected foods already exist"
+          : "No foods added"
       );
 
       await queryClient.invalidateQueries({ queryKey: ["foodLibrary"] });
@@ -237,15 +217,17 @@ export default function FoodsPage() {
       setSelectedCatalogIds(new Set());
       // Reset catalog state after importing to start fresh.
       setCatalogQuery("");
-      setCatalogResults([]);
+      resetSearch();
     } catch (err: any) {
-      setCatalogError(err?.message || "Failed to import foods");
+      toast.error(err?.message || "Failed to import foods");
     } finally {
-      setCatalogLoading(false);
+      setImporting(false);
     }
   };
 
-  const catalogColumns = React.useMemo((): Array<DataTableColumn<CatalogRow>> => {
+  const catalogColumns = React.useMemo((): Array<
+    DataTableColumn<CatalogRow>
+  > => {
     return [
       {
         key: "select",
@@ -284,7 +266,9 @@ export default function FoodsPage() {
         renderCell: (r) => (
           <div>
             <div className="font-medium">{String(r.description ?? "-")}</div>
-            <div className="text-xs text-gray-500">FDC ID: {Number(r.fdcId)}</div>
+            <div className="text-xs text-gray-500">
+              FDC ID: {Number(r.fdcId)}
+            </div>
           </div>
         ),
       },
@@ -332,8 +316,7 @@ export default function FoodsPage() {
               const next = !v;
               if (next) {
                 setCatalogQuery("");
-                setCatalogError(null);
-                setCatalogResults([]);
+                resetSearch();
                 setSelectedCatalogIds(new Set());
               }
               return next;
@@ -389,15 +372,27 @@ export default function FoodsPage() {
               />
             </div>
             <div className="flex items-center gap-2">
-              <Button type="button" variant="outline" onClick={runCatalogSearch} disabled={catalogLoading}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={runCatalogSearch}
+                disabled={catalogLoading || importing}
+              >
                 {catalogLoading ? "Searching..." : "Search"}
               </Button>
               <Button
                 type="button"
                 onClick={addSelectedFromCatalog}
-                disabled={catalogLoading || selectedCatalogItems.length === 0}
+                disabled={
+                  catalogLoading ||
+                  importing ||
+                  selectedCatalogItems.length === 0
+                }
               >
-                Add selected{selectedCatalogItems.length ? ` (${selectedCatalogItems.length})` : ""}
+                Add selected
+                {selectedCatalogItems.length
+                  ? ` (${selectedCatalogItems.length})`
+                  : ""}
               </Button>
             </div>
           </div>
@@ -445,8 +440,8 @@ export default function FoodsPage() {
                     ? "No foods found"
                     : "No foods yet"
                   : search
-                    ? "No active foods match your search"
-                    : "No active foods",
+                  ? "No active foods match your search"
+                  : "No active foods",
               description:
                 table.visibleRows.length === 0
                   ? search
@@ -501,4 +496,3 @@ export default function FoodsPage() {
     </EntityPageLayout>
   );
 }
-
