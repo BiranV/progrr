@@ -248,7 +248,7 @@ export default function PricingPage() {
 
                   <div className="mt-4 flex items-end justify-center gap-1 text-gray-900 dark:text-white">
                     <span className="text-4xl font-bold tracking-tight">
-                      {plan.priceMonthly}
+                      ${plan.priceMonthly}
                     </span>
                     <span className="pb-1 text-sm text-gray-500 dark:text-gray-400">
                       /month
