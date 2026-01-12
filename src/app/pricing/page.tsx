@@ -47,6 +47,7 @@ export default function PricingPage() {
       key: "free",
       name: "Free",
       description: "Explore the core workflow.",
+      priceMonthly: 0,
       icon: BookOpen,
       popular: false,
       theme: {
@@ -69,6 +70,7 @@ export default function PricingPage() {
       key: "basic",
       name: "Basic",
       description: "For solo coaches who want faster setup.",
+      priceMonthly: 29,
       icon: Zap,
       popular: false,
       theme: {
@@ -91,6 +93,7 @@ export default function PricingPage() {
       key: "professional",
       name: "Professional",
       description: "For growing coaching businesses.",
+      priceMonthly: 79,
       icon: Sparkles,
       popular: true,
       theme: {
@@ -113,6 +116,7 @@ export default function PricingPage() {
       key: "advanced",
       name: "Advanced",
       description: "For teams who want full control.",
+      priceMonthly: 199,
       icon: Crown,
       popular: false,
       theme: {
@@ -241,6 +245,15 @@ export default function PricingPage() {
                   </div>
                   <CardTitle className="text-2xl mb-2">{plan.name}</CardTitle>
                   <CardDescription>{plan.description}</CardDescription>
+
+                  <div className="mt-4 flex items-end justify-center gap-1 text-gray-900 dark:text-white">
+                    <span className="text-4xl font-bold tracking-tight">
+                      {plan.priceMonthly}
+                    </span>
+                    <span className="pb-1 text-sm text-gray-500 dark:text-gray-400">
+                      /month
+                    </span>
+                  </div>
                 </CardHeader>
 
                 <CardContent className="flex flex-col flex-1">
