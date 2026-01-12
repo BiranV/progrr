@@ -9,7 +9,12 @@ export type UserDoc = {
   phone?: string;
   onboardingCompleted?: boolean;
   onboarding?: {
-    businessType?: string;
+    businessTypes?: string[];
+    currency?: string;
+    customCurrency?: {
+      name?: string;
+      symbol?: string;
+    };
     business?: {
       name?: string;
       phone?: string;
@@ -23,6 +28,7 @@ export type UserDoc = {
     }>;
     availability?: {
       timezone?: string;
+      weekStartsOn?: 0 | 1;
       days?: Array<{
         day: number; // 0-6 (Sun-Sat)
         enabled: boolean;

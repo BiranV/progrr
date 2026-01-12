@@ -4,6 +4,28 @@ import { ObjectId } from "mongodb";
 import { requireAppUser } from "@/server/auth";
 import { collections } from "@/server/collections";
 
+const ALLOWED_BUSINESS_TYPES = new Set([
+    "salon",
+    "barbershop",
+    "fitness",
+    "therapy",
+    "consulting",
+    "other",
+]);
+
+const OTHER_CURRENCY_CODE = "OTHER";
+
+const ALLOWED_CURRENCIES = new Set([
+    "NIS",
+    "USD",
+    "EUR",
+    "GBP",
+    "AUD",
+    "CAD",
+    "CHF",
+    OTHER_CURRENCY_CODE,
+]);
+
 function asString(v: unknown, maxLen = 200): string | undefined {
     const s = String(v ?? "").trim();
     if (!s) return undefined;
@@ -35,9 +57,34 @@ function normalizeService(s: any) {
 
     if (!name) return null;
     if (!durationMinutes || durationMinutes <= 0 || durationMinutes > 24 * 60) return null;
-    if (price !== undefined && (price < 0 || price > 1_000_000)) return null;
+    if (price === undefined) return null;
+    if (price < 0 || price > 1_000_000) return null;
 
     return { id, name, durationMinutes, price };
+}
+
+function firstServiceError(services: any[]): string | null {
+    if (!Array.isArray(services) || services.length === 0) return "Service is required";
+
+    const multi = services.length > 1;
+    for (let i = 0; i < services.length; i++) {
+        const s = services[i];
+        const prefix = multi ? `Service ${i + 1} ` : "Service ";
+
+        const name = asString(s?.name, 80);
+        if (!name) return `${prefix}name is required`;
+
+        const durationMinutes = asNumber(s?.durationMinutes);
+        if (!durationMinutes || durationMinutes <= 0 || durationMinutes > 24 * 60) {
+            return `${prefix}duration is required`;
+        }
+
+        const price = asNumber(s?.price);
+        if (price === undefined) return `${prefix}price is required`;
+        if (price < 0 || price > 1_000_000) return `${prefix}price is invalid`;
+    }
+
+    return null;
 }
 
 export async function GET() {
@@ -68,13 +115,24 @@ export async function PATCH(req: Request) {
         const appUser = await requireAppUser();
         const body = await req.json().catch(() => ({}));
 
-        const businessType = asString(body?.businessType, 60);
+        const currencyRaw = asString((body as any)?.currency, 8);
+        const currency = currencyRaw ? currencyRaw.toUpperCase() : undefined;
+
+        const customCurrencyName = asString((body as any)?.customCurrency?.name, 40);
+        const customCurrencySymbol = asString((body as any)?.customCurrency?.symbol, 10);
+
+        const businessTypesRaw = Array.isArray(body?.businessTypes)
+            ? body.businessTypes
+            : undefined;
+        const legacyBusinessType = asString(body?.businessType, 60);
 
         const businessName = asString(body?.business?.name, 120);
         const businessPhone = asString(body?.business?.phone, 40);
         const businessAddress = asString(body?.business?.address, 200);
 
         const timezone = asString(body?.availability?.timezone, 80);
+        const weekStartsOnRaw = (body as any)?.availability?.weekStartsOn;
+        const weekStartsOn = typeof weekStartsOnRaw === "number" ? weekStartsOnRaw : Number(weekStartsOnRaw);
 
         const servicesIn = Array.isArray(body?.services) ? body.services : undefined;
         const daysIn = Array.isArray(body?.availability?.days)
@@ -82,19 +140,74 @@ export async function PATCH(req: Request) {
             : undefined;
 
         const set: any = {};
+        const unset: any = {};
 
-        if (businessType !== undefined) set["onboarding.businessType"] = businessType;
+        if (currency !== undefined) {
+            if (!ALLOWED_CURRENCIES.has(currency)) {
+                return NextResponse.json({ error: "Invalid currency" }, { status: 400 });
+            }
+
+            if (currency === OTHER_CURRENCY_CODE) {
+                if (!customCurrencyName) {
+                    return NextResponse.json(
+                        { error: "Currency name is required" },
+                        { status: 400 }
+                    );
+                }
+                if (!customCurrencySymbol) {
+                    return NextResponse.json(
+                        { error: "Currency symbol is required" },
+                        { status: 400 }
+                    );
+                }
+                set["onboarding.customCurrency.name"] = customCurrencyName;
+                set["onboarding.customCurrency.symbol"] = customCurrencySymbol;
+            } else {
+                unset["onboarding.customCurrency"] = "";
+            }
+
+            set["onboarding.currency"] = currency;
+        }
+
+        if (businessTypesRaw !== undefined) {
+            const normalized = businessTypesRaw
+                .map((v: any) => asString(v, 60))
+                .filter(Boolean)
+                .map((v: any) => String(v).toLowerCase())
+                .filter((v: string) => ALLOWED_BUSINESS_TYPES.has(v));
+            set["onboarding.businessTypes"] = Array.from(new Set(normalized));
+        } else if (legacyBusinessType !== undefined) {
+            const v = legacyBusinessType.toLowerCase();
+            if (ALLOWED_BUSINESS_TYPES.has(v)) {
+                set["onboarding.businessTypes"] = [v];
+            } else {
+                set["onboarding.businessTypes"] = [];
+            }
+        }
 
         if (businessName !== undefined) set["onboarding.business.name"] = businessName;
         if (businessPhone !== undefined) set["onboarding.business.phone"] = businessPhone;
         if (businessAddress !== undefined) set["onboarding.business.address"] = businessAddress;
 
         if (timezone !== undefined) set["onboarding.availability.timezone"] = timezone;
+        if (weekStartsOn === 0 || weekStartsOn === 1) {
+            set["onboarding.availability.weekStartsOn"] = weekStartsOn;
+        }
 
         if (servicesIn) {
+            const err = firstServiceError(servicesIn);
+            if (err) {
+                return NextResponse.json({ error: err }, { status: 400 });
+            }
             const normalized = servicesIn
                 .map(normalizeService)
                 .filter(Boolean) as Array<any>;
+            if (!normalized.length) {
+                return NextResponse.json(
+                    { error: "Service is required" },
+                    { status: 400 }
+                );
+            }
             set["onboarding.services"] = normalized;
         }
 
@@ -106,9 +219,11 @@ export async function PATCH(req: Request) {
         set["onboarding.updatedAt"] = new Date();
 
         const c = await collections();
+        const update: any = { $set: set, $setOnInsert: { onboardingCompleted: false } };
+        if (Object.keys(unset).length) update.$unset = unset;
         await c.users.updateOne(
             { _id: new ObjectId(appUser.id) },
-            { $set: set, $setOnInsert: { onboardingCompleted: false } },
+            update,
             { upsert: false }
         );
 

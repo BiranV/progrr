@@ -105,7 +105,11 @@ export async function POST(req: Request) {
 
         const token = await signAuthToken({ sub: userId, onboardingCompleted });
 
-        const res = NextResponse.json({ ok: true });
+        const res = NextResponse.json({
+            ok: true,
+            onboardingCompleted,
+            redirectTo: onboardingCompleted ? "/dashboard" : "/onboarding",
+        });
         setAuthCookie(res, token);
         return res;
     } catch (error: any) {

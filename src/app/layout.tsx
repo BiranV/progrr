@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/providers";
-import AppLayout from "@/components/layout/AppLayout";
 import { Toaster } from "@/components/ui/sonner";
 import PWARegister from "@/components/PWARegister";
 
@@ -54,7 +53,7 @@ export default async function RootLayout({
       >
         <Providers>
           <PWARegister />
-          <AppLayout>{children}</AppLayout>
+          {children}
           <Toaster />
         </Providers>
       </body>
