@@ -8,6 +8,8 @@ const CACHE_TTL_MS = 1000 * 60 * 30; // 30 minutes
 
 type CatalogType = "exercise" | "food";
 
+type CatalogSearchError = Error & { code?: string };
+
 export function useCatalogSearch<T>(type: CatalogType) {
   // The query that is actually executed (submitted by user)
   const [activeQuery, setActiveQuery] = useState("");
@@ -34,7 +36,11 @@ export function useCatalogSearch<T>(type: CatalogType) {
 
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(payload?.error || `Request failed (${res.status})`);
+        const err = new Error(
+          payload?.error || `Request failed (${res.status})`
+        ) as CatalogSearchError;
+        err.code = typeof payload?.code === "string" ? payload.code : undefined;
+        throw err;
       }
       return (Array.isArray(payload?.results) ? payload.results : []) as T[];
     },
@@ -56,5 +62,12 @@ export function useCatalogSearch<T>(type: CatalogType) {
     results: query.data || [],
     isLoading: query.isFetching, // use isFetching to show loading on subsequent cached searches if stale
     error: query.error ? (query.error as Error).message : null,
+    errorCode: query.error
+      ? ((query.error as CatalogSearchError).code ?? null)
+      : null,
+    isUpgradeRequired:
+      query.error != null &&
+      ((query.error as CatalogSearchError).code ?? null) ===
+      "PLAN_UPGRADE_REQUIRED",
   };
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ type ExerciseRow = {
 };
 
 export default function ExercisesPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [search, setSearch] = React.useState("");
   const [detailsOpen, setDetailsOpen] = React.useState(false);
@@ -115,6 +117,7 @@ export default function ExercisesPage() {
     results: catalogResults,
     isLoading: catalogLoading,
     error: catalogError,
+    isUpgradeRequired: catalogUpgradeRequired,
     reset: resetSearch,
   } = useCatalogSearch<CatalogRow>("exercise");
   // Local state for the import operation (separate from search loading)
@@ -454,9 +457,23 @@ export default function ExercisesPage() {
           ) : null}
 
           {catalogError ? (
-            <div className="mt-3 text-sm text-red-600 dark:text-red-400">
-              {catalogError}
-            </div>
+            catalogUpgradeRequired ? (
+              <div className="mt-3 flex items-start justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-200">
+                <div className="pr-2">{catalogError}</div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => router.push("/pricing")}
+                >
+                  Upgrade
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-3 text-sm text-red-600 dark:text-red-400">
+                {catalogError}
+              </div>
+            )
           ) : null}
 
           <div className="mt-4 rounded-lg border overflow-hidden">

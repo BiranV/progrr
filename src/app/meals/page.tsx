@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { UtensilsCrossed } from "lucide-react";
 import { db } from "@/lib/db";
@@ -12,6 +13,8 @@ import { EntityToolbar } from "@/components/ui/entity/EntityToolbar";
 import { EntityTableSection } from "@/components/ui/entity/EntityTableSection";
 import { GenericDetailsPanel } from "@/components/ui/entity/GenericDetailsPanel";
 import { useEntityTableState } from "@/hooks/useEntityTableState";
+import { usePlanGuards } from "@/hooks/use-plan-guards";
+import { Button } from "@/components/ui/button";
 
 type MealPlanRow = {
   id: string;
@@ -25,6 +28,7 @@ type MealPlanRow = {
 };
 
 export default function MealsPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   const [search, setSearch] = React.useState("");
@@ -140,12 +144,36 @@ export default function MealsPage() {
     setDetailsOpen(true);
   };
 
+  const { data: planGuards } = usePlanGuards(true);
+  const canCreatePlan = planGuards?.guards?.canCreatePlan?.allowed ?? true;
+  const createPlanReason =
+    planGuards?.guards?.canCreatePlan?.reason ||
+    "You’ve reached the limit for your current plan. Upgrade to continue.";
+
   return (
     <EntityPageLayout
       title="Meal Plans"
       subtitle="Create and manage nutrition programs"
-      primaryAction={{ label: "Add Meal Plan", onClick: handleCreatePlan }}
+      primaryAction={{
+        label: "Add Meal Plan",
+        onClick: handleCreatePlan,
+        disabled: !canCreatePlan,
+      }}
     >
+      {!canCreatePlan ? (
+        <div className="mb-4 flex items-start justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-100">
+          <div className="pr-2">{createPlanReason}</div>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            onClick={() => router.push("/pricing")}
+          >
+            Upgrade
+          </Button>
+        </div>
+      ) : null}
+
       <EntityToolbar
         search={search}
         onSearchChange={setSearch}

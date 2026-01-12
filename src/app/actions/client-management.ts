@@ -11,6 +11,7 @@ import { signClientInviteToken } from "@/server/invite-token";
 import { getDb } from "@/server/mongo";
 import { checkRateLimit } from "@/server/rate-limit";
 import { headers } from "next/headers";
+import { canCreateClient } from "@/server/plan-guards";
 
 export type ClientFormData = Omit<
   Client,
@@ -192,6 +193,17 @@ export async function createClientAction(data: ClientFormData) {
     throw new Error("Only admins can create clients");
   }
 
+  const planGuard = await canCreateClient({
+    id: adminUser.id,
+    plan: (adminUser as any).plan,
+  });
+  if (!planGuard.allowed) {
+    throw new Error(
+      planGuard.reason ||
+      "You’ve reached the limit for your current plan. Upgrade to continue."
+    );
+  }
+
   await ensureIndexes();
   const c = await collections();
 
@@ -201,7 +213,7 @@ export async function createClientAction(data: ClientFormData) {
   const email = normalizeEmail(data.email);
   // Hard rule: clients created by admins always start as PENDING.
   // They become ACTIVE automatically after the client successfully logs in.
-  const status: "PENDING" = "PENDING";
+  const status = "PENDING" as const;
 
   if (!name) throw new Error("Client name is required");
   if (!email) throw new Error("Client email is required");

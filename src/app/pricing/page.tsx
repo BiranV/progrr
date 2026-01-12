@@ -11,7 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Check, Sparkles, Crown, Zap } from "lucide-react";
+import { Check, Sparkles, Crown, Zap, BookOpen } from "lucide-react";
 import { User } from "@/types";
 
 export default function PricingPage() {
@@ -24,7 +24,7 @@ export default function PricingPage() {
       try {
         const currentUser = await db.auth.me();
         setUser(currentUser);
-      } catch (error) {
+      } catch {
         setUser(null);
       } finally {
         setLoading(false);
@@ -35,56 +35,86 @@ export default function PricingPage() {
 
   const plans = [
     {
-      name: "Starter",
-      price: "$29",
-      period: "/month",
-      description: "Perfect for new coaches",
+      key: "free",
+      name: "Free",
+      description: "For trying it out",
       icon: Zap,
-      color: "indigo",
+      popular: false,
+      theme: {
+        card: "border border-gray-200 dark:border-gray-700",
+        badge: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-200",
+        icon: "text-indigo-600 dark:text-indigo-200",
+      },
       features: [
-        "Up to 10 clients",
-        "Basic workout plans",
-        "Email support",
-        "Client messaging",
-        "Mobile app access",
+        "Max clients: 10",
+        "Max plans (workout + meal): 20",
+        "Exercises/Foods external catalog: not included",
+        "Custom video uploads: not included",
+        "Admin logo: not included",
+        "PWA app logo customization: not included",
       ],
     },
     {
+      key: "basic",
+      name: "Basic",
+      description: "For solo coaches",
+      icon: BookOpen,
+      popular: false,
+      theme: {
+        card: "border border-gray-200 dark:border-gray-700",
+        badge: "bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-200",
+        icon: "text-purple-600 dark:text-purple-200",
+      },
+      features: [
+        "Max clients: 20",
+        "Max plans (workout + meal): 50",
+        "Exercises/Foods external catalog: included",
+        "Custom video uploads: not included",
+        "Admin logo: included",
+        "PWA app logo customization: not included",
+      ],
+    },
+    {
+      key: "professional",
       name: "Professional",
-      price: "$79",
-      period: "/month",
       description: "For growing businesses",
       icon: Sparkles,
-      color: "purple",
       popular: true,
+      theme: {
+        card: "border-2 border-indigo-600 shadow-xl lg:scale-105 z-10",
+        badge: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-200",
+        icon: "text-green-600 dark:text-green-200",
+      },
       features: [
-        "Up to 50 clients",
-        "Advanced workout & meal plans",
-        "Priority support",
-        "Video meetings",
-        "Analytics & reports",
-        "Custom branding",
-        "API access",
+        "Max clients: 100",
+        "Max plans (workout + meal): unlimited",
+        "Exercises/Foods external catalog: included",
+        "Custom video uploads: not included",
+        "Admin logo: included",
+        "PWA app logo customization: not included",
       ],
     },
     {
-      name: "Enterprise",
-      price: "$199",
-      period: "/month",
-      description: "For established coaches",
+      key: "advanced",
+      name: "Advanced",
+      description: "For power users",
       icon: Crown,
-      color: "amber",
+      popular: false,
+      theme: {
+        card: "border border-gray-200 dark:border-gray-700",
+        badge: "bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-100",
+        icon: "text-amber-600 dark:text-amber-100",
+      },
       features: [
-        "Unlimited clients",
-        "Everything in Professional",
-        "Dedicated account manager",
-        "White-label solution",
-        "Advanced integrations",
-        "Custom development",
-        "SLA guarantee",
+        "Max clients: unlimited",
+        "Max plans (workout + meal): unlimited",
+        "Exercises/Foods external catalog: included",
+        "Custom video uploads: included",
+        "Admin logo: included",
+        "PWA app logo customization: included",
       ],
     },
-  ];
+  ] as const;
 
   if (loading) {
     return (
@@ -105,23 +135,20 @@ export default function PricingPage() {
             Simple, Transparent Pricing
           </h1>
           <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            Choose the perfect plan for your coaching business. Upgrade or
-            downgrade anytime.
+            Plans differ only by limits and branding/media capabilities.
           </p>
         </div>
 
         {/* Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto mb-16">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto mb-16">
           {plans.map((plan) => {
             const Icon = plan.icon;
+            const isCurrentPlan =
+              user?.role === "admin" && String((user as any)?.plan ?? "") === plan.key;
             return (
               <Card
                 key={plan.name}
-                className={`relative ${
-                  plan.popular
-                    ? "border-2 border-indigo-600 shadow-xl scale-105 z-10"
-                    : "border border-gray-200 dark:border-gray-700"
-                }`}
+                className={`relative ${plan.theme.card} min-w-0`}
               >
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-4 py-1 rounded-full text-sm font-semibold">
@@ -131,20 +158,12 @@ export default function PricingPage() {
 
                 <CardHeader className="text-center pb-8 pt-8">
                   <div
-                    className={`inline-flex p-3 rounded-2xl bg-${plan.color}-100 dark:bg-${plan.color}-900/20 mb-4 mx-auto`}
+                    className={`inline-flex p-3 rounded-2xl mb-4 mx-auto ${plan.theme.badge}`}
                   >
-                    <Icon className={`w-8 h-8 text-${plan.color}-600`} />
+                    <Icon className={`w-8 h-8 ${plan.theme.icon}`} />
                   </div>
                   <CardTitle className="text-2xl mb-2">{plan.name}</CardTitle>
                   <CardDescription>{plan.description}</CardDescription>
-                  <div className="mt-4">
-                    <span className="text-5xl font-bold text-gray-900 dark:text-white">
-                      {plan.price}
-                    </span>
-                    <span className="text-gray-600 dark:text-gray-400">
-                      {plan.period}
-                    </span>
-                  </div>
                 </CardHeader>
 
                 <CardContent>
@@ -160,21 +179,25 @@ export default function PricingPage() {
                   </ul>
 
                   <Button
-                    className={`w-full ${
-                      plan.popular
-                        ? "bg-indigo-600 hover:bg-indigo-700 text-white"
-                        : ""
-                    }`}
+                    className={`w-full ${plan.popular
+                      ? "bg-indigo-600 hover:bg-indigo-700 text-white"
+                      : ""
+                      }`}
                     variant={plan.popular ? "default" : "outline"}
                     onClick={() => {
-                      if (user) {
-                        router.push("/dashboard");
-                      } else {
-                        router.push("/");
-                      }
+                      if (!user) return router.push("/auth");
+                      if (isCurrentPlan) return;
+
+                      // No billing in-app: send users to Settings for upgrade help.
+                      router.push("/settings");
                     }}
+                    disabled={Boolean(user) && isCurrentPlan}
                   >
-                    {user ? "Get Started" : "Sign Up"}
+                    {!user
+                      ? "Sign Up"
+                      : isCurrentPlan
+                        ? "Current plan"
+                        : "Upgrade"}
                   </Button>
                 </CardContent>
               </Card>
@@ -193,13 +216,13 @@ export default function PricingPage() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
-                  "Secure cloud storage",
-                  "Mobile & web access",
-                  "Data encryption",
-                  "Regular backups",
-                  "GDPR compliant",
-                  "99.9% uptime",
-                  "Client portal access",
+                  "Client management",
+                  "Workout & meal planning",
+                  "Messaging",
+                  "Meetings",
+                  "Food & exercise libraries",
+                  "Data export",
+                  "Mobile-friendly web app",
                   "Progress tracking",
                 ].map((feature, index) => (
                   <div key={index} className="flex items-center gap-3">
@@ -212,16 +235,6 @@ export default function PricingPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
-
-        {/* CTA Section */}
-        <div className="text-center mt-16">
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
-            Need a custom plan? Have questions?
-          </p>
-          <Button variant="outline" size="lg">
-            Contact Sales
-          </Button>
         </div>
       </div>
     </div>

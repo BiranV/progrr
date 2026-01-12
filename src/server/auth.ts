@@ -3,32 +3,34 @@ import { readAuthCookie } from "@/server/auth-cookie";
 import { verifyAuthToken } from "@/server/jwt";
 import { collections } from "@/server/collections";
 import { resolveClientAdminContext } from "@/server/client-relations";
+import { type AdminPlan, normalizeAdminPlan } from "@/server/plan-guards";
 
 export type AppUser =
   | {
-      id: string;
-      email: string;
-      full_name: string | null;
-      phone?: string;
-      role: "admin";
-    }
+    id: string;
+    email: string;
+    full_name: string | null;
+    phone?: string;
+    role: "admin";
+    plan: AdminPlan;
+  }
   | {
+    id: string;
+    email: string;
+    full_name: string | null;
+    role: "client";
+    adminId?: string;
+    canSwitchCoach?: boolean;
+    phone?: string;
+    theme: "light" | "dark";
+    status: "PENDING" | "ACTIVE" | "INACTIVE" | "BLOCKED" | "DELETED";
+    admin?: {
       id: string;
       email: string;
       full_name: string | null;
-      role: "client";
-      adminId?: string;
-      canSwitchCoach?: boolean;
       phone?: string;
-      theme: "light" | "dark";
-      status: "PENDING" | "ACTIVE" | "INACTIVE" | "BLOCKED" | "DELETED";
-      admin?: {
-        id: string;
-        email: string;
-        full_name: string | null;
-        phone?: string;
-      };
     };
+  };
 
 export async function requireAppUser(): Promise<AppUser> {
   const token = await readAuthCookie();
@@ -47,16 +49,29 @@ export async function requireAppUser(): Promise<AppUser> {
       throw Object.assign(new Error("Not authenticated"), { status: 401 });
     }
 
+    // Backfill default plan for existing data.
+    const plan = normalizeAdminPlan((admin as any)?.plan);
+    const rawPlan = String((admin as any)?.plan ?? "")
+      .trim()
+      .toLowerCase();
+    if (!rawPlan || rawPlan !== plan) {
+      await c.admins.updateOne(
+        { _id: admin._id },
+        { $set: { plan } }
+      );
+    }
+
     return {
       id: admin._id.toHexString(),
       email: admin.email,
       full_name: admin.fullName ?? null,
       phone:
         typeof (admin as any).phone === "string" &&
-        String((admin as any).phone).trim()
+          String((admin as any).phone).trim()
           ? String((admin as any).phone).trim()
           : undefined,
       role: "admin",
+      plan,
     };
   }
 
@@ -76,7 +91,7 @@ export async function requireAppUser(): Promise<AppUser> {
   if (resolved.needsSelection) {
     const message =
       resolved.reason === "NO_RELATIONS" ||
-      resolved.reason === "NO_ACTIVE_RELATIONS"
+        resolved.reason === "NO_ACTIVE_RELATIONS"
         ? "Your account is not connected to any coach."
         : "Your account no longer has access to this platform. Please contact your coach.";
     throw Object.assign(new Error(message), {
@@ -109,11 +124,11 @@ export async function requireAppUser(): Promise<AppUser> {
   // Attach coach contact details for the active admin.
   let adminContact:
     | {
-        id: string;
-        email: string;
-        full_name: string | null;
-        phone?: string;
-      }
+      id: string;
+      email: string;
+      full_name: string | null;
+      phone?: string;
+    }
     | undefined;
   {
     const admin = await c.admins.findOne({ _id: resolved.activeAdminId });
@@ -124,7 +139,7 @@ export async function requireAppUser(): Promise<AppUser> {
         full_name: admin.fullName ?? null,
         phone:
           typeof (admin as any).phone === "string" &&
-          String((admin as any).phone).trim()
+            String((admin as any).phone).trim()
             ? String((admin as any).phone).trim()
             : undefined,
       };
@@ -158,8 +173,8 @@ export async function requireAppUser(): Promise<AppUser> {
 
     const entityName =
       clientEntity &&
-      typeof (clientEntity as any)?.data?.name === "string" &&
-      String((clientEntity as any).data.name).trim()
+        typeof (clientEntity as any)?.data?.name === "string" &&
+        String((clientEntity as any).data.name).trim()
         ? String((clientEntity as any).data.name).trim()
         : null;
 

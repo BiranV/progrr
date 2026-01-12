@@ -17,6 +17,9 @@ export type AdminDoc = {
   phone?: string;
   role: "admin";
 
+  // Pricing plan: defaults to "free" for new admins.
+  plan?: "free" | "basic" | "professional" | "advanced";
+
   // Optional billing fields (kept for compatibility with existing UI/actions)
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;

@@ -3,6 +3,8 @@
 import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/lib/db";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -42,6 +44,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import Cropper, { type Area } from "react-easy-crop";
+import { usePlanGuards } from "@/hooks/use-plan-guards";
 
 async function runMockDataAction(action: "seed" | "clear") {
   const res = await fetch("/api/admin/mock-data", {
@@ -129,8 +132,20 @@ const getCroppedLogoDataUrl = async (
 };
 
 export default function SettingsPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const { user, refreshUser } = useAuth();
+
+  const { data: planGuards, isLoading: planGuardsLoading } = usePlanGuards(
+    user?.role === "admin"
+  );
+  const adminLogoGuard = planGuards?.guards?.canSetAdminLogo;
+  const canSetAdminLogo = adminLogoGuard?.allowed === true;
+  const adminLogoReason =
+    adminLogoGuard?.reason ||
+    (planGuardsLoading
+      ? "Checking your plan…"
+      : "Admin logo requires the Basic plan.");
   const [uploadMethod, setUploadMethod] = React.useState<"url" | "upload">(
     "upload"
   );
@@ -393,6 +408,42 @@ export default function SettingsPage() {
     },
     onError: (error: any) => {
       toast.error(error?.message || "Failed to save business info");
+    },
+  });
+
+  const devPlanOverrideEnabled =
+    user?.role === "admin" &&
+    (process.env.NODE_ENV === "development" ||
+      process.env.NEXT_PUBLIC_ALLOW_DEV_PLAN_OVERRIDE === "1");
+
+  const devPlanMutation = useMutation({
+    mutationFn: async (
+      plan: "free" | "basic" | "professional" | "advanced"
+    ) => {
+      const res = await fetch("/api/dev/plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ plan }),
+      });
+
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || `Request failed (${res.status})`);
+      }
+
+      return payload as {
+        ok: boolean;
+        plan: "free" | "basic" | "professional" | "advanced";
+      };
+    },
+    onSuccess: async (payload) => {
+      queryClient.invalidateQueries({ queryKey: ["planGuards"] });
+      await refreshUser?.();
+      toast.success(`Plan set to ${payload.plan}`);
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to switch plan");
     },
   });
 
@@ -697,120 +748,188 @@ export default function SettingsPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Logo
+                    Admin logo
                   </label>
 
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    {/* Upload (narrower) */}
-                    <div className="w-full sm:max-w-md">
-                      <div className="flex flex-col gap-1 mb-3">
-                        <div className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                          Source
-                        </div>
-                        <div className="inline-flex w-full rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setUploadMethod("url")}
-                            className={`flex-1 rounded-l-md rounded-r-none px-3 gap-2 ${
-                              uploadMethod === "url"
-                                ? "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-500 dark:bg-indigo-900/20 dark:text-indigo-200"
-                                : ""
-                            }`}
-                          >
-                            <Link2 className="w-4 h-4" />
-                            URL
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setUploadMethod("upload")}
-                            className={`flex-1 rounded-r-md rounded-l-none px-3 gap-2 border-l border-gray-200 dark:border-gray-700 ${
-                              uploadMethod === "upload"
-                                ? "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-500 dark:bg-indigo-900/20 dark:text-indigo-200"
-                                : ""
-                            }`}
-                          >
-                            <Upload className="w-4 h-4" />
-                            Upload
-                          </Button>
-                        </div>
-
-                        <div className="mt-3">
-                          <label className="sr-only">Shape</label>
-                          <Select
-                            value={
-                              formData.logoShape === "circle"
-                                ? "circle"
-                                : "square"
-                            }
-                            onValueChange={(v) =>
-                              setFormData({
-                                ...formData,
-                                logoShape: v === "circle" ? "circle" : "square",
-                              })
-                            }
-                          >
-                            <SelectTrigger className="w-full justify-between">
-                              <SelectValue placeholder="Shape" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="square">Square</SelectItem>
-                              <SelectItem value="circle">Circle</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
+                  {!canSetAdminLogo ? (
+                    <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-100">
+                      <div className="font-medium">Upgrade required</div>
+                      <div className="mt-1">{adminLogoReason}</div>
+                      <div className="mt-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => router.push("/pricing")}
+                        >
+                          Upgrade
+                        </Button>
                       </div>
 
-                      {uploadMethod === "url" ? (
-                        <Input
-                          value={formData.logoUrl}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              logoUrl: e.target.value,
-                            })
-                          }
-                          placeholder="https://example.com/logo.png"
-                        />
-                      ) : (
-                        <div
-                          onDragEnter={handleDrag}
-                          onDragLeave={handleDrag}
-                          onDragOver={handleDrag}
-                          onDrop={handleDrop}
-                          className={`border-2 border-dashed ${
-                            formData.logoShape === "circle"
+                      {formData.logoUrl ? (
+                        <div className="mt-3 flex items-center gap-3">
+                          <div
+                            className={`h-12 w-12 overflow-hidden border border-amber-200 dark:border-amber-900/40 ${formData.logoShape === "circle"
+                              ? "rounded-full"
+                              : "rounded-none"
+                              }`}
+                          >
+                            <img
+                              src={formData.logoUrl}
+                              alt="Logo"
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                          <div className="text-xs text-amber-800 dark:text-amber-100/90">
+                            Current logo is shown (read-only).
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      {/* Upload (narrower) */}
+                      <div className="w-full sm:max-w-md">
+                        <div className="flex flex-col gap-1 mb-3">
+                          <div className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                            Source
+                          </div>
+                          <div className="inline-flex w-full rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setUploadMethod("url")}
+                              className={`flex-1 rounded-l-md rounded-r-none px-3 gap-2 ${uploadMethod === "url"
+                                ? "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-500 dark:bg-indigo-900/20 dark:text-indigo-200"
+                                : ""
+                                }`}
+                            >
+                              <Link2 className="w-4 h-4" />
+                              URL
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setUploadMethod("upload")}
+                              className={`flex-1 rounded-r-md rounded-l-none px-3 gap-2 border-l border-gray-200 dark:border-gray-700 ${uploadMethod === "upload"
+                                ? "bg-indigo-50 text-indigo-700 ring-1 ring-inset ring-indigo-500 dark:bg-indigo-900/20 dark:text-indigo-200"
+                                : ""
+                                }`}
+                            >
+                              <Upload className="w-4 h-4" />
+                              Upload
+                            </Button>
+                          </div>
+
+                          <div className="mt-3">
+                            <label className="sr-only">Shape</label>
+                            <Select
+                              value={
+                                formData.logoShape === "circle"
+                                  ? "circle"
+                                  : "square"
+                              }
+                              onValueChange={(v) =>
+                                setFormData({
+                                  ...formData,
+                                  logoShape:
+                                    v === "circle" ? "circle" : "square",
+                                })
+                              }
+                            >
+                              <SelectTrigger className="w-full justify-between">
+                                <SelectValue placeholder="Shape" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="square">Square</SelectItem>
+                                <SelectItem value="circle">Circle</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        {uploadMethod === "url" ? (
+                          <Input
+                            value={formData.logoUrl}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                logoUrl: e.target.value,
+                              })
+                            }
+                            placeholder="https://example.com/logo.png"
+                          />
+                        ) : (
+                          <div
+                            onDragEnter={handleDrag}
+                            onDragLeave={handleDrag}
+                            onDragOver={handleDrag}
+                            onDrop={handleDrop}
+                            className={`border-2 border-dashed ${formData.logoShape === "circle"
                               ? "rounded-lg"
                               : "rounded-none"
-                          } p-6 text-center transition-colors ${
-                            dragActive
-                              ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20"
-                              : "border-gray-300 dark:border-gray-700"
-                          }`}
-                        >
-                          {uploading ? (
-                            <p className="text-gray-600 dark:text-gray-400">
-                              Loading...
-                            </p>
-                          ) : formData.logoUrl ? (
-                            <div className="space-y-3">
-                              <div
-                                className={`mx-auto h-24 w-24 overflow-hidden ${
-                                  formData.logoShape === "circle"
+                              } p-6 text-center transition-colors ${dragActive
+                                ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20"
+                                : "border-gray-300 dark:border-gray-700"
+                              }`}
+                          >
+                            {uploading ? (
+                              <p className="text-gray-600 dark:text-gray-400">
+                                Loading...
+                              </p>
+                            ) : formData.logoUrl ? (
+                              <div className="space-y-3">
+                                <div
+                                  className={`mx-auto h-24 w-24 overflow-hidden ${formData.logoShape === "circle"
                                     ? "rounded-full"
                                     : "rounded-none"
-                                }`}
-                              >
-                                <img
-                                  src={formData.logoUrl}
-                                  alt="Logo"
-                                  className="h-full w-full object-cover"
-                                />
+                                    }`}
+                                >
+                                  <img
+                                    src={formData.logoUrl}
+                                    alt="Logo"
+                                    className="h-full w-full object-cover"
+                                  />
+                                </div>
+                                <div className="flex justify-center gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      document
+                                        .getElementById("logo-upload")
+                                        ?.click()
+                                    }
+                                  >
+                                    Change Logo
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setFormData({
+                                        ...formData,
+                                        logoUrl: "",
+                                      });
+                                      setLogoLastCropSrc("");
+                                      setLogoLastCroppedAreaPixels(null);
+                                    }}
+                                  >
+                                    Remove
+                                  </Button>
+                                </div>
                               </div>
-                              <div className="flex justify-center gap-2">
+                            ) : (
+                              <div className="space-y-2">
+                                <Upload className="w-10 h-10 mx-auto text-gray-400" />
+                                <p className="text-gray-600 dark:text-gray-400">
+                                  Drag and drop your logo here
+                                </p>
+                                <p className="text-sm text-gray-500">or</p>
                                 <Button
                                   type="button"
                                   variant="outline"
@@ -821,78 +940,51 @@ export default function SettingsPage() {
                                       ?.click()
                                   }
                                 >
-                                  Change Logo
+                                  Browse Files
                                 </Button>
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setFormData({ ...formData, logoUrl: "" });
-                                    setLogoLastCropSrc("");
-                                    setLogoLastCroppedAreaPixels(null);
-                                  }}
-                                >
-                                  Remove
-                                </Button>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 pt-2">
+                                  Max file size: 1MB.
+                                </p>
                               </div>
-                            </div>
-                          ) : (
-                            <div className="space-y-2">
-                              <Upload className="w-10 h-10 mx-auto text-gray-400" />
-                              <p className="text-gray-600 dark:text-gray-400">
-                                Drag and drop your logo here
-                              </p>
-                              <p className="text-sm text-gray-500">or</p>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  document
-                                    .getElementById("logo-upload")
-                                    ?.click()
+                            )}
+                            <input
+                              id="logo-upload"
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                if (e.target.files?.[0]) {
+                                  handleFileUpload(e.target.files[0]);
+                                  e.target.value = "";
                                 }
-                              >
-                                Browse Files
-                              </Button>
-                              <p className="text-xs text-gray-500 dark:text-gray-400 pt-2">
-                                Max file size: 1MB.
-                              </p>
-                            </div>
-                          )}
-                          <input
-                            id="logo-upload"
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              if (e.target.files?.[0]) {
-                                handleFileUpload(e.target.files[0]);
-                                e.target.value = "";
-                              }
-                            }}
-                            className="hidden"
-                          />
-                        </div>
-                      )}
+                              }}
+                              className="hidden"
+                            />
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </CardContent>
             <CardFooter className="justify-end border-t">
               <Button
                 type="button"
-                onClick={() =>
-                  saveBusinessMutation.mutate({
+                onClick={() => {
+                  const payload: Partial<AppSettings> = {
                     businessName: formData.businessName,
                     businessDescription: formData.businessDescription,
                     webAddress: formData.webAddress,
-                    logoUrl: formData.logoUrl,
-                    logoShape:
-                      formData.logoShape === "circle" ? "circle" : "square",
-                  })
-                }
+                  };
+
+                  if (canSetAdminLogo) {
+                    payload.logoUrl = formData.logoUrl;
+                    payload.logoShape =
+                      formData.logoShape === "circle" ? "circle" : "square";
+                  }
+
+                  saveBusinessMutation.mutate(payload);
+                }}
                 disabled={saveBusinessMutation.isPending}
                 className="flex items-center gap-2"
               >
@@ -903,6 +995,51 @@ export default function SettingsPage() {
               </Button>
             </CardFooter>
           </Card>
+
+          {devPlanOverrideEnabled ? (
+            <Card className="dark:bg-gray-800 dark:border-gray-700">
+              <CardHeader>
+                <CardTitle>Dev: Plan Override</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  For testing only. This updates your admin plan in the database
+                  and immediately refreshes UI guards.
+                </p>
+
+                <div className="max-w-sm">
+                  <Select
+                    value={
+                      (planGuards?.plan as any) ||
+                      ((user as any)?.plan as any) ||
+                      "free"
+                    }
+                    onValueChange={(v) => {
+                      const next =
+                        v === "free" ||
+                          v === "basic" ||
+                          v === "professional" ||
+                          v === "advanced"
+                          ? v
+                          : "free";
+                      devPlanMutation.mutate(next);
+                    }}
+                    disabled={devPlanMutation.isPending}
+                  >
+                    <SelectTrigger className="w-full justify-between">
+                      <SelectValue placeholder="Select plan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="free">Free</SelectItem>
+                      <SelectItem value="basic">Basic</SelectItem>
+                      <SelectItem value="professional">Professional</SelectItem>
+                      <SelectItem value="advanced">Advanced</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
 
         {/* Mock Data (hidden) */}
@@ -1077,11 +1214,10 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 <div className="text-sm font-medium">Shape preview</div>
                 <div
-                  className={`h-24 w-24 bg-gray-200 dark:bg-gray-800 overflow-hidden ${
-                    formData.logoShape === "circle"
-                      ? "rounded-full"
-                      : "rounded-none"
-                  }`}
+                  className={`h-24 w-24 bg-gray-200 dark:bg-gray-800 overflow-hidden ${formData.logoShape === "circle"
+                    ? "rounded-full"
+                    : "rounded-none"
+                    }`}
                 >
                   {logoCropSrc ? (
                     <img

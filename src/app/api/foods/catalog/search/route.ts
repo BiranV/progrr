@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { requireAppUser } from "@/server/auth";
+import { canUseExternalCatalogApi } from "@/server/plan-guards";
 import { searchFoods } from "@/services/usdaFoodService";
 
 export const runtime = "nodejs";
@@ -10,6 +11,14 @@ export async function GET(req: Request) {
         const user = await requireAppUser();
         if (user.role !== "admin") {
             return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+        }
+
+        const guard = await canUseExternalCatalogApi({ id: user.id, plan: (user as any).plan });
+        if (!guard.allowed) {
+            return NextResponse.json(
+                { ok: false, error: guard.reason || "Upgrade required", code: "PLAN_UPGRADE_REQUIRED" },
+                { status: 403 }
+            );
         }
 
         const url = new URL(req.url);

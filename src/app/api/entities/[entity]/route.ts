@@ -5,6 +5,11 @@ import { collections } from "@/server/collections";
 import { requireAppUser } from "@/server/auth";
 import { getMessageHub } from "@/server/realtime/messageHub";
 import {
+  canCreateClient,
+  canCreatePlan,
+  canSetAdminLogo,
+} from "@/server/plan-guards";
+import {
   buildMeetingScheduledMessage,
   pickLocaleFromAcceptLanguage,
   shouldNotifyMeetingClient,
@@ -367,6 +372,47 @@ export async function POST(
 
     if (user.role !== "admin") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const adminPlan = (user as any).plan;
+
+    // Plan enforcement (admin-only create actions)
+    if (entity === "Client") {
+      const guard = await canCreateClient({ id: user.id, plan: adminPlan });
+      if (!guard.allowed) {
+        return NextResponse.json(
+          { error: guard.reason || "Forbidden", code: "PLAN_LIMIT_REACHED" },
+          { status: 403 }
+        );
+      }
+    }
+
+    if (entity === "WorkoutPlan" || entity === "MealPlan") {
+      const guard = await canCreatePlan({ id: user.id, plan: adminPlan });
+      if (!guard.allowed) {
+        return NextResponse.json(
+          { error: guard.reason || "Forbidden", code: "PLAN_LIMIT_REACHED" },
+          { status: 403 }
+        );
+      }
+    }
+
+    if (entity === "AppSettings") {
+      const wantsLogoChange =
+        Object.prototype.hasOwnProperty.call(body, "logoUrl") ||
+        Object.prototype.hasOwnProperty.call(body, "logoShape");
+      if (wantsLogoChange) {
+        const guard = await canSetAdminLogo({ id: user.id, plan: adminPlan });
+        if (!guard.allowed) {
+          return NextResponse.json(
+            {
+              error: guard.reason || "Forbidden",
+              code: "PLAN_UPGRADE_REQUIRED",
+            },
+            { status: 403 }
+          );
+        }
+      }
     }
 
     // MealPlan lifecycle: default to ACTIVE if not explicitly set.

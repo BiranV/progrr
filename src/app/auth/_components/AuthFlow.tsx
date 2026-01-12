@@ -2,6 +2,7 @@
 
 import React from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -151,19 +152,19 @@ export default function AuthFlow({
             {step === "choose"
               ? "Welcome to Progrr"
               : step === "admin-login"
-              ? "Admin Access"
-              : step === "client-login"
-              ? "Client Login"
-              : "Accept invitation"}
+                ? "Admin Access"
+                : step === "client-login"
+                  ? "Client Login"
+                  : "Accept invitation"}
           </CardTitle>
           <p className="text-sm text-gray-600 dark:text-gray-300">
             {step === "choose"
               ? "Choose how you’d like to continue"
               : step === "admin-login"
-              ? "Login or create an admin account"
-              : step === "client-login"
-              ? "Invite-only access"
-              : "Set your password to complete your account"}
+                ? "Login or create an admin account"
+                : step === "client-login"
+                  ? "Invite-only access"
+                  : "Set your password to complete your account"}
           </p>
         </CardHeader>
 
@@ -217,6 +218,15 @@ export default function AuthFlow({
             </motion.div>
           </AnimatePresence>
         </CardContent>
+
+        <div className="px-6 pb-6 pt-2 text-xs text-gray-600 dark:text-gray-400 flex items-center justify-center">
+          <Link
+            href="/pricing"
+            className="underline underline-offset-2 hover:text-gray-900 dark:hover:text-gray-200"
+          >
+            View pricing
+          </Link>
+        </div>
       </Card>
     </AuthShell>
   );

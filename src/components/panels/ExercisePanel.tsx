@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,7 @@ import {
 import {
   useGenericDetailsPanel,
 } from "@/components/ui/entity/GenericDetailsPanel";
+import { usePlanGuards } from "@/hooks/use-plan-guards";
 
 type VideoKind = "upload" | "youtube" | null;
 
@@ -52,12 +54,20 @@ export function ExerciseDetailsContent({
   onExerciseUpdate?: () => void;
   createNew?: boolean;
 }) {
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   const panel = useGenericDetailsPanel();
   const open = panel.open;
 
   const panelState = useEntityPanelState();
+
+  const { data: planGuards } = usePlanGuards(true);
+  const canUploadCustomVideo =
+    planGuards?.guards?.canUploadCustomVideo?.allowed ?? true;
+  const customVideoReason =
+    planGuards?.guards?.canUploadCustomVideo?.reason ||
+    "Custom video uploads are available on Advanced. Upgrade to continue.";
 
   const exerciseId = String(exercise?.id ?? "").trim();
 
@@ -370,6 +380,9 @@ export function ExerciseDetailsContent({
 
       const uploadFile = formData.uploadFile as File | null;
       if (uploadFile) {
+        if (!canUploadCustomVideo) {
+          throw new Error(customVideoReason);
+        }
         const r = await uploadVideo(id, uploadFile);
         await db.entities.ExerciseLibrary.update(id, {
           videoKind: "upload",
@@ -984,13 +997,31 @@ export function ExerciseDetailsContent({
                 className="w-full text-gray-900 dark:text-gray-100 file:text-gray-900 dark:file:text-gray-100 file:mr-3 file:rounded-md file:px-3 file:hover:opacity-90"
                 type="file"
                 accept="video/*"
+                disabled={!canUploadCustomVideo}
                 onChange={(e) => {
+                  if (!canUploadCustomVideo) {
+                    toast.error(customVideoReason);
+                    return;
+                  }
                   const input = e.target as HTMLInputElement;
                   const file = input.files?.[0] ?? null;
                   input.value = "";
                   setFormData((prev: any) => ({ ...prev, uploadFile: file }));
                 }}
               />
+              {!canUploadCustomVideo ? (
+                <div className="mt-1 flex items-start justify-between gap-2 text-xs text-amber-700 dark:text-amber-300">
+                  <div className="pr-2">{customVideoReason}</div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => router.push("/pricing")}
+                  >
+                    Upgrade
+                  </Button>
+                </div>
+              ) : null}
             </div>
           </div>
 

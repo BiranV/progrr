@@ -5,6 +5,7 @@ import path from "path";
 import { z } from "zod";
 import { collections } from "@/server/collections";
 import { requireAppUser } from "@/server/auth";
+import { canUploadCustomVideo } from "@/server/plan-guards";
 
 export const runtime = "nodejs";
 
@@ -34,6 +35,17 @@ export async function POST(
     const user = await requireAppUser();
     if (user.role !== "admin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const guard = await canUploadCustomVideo({
+      id: user.id,
+      plan: (user as any).plan,
+    });
+    if (!guard.allowed) {
+      return NextResponse.json(
+        { error: guard.reason || "Forbidden", code: "PLAN_UPGRADE_REQUIRED" },
+        { status: 403 }
+      );
     }
 
     const { id } = await ctx.params;

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { collections } from "@/server/collections";
 import { requireAppUser } from "@/server/auth";
 import { getMessageHub } from "@/server/realtime/messageHub";
+import { canSetAdminLogo } from "@/server/plan-guards";
 import {
   buildMeetingScheduledMessage,
   pickLocaleFromAcceptLanguage,
@@ -11,7 +12,6 @@ import {
 } from "@/server/meeting-notifications";
 
 export const runtime = "nodejs";
-
 const patchBodySchema = z.record(z.string(), z.any());
 
 function parseNumber(value: unknown): number {
@@ -639,6 +639,28 @@ export async function PATCH(
     }
 
     const patch = patchBodySchema.parse(await req.json());
+
+    if (entity === "AppSettings") {
+      const wantsLogoChange =
+        Object.prototype.hasOwnProperty.call(patch, "logoUrl") ||
+        Object.prototype.hasOwnProperty.call(patch, "logoShape");
+
+      if (wantsLogoChange) {
+        const guard = await canSetAdminLogo({
+          id: user.id,
+          plan: (user as any).plan,
+        });
+        if (!guard.allowed) {
+          return NextResponse.json(
+            {
+              error: guard.reason || "Forbidden",
+              code: "PLAN_UPGRADE_REQUIRED",
+            },
+            { status: 403 }
+          );
+        }
+      }
+    }
 
     let meetingScheduledAtChanged = false;
     let nextMeetingScheduledAt: Date | null = null;

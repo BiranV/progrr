@@ -22,12 +22,15 @@ export interface Board {
   [key: string]: any;
 }
 
+export type AdminPlan = "free" | "basic" | "professional" | "advanced";
+
 export interface User {
   id: string;
   email: string;
   full_name: string;
   role: "admin" | "client";
   status?: "ACTIVE" | "PENDING";
+  plan?: AdminPlan;
   [key: string]: any;
 }
 
