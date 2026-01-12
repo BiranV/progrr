@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 import { db } from "@/lib/db";
+import { usePathname, useRouter } from "next/navigation";
 
 interface User {
   id: string;
@@ -15,6 +16,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoadingAuth: boolean;
+  authStatus: "loading" | "guest" | "authenticated";
   logout: (shouldRedirect?: boolean) => void;
   setSessionUser: (user: User | null) => void;
   updateUser: (patch: Partial<User>) => void;
@@ -22,28 +24,46 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-let mePromise: Promise<User | null> | null = null;
+type MeResult = { user: User | null; status?: number };
 
-async function fetchMeOnce(): Promise<User | null> {
-  if (!mePromise) {
-    mePromise = db.auth.me().then((u) => u as User).catch(() => null);
+let meResultPromise: Promise<MeResult> | null = null;
+
+function isPublicPath(pathname: string) {
+  return pathname === "/" || pathname.startsWith("/auth") || pathname.startsWith("/public");
+}
+
+async function fetchMeOnce(): Promise<MeResult> {
+  if (!meResultPromise) {
+    meResultPromise = db.auth
+      .me()
+      .then((u) => ({ user: u as User }))
+      .catch((err: any) => {
+        const status = typeof err?.status === "number" ? err.status : undefined;
+        const message = String(err?.message || "");
+        const inferred = status ?? (message === "Unauthorized" ? 401 : undefined);
+        return { user: null, status: inferred };
+      });
   }
-  return mePromise;
+  return meResultPromise;
 }
 
 function setMeCache(user: User | null) {
-  mePromise = Promise.resolve(user);
+  meResultPromise = Promise.resolve({ user, status: user ? undefined : 401 });
 }
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  const [authStatus, setAuthStatus] = useState<"loading" | "guest" | "authenticated">("loading");
+  const router = useRouter();
+  const pathname = usePathname();
   const isAuthenticated = useMemo(() => Boolean(user), [user]);
 
   const setSessionUser = (nextUser: User | null) => {
     setMeCache(nextUser);
     setUser(nextUser);
     setIsLoadingAuth(false);
+    setAuthStatus(nextUser ? "authenticated" : "guest");
   };
 
   const updateUser = (patch: Partial<User>) => {
@@ -59,16 +79,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     let cancelled = false;
     (async () => {
       setIsLoadingAuth(true);
-      const me = await fetchMeOnce();
+      setAuthStatus("loading");
+      const res = await fetchMeOnce();
       if (cancelled) return;
-      setUser(me);
+
+      if (res.status === 401) {
+        // Explicit guest transition: stop loading, clear auth state, and redirect.
+        setMeCache(null);
+        setUser(null);
+        setIsLoadingAuth(false);
+        setAuthStatus("guest");
+
+        if (!isPublicPath(pathname)) {
+          router.replace("/auth");
+        }
+        return;
+      }
+
+      setUser(res.user);
       setIsLoadingAuth(false);
+      setAuthStatus(res.user ? "authenticated" : "guest");
     })();
 
     return () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (isLoadingAuth) return;
+    if (user) return;
+
+    if (!isPublicPath(pathname)) {
+      router.replace("/auth");
+    }
+  }, [isLoadingAuth, pathname, router, user]);
 
   const logout = (shouldRedirect = true) => {
     setSessionUser(null);
@@ -86,6 +131,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         user,
         isAuthenticated,
         isLoadingAuth,
+        authStatus,
         logout,
         setSessionUser,
         updateUser,
