@@ -58,11 +58,11 @@ import { toast } from "sonner";
 import {
   createClientAction,
   updateClientAction,
-  activateClientAction,
   deactivateClientAction,
   blockClientAction,
   unblockClientAction,
   deleteClientAction,
+  reinviteClientAction,
   resendClientInviteAction,
   restoreClientAction,
   permanentlyDeleteClientAction,
@@ -1051,7 +1051,7 @@ export default function ClientPanel({
                           handleStatusAction(
                             restoreClientAction,
                             "restored",
-                            "ACTIVE",
+                            "PENDING",
                             "restore"
                           )
                         }
@@ -1131,9 +1131,9 @@ export default function ClientPanel({
                     ) : null}
 
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Restoring will attempt to activate this client. If you’ve
-                      reached your active client limit, you’ll need to upgrade
-                      your plan.
+                      Restoring returns this client to PENDING and sends a fresh
+                      invite. They must accept the invite and verify again to
+                      regain access.
                     </p>
                   </div>
                 ) : (
@@ -1161,26 +1161,10 @@ export default function ClientPanel({
                           <span>Upgrade Plan</span>
                         </Button>
 
-                        <Button
-                          variant="outline"
-                          className="col-span-1 sm:col-span-2 justify-start h-auto py-2.5 cursor-pointer"
-                          disabled={statusUpdating !== null}
-                          onClick={() =>
-                            handleStatusAction(
-                              activateClientAction,
-                              "activated",
-                              "ACTIVE",
-                              "activate"
-                            )
-                          }
-                        >
-                          {statusUpdating === "activate" ? (
-                            <Loader2 className="w-4 h-4 mr-2 text-green-600 animate-spin" />
-                          ) : (
-                            <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                          )}
-                          <span>Try Activate</span>
-                        </Button>
+                        <p className="col-span-1 sm:col-span-2 text-xs text-indigo-700 dark:text-indigo-300">
+                          This client becomes ACTIVE only after verification when a slot is available.
+                          If you upgrade or free up an active slot, ask the client to try logging in again.
+                        </p>
                       </>
                     ) : status === "PENDING" ? (
                       <>
@@ -1227,26 +1211,26 @@ export default function ClientPanel({
                       </>
                     ) : (
                       <>
-                        {status !== "ACTIVE" && (
+                        {status !== "ACTIVE" && status !== "PENDING" && (
                           <Button
                             variant="outline"
                             className="justify-start h-auto py-2.5 cursor-pointer"
                             disabled={statusUpdating !== null}
                             onClick={() =>
                               handleStatusAction(
-                                activateClientAction,
-                                "activated",
-                                "ACTIVE",
-                                "activate"
+                                reinviteClientAction,
+                                "invite sent",
+                                "PENDING",
+                                "reinvite"
                               )
                             }
                           >
-                            {statusUpdating === "activate" ? (
-                              <Loader2 className="w-4 h-4 mr-2 text-green-600 animate-spin" />
+                            {statusUpdating === "reinvite" ? (
+                              <Loader2 className="w-4 h-4 mr-2 text-blue-500 animate-spin" />
                             ) : (
-                              <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                              <Send className="w-4 h-4 mr-2 text-blue-500" />
                             )}
-                            <span>Activate Access</span>
+                            <span>Re-invite (Requires Verification)</span>
                           </Button>
                         )}
                         {status === "ACTIVE" && (

@@ -421,7 +421,7 @@ export default function SettingsPage() {
 
   const devPlanMutation = useMutation({
     mutationFn: async (
-      plan: "free" | "basic" | "professional" | "advanced"
+      plan: "starter" | "basic" | "professional" | "advanced"
     ) => {
       const res = await fetch("/api/dev/plan", {
         method: "POST",
@@ -437,7 +437,7 @@ export default function SettingsPage() {
 
       return payload as {
         ok: boolean;
-        plan: "free" | "basic" | "professional" | "advanced";
+        plan: "starter" | "basic" | "professional" | "advanced";
       };
     },
     onSuccess: async (payload) => {
@@ -800,7 +800,7 @@ export default function SettingsPage() {
                             </div>
                             <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
                               {String(formData.logoUrl ?? "").trim()
-                                ? "Current logo (you can remove it on Free)."
+                                ? "Current logo (you can remove it on Starter)."
                                 : "Logo will be removed when saved."}
                             </div>
                           </div>
@@ -814,7 +814,7 @@ export default function SettingsPage() {
                               setLogoLastCropSrc("");
                               setLogoLastCroppedAreaPixels(null);
 
-                              // Persist immediately so downgrade->Free can still clean up.
+                              // Persist immediately so downgrade->Starter can still clean up.
                               if (user?.role === "admin") {
                                 saveBusinessMutation.mutate({
                                   logoUrl: "",
@@ -1062,8 +1062,8 @@ export default function SettingsPage() {
                       <div className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                         {planGuardsLoading
                           ? "Loading…"
-                          : String(planGuards?.planName ?? "Free").trim() ||
-                          "Free"}
+                          : String(planGuards?.planName ?? "Starter").trim() ||
+                          "Starter"}
                       </div>
                     </div>
 
@@ -1086,16 +1086,16 @@ export default function SettingsPage() {
                             value={
                               (planGuards?.plan as any) ||
                               ((user as any)?.plan as any) ||
-                              "free"
+                              "starter"
                             }
                             onValueChange={(v) => {
                               const next =
-                                v === "free" ||
+                                v === "starter" ||
                                   v === "basic" ||
                                   v === "professional" ||
                                   v === "advanced"
                                   ? v
-                                  : "free";
+                                  : "starter";
                               devPlanMutation.mutate(next);
                             }}
                             disabled={devPlanMutation.isPending}
@@ -1104,7 +1104,7 @@ export default function SettingsPage() {
                               <SelectValue placeholder="Select tier" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="free">Free</SelectItem>
+                              <SelectItem value="starter">Starter</SelectItem>
                               <SelectItem value="basic">Basic</SelectItem>
                               <SelectItem value="professional">
                                 Professional

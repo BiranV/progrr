@@ -8,7 +8,9 @@ import {
   canCreateClient,
   canCreatePlan,
   canSetAdminLogo,
+  normalizeAdminPlan,
 } from "@/server/plan-guards";
+import { PLAN_CONFIG } from "@/config/plans";
 import {
   buildMeetingScheduledMessage,
   pickLocaleFromAcceptLanguage,
@@ -374,7 +376,8 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const adminPlan = (user as any).plan;
+    const adminPlan = normalizeAdminPlan((user as any).plan);
+    const adminId = new ObjectId(user.id);
 
     // Plan enforcement (admin-only create actions)
     if (entity === "Client") {
@@ -394,6 +397,47 @@ export async function POST(
           { error: guard.reason || "Forbidden", code: "PLAN_LIMIT_REACHED" },
           { status: 403 }
         );
+      }
+    }
+
+    // Starter global library limits (NOT per plan)
+    if (adminPlan === "starter" && entity === "ExerciseLibrary") {
+      const limit = PLAN_CONFIG.starter.maxExercisesTotal;
+      if (typeof limit === "number" && Number.isFinite(limit)) {
+        const used = await c.entities.countDocuments({
+          entity: "ExerciseLibrary",
+          adminId,
+        });
+        if (used >= limit) {
+          return NextResponse.json(
+            {
+              error:
+                "You’ve reached the exercise limit for the Starter plan. Upgrade your plan to add more exercises.",
+              code: "PLAN_LIMIT_REACHED",
+            },
+            { status: 403 }
+          );
+        }
+      }
+    }
+
+    if (adminPlan === "starter" && entity === "FoodLibrary") {
+      const limit = PLAN_CONFIG.starter.maxFoodsTotal;
+      if (typeof limit === "number" && Number.isFinite(limit)) {
+        const used = await c.entities.countDocuments({
+          entity: "FoodLibrary",
+          adminId,
+        });
+        if (used >= limit) {
+          return NextResponse.json(
+            {
+              error:
+                "You’ve reached the food limit for the Starter plan. Upgrade your plan to add more foods.",
+              code: "PLAN_LIMIT_REACHED",
+            },
+            { status: 403 }
+          );
+        }
       }
     }
 
@@ -441,7 +485,6 @@ export async function POST(
         );
       }
 
-      const adminId = new ObjectId(user.id);
       const clientDoc = await c.entities.findOne({
         _id: new ObjectId(targetClientId),
         entity: "Client",
@@ -464,7 +507,6 @@ export async function POST(
       validateMeetingScheduledAtOrThrow(body);
     }
 
-    const adminId = new ObjectId(user.id);
     const now = new Date();
     const insert = await c.entities.insertOne({
       entity,

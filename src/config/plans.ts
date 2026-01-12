@@ -5,6 +5,10 @@ export type PlanDefinition = {
     maxClients: number;
     maxPlans: number;
 
+    // Starter-only global totals (admin library)
+    maxExercisesTotal?: number;
+    maxFoodsTotal?: number;
+
     // Feature gates
     allowExternalCatalogApi: boolean;
     allowCustomVideoUploads: boolean;
@@ -16,9 +20,11 @@ export type PlanDefinition = {
 };
 
 export const PLAN_CONFIG: Record<AdminPlan, PlanDefinition> = {
-    free: {
-        maxClients: 20,
-        maxPlans: 2,
+    starter: {
+        maxClients: 5,
+        maxPlans: 10,
+        maxExercisesTotal: 20,
+        maxFoodsTotal: 40,
         allowExternalCatalogApi: false,
         allowCustomVideoUploads: false,
         allowAdminLogo: false,
@@ -28,7 +34,7 @@ export const PLAN_CONFIG: Record<AdminPlan, PlanDefinition> = {
     basic: {
         maxClients: 20,
         maxPlans: 50,
-        allowExternalCatalogApi: false,
+        allowExternalCatalogApi: true,
         allowCustomVideoUploads: false,
         allowAdminLogo: true,
         allowPwaBranding: false,
@@ -55,7 +61,7 @@ export const PLAN_CONFIG: Record<AdminPlan, PlanDefinition> = {
 } as const;
 
 export const PLAN_ORDER: readonly AdminPlan[] = [
-    "free",
+    "starter",
     "basic",
     "professional",
     "advanced",
@@ -83,9 +89,9 @@ export function featureAvailableOnPlanOrAboveMessage(args: {
 }
 
 export function activeClientLimitReachedMessage(limit: number): string {
-    return `You’ve reached your active client limit (${limit}). Upgrade your plan to add more clients.`;
+    return `You can have up to ${limit} active clients on your current plan. Upgrade plan to add more clients.`;
 }
 
 export function restoreClientWouldExceedLimitMessage(limit: number): string {
-    return `Restoring this client will exceed your active client limit (${limit}). Please archive another client or upgrade your plan.`;
+    return `Restoring this client would exceed your active client limit (${limit}). Please archive another active client or upgrade plan.`;
 }

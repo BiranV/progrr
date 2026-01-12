@@ -22,7 +22,7 @@ export interface Board {
   [key: string]: any;
 }
 
-export type AdminPlan = "free" | "basic" | "professional" | "advanced";
+export type AdminPlan = "starter" | "basic" | "professional" | "advanced";
 
 export interface User {
   id: string;

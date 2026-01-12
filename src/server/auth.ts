@@ -121,7 +121,7 @@ export async function requireAppUser(): Promise<AppUser> {
     ],
   });
 
-  const status = (entity?.data?.status ?? "ACTIVE") as
+  const status = (entity?.data?.status ?? "PENDING") as
     | "PENDING"
     | "PENDING_LIMIT"
     | "ACTIVE"

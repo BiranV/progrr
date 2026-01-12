@@ -22,7 +22,7 @@ import { GenericDetailsPanel } from "@/components/ui/entity/GenericDetailsPanel"
 import { useEntityTableState } from "@/hooks/useEntityTableState";
 import { useCatalogSearch } from "@/hooks/use-catalog-search";
 import { usePlanGuards } from "@/hooks/use-plan-guards";
-import { AVAILABLE_ON_PROFESSIONAL_AND_ABOVE } from "@/config/plans";
+import { AVAILABLE_ON_BASIC_AND_ABOVE, PLAN_CONFIG } from "@/config/plans";
 
 type CatalogRow = {
   externalId: string;
@@ -86,6 +86,16 @@ export default function ExercisesPage() {
     String(planGuards?.plan ?? "") === "professional" ||
     String(planGuards?.plan ?? "") === "advanced";
 
+  const exerciseLimitMessage =
+    "You’ve reached the exercise limit for the Starter plan. Upgrade your plan to add more exercises.";
+  const isStarterPlan = String(planGuards?.plan ?? "") === "starter";
+  const maxExercisesTotal = PLAN_CONFIG.starter.maxExercisesTotal;
+  const exerciseLimitReached =
+    isStarterPlan &&
+    typeof maxExercisesTotal === "number" &&
+    Number.isFinite(maxExercisesTotal) &&
+    (exercises as any[]).length >= maxExercisesTotal;
+
   const filteredExercises = (exercises as ExerciseRow[]).filter((e) =>
     String(e?.name ?? "")
       .toLowerCase()
@@ -111,6 +121,11 @@ export default function ExercisesPage() {
   };
 
   const handleCreate = () => {
+    if (exerciseLimitReached) {
+      toast.error(exerciseLimitMessage);
+      router.push("/pricing");
+      return;
+    }
     setDetailsExerciseId(null);
     setDetailsOpen(true);
   };
@@ -169,6 +184,11 @@ export default function ExercisesPage() {
 
   const addSelectedFromCatalog = async () => {
     if (!canUseExerciseCatalog) return;
+    if (exerciseLimitReached) {
+      toast.error(exerciseLimitMessage);
+      router.push("/pricing");
+      return;
+    }
     if (!selectedCatalogItems.length) return;
 
     setImporting(true);
@@ -372,7 +392,7 @@ export default function ExercisesPage() {
           type="button"
           variant="outline"
           disabled={!canUseExerciseCatalog}
-          title={!canUseExerciseCatalog ? AVAILABLE_ON_PROFESSIONAL_AND_ABOVE : undefined}
+          title={!canUseExerciseCatalog ? AVAILABLE_ON_BASIC_AND_ABOVE : undefined}
           onClick={() => {
             if (!canUseExerciseCatalog) return;
             setCatalogOpen((v) => {
@@ -401,7 +421,15 @@ export default function ExercisesPage() {
               : "Catalog"}
         </Button>
       }
-      primaryAction={{ label: "Add Exercise", onClick: handleCreate }}
+      primaryAction={{
+        label: "Add Exercise",
+        onClick: handleCreate,
+        disabled: exerciseLimitReached,
+        disabledReason: exerciseLimitReached ? exerciseLimitMessage : undefined,
+        disabledCta: exerciseLimitReached
+          ? { label: "Upgrade plan", href: "/pricing" }
+          : undefined,
+      }}
     >
       <EntityToolbar
         search={search}
@@ -423,7 +451,7 @@ export default function ExercisesPage() {
                 Exercise catalog
               </div>
               <div className="text-xs text-gray-600 dark:text-gray-400">
-                {AVAILABLE_ON_PROFESSIONAL_AND_ABOVE}
+                {AVAILABLE_ON_BASIC_AND_ABOVE}
               </div>
               <Button
                 type="button"
@@ -490,6 +518,7 @@ export default function ExercisesPage() {
                 disabled={
                   catalogLoading ||
                   importing ||
+                  exerciseLimitReached ||
                   selectedCatalogItems.length === 0
                 }
               >

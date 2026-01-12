@@ -20,7 +20,7 @@ import { GenericDetailsPanel } from "@/components/ui/entity/GenericDetailsPanel"
 import { useEntityTableState } from "@/hooks/useEntityTableState";
 import { useCatalogSearch } from "@/hooks/use-catalog-search";
 import { usePlanGuards } from "@/hooks/use-plan-guards";
-import { AVAILABLE_ON_PROFESSIONAL_AND_ABOVE } from "@/config/plans";
+import { AVAILABLE_ON_BASIC_AND_ABOVE, PLAN_CONFIG } from "@/config/plans";
 
 type CatalogRow = {
   fdcId: number;
@@ -85,6 +85,16 @@ export default function FoodsPage() {
   const isAdvancedCatalogTier =
     String(planGuards?.plan ?? "") === "professional" ||
     String(planGuards?.plan ?? "") === "advanced";
+
+  const foodLimitMessage =
+    "You’ve reached the food limit for the Starter plan. Upgrade your plan to add more foods.";
+  const isStarterPlan = String(planGuards?.plan ?? "") === "starter";
+  const maxFoodsTotal = PLAN_CONFIG.starter.maxFoodsTotal;
+  const foodLimitReached =
+    isStarterPlan &&
+    typeof maxFoodsTotal === "number" &&
+    Number.isFinite(maxFoodsTotal) &&
+    (foods as any[]).length >= maxFoodsTotal;
 
   const filteredFoods = (foods as FoodRow[]).filter((f) =>
     String(f?.name ?? "")
@@ -151,6 +161,11 @@ export default function FoodsPage() {
   };
 
   const handleCreateFood = () => {
+    if (foodLimitReached) {
+      toast.error(foodLimitMessage);
+      router.push("/pricing");
+      return;
+    }
     setDetailsFoodId(null);
     setDetailsOpen(true);
   };
@@ -209,6 +224,11 @@ export default function FoodsPage() {
 
   const addSelectedFromCatalog = async () => {
     if (!canUseFoodCatalog) return;
+    if (foodLimitReached) {
+      toast.error(foodLimitMessage);
+      router.push("/pricing");
+      return;
+    }
     if (!selectedCatalogItems.length) return;
 
     setImporting(true);
@@ -340,7 +360,7 @@ export default function FoodsPage() {
           type="button"
           variant="outline"
           disabled={!canUseFoodCatalog}
-          title={!canUseFoodCatalog ? AVAILABLE_ON_PROFESSIONAL_AND_ABOVE : undefined}
+          title={!canUseFoodCatalog ? AVAILABLE_ON_BASIC_AND_ABOVE : undefined}
           onClick={() => {
             if (!canUseFoodCatalog) return;
             setCatalogOpen((v) => {
@@ -369,7 +389,15 @@ export default function FoodsPage() {
               : "Catalog"}
         </Button>
       }
-      primaryAction={{ label: "Add Food", onClick: handleCreateFood }}
+      primaryAction={{
+        label: "Add Food",
+        onClick: handleCreateFood,
+        disabled: foodLimitReached,
+        disabledReason: foodLimitReached ? foodLimitMessage : undefined,
+        disabledCta: foodLimitReached
+          ? { label: "Upgrade plan", href: "/pricing" }
+          : undefined,
+      }}
     >
       <EntityToolbar
         search={search}
@@ -391,7 +419,7 @@ export default function FoodsPage() {
                 Food catalog
               </div>
               <div className="text-xs text-gray-600 dark:text-gray-400">
-                {AVAILABLE_ON_PROFESSIONAL_AND_ABOVE}
+                {AVAILABLE_ON_BASIC_AND_ABOVE}
               </div>
               <Button
                 type="button"
@@ -456,6 +484,7 @@ export default function FoodsPage() {
                 disabled={
                   catalogLoading ||
                   importing ||
+                  foodLimitReached ||
                   selectedCatalogItems.length === 0
                 }
               >

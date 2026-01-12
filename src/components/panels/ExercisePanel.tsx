@@ -68,7 +68,7 @@ export function ExerciseDetailsContent({
 
   const { data: planGuards } = usePlanGuards(true);
   const canUploadCustomVideo =
-    planGuards?.guards?.canUploadCustomVideo?.allowed ?? true;
+    planGuards?.guards?.canUploadCustomVideo?.allowed ?? false;
   const customVideoReason =
     planGuards?.guards?.canUploadCustomVideo?.reason ||
     featureAvailableOnPlanOrAboveMessage({

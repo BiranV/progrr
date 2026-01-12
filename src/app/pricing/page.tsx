@@ -45,8 +45,8 @@ export default function PricingPage() {
 
   const plans = [
     {
-      key: "free",
-      name: "Free",
+      key: "starter",
+      name: "Starter",
       description: "Explore the core workflow.",
       icon: BookOpen,
       popular: false,
@@ -151,14 +151,14 @@ export default function PricingPage() {
 
             const currentTier =
               user?.role === "admin"
-                ? (String((user as any)?.plan ?? "free") as
-                  | "free"
+                ? (String((user as any)?.plan ?? "starter") as
+                  | "starter"
                   | "basic"
                   | "professional"
                   | "advanced")
                 : null;
 
-            const tierOrder = ["free", "basic", "professional", "advanced"] as const;
+            const tierOrder = ["starter", "basic", "professional", "advanced"] as const;
             const currentIndex = currentTier ? tierOrder.indexOf(currentTier) : -1;
             const planIndex = tierOrder.indexOf(plan.key);
             const isUpgrade = currentTier != null && planIndex > currentIndex;

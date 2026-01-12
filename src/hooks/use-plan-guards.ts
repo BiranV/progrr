@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 export type PlanGuard = { allowed: boolean; reason?: string };
 
 export type PlanGuardsResponse = {
-    plan: "free" | "basic" | "professional" | "advanced";
+    plan: "starter" | "basic" | "professional" | "advanced";
     planName: string;
     limits: {
         maxClients: number | "unlimited";

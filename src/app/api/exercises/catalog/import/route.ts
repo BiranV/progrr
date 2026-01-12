@@ -4,7 +4,8 @@ import { z } from "zod";
 
 import { requireAppUser } from "@/server/auth";
 import { collections } from "@/server/collections";
-import { canUseExternalCatalogApi } from "@/server/plan-guards";
+import { canUseExternalCatalogApi, normalizeAdminPlan } from "@/server/plan-guards";
+import { PLAN_CONFIG } from "@/config/plans";
 
 export const runtime = "nodejs";
 
@@ -19,7 +20,28 @@ export async function POST(req: Request) {
             return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
         }
 
-        const guard = await canUseExternalCatalogApi({ id: user.id, plan: (user as any).plan });
+        const adminPlan = normalizeAdminPlan((user as any).plan);
+        if (adminPlan === "starter") {
+            const limit = PLAN_CONFIG.starter.maxExercisesTotal;
+            if (typeof limit === "number" && Number.isFinite(limit)) {
+                const c = await collections();
+                const adminId = new ObjectId(user.id);
+                const used = await c.entities.countDocuments({ entity: "ExerciseLibrary", adminId });
+                if (used >= limit) {
+                    return NextResponse.json(
+                        {
+                            ok: false,
+                            error:
+                                "You’ve reached the exercise limit for the Starter plan. Upgrade your plan to add more exercises.",
+                            code: "PLAN_LIMIT_REACHED",
+                        },
+                        { status: 403 }
+                    );
+                }
+            }
+        }
+
+        const guard = await canUseExternalCatalogApi({ id: user.id, plan: adminPlan });
         if (!guard.allowed) {
             return NextResponse.json(
                 { ok: false, error: guard.reason || "Upgrade required", code: "PLAN_UPGRADE_REQUIRED" },
@@ -94,6 +116,24 @@ export async function POST(req: Request) {
                 inserted: 0,
                 skippedExisting: existingByExternalId.size,
             });
+        }
+
+        if (adminPlan === "starter") {
+            const limit = PLAN_CONFIG.starter.maxExercisesTotal;
+            if (typeof limit === "number" && Number.isFinite(limit)) {
+                const used = await c.entities.countDocuments({ entity: "ExerciseLibrary", adminId });
+                if (used + toInsert.length > limit) {
+                    return NextResponse.json(
+                        {
+                            ok: false,
+                            error:
+                                "You’ve reached the exercise limit for the Starter plan. Upgrade your plan to add more exercises.",
+                            code: "PLAN_LIMIT_REACHED",
+                        },
+                        { status: 403 }
+                    );
+                }
+            }
         }
 
         const result = await c.entities.insertMany(toInsert);

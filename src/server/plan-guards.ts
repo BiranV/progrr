@@ -22,16 +22,16 @@ export function normalizeAdminPlan(value: unknown): AdminPlan {
         .toLowerCase();
 
     // Back-compat: previous plan names.
-    if (v === "starter") return "free";
+    if (v === "free") return "starter";
 
-    if (v === "free" || v === "basic" || v === "professional" || v === "advanced") {
+    if (v === "starter" || v === "basic" || v === "professional" || v === "advanced") {
         return v;
     }
-    return "free";
+    return "starter";
 }
 
 export function planToPublicName(plan: AdminPlan): string {
-    if (plan === "free") return "Free";
+    if (plan === "starter") return "Starter";
     if (plan === "basic") return "Basic";
     if (plan === "professional") return "Professional";
     return "Advanced";
@@ -95,7 +95,7 @@ export async function ensureAdminHasDefaultPlan(args: {
         .trim()
         .toLowerCase();
 
-    if (!admin) return "free";
+    if (!admin) return "starter";
 
     if (current !== normalized) {
         await c.admins.updateOne(
@@ -103,7 +103,7 @@ export async function ensureAdminHasDefaultPlan(args: {
             { $set: { plan: normalized } }
         );
     } else if (!current) {
-        await c.admins.updateOne({ _id: args.adminId }, { $set: { plan: "free" } });
+        await c.admins.updateOne({ _id: args.adminId }, { $set: { plan: "starter" } });
     }
 
     return normalized;
@@ -190,7 +190,7 @@ export async function canUseExternalCatalogApi(admin: {
         allowed: false,
         reason: featureAvailableOnPlanOrAboveMessage({
             feature: "External Exercises/Foods catalog access",
-            requiredPlan: "Professional",
+            requiredPlan: "Basic",
         }),
     };
 }
@@ -242,7 +242,7 @@ export async function canCustomizePwaAppLogo(admin: {
     return {
         allowed: false,
         reason: featureAvailableOnPlanOrAboveMessage({
-            feature: "PWA app logo customization",
+            feature: "App branding for clients",
             requiredPlan: "Advanced",
         }),
     };

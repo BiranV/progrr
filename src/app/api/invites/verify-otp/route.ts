@@ -235,7 +235,7 @@ export async function POST(req: Request) {
       existingRelStatus === "ACTIVE" || entityStatus === "ACTIVE";
 
     const slot = isAlreadyActiveUnderAdmin
-      ? { allowed: true, plan: "free" as const, limit: Infinity }
+      ? { allowed: true, plan: "starter" as const, limit: Infinity }
       : await tryAcquireActiveClientSlot({ adminId });
 
     const now = new Date();

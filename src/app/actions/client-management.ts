@@ -17,7 +17,6 @@ import {
 import { LIMIT_REACHED_REASON } from "@/config/plans";
 import {
   releaseActiveClientSlot,
-  tryAcquireActiveClientSlot,
 } from "@/server/active-client-quota";
 
 export type ClientFormData = Omit<
@@ -580,14 +579,21 @@ export async function updateClientAction(id: string, data: ClientFormData) {
   // - becomes PENDING_LIMIT on successful client login when plan limit is reached
   // - becomes BLOCKED only via the admin access endpoint
   // Admin updates should not be able to change status.
-  const normalizedStatus =
-    normalizeClientStatusAllowBlocked(oldData.status) ?? "ACTIVE";
   const authIdStr = String(oldData.clientAuthId ?? oldData.userId ?? "");
 
   // If the client already has a global auth record, keep it in sync.
   const clientAuthIdStr = ObjectId.isValid(authIdStr)
     ? new ObjectId(authIdStr).toHexString()
     : null;
+
+  // Status is system-controlled:
+  // - starts as PENDING on admin invite
+  // - becomes ACTIVE on successful invite acceptance / OTP verification
+  // Admin updates should not be able to change status.
+  // If legacy data is missing a status, infer it conservatively.
+  const normalizedStatus =
+    normalizeClientStatusAllowBlocked(oldData.status) ??
+    (clientAuthIdStr ? "ACTIVE" : "PENDING");
 
   if (clientAuthIdStr) {
     const authObjectId = new ObjectId(authIdStr);
@@ -717,10 +723,16 @@ async function updateClientStatus(
     .trim()
     .toUpperCase();
 
+  // IMPORTANT: Admin actions must not directly set a client to ACTIVE.
+  // Clients become ACTIVE only after successful invite acceptance / verification.
+  // Exception: unblocking a verified client may restore ACTIVE.
   if (newStatus === "ACTIVE" && oldStatus !== "ACTIVE") {
-    const slot = await tryAcquireActiveClientSlot({ adminId });
-    if (!slot.allowed) {
-      throw new Error(slot.reason || LIMIT_REACHED_REASON);
+    const hasAuthId = ObjectId.isValid(authIdStr);
+    const isUnblockingVerifiedClient = oldStatus === "BLOCKED" && hasAuthId;
+    if (!isUnblockingVerifiedClient) {
+      throw new Error(
+        "Clients can only become ACTIVE after invite acceptance and verification"
+      );
     }
   }
 
@@ -737,9 +749,10 @@ async function updateClientStatus(
     updateData["data.deletedAt"] = now.toISOString();
   } else if (newStatus === "ARCHIVED") {
     updateData["data.archivedAt"] = now.toISOString();
-  } else if (newStatus === "ACTIVE" || newStatus === "PENDING" || newStatus === "PENDING_LIMIT") {
+  } else {
     updateData["data.deletedBy"] = null;
     updateData["data.deletedAt"] = null;
+    updateData["data.archivedAt"] = null;
   }
 
   await c.entities.updateOne({ _id: entityId }, { $set: updateData });
@@ -763,8 +776,10 @@ async function updateClientStatus(
   return { success: true };
 }
 
-export async function activateClientAction(id: string) {
-  return updateClientStatus(id, "ACTIVE");
+export async function activateClientAction(_id: string) {
+  throw new Error(
+    "Admin cannot activate clients directly. Send an invite and the client will become active after verification."
+  );
 }
 
 export async function deactivateClientAction(id: string) {
@@ -802,11 +817,19 @@ export async function restoreClientAction(id: string) {
   });
   if (!existing) throw new Error("Client not found");
 
+  const currentStatus = String((existing.data as any)?.status ?? "")
+    .trim()
+    .toUpperCase();
+  if (currentStatus === "ACTIVE") {
+    throw new Error("Client is already active");
+  }
+
   const email = String((existing.data as any)?.email ?? "").trim();
   if (!email) throw new Error("Client has no email");
 
-  // Restore (quota enforced here). Only ACTIVE clients count toward limits.
-  await updateClientStatus(id, "ACTIVE");
+  // Restore / re-invite behavior: restoring must return the client to PENDING.
+  // They become ACTIVE only after accepting the invite and verifying.
+  await updateClientStatus(id, "PENDING");
 
   // Send a fresh invite immediately when restoring (so the PENDING UI is accurate).
   // Invalidate old pending invites first.
@@ -865,6 +888,100 @@ export async function restoreClientAction(id: string) {
     }
   );
 
+  return { success: true };
+}
+
+export async function reinviteClientAction(id: string) {
+  const adminUser = await requireAppUser();
+  if (adminUser.role !== "admin") throw new Error("Unauthorized");
+
+  await ensureIndexes();
+  const c = await collections();
+
+  if (!ObjectId.isValid(id)) throw new Error("Client not found");
+
+  const adminId = new ObjectId(adminUser.id);
+  const entityId = new ObjectId(id);
+
+  const existing = await c.entities.findOne({
+    _id: entityId,
+    entity: "Client",
+    adminId,
+  });
+  if (!existing) throw new Error("Client not found");
+
+  const currentStatus = String((existing.data as any)?.status ?? "")
+    .trim()
+    .toUpperCase();
+
+  if (currentStatus === "ACTIVE") {
+    throw new Error("Client is already active");
+  }
+
+  const email = String((existing.data as any)?.email ?? "").trim();
+  if (!email) throw new Error("Client has no email");
+
+  // Ensure client returns to PENDING when re-invited.
+  // Idempotent: PENDING stays PENDING.
+  await updateClientStatus(id, "PENDING");
+
+  // Invalidate old pending invites and send a fresh one.
+  await c.invites.updateMany(
+    { email, adminId, status: "PENDING" },
+    { $set: { status: "REVOKED", updatedAt: new Date() } }
+  );
+
+  const now = new Date();
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  const insertResult = await c.invites.insertOne({
+    email,
+    adminId,
+    role: "client",
+    status: "PENDING",
+    expiresAt,
+    createdAt: now,
+    clientEntityId: entityId,
+  } as any);
+
+  const inviteId = insertResult.insertedId;
+  const h = await headers();
+  const appUrl = resolveAppUrlFromEnvOrHeaders(h);
+
+  const inviteToken = await signClientInviteToken({
+    inviteId: inviteId.toHexString(),
+    adminId: adminId.toHexString(),
+    email,
+    expiresAt,
+  });
+
+  const inviteLink = `${appUrl}/invite/${encodeURIComponent(inviteToken)}`;
+
+  const inviteEmail = buildInviteEmail({
+    inviteLink,
+    expiresDays: 7,
+    subject: "You've been invited to Progrr",
+    title: "You’ve been invited",
+  });
+
+  await sendEmail({
+    to: email,
+    subject: inviteEmail.subject,
+    text: inviteEmail.text,
+    html: inviteEmail.html,
+  });
+
+  await c.entities.updateOne(
+    { _id: entityId },
+    {
+      $set: {
+        "data.lastInviteSentAt": now,
+        "data.lastInviteSentBy": adminId,
+      },
+    }
+  );
+
+  revalidatePath("/clients");
   return { success: true };
 }
 

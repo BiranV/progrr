@@ -640,6 +640,8 @@ export async function PATCH(
 
     const patch = patchBodySchema.parse(await req.json());
 
+    // NOTE: No per-workout / per-meal plan item limits here.
+
     if (entity === "AppSettings") {
       const logoUrlPresent = Object.prototype.hasOwnProperty.call(patch, "logoUrl");
       const nextLogoUrl = logoUrlPresent ? String((patch as any).logoUrl ?? "") : "";

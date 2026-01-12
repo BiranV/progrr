@@ -7,7 +7,7 @@ import { PLAN_CONFIG } from "@/config/plans";
 
 export type ActiveClientSlotResult = {
     allowed: boolean;
-    plan: "free" | "basic" | "professional" | "advanced";
+    plan: "starter" | "basic" | "professional" | "advanced";
     limit: number;
     reason?: string;
 };

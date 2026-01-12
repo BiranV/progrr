@@ -99,7 +99,7 @@ export async function POST(req: Request) {
         createdAt: new Date(),
         fullName: fullName || undefined,
         role: "admin",
-        plan: "free",
+        plan: "starter",
       } as any);
       adminId = insert.insertedId.toHexString();
     }
