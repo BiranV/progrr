@@ -26,6 +26,7 @@ import {
   FileDown,
   FileText,
   Loader2,
+  Lock,
   RotateCcw,
   Trash2,
   Video,
@@ -979,7 +980,7 @@ export function ExerciseDetailsContent({
             Video
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-400">
-            Add a YouTube link or upload a file.
+            Add a YouTube link.
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
@@ -992,37 +993,44 @@ export function ExerciseDetailsContent({
               placeholder="YouTube URL (optional)"
               className="sm:col-span-2"
             />
-            <div className="flex items-center sm:justify-end gap-2">
+            {canUploadCustomVideo ? (
               <Input
                 className="w-full text-gray-900 dark:text-gray-100 file:text-gray-900 dark:file:text-gray-100 file:mr-3 file:rounded-md file:px-3 file:hover:opacity-90"
                 type="file"
                 accept="video/*"
-                disabled={!canUploadCustomVideo}
                 onChange={(e) => {
-                  if (!canUploadCustomVideo) {
-                    toast.error(customVideoReason);
-                    return;
-                  }
                   const input = e.target as HTMLInputElement;
                   const file = input.files?.[0] ?? null;
                   input.value = "";
                   setFormData((prev: any) => ({ ...prev, uploadFile: file }));
                 }}
               />
-              {!canUploadCustomVideo ? (
-                <div className="mt-1 flex items-start justify-between gap-2 text-xs text-amber-700 dark:text-amber-300">
-                  <div className="pr-2">{customVideoReason}</div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => router.push("/pricing")}
-                  >
-                    Upgrade to Advanced
-                  </Button>
+            ) : (
+              <div className="w-full rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/30">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-md bg-white shadow-sm ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-700">
+                    <Lock className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                      Upload custom videos
+                    </div>
+                    <div className="text-xs text-gray-600 dark:text-gray-400">
+                      Available on Professional and Advanced plans
+                    </div>
+                  </div>
                 </div>
-              ) : null}
-            </div>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  className="mt-3 w-full"
+                  onClick={() => router.push("/pricing")}
+                >
+                  Upgrade plan
+                </Button>
+              </div>
+            )}
           </div>
 
           {hasPendingVideo ? (

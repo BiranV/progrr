@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Apple, Plus, X } from "lucide-react";
+import { Apple, Lock, Plus, X } from "lucide-react";
 import { FoodDetailsContent } from "@/components/panels/FoodPanel";
 import { getCookie, setCookie } from "@/lib/client-cookies";
 import { toast } from "sonner";
@@ -19,6 +19,7 @@ import { EntityTableSection } from "@/components/ui/entity/EntityTableSection";
 import { GenericDetailsPanel } from "@/components/ui/entity/GenericDetailsPanel";
 import { useEntityTableState } from "@/hooks/useEntityTableState";
 import { useCatalogSearch } from "@/hooks/use-catalog-search";
+import { usePlanGuards } from "@/hooks/use-plan-guards";
 
 type CatalogRow = {
   fdcId: number;
@@ -76,6 +77,10 @@ export default function FoodsPage() {
     queryKey: ["foodLibrary"],
     queryFn: () => db.entities.FoodLibrary.list("-created_date"),
   });
+
+  const { data: planGuards } = usePlanGuards(true);
+  const canUseFoodCatalog =
+    planGuards?.guards?.canUseExternalCatalogApi?.allowed ?? false;
 
   const filteredFoods = (foods as FoodRow[]).filter((f) =>
     String(f?.name ?? "")
@@ -157,7 +162,6 @@ export default function FoodsPage() {
     results: catalogResults,
     isLoading: catalogLoading,
     error: catalogError,
-    isUpgradeRequired: catalogUpgradeRequired,
     reset: resetSearch,
   } = useCatalogSearch<CatalogRow>("food");
   // Local state for the import operation (separate from search loading)
@@ -167,6 +171,7 @@ export default function FoodsPage() {
   >(() => new Set());
 
   const runCatalogSearch = () => {
+    if (!canUseFoodCatalog) return;
     const q = String(catalogQuery ?? "").trim();
     if (!q) return;
 
@@ -199,6 +204,7 @@ export default function FoodsPage() {
   }, [catalogResults, selectedCatalogIds]);
 
   const addSelectedFromCatalog = async () => {
+    if (!canUseFoodCatalog) return;
     if (!selectedCatalogItems.length) return;
 
     setImporting(true);
@@ -315,34 +321,42 @@ export default function FoodsPage() {
       (foods as FoodRow[]).find((f: any) => f.id === detailsFoodId)) ||
     null;
 
+  React.useEffect(() => {
+    if (!canUseFoodCatalog && catalogOpen) {
+      setCatalogOpen(false);
+    }
+  }, [canUseFoodCatalog, catalogOpen]);
+
   return (
     <EntityPageLayout
       title="Foods"
       subtitle="Create reusable foods for meal plans"
       secondaryActions={
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() =>
-            setCatalogOpen((v) => {
-              const next = !v;
-              if (next) {
-                setCatalogQuery("");
-                setCatalogSearchMessage(null);
-                resetSearch();
-                setSelectedCatalogIds(new Set());
-              }
-              return next;
-            })
-          }
-        >
-          {catalogOpen ? (
-            <X className="w-5 h-5 mr-2" />
-          ) : (
-            <Plus className="w-5 h-5 mr-2" />
-          )}
-          {catalogOpen ? "Close Catalog" : "Add from Food Catalog"}
-        </Button>
+        canUseFoodCatalog ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              setCatalogOpen((v) => {
+                const next = !v;
+                if (next) {
+                  setCatalogQuery("");
+                  setCatalogSearchMessage(null);
+                  resetSearch();
+                  setSelectedCatalogIds(new Set());
+                }
+                return next;
+              })
+            }
+          >
+            {catalogOpen ? (
+              <X className="w-5 h-5 mr-2" />
+            ) : (
+              <Plus className="w-5 h-5 mr-2" />
+            )}
+            {catalogOpen ? "Close Catalog" : "Add from Food Catalog"}
+          </Button>
+        ) : null
       }
       primaryAction={{ label: "Add Food", onClick: handleCreateFood }}
     >
@@ -355,7 +369,33 @@ export default function FoodsPage() {
         pageSizeOptions={PAGE_SIZE_OPTIONS}
       />
 
-      {catalogOpen ? (
+      {!canUseFoodCatalog ? (
+        <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/30">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-md bg-white shadow-sm ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-700">
+              <Lock className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                Food catalog
+              </div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">
+                Available on Basic and above
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                className="mt-3"
+                onClick={() => router.push("/pricing")}
+              >
+                Upgrade plan
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {catalogOpen && canUseFoodCatalog ? (
         <div className="mb-6 rounded-lg border bg-white dark:bg-gray-800 p-4">
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="text-sm font-medium">Food Catalog (USDA)</div>
@@ -423,23 +463,9 @@ export default function FoodsPage() {
           ) : null}
 
           {catalogError ? (
-            catalogUpgradeRequired ? (
-              <div className="mt-3 flex items-start justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-900/10 dark:text-amber-200">
-                <div className="pr-2">{catalogError}</div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => router.push("/pricing")}
-                >
-                  Upgrade to Basic
-                </Button>
-              </div>
-            ) : (
-              <div className="mt-3 text-sm text-red-600 dark:text-red-400">
-                {catalogError}
-              </div>
-            )
+            <div className="mt-3 text-sm text-red-600 dark:text-red-400">
+              {catalogError}
+            </div>
           ) : null}
 
           <div className="mt-4 rounded-lg border overflow-hidden">
