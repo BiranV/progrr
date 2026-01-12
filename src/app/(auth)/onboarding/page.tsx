@@ -373,7 +373,7 @@ export default function OnboardingPage() {
                                                 });
                                             }}
                                             className={
-                                                "m-1 text-left rounded-xl border p-4 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/40 " +
+                                                "m-1 text-left rounded-xl border p-4 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 " +
                                                 (selected
                                                     ? "border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/30 shadow-sm"
                                                     : "border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/30 hover:border-indigo-300 dark:hover:border-indigo-700")
