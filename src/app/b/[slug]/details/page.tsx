@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 
 type BookingDraft = {
-    businessSlugOrId: string;
+    businessSlug: string;
     serviceId: string;
     date: string;
     startTime: string;
@@ -21,14 +21,20 @@ type BookingDraft = {
 
 const DRAFT_KEY = "progrr.bookingDraft.v1";
 
-export default function PublicDetailsPage({ params }: { params: { slug: string } }) {
+export default function PublicDetailsPage({
+    params,
+}: {
+    params: Promise<{ slug: string }>;
+}) {
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    const slug = String(params.slug || "").trim();
-    const serviceId = String(searchParams.get("serviceId") || "").trim();
-    const date = String(searchParams.get("date") || "").trim();
-    const time = String(searchParams.get("time") || "").trim();
+    const { slug } = React.use(params);
+    const normalizedSlug = String(slug ?? "").trim();
+
+    const serviceId = String(searchParams.get("serviceId") ?? "").trim();
+    const date = String(searchParams.get("date") ?? "").trim();
+    const time = String(searchParams.get("time") ?? "").trim();
 
     const [fullName, setFullName] = React.useState("");
     const [phone, setPhone] = React.useState("");
@@ -38,19 +44,36 @@ export default function PublicDetailsPage({ params }: { params: { slug: string }
     const [error, setError] = React.useState<string | null>(null);
 
     React.useEffect(() => {
+        if (!normalizedSlug) {
+            router.replace("/");
+            return;
+        }
+
         if (!serviceId) {
-            router.replace(`/b/${encodeURIComponent(slug)}`);
+            router.replace(`/b/${encodeURIComponent(normalizedSlug)}`);
             return;
         }
+
         if (!date) {
-            router.replace(`/b/${encodeURIComponent(slug)}/calendar?serviceId=${encodeURIComponent(serviceId)}`);
+            router.replace(
+                `/b/${encodeURIComponent(
+                    normalizedSlug
+                )}/calendar?serviceId=${encodeURIComponent(serviceId)}`
+            );
             return;
         }
+
         if (!time) {
-            router.replace(`/b/${encodeURIComponent(slug)}/times?serviceId=${encodeURIComponent(serviceId)}&date=${encodeURIComponent(date)}`);
+            router.replace(
+                `/b/${encodeURIComponent(
+                    normalizedSlug
+                )}/times?serviceId=${encodeURIComponent(
+                    serviceId
+                )}&date=${encodeURIComponent(date)}`
+            );
             return;
         }
-    }, [date, router, serviceId, slug, time]);
+    }, [date, router, serviceId, normalizedSlug, time]);
 
     const submit = async () => {
         setSubmitting(true);
@@ -58,7 +81,7 @@ export default function PublicDetailsPage({ params }: { params: { slug: string }
 
         try {
             const draft: BookingDraft = {
-                businessSlugOrId: slug,
+                businessSlug: normalizedSlug,
                 serviceId,
                 date,
                 startTime: time,
@@ -72,16 +95,21 @@ export default function PublicDetailsPage({ params }: { params: { slug: string }
 
             sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
 
-            // Request OTP, then go to verify.
             const res = await fetch("/api/public/booking/request-otp", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ phone: draft.customerPhone }),
             });
-            const json = await res.json().catch(() => null);
-            if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
 
-            router.push(`/b/${encodeURIComponent(slug)}/verify?phone=${encodeURIComponent(draft.customerPhone)}`);
+            const json = await res.json().catch(() => null);
+            if (!res.ok)
+                throw new Error(json?.error || `Request failed (${res.status})`);
+
+            router.push(
+                `/b/${encodeURIComponent(
+                    normalizedSlug
+                )}/verify?phone=${encodeURIComponent(draft.customerPhone)}`
+            );
         } catch (e: any) {
             setError(e?.message || "Failed");
         } finally {
@@ -99,33 +127,58 @@ export default function PublicDetailsPage({ params }: { params: { slug: string }
                             {date} • {time}
                         </div>
                     </CardHeader>
+
                     <CardContent className="space-y-4">
-                        {error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
+                        {error && (
+                            <div className="text-sm text-red-600 dark:text-red-400">
+                                {error}
+                            </div>
+                        )}
 
                         <div className="space-y-2">
                             <Label htmlFor="fullName">Full Name</Label>
-                            <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+                            <Input
+                                id="fullName"
+                                value={fullName}
+                                onChange={(e) => setFullName(e.target.value)}
+                            />
                         </div>
 
                         <div className="space-y-2">
                             <Label htmlFor="phone">Phone</Label>
-                            <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 555 123 4567" />
+                            <Input
+                                id="phone"
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                                placeholder="+1 555 123 4567"
+                            />
                         </div>
 
                         <div className="space-y-2">
                             <Label htmlFor="notes">Notes (optional)</Label>
-                            <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+                            <Textarea
+                                id="notes"
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
+                            />
                         </div>
 
                         <div className="flex gap-2">
                             <Button
                                 variant="outline"
                                 onClick={() =>
-                                    router.replace(`/b/${encodeURIComponent(slug)}/times?serviceId=${encodeURIComponent(serviceId)}&date=${encodeURIComponent(date)}`)
+                                    router.replace(
+                                        `/b/${encodeURIComponent(
+                                            normalizedSlug
+                                        )}/times?serviceId=${encodeURIComponent(
+                                            serviceId
+                                        )}&date=${encodeURIComponent(date)}`
+                                    )
                                 }
                             >
                                 Back
                             </Button>
+
                             <Button onClick={submit} disabled={submitting}>
                                 {submitting ? "Sending code…" : "Verify phone"}
                             </Button>

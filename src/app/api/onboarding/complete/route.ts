@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 
 import { requireAppUser } from "@/server/auth";
 import { collections, ensureIndexes } from "@/server/collections";
+import { ensureBusinessSlugForUser } from "@/server/business-slug";
 import { signAuthToken } from "@/server/jwt";
 import { setAuthCookie } from "@/server/auth-cookie";
 
@@ -96,6 +97,11 @@ export async function POST() {
         if (servicesErr) {
             return NextResponse.json({ error: servicesErr }, { status: 400 });
         }
+
+        await ensureBusinessSlugForUser({
+            userId: new ObjectId(appUser.id),
+            businessName: name,
+        });
 
         await c.users.updateOne(
             { _id: new ObjectId(appUser.id) },

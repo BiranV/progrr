@@ -20,7 +20,7 @@ function normalizeSlug(input: string): string {
 
 export async function GET(
     req: Request,
-    ctx: { params: Promise<{ slugOrId: string }> }
+    ctx: { params: Promise<{ slug: string }> }
 ) {
     try {
         await ensureIndexes();
@@ -42,8 +42,8 @@ export async function GET(
             );
         }
 
-        const { slugOrId } = await ctx.params;
-        const slug = normalizeSlug(String(slugOrId ?? "").trim());
+        let { slug } = await ctx.params;
+        slug = normalizeSlug(String(slug ?? "").trim());
         if (!slug) {
             return NextResponse.json({ error: "Business not found" }, { status: 404 });
         }

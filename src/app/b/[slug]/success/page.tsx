@@ -25,9 +25,15 @@ function googleCalendarUrl(args: {
     return url.toString();
 }
 
-export default function PublicSuccessPage({ params }: { params: { slug: string } }) {
+export default function PublicSuccessPage({
+    params,
+}: {
+    params: Promise<{ slug: string }>;
+}) {
     const router = useRouter();
-    const slug = String(params.slug || "").trim();
+
+    const { slug } = React.use(params);
+    const normalizedSlug = String(slug ?? "").trim();
 
     const [result, setResult] = React.useState<any>(null);
     const [cancelling, setCancelling] = React.useState(false);
@@ -54,8 +60,16 @@ export default function PublicSuccessPage({ params }: { params: { slug: string }
                         <CardTitle>Booking</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <div className="text-sm text-gray-600 dark:text-gray-300">No booking found.</div>
-                        <Button onClick={() => router.replace(`/b/${encodeURIComponent(slug)}`)}>Start over</Button>
+                        <div className="text-sm text-gray-600 dark:text-gray-300">
+                            No booking found.
+                        </div>
+                        <Button
+                            onClick={() =>
+                                router.replace(`/b/${encodeURIComponent(normalizedSlug)}`)
+                            }
+                        >
+                            Start over
+                        </Button>
                     </CardContent>
                 </Card>
             </div>
@@ -76,11 +90,13 @@ export default function PublicSuccessPage({ params }: { params: { slug: string }
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ cancelToken }),
             });
+
             const json = await res.json().catch(() => null);
-            if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
+            if (!res.ok)
+                throw new Error(json?.error || `Request failed (${res.status})`);
 
             sessionStorage.removeItem(RESULT_KEY);
-            router.replace(`/b/${encodeURIComponent(slug)}`);
+            router.replace(`/b/${encodeURIComponent(normalizedSlug)}`);
         } catch (e: any) {
             setError(e?.message || "Failed");
         } finally {
@@ -98,25 +114,51 @@ export default function PublicSuccessPage({ params }: { params: { slug: string }
                             {appt.date} • {appt.startTime}–{appt.endTime}
                         </div>
                     </CardHeader>
+
                     <CardContent className="space-y-4">
-                        {error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
+                        {error && (
+                            <div className="text-sm text-red-600 dark:text-red-400">
+                                {error}
+                            </div>
+                        )}
 
                         <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-                            <div className="font-medium text-gray-900 dark:text-white">{appt.serviceName}</div>
-                            <div className="text-sm text-gray-600 dark:text-gray-300">{appt.customer.fullName}</div>
+                            <div className="font-medium text-gray-900 dark:text-white">
+                                {appt.serviceName}
+                            </div>
+                            <div className="text-sm text-gray-600 dark:text-gray-300">
+                                {appt.customer.fullName}
+                            </div>
                             {appt.notes ? (
-                                <div className="text-sm text-gray-600 dark:text-gray-300 mt-2">{appt.notes}</div>
+                                <div className="text-sm text-gray-600 dark:text-gray-300 mt-2">
+                                    {appt.notes}
+                                </div>
                             ) : null}
                         </div>
 
                         <div className="flex flex-wrap gap-2">
                             <Button
                                 variant="outline"
-                                onClick={() => window.open(googleCalendarUrl({ title: appt.serviceName, date: appt.date, startTime: appt.startTime, endTime: appt.endTime }), "_blank")}
+                                onClick={() =>
+                                    window.open(
+                                        googleCalendarUrl({
+                                            title: appt.serviceName,
+                                            date: appt.date,
+                                            startTime: appt.startTime,
+                                            endTime: appt.endTime,
+                                        }),
+                                        "_blank"
+                                    )
+                                }
                             >
                                 Add to Google Calendar
                             </Button>
-                            <Button variant="outline" onClick={cancel} disabled={cancelling}>
+
+                            <Button
+                                variant="outline"
+                                onClick={cancel}
+                                disabled={cancelling}
+                            >
                                 {cancelling ? "Cancelling…" : "Cancel booking"}
                             </Button>
                         </div>

@@ -10,27 +10,41 @@ import { formatPrice, type PublicBusiness } from "@/lib/public-booking";
 export default function PublicBusinessPage({
     params,
 }: {
-    params: { slug: string };
+    params: Promise<{ slug: string }>;
 }) {
     const router = useRouter();
-    const slug = String(params.slug || "").trim();
+
+    const { slug } = React.use(params);
+    const normalizedSlug = String(slug ?? "").trim();
 
     const [data, setData] = React.useState<PublicBusiness | null>(null);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
 
     React.useEffect(() => {
+        if (!normalizedSlug) {
+            setData(null);
+            setError("Business not found");
+            setLoading(false);
+            return;
+        }
+
         let cancelled = false;
+
         (async () => {
             setLoading(true);
             setError(null);
             try {
-                const res = await fetch(`/api/public/business/${encodeURIComponent(slug)}`);
+                const res = await fetch(
+                    `/api/public/business/${encodeURIComponent(normalizedSlug)}`
+                );
                 const json = await res.json().catch(() => null);
+
                 if (!res.ok) {
                     if (res.status === 404) throw new Error("Business not found");
                     throw new Error(json?.error || `Request failed (${res.status})`);
                 }
+
                 if (cancelled) return;
                 setData(json as PublicBusiness);
             } catch (e: any) {
@@ -44,7 +58,7 @@ export default function PublicBusinessPage({
         return () => {
             cancelled = true;
         };
-    }, [slug]);
+    }, [normalizedSlug]);
 
     if (loading) {
         return (
@@ -83,7 +97,9 @@ export default function PublicBusinessPage({
             <div className="mx-auto w-full max-w-3xl space-y-6">
                 <Card>
                     <CardHeader className="space-y-2">
-                        <CardTitle className="text-2xl">{data.business.name}</CardTitle>
+                        <CardTitle className="text-2xl">
+                            {data.business.name}
+                        </CardTitle>
                         <div className="text-sm text-gray-600 dark:text-gray-300">
                             {data.business.address}
                         </div>
@@ -99,7 +115,11 @@ export default function PublicBusinessPage({
                             <button
                                 key={s.id}
                                 onClick={() =>
-                                    router.push(`/b/${encodeURIComponent(slug)}/calendar?serviceId=${encodeURIComponent(s.id)}`)
+                                    router.push(
+                                        `/b/${encodeURIComponent(
+                                            normalizedSlug
+                                        )}/calendar?serviceId=${encodeURIComponent(s.id)}`
+                                    )
                                 }
                                 className="w-full text-left rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                             >
@@ -113,7 +133,10 @@ export default function PublicBusinessPage({
                                         </div>
                                     </div>
                                     <div className="font-semibold text-gray-900 dark:text-white">
-                                        {formatPrice({ price: s.price, currency: data.currency })}
+                                        {formatPrice({
+                                            price: s.price,
+                                            currency: data.currency,
+                                        })}
                                     </div>
                                 </div>
                             </button>

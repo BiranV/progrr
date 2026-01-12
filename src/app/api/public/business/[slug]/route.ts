@@ -1,38 +1,26 @@
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 import { collections, ensureIndexes } from "@/server/collections";
 
-function normalizeSlug(input: string): string {
-    return String(input ?? "")
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, "-")
-        .replace(/[^a-z0-9-]/g, "")
-        .replace(/-+/g, "-")
-        .replace(/^-|-$/g, "");
-}
-
 export async function GET(
-    _req: Request,
-    ctx: { params: Promise<{ slugOrId: string }> }
+    _req: NextRequest,
+    ctx: { params: Promise<{ slug: string }> }
 ) {
     try {
         await ensureIndexes();
-        const { slugOrId } = await ctx.params;
-        const raw = String(slugOrId ?? "").trim();
-        if (!raw) {
-            return NextResponse.json({ error: "Business not found" }, { status: 404 });
-        }
 
-        const slug = normalizeSlug(raw);
-        if (!slug) {
+        const { slug } = await ctx.params; // כן, await – בשביל הטייפ
+        const normalizedSlug = String(slug ?? "").trim();
+
+        if (!normalizedSlug) {
             return NextResponse.json({ error: "Business not found" }, { status: 404 });
         }
 
         const c = await collections();
 
         const user = await c.users.findOne({
-            "onboarding.business.slug": slug,
+            "onboarding.business.slug": normalizedSlug,
             onboardingCompleted: true,
         } as any);
 
@@ -49,7 +37,7 @@ export async function GET(
         return NextResponse.json({
             ok: true,
             business: {
-                slug,
+                slug: normalizedSlug,
                 name: String(business.name ?? "").trim(),
                 phone: String(business.phone ?? "").trim(),
                 address: String(business.address ?? "").trim(),

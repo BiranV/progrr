@@ -34,7 +34,7 @@ export async function POST(req: Request) {
 
         const body = await req.json().catch(() => ({}));
 
-        const businessSlugOrId = String(body?.businessSlugOrId ?? "").trim();
+        const businessSlug = String(body?.businessSlug ?? "").trim();
         const serviceId = String(body?.serviceId ?? "").trim();
         const date = String(body?.date ?? "").trim();
         const startTime = String(body?.startTime ?? "").trim();
@@ -54,9 +54,9 @@ export async function POST(req: Request) {
 
         const claims = await verifyBookingVerifyToken(bookingSessionId);
 
-        if (!businessSlugOrId) {
+        if (!businessSlug) {
             return NextResponse.json(
-                { error: "businessSlugOrId is required" },
+                { error: "businessSlug is required" },
                 { status: 400 }
             );
         }
@@ -92,7 +92,7 @@ export async function POST(req: Request) {
             );
         }
 
-        const slug = normalizeSlug(businessSlugOrId);
+        const slug = normalizeSlug(businessSlug);
         if (!slug) {
             return NextResponse.json({ error: "Business not found" }, { status: 404 });
         }

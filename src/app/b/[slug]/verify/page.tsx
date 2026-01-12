@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 type BookingDraft = {
-    businessSlugOrId: string;
+    businessSlug: string;
     serviceId: string;
     date: string;
     startTime: string;
@@ -20,12 +20,18 @@ type BookingDraft = {
 const DRAFT_KEY = "progrr.bookingDraft.v1";
 const RESULT_KEY = "progrr.bookingResult.v1";
 
-export default function PublicVerifyPage({ params }: { params: { slug: string } }) {
+export default function PublicVerifyPage({
+    params,
+}: {
+    params: Promise<{ slug: string }>;
+}) {
     const router = useRouter();
     const searchParams = useSearchParams();
 
-    const slug = String(params.slug || "").trim();
-    const phone = String(searchParams.get("phone") || "").trim();
+    const { slug } = React.use(params);
+    const normalizedSlug = String(slug ?? "").trim();
+
+    const phone = String(searchParams.get("phone") ?? "").trim();
 
     const [code, setCode] = React.useState("");
     const [submitting, setSubmitting] = React.useState(false);
@@ -44,14 +50,23 @@ export default function PublicVerifyPage({ params }: { params: { slug: string } 
     React.useEffect(() => {
         const draft = loadDraft();
         if (!draft) {
-            router.replace(`/b/${encodeURIComponent(slug)}`);
+            router.replace(`/b/${encodeURIComponent(normalizedSlug)}`);
             return;
         }
+
         if (!phone) {
-            router.replace(`/b/${encodeURIComponent(slug)}/details?serviceId=${encodeURIComponent(draft.serviceId)}&date=${encodeURIComponent(draft.date)}&time=${encodeURIComponent(draft.startTime)}`);
+            router.replace(
+                `/b/${encodeURIComponent(
+                    normalizedSlug
+                )}/details?serviceId=${encodeURIComponent(
+                    draft.serviceId
+                )}&date=${encodeURIComponent(
+                    draft.date
+                )}&time=${encodeURIComponent(draft.startTime)}`
+            );
             return;
         }
-    }, [phone, router, slug]);
+    }, [phone, router, normalizedSlug]);
 
     const verifyAndConfirm = async () => {
         setSubmitting(true);
@@ -66,10 +81,16 @@ export default function PublicVerifyPage({ params }: { params: { slug: string } 
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ phone, code }),
             });
-            const verifyJson = await verifyRes.json().catch(() => null);
-            if (!verifyRes.ok) throw new Error(verifyJson?.error || `Request failed (${verifyRes.status})`);
 
-            const bookingSessionId = String(verifyJson?.bookingSessionId ?? "").trim();
+            const verifyJson = await verifyRes.json().catch(() => null);
+            if (!verifyRes.ok)
+                throw new Error(
+                    verifyJson?.error || `Request failed (${verifyRes.status})`
+                );
+
+            const bookingSessionId = String(
+                verifyJson?.bookingSessionId ?? ""
+            ).trim();
             if (!bookingSessionId) throw new Error("Verification failed");
 
             const confirmRes = await fetch("/api/public/booking/confirm", {
@@ -77,13 +98,17 @@ export default function PublicVerifyPage({ params }: { params: { slug: string } 
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ ...draft, bookingSessionId }),
             });
+
             const confirmJson = await confirmRes.json().catch(() => null);
-            if (!confirmRes.ok) throw new Error(confirmJson?.error || `Request failed (${confirmRes.status})`);
+            if (!confirmRes.ok)
+                throw new Error(
+                    confirmJson?.error || `Request failed (${confirmRes.status})`
+                );
 
             sessionStorage.setItem(RESULT_KEY, JSON.stringify(confirmJson));
             sessionStorage.removeItem(DRAFT_KEY);
 
-            router.replace(`/b/${encodeURIComponent(slug)}/success`);
+            router.replace(`/b/${encodeURIComponent(normalizedSlug)}/success`);
         } catch (e: any) {
             setError(e?.message || "Failed");
         } finally {
@@ -100,8 +125,10 @@ export default function PublicVerifyPage({ params }: { params: { slug: string } 
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ phone }),
             });
+
             const json = await res.json().catch(() => null);
-            if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
+            if (!res.ok)
+                throw new Error(json?.error || `Request failed (${res.status})`);
         } catch (e: any) {
             setError(e?.message || "Failed");
         } finally {
@@ -115,18 +142,33 @@ export default function PublicVerifyPage({ params }: { params: { slug: string } 
                 <Card>
                     <CardHeader className="space-y-1">
                         <CardTitle>Verify phone</CardTitle>
-                        <div className="text-sm text-gray-600 dark:text-gray-300">We sent a code to {phone}</div>
+                        <div className="text-sm text-gray-600 dark:text-gray-300">
+                            We sent a code to {phone}
+                        </div>
                     </CardHeader>
-                    <CardContent className="space-y-4">
-                        {error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
 
-                        <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Enter 6-digit code" />
+                    <CardContent className="space-y-4">
+                        {error && (
+                            <div className="text-sm text-red-600 dark:text-red-400">
+                                {error}
+                            </div>
+                        )}
+
+                        <Input
+                            value={code}
+                            onChange={(e) => setCode(e.target.value)}
+                            placeholder="Enter 6-digit code"
+                        />
 
                         <div className="flex gap-2">
                             <Button variant="outline" onClick={resend} disabled={submitting}>
                                 Resend
                             </Button>
-                            <Button onClick={verifyAndConfirm} disabled={submitting || code.trim().length < 4}>
+
+                            <Button
+                                onClick={verifyAndConfirm}
+                                disabled={submitting || code.trim().length < 4}
+                            >
                                 {submitting ? "Confirming…" : "Confirm booking"}
                             </Button>
                         </div>
