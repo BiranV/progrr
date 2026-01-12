@@ -22,6 +22,7 @@ import {
   ListChecks,
 } from "lucide-react";
 import { User } from "@/types";
+import { PLAN_CONFIG } from "@/config/plans";
 
 export default function PricingPage() {
   const router = useRouter();
@@ -47,7 +48,6 @@ export default function PricingPage() {
       key: "free",
       name: "Free",
       description: "Explore the core workflow.",
-      priceMonthly: 0,
       icon: BookOpen,
       popular: false,
       theme: {
@@ -55,22 +55,11 @@ export default function PricingPage() {
         badge: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-200",
         icon: "text-indigo-600 dark:text-indigo-200",
       },
-      limits: {
-        clients: 10,
-        plans: 20,
-      },
-      capabilities: {
-        externalCatalog: false,
-        adminLogo: false,
-        customVideo: false,
-        appBranding: false,
-      },
     },
     {
       key: "basic",
       name: "Basic",
       description: "For solo coaches who want faster setup.",
-      priceMonthly: 29,
       icon: Zap,
       popular: false,
       theme: {
@@ -78,22 +67,11 @@ export default function PricingPage() {
         badge: "bg-purple-100 text-purple-700 dark:bg-purple-900/20 dark:text-purple-200",
         icon: "text-purple-600 dark:text-purple-200",
       },
-      limits: {
-        clients: 20,
-        plans: 50,
-      },
-      capabilities: {
-        externalCatalog: false,
-        adminLogo: true,
-        customVideo: false,
-        appBranding: false,
-      },
     },
     {
       key: "professional",
       name: "Professional",
       description: "For growing coaching businesses.",
-      priceMonthly: 79,
       icon: Sparkles,
       popular: true,
       theme: {
@@ -101,38 +79,17 @@ export default function PricingPage() {
         badge: "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-200",
         icon: "text-green-600 dark:text-green-200",
       },
-      limits: {
-        clients: 100,
-        plans: Infinity,
-      },
-      capabilities: {
-        externalCatalog: true,
-        adminLogo: true,
-        customVideo: true,
-        appBranding: false,
-      },
     },
     {
       key: "advanced",
       name: "Advanced",
       description: "For teams who want full control.",
-      priceMonthly: 129,
       icon: Crown,
       popular: false,
       theme: {
         card: "border border-gray-200 dark:border-gray-700",
         badge: "bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-100",
         icon: "text-amber-600 dark:text-amber-100",
-      },
-      limits: {
-        clients: Infinity,
-        plans: Infinity,
-      },
-      capabilities: {
-        externalCatalog: true,
-        adminLogo: true,
-        customVideo: true,
-        appBranding: true,
       },
     },
   ] as const;
@@ -188,6 +145,7 @@ export default function PricingPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto mb-16">
           {plans.map((plan) => {
             const Icon = plan.icon;
+            const config = PLAN_CONFIG[plan.key];
             const isCurrentPlan =
               user?.role === "admin" && String((user as any)?.plan ?? "") === plan.key;
 
@@ -248,7 +206,7 @@ export default function PricingPage() {
 
                   <div className="mt-4 flex items-end justify-center gap-1 text-gray-900 dark:text-white">
                     <span className="text-4xl font-bold tracking-tight">
-                      ${plan.priceMonthly}
+                      ${config.priceMonthly}
                     </span>
                     <span className="pb-1 text-sm text-gray-500 dark:text-gray-400">
                       /month
@@ -261,13 +219,13 @@ export default function PricingPage() {
                     <li className="flex items-start gap-3">
                       <Users className="w-5 h-5 text-gray-500 dark:text-gray-400 flex-shrink-0 mt-0.5" />
                       <span className="text-gray-700 dark:text-gray-300">
-                        {formatLimit(plan.limits.clients, "clients")}
+                        {formatLimit(config.maxClients, "active clients")}
                       </span>
                     </li>
                     <li className="flex items-start gap-3">
                       <ListChecks className="w-5 h-5 text-gray-500 dark:text-gray-400 flex-shrink-0 mt-0.5" />
                       <span className="text-gray-700 dark:text-gray-300">
-                        {formatLimit(plan.limits.plans, "plans")}
+                        {formatLimit(config.maxPlans, "plans")}
                       </span>
                     </li>
                   </ul>
@@ -277,19 +235,19 @@ export default function PricingPage() {
                   <ul className="space-y-3 mb-8">
                     {renderCapability({
                       label: "Exercise & food catalog",
-                      included: plan.capabilities.externalCatalog,
+                      included: config.allowExternalCatalogApi,
                     })}
                     {renderCapability({
                       label: "Coach branding (logo)",
-                      included: plan.capabilities.adminLogo,
+                      included: config.allowAdminLogo,
                     })}
                     {renderCapability({
                       label: "Custom video uploads",
-                      included: plan.capabilities.customVideo,
+                      included: config.allowCustomVideoUploads,
                     })}
                     {renderCapability({
                       label: "Your brand on the client app",
-                      included: plan.capabilities.appBranding,
+                      included: config.allowPwaBranding,
                     })}
                   </ul>
 

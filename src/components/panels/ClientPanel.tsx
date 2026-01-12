@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import { db } from "@/lib/db";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useGenericDetailsPanel } from "@/components/ui/entity/GenericDetailsPanel";
@@ -87,8 +88,14 @@ export default function ClientPanel({
   onClientUpdate,
 }: ClientPanelProps) {
   const panel = useGenericDetailsPanel();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const panelState = useEntityPanelState();
+
+  const [restoreLimitOpen, setRestoreLimitOpen] = React.useState(false);
+  const [restoreLimitMessage, setRestoreLimitMessage] = React.useState<string>(
+    ""
+  );
 
   const { data: stepsRecent } = useQuery({
     queryKey: ["stepsRecent", "admin", String(client?.id ?? "")],
@@ -713,7 +720,16 @@ export default function ClientPanel({
         panel.close();
       }
     } catch (err: any) {
-      toast.error(err.message || "Failed to update status");
+      const message = String(err?.message || "Failed to update status");
+      if (
+        actionKey === "restore" &&
+        message.toLowerCase().includes("active client limit")
+      ) {
+        setRestoreLimitMessage(message);
+        setRestoreLimitOpen(true);
+        return;
+      }
+      toast.error(message);
     } finally {
       setStatusUpdating(null);
     }
@@ -1035,7 +1051,7 @@ export default function ClientPanel({
                           handleStatusAction(
                             restoreClientAction,
                             "restored",
-                            "PENDING",
+                            "ACTIVE",
                             "restore"
                           )
                         }
@@ -1115,12 +1131,58 @@ export default function ClientPanel({
                     ) : null}
 
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Restoring will set status to Pending.
+                      Restoring will attempt to activate this client. If you’ve
+                      reached your active client limit, you’ll need to upgrade
+                      your plan.
                     </p>
                   </div>
                 ) : (
                   <>
-                    {status === "PENDING" ? (
+                    {status === "PENDING_LIMIT" ? (
+                      <>
+                        <div className="col-span-1 sm:col-span-2 p-3 bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/30 rounded-lg flex items-start gap-3">
+                          <ShieldAlert className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+                          <div className="text-sm text-indigo-900 dark:text-indigo-200">
+                            <p className="font-medium">Activation blocked by plan limit</p>
+                            <p className="mt-1 opacity-90">
+                              This client verified their email, but you’ve reached your active client limit.
+                              Upgrade your plan or archive another active client.
+                            </p>
+                          </div>
+                        </div>
+
+                        <Button
+                          type="button"
+                          className="col-span-1 sm:col-span-2 justify-start h-auto py-2.5 cursor-pointer"
+                          disabled={statusUpdating !== null}
+                          onClick={() => router.push("/pricing")}
+                        >
+                          <Users className="w-4 h-4 mr-2" />
+                          <span>Upgrade Plan</span>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          className="col-span-1 sm:col-span-2 justify-start h-auto py-2.5 cursor-pointer"
+                          disabled={statusUpdating !== null}
+                          onClick={() =>
+                            handleStatusAction(
+                              activateClientAction,
+                              "activated",
+                              "ACTIVE",
+                              "activate"
+                            )
+                          }
+                        >
+                          {statusUpdating === "activate" ? (
+                            <Loader2 className="w-4 h-4 mr-2 text-green-600 animate-spin" />
+                          ) : (
+                            <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                          )}
+                          <span>Try Activate</span>
+                        </Button>
+                      </>
+                    ) : status === "PENDING" ? (
                       <>
                         {(() => {
                           const hasInvite = Boolean((client as any)?.lastInviteSentAt);
@@ -1755,6 +1817,17 @@ export default function ClientPanel({
       {panelState.isEditing ? renderEditMode() : renderViewMode()}
 
       <ConfirmModal
+        open={restoreLimitOpen}
+        onOpenChange={setRestoreLimitOpen}
+        title="Upgrade required"
+        description={restoreLimitMessage}
+        confirmText="Upgrade Plan"
+        cancelText="Cancel"
+        confirmVariant="default"
+        onConfirm={() => router.push("/pricing")}
+      />
+
+      <ConfirmModal
         open={removeImageOpen}
         onOpenChange={setRemoveImageOpen}
         title="Remove client image?"
@@ -1786,7 +1859,15 @@ function normalizeStatus(value: unknown) {
   const v = String(value ?? "")
     .trim()
     .toUpperCase();
-  return ["ACTIVE", "PENDING", "INACTIVE", "BLOCKED", "DELETED"].includes(v)
+  return [
+    "ACTIVE",
+    "PENDING",
+    "PENDING_LIMIT",
+    "INACTIVE",
+    "BLOCKED",
+    "ARCHIVED",
+    "DELETED",
+  ].includes(v)
     ? v
     : "PENDING";
 }

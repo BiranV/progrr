@@ -13,6 +13,7 @@ import { EntityTableSection } from "@/components/ui/entity/EntityTableSection";
 import { GenericDetailsPanel } from "@/components/ui/entity/GenericDetailsPanel";
 import { useEntityTableState } from "@/hooks/useEntityTableState";
 import { usePlanGuards } from "@/hooks/use-plan-guards";
+import { LIMIT_REACHED_REASON } from "@/config/plans";
 
 type MealPlanRow = {
   id: string;
@@ -144,8 +145,7 @@ export default function MealsPage() {
   const { data: planGuards } = usePlanGuards(true);
   const canCreatePlan = planGuards?.guards?.canCreatePlan?.allowed ?? true;
   const createPlanReason =
-    planGuards?.guards?.canCreatePlan?.reason ||
-    "You’ve reached the limit for your current subscription. Upgrade to continue.";
+    planGuards?.guards?.canCreatePlan?.reason || LIMIT_REACHED_REASON;
 
   return (
     <EntityPageLayout

@@ -43,6 +43,7 @@ import {
   useGenericDetailsPanel,
 } from "@/components/ui/entity/GenericDetailsPanel";
 import { usePlanGuards } from "@/hooks/use-plan-guards";
+import { featureAvailableOnPlanOrAboveMessage } from "@/config/plans";
 
 type VideoKind = "upload" | "youtube" | null;
 
@@ -70,7 +71,10 @@ export function ExerciseDetailsContent({
     planGuards?.guards?.canUploadCustomVideo?.allowed ?? true;
   const customVideoReason =
     planGuards?.guards?.canUploadCustomVideo?.reason ||
-    "Custom video uploads are available on Professional and above. Upgrade your subscription to continue.";
+    featureAvailableOnPlanOrAboveMessage({
+      feature: "Custom video uploads",
+      requiredPlan: "Professional",
+    });
 
   const exerciseId = String(exercise?.id ?? "").trim();
 

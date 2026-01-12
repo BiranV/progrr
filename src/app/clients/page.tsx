@@ -29,6 +29,7 @@ import { EntityTableSection } from "@/components/ui/entity/EntityTableSection";
 import { GenericDetailsPanel } from "@/components/ui/entity/GenericDetailsPanel";
 import { useEntityTableState } from "@/hooks/useEntityTableState";
 import { usePlanGuards } from "@/hooks/use-plan-guards";
+import { LIMIT_REACHED_REASON } from "@/config/plans";
 
 type ClientEntityRow = Client & {
   __entityStatus: "ACTIVE" | "ARCHIVED";
@@ -121,8 +122,10 @@ export default function ClientsPage() {
       .toUpperCase();
     return v === "ACTIVE" ||
       v === "PENDING" ||
+      v === "PENDING_LIMIT" ||
       v === "INACTIVE" ||
       v === "BLOCKED" ||
+      v === "ARCHIVED" ||
       v === "DELETED"
       ? v
       : "";
@@ -133,9 +136,13 @@ export default function ClientsPage() {
       "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200",
     PENDING:
       "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/25 dark:text-yellow-200",
+    PENDING_LIMIT:
+      "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/25 dark:text-indigo-200",
     INACTIVE:
       "bg-gray-100 text-gray-700 dark:bg-gray-800/60 dark:text-gray-200",
     BLOCKED: "bg-red-100 text-red-800 dark:bg-red-900/25 dark:text-red-200",
+    ARCHIVED:
+      "bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-300 border border-amber-200 dark:border-amber-800",
     DELETED:
       "bg-red-50 text-red-900 dark:bg-red-950/30 dark:text-red-400 border border-red-200 dark:border-red-800",
   };
@@ -159,7 +166,7 @@ export default function ClientsPage() {
   const toEntityStatus = React.useCallback(
     (value: unknown): ClientEntityRow["__entityStatus"] => {
       const s = normalizeStatus(value);
-      if (s === "INACTIVE" || s === "BLOCKED" || s === "DELETED") {
+      if (s === "INACTIVE" || s === "BLOCKED" || s === "DELETED" || s === "ARCHIVED") {
         return "ARCHIVED";
       }
       return "ACTIVE";
@@ -394,8 +401,7 @@ export default function ClientsPage() {
   const { data: planGuards } = usePlanGuards(true);
   const canCreateClient = planGuards?.guards?.canCreateClient?.allowed ?? true;
   const createClientReason =
-    planGuards?.guards?.canCreateClient?.reason ||
-    "You’ve reached the limit for your current subscription. Upgrade to continue.";
+    planGuards?.guards?.canCreateClient?.reason || LIMIT_REACHED_REASON;
 
   return (
     <EntityPageLayout

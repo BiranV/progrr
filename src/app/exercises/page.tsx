@@ -22,6 +22,7 @@ import { GenericDetailsPanel } from "@/components/ui/entity/GenericDetailsPanel"
 import { useEntityTableState } from "@/hooks/useEntityTableState";
 import { useCatalogSearch } from "@/hooks/use-catalog-search";
 import { usePlanGuards } from "@/hooks/use-plan-guards";
+import { AVAILABLE_ON_PROFESSIONAL_AND_ABOVE } from "@/config/plans";
 
 type CatalogRow = {
   externalId: string;
@@ -371,7 +372,7 @@ export default function ExercisesPage() {
           type="button"
           variant="outline"
           disabled={!canUseExerciseCatalog}
-          title={!canUseExerciseCatalog ? "Available on Professional and above" : undefined}
+          title={!canUseExerciseCatalog ? AVAILABLE_ON_PROFESSIONAL_AND_ABOVE : undefined}
           onClick={() => {
             if (!canUseExerciseCatalog) return;
             setCatalogOpen((v) => {
@@ -422,7 +423,7 @@ export default function ExercisesPage() {
                 Exercise catalog
               </div>
               <div className="text-xs text-gray-600 dark:text-gray-400">
-                Available on Professional and above
+                {AVAILABLE_ON_PROFESSIONAL_AND_ABOVE}
               </div>
               <Button
                 type="button"

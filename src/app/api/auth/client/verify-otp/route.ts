@@ -9,6 +9,7 @@ import {
   resolveClientAdminContext,
   setLastActiveAdmin,
 } from "@/server/client-relations";
+import { tryAcquireActiveClientSlot } from "@/server/active-client-quota";
 
 export async function POST(req: Request) {
   try {
@@ -119,8 +120,8 @@ export async function POST(req: Request) {
     const res = NextResponse.json({ ok: true });
     setAuthCookie(res, token);
 
-    // If invited (PENDING) or INACTIVE, promote to ACTIVE only after a successful email OTP.
-    // Do NOT reactivate BLOCKED or DELETED clients via invite/login.
+    // Promote only when quota allows.
+    // Do NOT reactivate BLOCKED/DELETED/ARCHIVED/INACTIVE via login.
     const now = new Date();
     const escaped = email.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -136,26 +137,31 @@ export async function POST(req: Request) {
     });
 
     if (clientEntity) {
-      const currentStatus = (clientEntity.data as any).status || "PENDING";
-      // Only activate if PENDING (first login).
-      // Do NOT auto-activate INACTIVE (manually deactivated by admin).
-      const shouldActivate = currentStatus === "PENDING";
+      const currentStatus = String((clientEntity.data as any).status || "PENDING")
+        .trim()
+        .toUpperCase();
 
-      if (shouldActivate) {
+      const isEligible = currentStatus === "PENDING" || currentStatus === "PENDING_LIMIT";
+      if (isEligible) {
+        const slot = await tryAcquireActiveClientSlot({
+          adminId: resolved.activeAdminId,
+        });
+
+        const nextStatus = slot.allowed ? "ACTIVE" : "PENDING_LIMIT";
+
         await c.entities.updateOne(
           { _id: clientEntity._id },
           {
             $set: {
-              "data.status": "ACTIVE",
+              "data.status": nextStatus,
               updatedAt: now,
             },
           }
         );
 
-        // Also sync relation status
         await c.clientAdminRelations.updateOne(
           { userId: client._id, adminId: resolved.activeAdminId },
-          { $set: { status: "ACTIVE", updatedAt: now } }
+          { $set: { status: nextStatus, updatedAt: now } }
         );
       }
     }

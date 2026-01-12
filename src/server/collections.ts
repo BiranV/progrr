@@ -30,6 +30,9 @@ export type AdminDoc = {
   | "CANCELED"
   | "UNPAID";
   subscriptionEndDate?: Date;
+
+  // Cached counter used for atomic ACTIVE client quota enforcement.
+  activeClientCount?: number;
 };
 
 export type ClientDoc = {
@@ -67,6 +70,7 @@ export type ClientAdminRelationStatus =
   | "BLOCKED"
   | "INACTIVE"
   | "PENDING"
+  | "PENDING_LIMIT"
   | "DELETED";
 
 export type InviteStatus = "PENDING" | "ACCEPTED" | "REVOKED";

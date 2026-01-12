@@ -23,7 +23,14 @@ export type AppUser =
     canSwitchCoach?: boolean;
     phone?: string;
     theme: "light" | "dark";
-    status: "PENDING" | "ACTIVE" | "INACTIVE" | "BLOCKED" | "DELETED";
+    status:
+    | "PENDING"
+    | "PENDING_LIMIT"
+    | "ACTIVE"
+    | "INACTIVE"
+    | "BLOCKED"
+    | "ARCHIVED"
+    | "DELETED";
     admin?: {
       id: string;
       email: string;
@@ -116,9 +123,11 @@ export async function requireAppUser(): Promise<AppUser> {
 
   const status = (entity?.data?.status ?? "ACTIVE") as
     | "PENDING"
+    | "PENDING_LIMIT"
     | "ACTIVE"
     | "INACTIVE"
     | "BLOCKED"
+    | "ARCHIVED"
     | "DELETED";
 
   // Attach coach contact details for the active admin.

@@ -7,19 +7,19 @@ import type {
 
 export type ResolvedClientAdminContext =
   | {
-      needsSelection: true;
-      activeAdminId: null;
-      activeRelation: null;
-      activeRelations: ClientAdminRelationDoc[];
-      reason: "NO_RELATIONS" | "NO_ACTIVE_RELATIONS" | "LAST_ACTIVE_INVALID";
-    }
+    needsSelection: true;
+    activeAdminId: null;
+    activeRelation: null;
+    activeRelations: ClientAdminRelationDoc[];
+    reason: "NO_RELATIONS" | "NO_ACTIVE_RELATIONS" | "LAST_ACTIVE_INVALID";
+  }
   | {
-      needsSelection: false;
-      activeAdminId: ObjectId;
-      activeRelation: ClientAdminRelationDoc;
-      activeRelations: ClientAdminRelationDoc[];
-      reason: "SINGLE_RELATION" | "LAST_ACTIVE";
-    };
+    needsSelection: false;
+    activeAdminId: ObjectId;
+    activeRelation: ClientAdminRelationDoc;
+    activeRelations: ClientAdminRelationDoc[];
+    reason: "SINGLE_RELATION" | "LAST_ACTIVE";
+  };
 
 function isRelationBlocked(rel: ClientAdminRelationDoc, now = new Date()) {
   const status = String((rel as any)?.status ?? "ACTIVE")
@@ -42,6 +42,7 @@ function isRelationEffectivelyActive(
     .toUpperCase();
 
   if (status === "ACTIVE") return true;
+  if (status === "PENDING" || status === "PENDING_LIMIT") return true;
   // Treat expired blocks as active (status cleanup can happen elsewhere).
   if (status === "BLOCKED" && !isRelationBlocked(rel, now)) return true;
   return false;

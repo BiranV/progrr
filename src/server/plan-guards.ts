@@ -1,67 +1,20 @@
 import { ObjectId } from "mongodb";
 import { collections } from "@/server/collections";
-
-export type AdminPlan = "free" | "basic" | "professional" | "advanced";
+import {
+    activeClientLimitReachedMessage,
+    featureAvailableOnPlanOrAboveMessage,
+    LIMIT_REACHED_REASON,
+    PLAN_CONFIG,
+    restoreClientWouldExceedLimitMessage,
+} from "@/config/plans";
+import type { AdminPlan } from "@/types";
 
 export type GuardResult = {
     allowed: boolean;
     reason?: string;
 };
 
-type PlanDefinition = {
-    maxClients: number;
-    maxPlans: number;
-    allowExternalCatalogApi: boolean;
-    allowCustomVideoUploads: boolean;
-    allowAdminLogo: boolean;
-    allowPwaBranding: boolean;
-};
-
-export const PLAN_DEFINITIONS: Record<AdminPlan, PlanDefinition> = {
-    free: {
-        maxClients: 1,
-        maxPlans: 2,
-        allowExternalCatalogApi: false,
-        allowCustomVideoUploads: false,
-        allowAdminLogo: false,
-        allowPwaBranding: false,
-    },
-    basic: {
-        maxClients: 20,
-        maxPlans: 50,
-        allowExternalCatalogApi: false,
-        allowCustomVideoUploads: false,
-        allowAdminLogo: true,
-        allowPwaBranding: false,
-    },
-    professional: {
-        maxClients: 100,
-        maxPlans: Infinity,
-        allowExternalCatalogApi: true,
-        allowCustomVideoUploads: true,
-        allowAdminLogo: true,
-        allowPwaBranding: false,
-    },
-    advanced: {
-        maxClients: Infinity,
-        maxPlans: Infinity,
-        allowExternalCatalogApi: true,
-        allowCustomVideoUploads: true,
-        allowAdminLogo: true,
-        allowPwaBranding: true,
-    },
-};
-
-// Single source of truth for numeric limits, as requested.
-export const planLimits = {
-    free: { clients: 1, plans: 2 },
-    basic: { clients: 20, plans: 50 },
-    professional: { clients: 100, plans: Infinity },
-    advanced: { clients: Infinity, plans: Infinity },
-} as const;
-
-const LIMIT_REACHED_REASON =
-    "You’ve reached the limit for your current subscription. Upgrade to continue.";
+export type { AdminPlan };
 
 export function normalizeAdminPlan(value: unknown): AdminPlan {
     const v = String(value ?? "")
@@ -88,22 +41,27 @@ function limitToPublic(limit: number): number | "unlimited" {
     return Number.isFinite(limit) ? limit : "unlimited";
 }
 
-async function countNonDeletedClients(args: {
+async function countActiveClients(args: {
     adminId: ObjectId;
+    excludeEntityId?: ObjectId;
 }): Promise<number> {
     const c = await collections();
     return c.entities.countDocuments({
         entity: "Client",
         adminId: args.adminId,
-        $and: [
-            {
-                $or: [
-                    { "data.status": { $exists: false } },
-                    { "data.status": { $ne: "DELETED" } },
-                ],
-            },
-            { "data.isDeleted": { $ne: true } },
-        ],
+        ...(args.excludeEntityId ? { _id: { $ne: args.excludeEntityId } } : {}),
+        "data.status": "ACTIVE",
+        "data.isDeleted": { $ne: true },
+    });
+}
+
+export async function getActiveClientCountForAdmin(args: {
+    adminId: ObjectId;
+    excludeClientEntityId?: ObjectId;
+}): Promise<number> {
+    return countActiveClients({
+        adminId: args.adminId,
+        excludeEntityId: args.excludeClientEntityId,
     });
 }
 
@@ -156,15 +114,50 @@ export async function canCreateClient(admin: {
     plan?: unknown;
 }): Promise<GuardResult> {
     const plan = normalizeAdminPlan(admin.plan);
-    const limit = planLimits[plan].clients;
+    const limit = PLAN_CONFIG[plan].maxClients;
     if (!Number.isFinite(limit)) return { allowed: true };
 
     const adminId = new ObjectId(admin.id);
-    const used = await countNonDeletedClients({ adminId });
+    const used = await countActiveClients({ adminId });
     if (used >= limit) {
-        return { allowed: false, reason: LIMIT_REACHED_REASON };
+        return { allowed: false, reason: activeClientLimitReachedMessage(limit) };
     }
 
+    return { allowed: true };
+}
+
+export async function canRestoreClient(admin: {
+    id: string;
+    plan?: unknown;
+}): Promise<GuardResult> {
+    const plan = normalizeAdminPlan(admin.plan);
+    const limit = PLAN_CONFIG[plan].maxClients;
+    if (!Number.isFinite(limit)) return { allowed: true };
+
+    const adminId = new ObjectId(admin.id);
+    const used = await countActiveClients({ adminId });
+    if (used >= limit) {
+        return { allowed: false, reason: restoreClientWouldExceedLimitMessage(limit) };
+    }
+
+    return { allowed: true };
+}
+
+export async function canActivateClientForAdminId(args: {
+    adminId: ObjectId;
+    excludeClientEntityId?: ObjectId;
+}): Promise<GuardResult> {
+    const plan = await getAdminPlanForUser({ adminId: args.adminId });
+    const limit = PLAN_CONFIG[plan].maxClients;
+    if (!Number.isFinite(limit)) return { allowed: true };
+
+    const used = await countActiveClients({
+        adminId: args.adminId,
+        excludeEntityId: args.excludeClientEntityId,
+    });
+    if (used >= limit) {
+        return { allowed: false, reason: activeClientLimitReachedMessage(limit) };
+    }
     return { allowed: true };
 }
 
@@ -173,7 +166,7 @@ export async function canCreatePlan(admin: {
     plan?: unknown;
 }): Promise<GuardResult> {
     const plan = normalizeAdminPlan(admin.plan);
-    const limit = planLimits[plan].plans;
+    const limit = PLAN_CONFIG[plan].maxPlans;
     if (!Number.isFinite(limit)) return { allowed: true };
 
     const adminId = new ObjectId(admin.id);
@@ -190,13 +183,15 @@ export async function canUseExternalCatalogApi(admin: {
     plan?: unknown;
 }): Promise<GuardResult> {
     const plan = normalizeAdminPlan(admin.plan);
-    const def = PLAN_DEFINITIONS[plan];
+    const def = PLAN_CONFIG[plan];
     if (def.allowExternalCatalogApi) return { allowed: true };
 
     return {
         allowed: false,
-        reason:
-            "External Exercises/Foods catalog access is available on Professional and above. Upgrade your subscription to continue.",
+        reason: featureAvailableOnPlanOrAboveMessage({
+            feature: "External Exercises/Foods catalog access",
+            requiredPlan: "Professional",
+        }),
     };
 }
 
@@ -205,13 +200,15 @@ export async function canUploadCustomVideo(admin: {
     plan?: unknown;
 }): Promise<GuardResult> {
     const plan = normalizeAdminPlan(admin.plan);
-    const def = PLAN_DEFINITIONS[plan];
+    const def = PLAN_CONFIG[plan];
     if (def.allowCustomVideoUploads) return { allowed: true };
 
     return {
         allowed: false,
-        reason:
-            "Custom video uploads are available on Professional and above. Upgrade your subscription to continue.",
+        reason: featureAvailableOnPlanOrAboveMessage({
+            feature: "Custom video uploads",
+            requiredPlan: "Professional",
+        }),
     };
 }
 
@@ -221,12 +218,15 @@ export async function canSetAdminLogo(admin: {
     plan?: unknown;
 }): Promise<GuardResult> {
     const plan = normalizeAdminPlan(admin.plan);
-    const def = PLAN_DEFINITIONS[plan];
+    const def = PLAN_CONFIG[plan];
     if (def.allowAdminLogo) return { allowed: true };
 
     return {
         allowed: false,
-        reason: "Admin logo is available on Basic and above. Upgrade your subscription to continue.",
+        reason: featureAvailableOnPlanOrAboveMessage({
+            feature: "Admin logo",
+            requiredPlan: "Basic",
+        }),
     };
 }
 
@@ -236,13 +236,15 @@ export async function canCustomizePwaAppLogo(admin: {
     plan?: unknown;
 }): Promise<GuardResult> {
     const plan = normalizeAdminPlan(admin.plan);
-    const def = PLAN_DEFINITIONS[plan];
+    const def = PLAN_CONFIG[plan];
     if (def.allowPwaBranding) return { allowed: true };
 
     return {
         allowed: false,
-        reason:
-            "PWA app logo customization is available on Advanced. Upgrade your subscription to continue.",
+        reason: featureAvailableOnPlanOrAboveMessage({
+            feature: "PWA app logo customization",
+            requiredPlan: "Advanced",
+        }),
     };
 }
 
@@ -253,7 +255,7 @@ export async function getPlanGuardsForAdmin(args: {
     const admin = { id: args.adminId, plan: args.plan };
 
     const plan = normalizeAdminPlan(args.plan);
-    const def = PLAN_DEFINITIONS[plan];
+    const def = PLAN_CONFIG[plan];
 
     const [clientGuard, planGuard, externalApiGuard, videoGuard, adminLogoGuard, pwaLogoGuard] = await Promise.all([
         canCreateClient(admin),

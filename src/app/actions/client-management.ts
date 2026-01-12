@@ -11,7 +11,14 @@ import { signClientInviteToken } from "@/server/invite-token";
 import { getDb } from "@/server/mongo";
 import { checkRateLimit } from "@/server/rate-limit";
 import { headers } from "next/headers";
-import { canCreateClient } from "@/server/plan-guards";
+import {
+  canCreateClient,
+} from "@/server/plan-guards";
+import { LIMIT_REACHED_REASON } from "@/config/plans";
+import {
+  releaseActiveClientSlot,
+  tryAcquireActiveClientSlot,
+} from "@/server/active-client-quota";
 
 export type ClientFormData = Omit<
   Client,
@@ -140,25 +147,38 @@ async function assertClientNotSameAsAdminIdentity(args: {
 
 function normalizeClientStatusForWrite(
   status: unknown
-): "ACTIVE" | "PENDING" | "INACTIVE" | undefined {
+): "ACTIVE" | "PENDING" | "PENDING_LIMIT" | "INACTIVE" | undefined {
   const v = String(status ?? "")
     .trim()
     .toUpperCase();
-  if (v === "ACTIVE" || v === "PENDING" || v === "INACTIVE") return v;
+  if (v === "ACTIVE" || v === "PENDING" || v === "PENDING_LIMIT" || v === "INACTIVE") {
+    return v;
+  }
   return undefined;
 }
 
 function normalizeClientStatusAllowBlocked(
   status: unknown
-): "ACTIVE" | "PENDING" | "INACTIVE" | "BLOCKED" | undefined {
+):
+  | "ACTIVE"
+  | "PENDING"
+  | "PENDING_LIMIT"
+  | "INACTIVE"
+  | "BLOCKED"
+  | "ARCHIVED"
+  | "DELETED"
+  | undefined {
   const v = String(status ?? "")
     .trim()
     .toUpperCase();
   if (
     v === "ACTIVE" ||
     v === "PENDING" ||
+    v === "PENDING_LIMIT" ||
     v === "INACTIVE" ||
-    v === "BLOCKED"
+    v === "BLOCKED" ||
+    v === "ARCHIVED" ||
+    v === "DELETED"
   ) {
     return v;
   }
@@ -200,7 +220,7 @@ export async function createClientAction(data: ClientFormData) {
   if (!planGuard.allowed) {
     throw new Error(
       planGuard.reason ||
-      "You’ve reached the limit for your current plan. Upgrade to continue."
+      LIMIT_REACHED_REASON
     );
   }
 
@@ -244,7 +264,7 @@ export async function createClientAction(data: ClientFormData) {
   if (existingByPhoneOrEmail) {
     const existingData: any = existingByPhoneOrEmail.data ?? {};
     if (email && normalizeEmail(existingData.email) === email) {
-      if (existingData.status === "DELETED") {
+      if (existingData.status === "DELETED" || existingData.status === "ARCHIVED") {
         throw new Error(
           "This email belongs to a deleted client. Please find them in the list and restore their account."
         );
@@ -556,7 +576,8 @@ export async function updateClientAction(id: string, data: ClientFormData) {
   const oldData = (existing.data ?? {}) as any;
   // Status is system-controlled:
   // - starts as PENDING on admin invite
-  // - becomes ACTIVE on first successful client login
+  // - becomes ACTIVE on successful client login (if within plan limit)
+  // - becomes PENDING_LIMIT on successful client login when plan limit is reached
   // - becomes BLOCKED only via the admin access endpoint
   // Admin updates should not be able to change status.
   const normalizedStatus =
@@ -663,7 +684,14 @@ export async function updateClientAction(id: string, data: ClientFormData) {
 
 async function updateClientStatus(
   entityIdStr: string,
-  newStatus: "ACTIVE" | "INACTIVE" | "BLOCKED" | "DELETED" | "PENDING"
+  newStatus:
+    | "ACTIVE"
+    | "INACTIVE"
+    | "BLOCKED"
+    | "ARCHIVED"
+    | "DELETED"
+    | "PENDING"
+    | "PENDING_LIMIT"
 ) {
   const adminUser = await requireAppUser();
   if (adminUser.role !== "admin") throw new Error("Unauthorized");
@@ -685,6 +713,21 @@ async function updateClientStatus(
   const oldData: any = existing.data || {};
   const authIdStr = String(oldData.clientAuthId ?? oldData.userId ?? "");
 
+  const oldStatus = String(oldData.status ?? "")
+    .trim()
+    .toUpperCase();
+
+  if (newStatus === "ACTIVE" && oldStatus !== "ACTIVE") {
+    const slot = await tryAcquireActiveClientSlot({ adminId });
+    if (!slot.allowed) {
+      throw new Error(slot.reason || LIMIT_REACHED_REASON);
+    }
+  }
+
+  if (oldStatus === "ACTIVE" && newStatus !== "ACTIVE") {
+    await releaseActiveClientSlot({ adminId });
+  }
+
   const now = new Date();
 
   const updateData: any = { "data.status": newStatus, updatedAt: now };
@@ -692,7 +735,9 @@ async function updateClientStatus(
   if (newStatus === "DELETED") {
     updateData["data.deletedBy"] = "ADMIN";
     updateData["data.deletedAt"] = now.toISOString();
-  } else if (newStatus === "ACTIVE" || newStatus === "PENDING") {
+  } else if (newStatus === "ARCHIVED") {
+    updateData["data.archivedAt"] = now.toISOString();
+  } else if (newStatus === "ACTIVE" || newStatus === "PENDING" || newStatus === "PENDING_LIMIT") {
     updateData["data.deletedBy"] = null;
     updateData["data.deletedAt"] = null;
   }
@@ -702,9 +747,15 @@ async function updateClientStatus(
   // Sync Relation Status
   if (ObjectId.isValid(authIdStr)) {
     const authObjectId = new ObjectId(authIdStr);
+
+    const relationStatus =
+      newStatus === "ARCHIVED" || newStatus === "DELETED"
+        ? "DELETED"
+        : newStatus;
+
     await c.clientAdminRelations.updateOne(
       { userId: authObjectId, adminId },
-      { $set: { status: newStatus, updatedAt: now } } // Sync usage
+      { $set: { status: relationStatus, updatedAt: now } } // Sync usage
     );
   }
 
@@ -753,6 +804,9 @@ export async function restoreClientAction(id: string) {
 
   const email = String((existing.data as any)?.email ?? "").trim();
   if (!email) throw new Error("Client has no email");
+
+  // Restore (quota enforced here). Only ACTIVE clients count toward limits.
+  await updateClientStatus(id, "ACTIVE");
 
   // Send a fresh invite immediately when restoring (so the PENDING UI is accurate).
   // Invalidate old pending invites first.
@@ -811,7 +865,7 @@ export async function restoreClientAction(id: string) {
     }
   );
 
-  return updateClientStatus(id, "PENDING");
+  return { success: true };
 }
 
 export async function permanentlyDeleteClientAction(id: string) {

@@ -43,6 +43,9 @@ export function EntityStatusChip({
         if (s === "pending") {
             return "border border-amber-200 bg-amber-50 text-amber-800 dark:bg-amber-900/10 dark:border-amber-800 dark:text-amber-200";
         }
+        if (s === "pending-limit") {
+            return "border border-indigo-200 bg-indigo-50 text-indigo-800 dark:bg-indigo-900/10 dark:border-indigo-800 dark:text-indigo-200";
+        }
         if (s === "blocked") {
             return "border border-rose-200 bg-rose-50 text-rose-800 dark:bg-rose-900/10 dark:border-rose-800 dark:text-rose-200";
         }

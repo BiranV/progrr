@@ -142,11 +142,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // If active, ensure we are NOT on an access page.
           if (s === "PENDING" && !p.startsWith("/access/pending")) {
             router.replace("/access/pending");
+          } else if (s === "PENDING_LIMIT" && !p.startsWith("/access/pending-limit")) {
+            router.replace("/access/pending-limit");
           } else if (s === "INACTIVE" && !p.startsWith("/access/inactive")) {
             router.replace("/access/inactive");
           } else if (s === "BLOCKED" && !p.startsWith("/access/blocked")) {
             router.replace("/access/blocked");
-          } else if (s === "DELETED" && !p.startsWith("/access/deleted")) {
+          } else if ((s === "DELETED" || s === "ARCHIVED") && !p.startsWith("/access/deleted")) {
             router.replace("/access/deleted");
           } else if (s === "ACTIVE" && p.startsWith("/access/")) {
             router.replace("/dashboard");

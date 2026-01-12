@@ -9,6 +9,7 @@ import { setAuthCookie } from "@/server/auth-cookie";
 import { getDb } from "@/server/mongo";
 import { checkRateLimit } from "@/server/rate-limit";
 import { setLastActiveAdmin } from "@/server/client-relations";
+import { tryAcquireActiveClientSlot } from "@/server/active-client-quota";
 
 export const runtime = "nodejs";
 
@@ -215,6 +216,28 @@ export async function POST(req: Request) {
       );
     }
 
+    const existingRelStatus = String((existingRel as any)?.status ?? "")
+      .trim()
+      .toUpperCase();
+    let entityStatus = "";
+    if (invite.clientEntityId instanceof ObjectId) {
+      const entity = await c.entities.findOne({
+        _id: invite.clientEntityId,
+        entity: "Client",
+        adminId,
+      });
+      entityStatus = String((entity as any)?.data?.status ?? "")
+        .trim()
+        .toUpperCase();
+    }
+
+    const isAlreadyActiveUnderAdmin =
+      existingRelStatus === "ACTIVE" || entityStatus === "ACTIVE";
+
+    const slot = isAlreadyActiveUnderAdmin
+      ? { allowed: true, plan: "free" as const, limit: Infinity }
+      : await tryAcquireActiveClientSlot({ adminId });
+
     const now = new Date();
     await c.clientAdminRelations.updateOne(
       { userId: client._id, adminId },
@@ -225,7 +248,7 @@ export async function POST(req: Request) {
           createdAt: now,
         },
         $set: {
-          status: "ACTIVE",
+          status: slot.allowed ? "ACTIVE" : "PENDING_LIMIT",
           blockedUntil: null,
           blockReason: null,
           updatedAt: now,
@@ -253,7 +276,7 @@ export async function POST(req: Request) {
         { _id: invite.clientEntityId, entity: "Client", adminId },
         {
           $set: {
-            "data.status": "ACTIVE",
+            "data.status": slot.allowed ? "ACTIVE" : "PENDING_LIMIT",
             "data.userId": clientIdStr,
             "data.clientAuthId": clientIdStr,
             updatedAt: now,
@@ -270,7 +293,7 @@ export async function POST(req: Request) {
         },
         {
           $set: {
-            "data.status": "ACTIVE",
+            "data.status": slot.allowed ? "ACTIVE" : "PENDING_LIMIT",
             "data.userId": clientIdStr,
             "data.clientAuthId": clientIdStr,
             updatedAt: now,

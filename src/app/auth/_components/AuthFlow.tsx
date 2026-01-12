@@ -218,18 +218,6 @@ export default function AuthFlow({
             </motion.div>
           </AnimatePresence>
         </CardContent>
-
-        <div className="px-6 pb-6 pt-2 text-xs text-gray-600 dark:text-gray-400 flex items-center justify-center">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-8"
-            onClick={() => router.push("/pricing")}
-          >
-            Upgrade Plan
-          </Button>
-        </div>
       </Card>
     </AuthShell>
   );

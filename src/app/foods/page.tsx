@@ -20,6 +20,7 @@ import { GenericDetailsPanel } from "@/components/ui/entity/GenericDetailsPanel"
 import { useEntityTableState } from "@/hooks/useEntityTableState";
 import { useCatalogSearch } from "@/hooks/use-catalog-search";
 import { usePlanGuards } from "@/hooks/use-plan-guards";
+import { AVAILABLE_ON_PROFESSIONAL_AND_ABOVE } from "@/config/plans";
 
 type CatalogRow = {
   fdcId: number;
@@ -339,7 +340,7 @@ export default function FoodsPage() {
           type="button"
           variant="outline"
           disabled={!canUseFoodCatalog}
-          title={!canUseFoodCatalog ? "Available on Professional and above" : undefined}
+          title={!canUseFoodCatalog ? AVAILABLE_ON_PROFESSIONAL_AND_ABOVE : undefined}
           onClick={() => {
             if (!canUseFoodCatalog) return;
             setCatalogOpen((v) => {
@@ -390,7 +391,7 @@ export default function FoodsPage() {
                 Food catalog
               </div>
               <div className="text-xs text-gray-600 dark:text-gray-400">
-                Available on Professional and above
+                {AVAILABLE_ON_PROFESSIONAL_AND_ABOVE}
               </div>
               <Button
                 type="button"

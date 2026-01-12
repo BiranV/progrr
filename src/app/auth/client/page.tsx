@@ -46,8 +46,10 @@ export default function ClientAuthPage() {
         router.replace("/access/inactive");
       } else if (status === "BLOCKED") {
         router.replace("/access/blocked");
-      } else if (status === "DELETED") {
+      } else if (status === "DELETED" || status === "ARCHIVED") {
         router.replace("/access/deleted");
+      } else if (status === "PENDING_LIMIT") {
+        router.replace("/access/pending-limit");
       } else if (status === "PENDING") {
         router.replace("/access/pending");
       }
@@ -97,7 +99,7 @@ export default function ClientAuthPage() {
         if (data?.code === "CLIENT_BLOCKED") {
           setError(
             data?.error ||
-              "Your account is not connected to any coach. Please ask your coach to send you an invitation link."
+            "Your account is not connected to any coach. Please ask your coach to send you an invitation link."
           );
           setStep("email");
           return;
@@ -159,7 +161,7 @@ export default function ClientAuthPage() {
         if (data?.code === "CLIENT_BLOCKED") {
           setError(
             data?.error ||
-              "Your account is not connected to any coach. Please ask your coach to send you an invitation link."
+            "Your account is not connected to any coach. Please ask your coach to send you an invitation link."
           );
           setStep("email");
           setCode("");
@@ -215,8 +217,8 @@ export default function ClientAuthPage() {
               error
                 ? { type: "error", text: error }
                 : info
-                ? { type: "message", text: info }
-                : null
+                  ? { type: "message", text: info }
+                  : null
             }
           />
 
@@ -267,8 +269,8 @@ export default function ClientAuthPage() {
                   ? "Sending..."
                   : "Send email code"
                 : loading
-                ? "Verifying..."
-                : "Verify & Continue"}
+                  ? "Verifying..."
+                  : "Verify & Continue"}
             </Button>
 
             {step === "code" ? (
