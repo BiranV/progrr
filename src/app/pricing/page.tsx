@@ -38,7 +38,7 @@ export default function PricingPage() {
       key: "free",
       name: "Free",
       description: "For trying it out",
-      icon: Zap,
+      icon: BookOpen,
       popular: false,
       theme: {
         card: "border border-gray-200 dark:border-gray-700",
@@ -58,7 +58,7 @@ export default function PricingPage() {
       key: "basic",
       name: "Basic",
       description: "For solo coaches",
-      icon: BookOpen,
+      icon: Zap,
       popular: false,
       theme: {
         card: "border border-gray-200 dark:border-gray-700",
