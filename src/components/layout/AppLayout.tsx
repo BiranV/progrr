@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -29,33 +29,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoadingAuth: loading, logout } = useAuth();
   const { darkMode, toggleDarkMode } = useTheme();
   const pathname = usePathname();
-  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const isOnboardingPath = pathname === "/onboarding" || pathname.startsWith("/onboarding/");
   const onboardingCompleted = Boolean((user as any)?.onboardingCompleted);
-
-  useEffect(() => {
-    if (loading) return;
-
-    const isAuthEntryPath = pathname === "/" || pathname.startsWith("/auth");
-    if (user && isAuthEntryPath) {
-      router.replace(onboardingCompleted ? "/dashboard" : "/onboarding");
-    }
-  }, [loading, onboardingCompleted, pathname, router, user]);
-
-  useEffect(() => {
-    if (loading) return;
-    if (!user) return;
-
-    if (!onboardingCompleted && !isOnboardingPath) {
-      router.replace("/onboarding");
-    }
-
-    if (onboardingCompleted && isOnboardingPath) {
-      router.replace("/dashboard");
-    }
-  }, [isOnboardingPath, loading, onboardingCompleted, router, user]);
 
   if (loading) {
     return (

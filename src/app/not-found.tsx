@@ -55,8 +55,8 @@ export default function NotFound() {
 
           {/* Action Button */}
           <div className="pt-6">
-            <Link href="/auth">
-              <button className="inline-flex items-center px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">
+            <Link href="/dashboard">
+              <button className="inline-flex items-center px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 hover:border-slate-300 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500">
                 <Home className="w-4 h-4 mr-2" />
                 Go Home
               </button>

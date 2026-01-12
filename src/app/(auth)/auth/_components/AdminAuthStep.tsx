@@ -31,7 +31,7 @@ export default function AdminAuthStep({
 }) {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { isAuthenticated, isLoadingAuth } = useAuth();
+    const { isAuthenticated, isLoadingAuth, setSessionUser } = useAuth();
 
     const banner = useMemo<AuthBannerState>(() => {
         const authError = searchParams.get("authError");
@@ -162,8 +162,10 @@ export default function AdminAuthStep({
                 ? data.redirectTo
                 : (data?.onboardingCompleted ? "/dashboard" : "/onboarding");
 
+            if (data?.user) {
+                setSessionUser(data.user);
+            }
             router.replace(dest);
-            router.refresh();
         } catch (err: any) {
             setLoginError(err?.message || "Failed to verify code");
         } finally {
@@ -266,8 +268,10 @@ export default function AdminAuthStep({
                 ? data.redirectTo
                 : (data?.onboardingCompleted ? "/dashboard" : "/onboarding");
 
+            if (data?.user) {
+                setSessionUser(data.user);
+            }
             router.replace(dest);
-            router.refresh();
         } catch (err: any) {
             setSignupError(err?.message || "Failed to verify code");
         } finally {

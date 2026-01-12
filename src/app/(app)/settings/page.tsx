@@ -16,12 +16,6 @@ export default function SettingsPage() {
                     Minimal settings placeholder.
                 </p>
             </div>
-
-            <div>
-                <Button variant="outline" onClick={() => logout()}>
-                    Logout
-                </Button>
-            </div>
         </div>
     );
 }

@@ -20,6 +20,7 @@ import {
 import { Switch as UISwitch } from "@/components/ui/switch";
 
 import AuthBanner from "../auth/_components/AuthBanner";
+import { useAuth } from "@/context/AuthContext";
 
 type OnboardingData = {
     businessTypes?: string[];
@@ -127,6 +128,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export default function OnboardingPage() {
     const router = useRouter();
+    const { updateUser } = useAuth();
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -332,6 +334,7 @@ export default function OnboardingPage() {
         setError(null);
         try {
             await apiFetch<{ ok: true }>("/api/onboarding/complete", { method: "POST" });
+            updateUser({ onboardingCompleted: true });
             router.replace("/dashboard");
         } catch (e: any) {
             setError(e?.message || "Failed to finish onboarding");

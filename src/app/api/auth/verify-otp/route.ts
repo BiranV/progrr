@@ -89,9 +89,11 @@ export async function POST(req: Request) {
 
         let userId: string;
         let onboardingCompleted = false;
+        let fullNameOut: string | null = null;
         if (existing) {
             userId = existing._id!.toHexString();
             onboardingCompleted = Boolean((existing as any).onboardingCompleted);
+            fullNameOut = (existing as any).fullName ?? null;
         } else {
             const insert = await c.users.insertOne({
                 email,
@@ -101,6 +103,7 @@ export async function POST(req: Request) {
             } as any);
             userId = insert.insertedId.toHexString();
             onboardingCompleted = false;
+            fullNameOut = fullName || null;
         }
 
         const token = await signAuthToken({ sub: userId, onboardingCompleted });
@@ -109,6 +112,12 @@ export async function POST(req: Request) {
             ok: true,
             onboardingCompleted,
             redirectTo: onboardingCompleted ? "/dashboard" : "/onboarding",
+            user: {
+                id: userId,
+                email,
+                full_name: fullNameOut,
+                onboardingCompleted,
+            },
         });
         setAuthCookie(res, token);
         return res;
