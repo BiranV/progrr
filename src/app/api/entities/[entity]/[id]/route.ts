@@ -641,11 +641,15 @@ export async function PATCH(
     const patch = patchBodySchema.parse(await req.json());
 
     if (entity === "AppSettings") {
+      const logoUrlPresent = Object.prototype.hasOwnProperty.call(patch, "logoUrl");
+      const nextLogoUrl = logoUrlPresent ? String((patch as any).logoUrl ?? "") : "";
+      const isRemovingLogo = logoUrlPresent && !nextLogoUrl.trim();
+
       const wantsLogoChange =
         Object.prototype.hasOwnProperty.call(patch, "logoUrl") ||
         Object.prototype.hasOwnProperty.call(patch, "logoShape");
 
-      if (wantsLogoChange) {
+      if (wantsLogoChange && !isRemovingLogo) {
         const guard = await canSetAdminLogo({
           id: user.id,
           plan: (user as any).plan,

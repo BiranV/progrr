@@ -227,7 +227,7 @@ export default function AuthFlow({
             className="h-8"
             onClick={() => router.push("/pricing")}
           >
-            View pricing
+            Upgrade Plan
           </Button>
         </div>
       </Card>

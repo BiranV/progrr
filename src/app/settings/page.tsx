@@ -26,6 +26,7 @@ import {
   Upload,
   Link2,
   Download,
+  Lock,
   Facebook,
   Instagram,
   Music2,
@@ -177,6 +178,8 @@ export default function SettingsPage() {
     instagramUrl: "",
   });
 
+  const initialLogoUrlRef = React.useRef<string>("");
+
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = React.useState("");
   const [deletePending, setDeletePending] = React.useState(false);
@@ -208,6 +211,7 @@ export default function SettingsPage() {
   React.useEffect(() => {
     if (settings.length > 0) {
       const s = settings[0] as any;
+      initialLogoUrlRef.current = String(s?.logoUrl ?? "");
       setFormData({
         ...s,
         logoShape: s?.logoShape === "circle" ? "circle" : "square",
@@ -753,37 +757,77 @@ export default function SettingsPage() {
                   </label>
 
                   {!canSetAdminLogo ? (
-                    <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-100">
-                      <div className="font-medium">Upgrade required</div>
-                      <div className="mt-1">{adminLogoReason}</div>
-                      <div className="mt-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => router.push("/pricing")}
-                        >
-                          Upgrade to Basic
-                        </Button>
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/30">
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-md bg-white shadow-sm ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-700">
+                          <Lock className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                            Admin logo
+                          </div>
+                          <div className="mt-0.5 text-xs text-gray-600 dark:text-gray-400">
+                            {adminLogoReason}
+                          </div>
+                        </div>
                       </div>
 
-                      {formData.logoUrl ? (
-                        <div className="mt-3 flex items-center gap-3">
-                          <div
-                            className={`h-12 w-12 overflow-hidden border border-amber-200 dark:border-amber-900/40 ${formData.logoShape === "circle"
-                              ? "rounded-full"
-                              : "rounded-none"
-                              }`}
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="mt-3"
+                        onClick={() => router.push("/pricing")}
+                      >
+                        Upgrade Plan
+                      </Button>
+
+                      {String(formData.logoUrl ?? "").trim() ||
+                        String(initialLogoUrlRef.current ?? "").trim() ? (
+                        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div
+                              className={`h-12 w-12 overflow-hidden border border-gray-200 dark:border-gray-700 ${formData.logoShape === "circle" ? "rounded-full" : "rounded-none"}`}
+                            >
+                              {String(formData.logoUrl ?? "").trim() ? (
+                                <img
+                                  src={String(formData.logoUrl)}
+                                  alt="Logo"
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className="h-full w-full bg-gray-100 dark:bg-gray-800" />
+                              )}
+                            </div>
+                            <div className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                              {String(formData.logoUrl ?? "").trim()
+                                ? "Current logo (you can remove it on Free)."
+                                : "Logo will be removed when saved."}
+                            </div>
+                          </div>
+
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setFormData((prev) => ({ ...prev, logoUrl: "" }));
+                              setLogoLastCropSrc("");
+                              setLogoLastCroppedAreaPixels(null);
+
+                              // Persist immediately so downgrade->Free can still clean up.
+                              if (user?.role === "admin") {
+                                saveBusinessMutation.mutate({
+                                  logoUrl: "",
+                                  logoShape:
+                                    formData.logoShape === "circle"
+                                      ? "circle"
+                                      : "square",
+                                });
+                              }
+                            }}
                           >
-                            <img
-                              src={formData.logoUrl}
-                              alt="Logo"
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-                          <div className="text-xs text-amber-800 dark:text-amber-100/90">
-                            Current logo is shown (read-only).
-                          </div>
+                            Remove
+                          </Button>
                         </div>
                       ) : null}
                     </div>
@@ -978,8 +1022,13 @@ export default function SettingsPage() {
                     webAddress: formData.webAddress,
                   };
 
-                  if (canSetAdminLogo) {
-                    payload.logoUrl = formData.logoUrl;
+                  const isRemovingLogo =
+                    !canSetAdminLogo &&
+                    Boolean(String(initialLogoUrlRef.current ?? "").trim()) &&
+                    !String(formData.logoUrl ?? "").trim();
+
+                  if (canSetAdminLogo || isRemovingLogo) {
+                    payload.logoUrl = String(formData.logoUrl ?? "");
                     payload.logoShape =
                       formData.logoShape === "circle" ? "circle" : "square";
                   }
@@ -998,75 +1047,135 @@ export default function SettingsPage() {
           </Card>
 
           {user?.role === "admin" ? (
-            <>
-              <Card className="dark:bg-gray-800 dark:border-gray-700">
-                <CardHeader>
-                  <CardTitle>Subscription</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      Current tier
-                    </div>
-
-                    <div className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                      {planGuardsLoading
-                        ? "Loading…"
-                        : String(planGuards?.planName ?? "Free").trim() || "Free"}
-                    </div>
-                  </div>
-
-                  <Button type="button" onClick={() => router.push("/pricing")}>
-                    View pricing
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {devPlanOverrideEnabled ? (
+            <div className="lg:col-span-2">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                 <Card className="dark:bg-gray-800 dark:border-gray-700">
                   <CardHeader>
-                    <CardTitle>Dev: Tier Override</CardTitle>
+                    <CardTitle>Subscription</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      For testing only. This updates your admin tier in the
-                      database and immediately refreshes UI guards.
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        Current tier
+                      </div>
 
-                    <div className="max-w-sm">
-                      <Select
-                        value={
-                          (planGuards?.plan as any) ||
-                          ((user as any)?.plan as any) ||
-                          "free"
-                        }
-                        onValueChange={(v) => {
-                          const next =
-                            v === "free" ||
-                              v === "basic" ||
-                              v === "professional" ||
-                              v === "advanced"
-                              ? v
-                              : "free";
-                          devPlanMutation.mutate(next);
-                        }}
-                        disabled={devPlanMutation.isPending}
-                      >
-                        <SelectTrigger className="w-full justify-between">
-                          <SelectValue placeholder="Select tier" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="free">Free</SelectItem>
-                          <SelectItem value="basic">Basic</SelectItem>
-                          <SelectItem value="professional">Professional</SelectItem>
-                          <SelectItem value="advanced">Advanced</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                        {planGuardsLoading
+                          ? "Loading…"
+                          : String(planGuards?.planName ?? "Free").trim() ||
+                          "Free"}
+                      </div>
+                    </div>
+
+                    <Button type="button" onClick={() => router.push("/pricing")}>
+                      Upgrade Plan
+                    </Button>
+
+                    {devPlanOverrideEnabled ? (
+                      <div className="pt-3 mt-3 border-t border-gray-200 dark:border-gray-700 space-y-3">
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          Dev: Tier Override
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          For testing only. This updates your admin tier in the
+                          database and immediately refreshes UI guards.
+                        </p>
+
+                        <div className="max-w-sm">
+                          <Select
+                            value={
+                              (planGuards?.plan as any) ||
+                              ((user as any)?.plan as any) ||
+                              "free"
+                            }
+                            onValueChange={(v) => {
+                              const next =
+                                v === "free" ||
+                                  v === "basic" ||
+                                  v === "professional" ||
+                                  v === "advanced"
+                                  ? v
+                                  : "free";
+                              devPlanMutation.mutate(next);
+                            }}
+                            disabled={devPlanMutation.isPending}
+                          >
+                            <SelectTrigger className="w-full justify-between">
+                              <SelectValue placeholder="Select tier" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="free">Free</SelectItem>
+                              <SelectItem value="basic">Basic</SelectItem>
+                              <SelectItem value="professional">
+                                Professional
+                              </SelectItem>
+                              <SelectItem value="advanced">Advanced</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    ) : null}
+                  </CardContent>
+                </Card>
+
+                <Card className="dark:bg-gray-800 dark:border-gray-700">
+                  <CardHeader>
+                    <CardTitle>Data Management</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex flex-col gap-2">
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Export your account data as a ZIP archive (JSON + CSV),
+                        or import a previously saved legacy JSON backup.
+                      </p>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleExportData}
+                        >
+                          <Download className="w-4 h-4 mr-2" />
+                          Export Data (ZIP)
+                        </Button>
+                        <div className="relative">
+                          <input
+                            type="file"
+                            accept=".json"
+                            onChange={handleImportData}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          />
+                          <Button type="button" variant="outline">
+                            <Upload className="w-4 h-4 mr-2" />
+                            Import Data
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
-              ) : null}
-            </>
+
+                <Card className="dark:bg-gray-800 dark:border-gray-700">
+                  <CardHeader>
+                    <CardTitle>Danger Zone</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Permanently delete your admin account. This is irreversible.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      onClick={() => {
+                        setDeleteConfirmText("");
+                        setDeleteOpen(true);
+                      }}
+                    >
+                      Delete Account
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           ) : null}
         </div>
 
@@ -1126,64 +1235,6 @@ export default function SettingsPage() {
           </Card>
           */}
 
-        {/* Data Management */}
-        <Card className="dark:bg-gray-800 dark:border-gray-700">
-          <CardHeader>
-            <CardTitle>Data Management</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-col gap-2">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Export your account data as a ZIP archive (JSON + CSV), or
-                import a previously saved legacy JSON backup.
-              </p>
-              <div className="flex gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleExportData}
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  Export Data (ZIP)
-                </Button>
-                <div className="relative">
-                  <input
-                    type="file"
-                    accept=".json"
-                    onChange={handleImportData}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
-                  <Button type="button" variant="outline">
-                    <Upload className="w-4 h-4 mr-2" />
-                    Import Data
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Danger Zone */}
-        <Card className="dark:bg-gray-800 dark:border-gray-700">
-          <CardHeader>
-            <CardTitle>Danger Zone</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Permanently delete your admin account. This is irreversible.
-            </p>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => {
-                setDeleteConfirmText("");
-                setDeleteOpen(true);
-              }}
-            >
-              Delete Account
-            </Button>
-          </CardContent>
-        </Card>
       </div>
 
       <Dialog

@@ -342,6 +342,14 @@ export function ExerciseDetailsContent({
       const name = String(formData.name ?? "").trim();
       if (!name) throw new Error("Exercise name is required");
 
+      const yt = String(formData.youtubeUrl ?? "").trim();
+      const uploadFile = (formData.uploadFile as File | null) ?? null;
+      if (yt && uploadFile) {
+        throw new Error(
+          "Choose either a YouTube video or a custom upload (not both)."
+        );
+      }
+
       const payload: any = {
         name,
         guidelines: String(formData.guidelines ?? "").trim() || "",
@@ -357,14 +365,26 @@ export function ExerciseDetailsContent({
       if (source) payload.source = source;
       if (externalId) payload.externalId = externalId;
 
-      const yt = String(formData.youtubeUrl ?? "").trim();
       if (yt) {
+        // If switching away from an existing uploaded video, delete the old file
+        // before updating to YouTube to avoid leaving two videos behind.
+        if (
+          exercise?.id &&
+          String(exercise?.videoKind ?? "") === "upload" &&
+          String(exercise?.videoUrl ?? "").trim()
+        ) {
+          try {
+            await removeVideo(String(exercise.id));
+          } catch {
+            // best-effort; don't block switching
+          }
+        }
         payload.videoKind = "youtube";
         payload.videoUrl = yt;
       } else if (exercise?.id && String(exercise?.videoKind ?? "") === "youtube") {
         payload.videoKind = null;
         payload.videoUrl = null;
-      } else if (!formData.uploadFile) {
+      } else if (!uploadFile) {
         if (!exercise) {
           payload.videoKind = null;
           payload.videoUrl = null;
@@ -381,7 +401,6 @@ export function ExerciseDetailsContent({
       const id = String(saved?.id ?? exercise?.id ?? "").trim();
       if (!id) return;
 
-      const uploadFile = formData.uploadFile as File | null;
       if (uploadFile) {
         if (!canUploadCustomVideo) {
           throw new Error(customVideoReason);
@@ -1112,7 +1131,12 @@ export function ExerciseDetailsContent({
               value={String(formData.youtubeUrl ?? "")}
               onChange={(e) => {
                 if (validationError) setValidationError(null);
-                setFormData((prev: any) => ({ ...prev, youtubeUrl: e.target.value }));
+                const next = e.target.value;
+                setFormData((prev: any) => ({
+                  ...prev,
+                  youtubeUrl: next,
+                  uploadFile: String(next).trim() ? null : prev.uploadFile,
+                }));
               }}
               placeholder="YouTube URL (optional)"
               className="mt-3"
@@ -1140,7 +1164,11 @@ export function ExerciseDetailsContent({
                     const input = e.target as HTMLInputElement;
                     const file = input.files?.[0] ?? null;
                     input.value = "";
-                    setFormData((prev: any) => ({ ...prev, uploadFile: file }));
+                    setFormData((prev: any) => ({
+                      ...prev,
+                      uploadFile: file,
+                      youtubeUrl: file ? "" : prev.youtubeUrl,
+                    }));
                   }}
                 />
 
@@ -1192,10 +1220,10 @@ export function ExerciseDetailsContent({
                 <Button
                   type="button"
                   size="sm"
-                  className="mt-3 w-full"
+                  className="mt-3"
                   onClick={() => router.push("/pricing")}
                 >
-                  Upgrade plan
+                  Upgrade Plan
                 </Button>
               </div>
             )}

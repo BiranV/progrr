@@ -19,8 +19,8 @@ type PlanDefinition = {
 
 export const PLAN_DEFINITIONS: Record<AdminPlan, PlanDefinition> = {
     free: {
-        maxClients: 10,
-        maxPlans: 20,
+        maxClients: 1,
+        maxPlans: 2,
         allowExternalCatalogApi: false,
         allowCustomVideoUploads: false,
         allowAdminLogo: false,
@@ -29,7 +29,7 @@ export const PLAN_DEFINITIONS: Record<AdminPlan, PlanDefinition> = {
     basic: {
         maxClients: 20,
         maxPlans: 50,
-        allowExternalCatalogApi: true,
+        allowExternalCatalogApi: false,
         allowCustomVideoUploads: false,
         allowAdminLogo: true,
         allowPwaBranding: false,
@@ -54,7 +54,7 @@ export const PLAN_DEFINITIONS: Record<AdminPlan, PlanDefinition> = {
 
 // Single source of truth for numeric limits, as requested.
 export const planLimits = {
-    free: { clients: 10, plans: 20 },
+    free: { clients: 1, plans: 2 },
     basic: { clients: 20, plans: 50 },
     professional: { clients: 100, plans: Infinity },
     advanced: { clients: Infinity, plans: Infinity },
@@ -196,7 +196,7 @@ export async function canUseExternalCatalogApi(admin: {
     return {
         allowed: false,
         reason:
-            "External Exercises/Foods catalog access is available on Basic and above. Upgrade your subscription to continue.",
+            "External Exercises/Foods catalog access is available on Professional and above. Upgrade your subscription to continue.",
     };
 }
 

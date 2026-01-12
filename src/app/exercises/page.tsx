@@ -81,6 +81,9 @@ export default function ExercisesPage() {
   const { data: planGuards } = usePlanGuards(true);
   const canUseExerciseCatalog =
     planGuards?.guards?.canUseExternalCatalogApi?.allowed ?? false;
+  const isAdvancedCatalogTier =
+    String(planGuards?.plan ?? "") === "professional" ||
+    String(planGuards?.plan ?? "") === "advanced";
 
   const filteredExercises = (exercises as ExerciseRow[]).filter((e) =>
     String(e?.name ?? "")
@@ -368,7 +371,7 @@ export default function ExercisesPage() {
           type="button"
           variant="outline"
           disabled={!canUseExerciseCatalog}
-          title={!canUseExerciseCatalog ? "Available on Basic and above" : undefined}
+          title={!canUseExerciseCatalog ? "Available on Professional and above" : undefined}
           onClick={() => {
             if (!canUseExerciseCatalog) return;
             setCatalogOpen((v) => {
@@ -390,7 +393,11 @@ export default function ExercisesPage() {
           ) : (
             <Plus className="w-5 h-5 mr-2" />
           )}
-          {catalogOpen ? "Close Catalog" : "Add from Exercise Catalog"}
+          {catalogOpen
+            ? "Close Catalog"
+            : isAdvancedCatalogTier
+              ? "Advanced Catalog"
+              : "Catalog"}
         </Button>
       }
       primaryAction={{ label: "Add Exercise", onClick: handleCreate }}
@@ -415,7 +422,7 @@ export default function ExercisesPage() {
                 Exercise catalog
               </div>
               <div className="text-xs text-gray-600 dark:text-gray-400">
-                Available on Basic and above
+                Available on Professional and above
               </div>
               <Button
                 type="button"
@@ -423,7 +430,7 @@ export default function ExercisesPage() {
                 className="mt-3"
                 onClick={() => router.push("/pricing")}
               >
-                Upgrade plan
+                Upgrade Plan
               </Button>
             </div>
           </div>
@@ -434,7 +441,7 @@ export default function ExercisesPage() {
         <div className="mb-6 rounded-lg border bg-white dark:bg-gray-800 p-4">
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="text-sm font-medium">
-              Exercise Catalog (ExerciseDB)
+              Advanced Catalog (ExerciseDB)
             </div>
             <Button
               type="button"

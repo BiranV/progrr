@@ -398,10 +398,14 @@ export async function POST(
     }
 
     if (entity === "AppSettings") {
+      const logoUrlPresent = Object.prototype.hasOwnProperty.call(body, "logoUrl");
+      const nextLogoUrl = logoUrlPresent ? String((body as any).logoUrl ?? "") : "";
+      const isRemovingLogo = logoUrlPresent && !nextLogoUrl.trim();
+
       const wantsLogoChange =
         Object.prototype.hasOwnProperty.call(body, "logoUrl") ||
         Object.prototype.hasOwnProperty.call(body, "logoShape");
-      if (wantsLogoChange) {
+      if (wantsLogoChange && !isRemovingLogo) {
         const guard = await canSetAdminLogo({ id: user.id, plan: adminPlan });
         if (!guard.allowed) {
           return NextResponse.json(

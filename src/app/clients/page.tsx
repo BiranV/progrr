@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
 import { db } from "@/lib/db";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -30,14 +29,12 @@ import { EntityTableSection } from "@/components/ui/entity/EntityTableSection";
 import { GenericDetailsPanel } from "@/components/ui/entity/GenericDetailsPanel";
 import { useEntityTableState } from "@/hooks/useEntityTableState";
 import { usePlanGuards } from "@/hooks/use-plan-guards";
-import { Button } from "@/components/ui/button";
 
 type ClientEntityRow = Client & {
   __entityStatus: "ACTIVE" | "ARCHIVED";
 };
 
 export default function ClientsPage() {
-  const router = useRouter();
   const [search, setSearch] = React.useState("");
 
   // Unified Details/Create/Edit Panel State
@@ -400,14 +397,6 @@ export default function ClientsPage() {
     planGuards?.guards?.canCreateClient?.reason ||
     "You’ve reached the limit for your current subscription. Upgrade to continue.";
 
-  const upgradeLabel = React.useMemo(() => {
-    const tier = String(planGuards?.plan ?? "").toLowerCase();
-    if (tier === "free") return "Upgrade to Basic";
-    if (tier === "basic") return "Upgrade to Professional";
-    if (tier === "professional") return "Upgrade to Advanced";
-    return "View pricing";
-  }, [planGuards?.plan]);
-
   return (
     <EntityPageLayout
       title="Clients"
@@ -416,22 +405,12 @@ export default function ClientsPage() {
         label: "Add Client",
         onClick: handleCreateClient,
         disabled: !canCreateClient,
+        disabledReason: !canCreateClient ? createClientReason : undefined,
+        disabledCta: !canCreateClient
+          ? { label: "Upgrade Plan", href: "/pricing" }
+          : undefined,
       }}
     >
-      {!canCreateClient ? (
-        <div className="mb-4 flex items-start justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-100">
-          <div className="pr-2">{createClientReason}</div>
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            onClick={() => router.push("/pricing")}
-          >
-            {upgradeLabel}
-          </Button>
-        </div>
-      ) : null}
-
       <EntityToolbar
         search={search}
         onSearchChange={setSearch}
@@ -514,6 +493,7 @@ export default function ClientsPage() {
           mealPlanNameById={mealPlanNameById}
           onClientUpdate={() => {
             queryClient.invalidateQueries({ queryKey: ["clients"] });
+            queryClient.invalidateQueries({ queryKey: ["planGuards"] });
           }}
         />
       </GenericDetailsPanel>

@@ -81,6 +81,9 @@ export default function FoodsPage() {
   const { data: planGuards } = usePlanGuards(true);
   const canUseFoodCatalog =
     planGuards?.guards?.canUseExternalCatalogApi?.allowed ?? false;
+  const isAdvancedCatalogTier =
+    String(planGuards?.plan ?? "") === "professional" ||
+    String(planGuards?.plan ?? "") === "advanced";
 
   const filteredFoods = (foods as FoodRow[]).filter((f) =>
     String(f?.name ?? "")
@@ -336,7 +339,7 @@ export default function FoodsPage() {
           type="button"
           variant="outline"
           disabled={!canUseFoodCatalog}
-          title={!canUseFoodCatalog ? "Available on Basic and above" : undefined}
+          title={!canUseFoodCatalog ? "Available on Professional and above" : undefined}
           onClick={() => {
             if (!canUseFoodCatalog) return;
             setCatalogOpen((v) => {
@@ -358,7 +361,11 @@ export default function FoodsPage() {
           ) : (
             <Plus className="w-5 h-5 mr-2" />
           )}
-          {catalogOpen ? "Close Catalog" : "Add from Food Catalog"}
+          {catalogOpen
+            ? "Close Catalog"
+            : isAdvancedCatalogTier
+              ? "Advanced Catalog"
+              : "Catalog"}
         </Button>
       }
       primaryAction={{ label: "Add Food", onClick: handleCreateFood }}
@@ -383,7 +390,7 @@ export default function FoodsPage() {
                 Food catalog
               </div>
               <div className="text-xs text-gray-600 dark:text-gray-400">
-                Available on Basic and above
+                Available on Professional and above
               </div>
               <Button
                 type="button"
@@ -391,7 +398,7 @@ export default function FoodsPage() {
                 className="mt-3"
                 onClick={() => router.push("/pricing")}
               >
-                Upgrade plan
+                Upgrade Plan
               </Button>
             </div>
           </div>
@@ -401,7 +408,7 @@ export default function FoodsPage() {
       {catalogOpen && canUseFoodCatalog ? (
         <div className="mb-6 rounded-lg border bg-white dark:bg-gray-800 p-4">
           <div className="flex items-start justify-between gap-3 mb-3">
-            <div className="text-sm font-medium">Food Catalog (USDA)</div>
+            <div className="text-sm font-medium">Advanced Catalog (USDA)</div>
             <Button
               type="button"
               variant="ghost"

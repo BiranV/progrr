@@ -1,7 +1,6 @@
 ﻿"use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { UtensilsCrossed } from "lucide-react";
 import { db } from "@/lib/db";
@@ -14,7 +13,6 @@ import { EntityTableSection } from "@/components/ui/entity/EntityTableSection";
 import { GenericDetailsPanel } from "@/components/ui/entity/GenericDetailsPanel";
 import { useEntityTableState } from "@/hooks/useEntityTableState";
 import { usePlanGuards } from "@/hooks/use-plan-guards";
-import { Button } from "@/components/ui/button";
 
 type MealPlanRow = {
   id: string;
@@ -28,7 +26,6 @@ type MealPlanRow = {
 };
 
 export default function MealsPage() {
-  const router = useRouter();
   const queryClient = useQueryClient();
 
   const [search, setSearch] = React.useState("");
@@ -150,14 +147,6 @@ export default function MealsPage() {
     planGuards?.guards?.canCreatePlan?.reason ||
     "You’ve reached the limit for your current subscription. Upgrade to continue.";
 
-  const upgradeLabel = React.useMemo(() => {
-    const tier = String(planGuards?.plan ?? "").toLowerCase();
-    if (tier === "free") return "Upgrade to Basic";
-    if (tier === "basic") return "Upgrade to Professional";
-    if (tier === "professional") return "Upgrade to Advanced";
-    return "View pricing";
-  }, [planGuards?.plan]);
-
   return (
     <EntityPageLayout
       title="Meal Plans"
@@ -166,22 +155,12 @@ export default function MealsPage() {
         label: "Add Meal Plan",
         onClick: handleCreatePlan,
         disabled: !canCreatePlan,
+        disabledReason: !canCreatePlan ? createPlanReason : undefined,
+        disabledCta: !canCreatePlan
+          ? { label: "Upgrade Plan", href: "/pricing" }
+          : undefined,
       }}
     >
-      {!canCreatePlan ? (
-        <div className="mb-4 flex items-start justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-100">
-          <div className="pr-2">{createPlanReason}</div>
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            onClick={() => router.push("/pricing")}
-          >
-            {upgradeLabel}
-          </Button>
-        </div>
-      ) : null}
-
       <EntityToolbar
         search={search}
         onSearchChange={setSearch}
@@ -268,6 +247,7 @@ export default function MealsPage() {
             queryClient.invalidateQueries({ queryKey: ["meals"] });
             queryClient.invalidateQueries({ queryKey: ["foods"] });
             queryClient.invalidateQueries({ queryKey: ["planFoods"] });
+            queryClient.invalidateQueries({ queryKey: ["planGuards"] });
           }}
         />
       </GenericDetailsPanel>
