@@ -364,31 +364,34 @@ export default function ExercisesPage() {
       title="Exercises"
       subtitle="Create reusable exercises for workout plans"
       secondaryActions={
-        canUseExerciseCatalog ? (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() =>
-              setCatalogOpen((v) => {
-                const next = !v;
-                if (next) {
-                  setCatalogQuery("");
-                  setCatalogSearchMessage(null);
-                  resetSearch();
-                  setSelectedCatalogIds(new Set());
-                }
-                return next;
-              })
-            }
-          >
-            {catalogOpen ? (
-              <X className="w-5 h-5 mr-2" />
-            ) : (
-              <Plus className="w-5 h-5 mr-2" />
-            )}
-            {catalogOpen ? "Close Catalog" : "Add from Exercise Catalog"}
-          </Button>
-        ) : null
+        <Button
+          type="button"
+          variant="outline"
+          disabled={!canUseExerciseCatalog}
+          title={!canUseExerciseCatalog ? "Available on Basic and above" : undefined}
+          onClick={() => {
+            if (!canUseExerciseCatalog) return;
+            setCatalogOpen((v) => {
+              const next = !v;
+              if (next) {
+                setCatalogQuery("");
+                setCatalogSearchMessage(null);
+                resetSearch();
+                setSelectedCatalogIds(new Set());
+              }
+              return next;
+            });
+          }}
+        >
+          {!canUseExerciseCatalog ? (
+            <Lock className="w-5 h-5 mr-2" />
+          ) : catalogOpen ? (
+            <X className="w-5 h-5 mr-2" />
+          ) : (
+            <Plus className="w-5 h-5 mr-2" />
+          )}
+          {catalogOpen ? "Close Catalog" : "Add from Exercise Catalog"}
+        </Button>
       }
       primaryAction={{ label: "Add Exercise", onClick: handleCreate }}
     >

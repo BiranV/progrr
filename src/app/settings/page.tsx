@@ -1008,15 +1008,12 @@ export default function SettingsPage() {
                     <div className="text-sm text-gray-600 dark:text-gray-400">
                       Current tier
                     </div>
-                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-200 dark:ring-emerald-900/40">
-                      Current
-                    </span>
-                  </div>
 
-                  <div className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                    {planGuardsLoading
-                      ? "Loading…"
-                      : String(planGuards?.planName ?? "Free").trim() || "Free"}
+                    <div className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                      {planGuardsLoading
+                        ? "Loading…"
+                        : String(planGuards?.planName ?? "Free").trim() || "Free"}
+                    </div>
                   </div>
 
                   <Button type="button" onClick={() => router.push("/pricing")}>

@@ -332,31 +332,34 @@ export default function FoodsPage() {
       title="Foods"
       subtitle="Create reusable foods for meal plans"
       secondaryActions={
-        canUseFoodCatalog ? (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() =>
-              setCatalogOpen((v) => {
-                const next = !v;
-                if (next) {
-                  setCatalogQuery("");
-                  setCatalogSearchMessage(null);
-                  resetSearch();
-                  setSelectedCatalogIds(new Set());
-                }
-                return next;
-              })
-            }
-          >
-            {catalogOpen ? (
-              <X className="w-5 h-5 mr-2" />
-            ) : (
-              <Plus className="w-5 h-5 mr-2" />
-            )}
-            {catalogOpen ? "Close Catalog" : "Add from Food Catalog"}
-          </Button>
-        ) : null
+        <Button
+          type="button"
+          variant="outline"
+          disabled={!canUseFoodCatalog}
+          title={!canUseFoodCatalog ? "Available on Basic and above" : undefined}
+          onClick={() => {
+            if (!canUseFoodCatalog) return;
+            setCatalogOpen((v) => {
+              const next = !v;
+              if (next) {
+                setCatalogQuery("");
+                setCatalogSearchMessage(null);
+                resetSearch();
+                setSelectedCatalogIds(new Set());
+              }
+              return next;
+            });
+          }}
+        >
+          {!canUseFoodCatalog ? (
+            <Lock className="w-5 h-5 mr-2" />
+          ) : catalogOpen ? (
+            <X className="w-5 h-5 mr-2" />
+          ) : (
+            <Plus className="w-5 h-5 mr-2" />
+          )}
+          {catalogOpen ? "Close Catalog" : "Add from Food Catalog"}
+        </Button>
       }
       primaryAction={{ label: "Add Food", onClick: handleCreateFood }}
     >

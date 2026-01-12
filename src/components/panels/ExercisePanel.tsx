@@ -58,6 +58,8 @@ export function ExerciseDetailsContent({
   const router = useRouter();
   const queryClient = useQueryClient();
 
+  const uploadInputRef = React.useRef<HTMLInputElement | null>(null);
+
   const panel = useGenericDetailsPanel();
   const open = panel.open;
 
@@ -765,6 +767,16 @@ export function ExerciseDetailsContent({
       (currentVideoKind !== "youtube" || !!currentVideoUrl) &&
       (currentVideoKind !== "upload" || !!currentVideoUrl);
 
+    const currentYoutubeEmbedUrl =
+      currentVideoKind === "youtube" && currentVideoUrl
+        ? toYouTubeEmbedUrl(currentVideoUrl)
+        : "";
+    const currentYoutubeWatchUrl = (() => {
+      if (currentVideoKind !== "youtube" || !currentVideoUrl) return "";
+      const id = extractYouTubeVideoId(currentVideoUrl);
+      return id ? `https://www.youtube.com/watch?v=${id}` : "";
+    })();
+
     const hasPendingVideo =
       hasVideo ||
       !!String(formData.youtubeUrl ?? "").trim() ||
@@ -975,15 +987,127 @@ export function ExerciseDetailsContent({
           </div>
         ) : null}
 
-        <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-4">
           <div className="text-sm font-semibold text-gray-900 dark:text-white">
             Video
           </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            Add a YouTube link.
+
+          {/* Current video */}
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/30">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                  Current video
+                </div>
+                <div className="text-xs text-gray-600 dark:text-gray-400">
+                  {hasVideo
+                    ? currentVideoKind === "youtube"
+                      ? "Source: YouTube"
+                      : "Source: Uploaded"
+                    : "No video attached"}
+                </div>
+              </div>
+
+              {hasVideo ? (
+                !showRemoveVideoConfirm ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowRemoveVideoConfirm(true)}
+                    disabled={removeVideoMutation.isPending}
+                  >
+                    Remove video
+                  </Button>
+                ) : null
+              ) : null}
+            </div>
+
+            {hasVideo ? (
+              <div className="mt-3">
+                {currentYoutubeEmbedUrl ? (
+                  <div
+                    className="relative w-full overflow-hidden rounded-lg bg-black"
+                    style={{ paddingTop: "56.25%" }}
+                  >
+                    {currentYoutubeWatchUrl ? (
+                      <a
+                        href={currentYoutubeWatchUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="absolute inset-0 z-10 cursor-pointer"
+                        title="Open video"
+                        aria-label="Open video"
+                      />
+                    ) : null}
+                    <iframe
+                      src={currentYoutubeEmbedUrl}
+                      title="Exercise video"
+                      className="absolute inset-0 h-full w-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                ) : currentVideoKind === "upload" && currentVideoUrl ? (
+                  <div
+                    className="relative w-full overflow-hidden rounded-lg bg-black"
+                    style={{ paddingTop: "56.25%" }}
+                  >
+                    <video
+                      className="absolute inset-0 h-full w-full object-contain"
+                      controls
+                      preload="metadata"
+                      src={currentVideoUrl}
+                    />
+                  </div>
+                ) : null}
+
+                {showRemoveVideoConfirm ? (
+                  <div className="mt-3 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+                    <div className="text-xs text-gray-700 dark:text-gray-200">
+                      Remove the video from this exercise?
+                    </div>
+                    <div className="mt-2 flex gap-2 justify-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={removeVideoMutation.isPending}
+                        onClick={() => setShowRemoveVideoConfirm(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        disabled={removeVideoMutation.isPending}
+                        onClick={async () => await removeVideoMutation.mutateAsync()}
+                      >
+                        {removeVideoMutation.isPending ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Removing...
+                          </>
+                        ) : (
+                          "Remove"
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
+          {/* Add video via YouTube (always available) */}
+          <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+            <div className="text-sm font-semibold text-gray-900 dark:text-white">
+              Add video via YouTube
+            </div>
+            <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+              Paste a YouTube URL. This works on all plans.
+            </div>
             <Input
               value={String(formData.youtubeUrl ?? "")}
               onChange={(e) => {
@@ -991,32 +1115,76 @@ export function ExerciseDetailsContent({
                 setFormData((prev: any) => ({ ...prev, youtubeUrl: e.target.value }));
               }}
               placeholder="YouTube URL (optional)"
-              className="sm:col-span-2"
+              className="mt-3"
             />
+          </div>
+
+          {/* Custom video upload (plan gated) */}
+          <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+            <div className="text-sm font-semibold text-gray-900 dark:text-white">
+              Custom video upload
+            </div>
+
             {canUploadCustomVideo ? (
-              <Input
-                className="w-full text-gray-900 dark:text-gray-100 file:text-gray-900 dark:file:text-gray-100 file:mr-3 file:rounded-md file:px-3 file:hover:opacity-90"
-                type="file"
-                accept="video/*"
-                onChange={(e) => {
-                  const input = e.target as HTMLInputElement;
-                  const file = input.files?.[0] ?? null;
-                  input.value = "";
-                  setFormData((prev: any) => ({ ...prev, uploadFile: file }));
-                }}
-              />
+              <>
+                <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                  Upload a video file to host it on Progrr.
+                </div>
+
+                <input
+                  ref={uploadInputRef}
+                  className="hidden"
+                  type="file"
+                  accept="video/*"
+                  onChange={(e) => {
+                    const input = e.target as HTMLInputElement;
+                    const file = input.files?.[0] ?? null;
+                    input.value = "";
+                    setFormData((prev: any) => ({ ...prev, uploadFile: file }));
+                  }}
+                />
+
+                <div className="mt-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => uploadInputRef.current?.click()}
+                  >
+                    <Video className="w-4 h-4 mr-2" />
+                    Upload video
+                  </Button>
+                </div>
+
+                {formData.uploadFile ? (
+                  <div className="mt-2 flex items-center justify-between gap-3 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-900/30 dark:text-gray-200">
+                    <div className="min-w-0 truncate">
+                      Selected: {(formData.uploadFile as File).name}
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        setFormData((prev: any) => ({ ...prev, uploadFile: null }))
+                      }
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                ) : null}
+              </>
             ) : (
-              <div className="w-full rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/30">
+              <div className="mt-3 w-full rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/30">
                 <div className="flex items-start gap-3">
                   <div className="mt-0.5 inline-flex h-9 w-9 items-center justify-center rounded-md bg-white shadow-sm ring-1 ring-gray-200 dark:bg-gray-900 dark:ring-gray-700">
                     <Lock className="h-4 w-4 text-gray-600 dark:text-gray-300" />
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                      Upload custom videos
+                      Custom video upload
                     </div>
                     <div className="text-xs text-gray-600 dark:text-gray-400">
-                      Available on Professional and Advanced plans
+                      Available on Professional & Advanced
                     </div>
                   </div>
                 </div>
@@ -1032,54 +1200,6 @@ export function ExerciseDetailsContent({
               </div>
             )}
           </div>
-
-          {hasPendingVideo ? (
-            <div className="flex justify-end">
-              {!showRemoveVideoConfirm ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowRemoveVideoConfirm(true)}
-                  disabled={removeVideoMutation.isPending}
-                >
-                  Remove Video
-                </Button>
-              ) : (
-                <div className="p-3 border border-orange-200 bg-orange-50 dark:bg-orange-900/10 rounded-lg space-y-2 w-full">
-                  <div className="text-xs text-orange-800 dark:text-orange-200">
-                    Remove the video from this exercise?
-                  </div>
-                  <div className="flex gap-2 justify-end">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      disabled={removeVideoMutation.isPending}
-                      onClick={() => setShowRemoveVideoConfirm(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      disabled={removeVideoMutation.isPending}
-                      onClick={async () => await removeVideoMutation.mutateAsync()}
-                    >
-                      {removeVideoMutation.isPending ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Removing...
-                        </>
-                      ) : (
-                        "Remove"
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : null}
         </div>
 
         <div className="h-2" />
