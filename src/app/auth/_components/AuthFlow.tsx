@@ -220,12 +220,15 @@ export default function AuthFlow({
         </CardContent>
 
         <div className="px-6 pb-6 pt-2 text-xs text-gray-600 dark:text-gray-400 flex items-center justify-center">
-          <Link
-            href="/pricing"
-            className="underline underline-offset-2 hover:text-gray-900 dark:hover:text-gray-200"
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8"
+            onClick={() => router.push("/pricing")}
           >
             View pricing
-          </Link>
+          </Button>
         </div>
       </Card>
     </AuthShell>

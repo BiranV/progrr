@@ -432,7 +432,7 @@ export default function FoodsPage() {
                   variant="secondary"
                   onClick={() => router.push("/pricing")}
                 >
-                  Upgrade
+                  Upgrade to Basic
                 </Button>
               </div>
             ) : (

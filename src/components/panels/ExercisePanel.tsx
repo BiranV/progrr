@@ -67,7 +67,7 @@ export function ExerciseDetailsContent({
     planGuards?.guards?.canUploadCustomVideo?.allowed ?? true;
   const customVideoReason =
     planGuards?.guards?.canUploadCustomVideo?.reason ||
-    "Custom video uploads are available on Advanced. Upgrade to continue.";
+    "Custom video uploads are available on Advanced. Upgrade your subscription to continue.";
 
   const exerciseId = String(exercise?.id ?? "").trim();
 
@@ -1018,7 +1018,7 @@ export function ExerciseDetailsContent({
                     variant="secondary"
                     onClick={() => router.push("/pricing")}
                   >
-                    Upgrade
+                    Upgrade to Advanced
                   </Button>
                 </div>
               ) : null}

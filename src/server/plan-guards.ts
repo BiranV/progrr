@@ -61,7 +61,7 @@ export const planLimits = {
 } as const;
 
 const LIMIT_REACHED_REASON =
-    "You’ve reached the limit for your current plan. Upgrade to continue.";
+    "You’ve reached the limit for your current subscription. Upgrade to continue.";
 
 export function normalizeAdminPlan(value: unknown): AdminPlan {
     const v = String(value ?? "")
@@ -196,7 +196,7 @@ export async function canUseExternalCatalogApi(admin: {
     return {
         allowed: false,
         reason:
-            "External Exercises/Foods catalog access is available on Basic and above. Upgrade to continue.",
+            "External Exercises/Foods catalog access is available on Basic and above. Upgrade your subscription to continue.",
     };
 }
 
@@ -210,7 +210,8 @@ export async function canUploadCustomVideo(admin: {
 
     return {
         allowed: false,
-        reason: "Custom video uploads are available on Advanced. Upgrade to continue.",
+        reason:
+            "Custom video uploads are available on Advanced. Upgrade your subscription to continue.",
     };
 }
 
@@ -225,7 +226,7 @@ export async function canSetAdminLogo(admin: {
 
     return {
         allowed: false,
-        reason: "Admin logo is available on Basic and above. Upgrade to continue.",
+        reason: "Admin logo is available on Basic and above. Upgrade your subscription to continue.",
     };
 }
 
@@ -240,7 +241,8 @@ export async function canCustomizePwaAppLogo(admin: {
 
     return {
         allowed: false,
-        reason: "PWA app logo customization is available on Advanced. Upgrade to continue.",
+        reason:
+            "PWA app logo customization is available on Advanced. Upgrade your subscription to continue.",
     };
 }
 

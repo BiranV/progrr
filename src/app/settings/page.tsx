@@ -3,7 +3,6 @@
 import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { db } from "@/lib/db";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -144,8 +143,8 @@ export default function SettingsPage() {
   const adminLogoReason =
     adminLogoGuard?.reason ||
     (planGuardsLoading
-      ? "Checking your plan…"
-      : "Admin logo requires the Basic plan.");
+      ? "Checking your subscription…"
+      : "Admin logo requires the Basic tier.");
   const [uploadMethod, setUploadMethod] = React.useState<"url" | "upload">(
     "upload"
   );
@@ -440,10 +439,10 @@ export default function SettingsPage() {
     onSuccess: async (payload) => {
       queryClient.invalidateQueries({ queryKey: ["planGuards"] });
       await refreshUser?.();
-      toast.success(`Plan set to ${payload.plan}`);
+      toast.success(`Subscription tier set to ${payload.plan}`);
     },
     onError: (error: any) => {
-      toast.error(error?.message || "Failed to switch plan");
+      toast.error(error?.message || "Failed to switch tier");
     },
   });
 
@@ -555,142 +554,144 @@ export default function SettingsPage() {
           }
         >
           {user?.role === "admin" ? (
-            <Card className="dark:bg-gray-800 dark:border-gray-700">
-              <CardHeader>
-                <CardTitle>Profile</CardTitle>
-              </CardHeader>
-              <CardContent className="flex-1">
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Full name
-                    </label>
-                    <Input
-                      value={profileFullName}
-                      onChange={(e) => setProfileFullName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          saveProfileMutation.mutate({
-                            fullName: profileFullName,
-                            phone: profilePhone,
-                          });
-                        }
-                      }}
-                      placeholder="Your name"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Phone
-                    </label>
-                    <Input
-                      value={profilePhone}
-                      onChange={(e) => setProfilePhone(e.target.value)}
-                      placeholder="Your phone"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Facebook
-                    </label>
-                    <div className="relative">
-                      <Facebook className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <>
+              <Card className="dark:bg-gray-800 dark:border-gray-700">
+                <CardHeader>
+                  <CardTitle>Profile</CardTitle>
+                </CardHeader>
+                <CardContent className="flex-1">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Full name
+                      </label>
                       <Input
-                        value={formData.facebookUrl}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            facebookUrl: e.target.value,
-                          })
-                        }
-                        placeholder="https://facebook.com/yourpage"
-                        className="pl-10"
+                        value={profileFullName}
+                        onChange={(e) => setProfileFullName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            saveProfileMutation.mutate({
+                              fullName: profileFullName,
+                              phone: profilePhone,
+                            });
+                          }
+                        }}
+                        placeholder="Your name"
                       />
                     </div>
-                  </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Instagram
-                    </label>
-                    <div className="relative">
-                      <Instagram className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Phone
+                      </label>
                       <Input
-                        value={formData.instagramUrl}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            instagramUrl: e.target.value,
-                          })
-                        }
-                        placeholder="https://instagram.com/yourprofile"
-                        className="pl-10"
+                        value={profilePhone}
+                        onChange={(e) => setProfilePhone(e.target.value)}
+                        placeholder="Your phone"
                       />
                     </div>
-                  </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      TikTok
-                    </label>
-                    <div className="relative">
-                      <Music2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                      <Input
-                        value={String((formData as any).tiktokUrl || "")}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            tiktokUrl: e.target.value,
-                          } as any)
-                        }
-                        placeholder="https://tiktok.com/@yourprofile"
-                        className="pl-10"
-                      />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Facebook
+                      </label>
+                      <div className="relative">
+                        <Facebook className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                        <Input
+                          value={formData.facebookUrl}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              facebookUrl: e.target.value,
+                            })
+                          }
+                          placeholder="https://facebook.com/yourpage"
+                          className="pl-10"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Instagram
+                      </label>
+                      <div className="relative">
+                        <Instagram className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                        <Input
+                          value={formData.instagramUrl}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              instagramUrl: e.target.value,
+                            })
+                          }
+                          placeholder="https://instagram.com/yourprofile"
+                          className="pl-10"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        TikTok
+                      </label>
+                      <div className="relative">
+                        <Music2 className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                        <Input
+                          value={String((formData as any).tiktokUrl || "")}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              tiktokUrl: e.target.value,
+                            } as any)
+                          }
+                          placeholder="https://tiktok.com/@yourprofile"
+                          className="pl-10"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-              <CardFooter className="justify-end border-t">
-                <Button
-                  type="button"
-                  onClick={async () => {
-                    if (
+                </CardContent>
+                <CardFooter className="justify-end border-t">
+                  <Button
+                    type="button"
+                    onClick={async () => {
+                      if (
+                        saveProfileMutation.isPending ||
+                        saveSocialMutation.isPending
+                      ) {
+                        return;
+                      }
+                      try {
+                        await saveProfileMutation.mutateAsync({
+                          fullName: profileFullName,
+                          phone: profilePhone,
+                        });
+
+                        await saveSocialMutation.mutateAsync({
+                          facebookUrl: formData.facebookUrl,
+                          instagramUrl: formData.instagramUrl,
+                          tiktokUrl: String((formData as any).tiktokUrl || ""),
+                        } as any);
+                      } catch {
+                        // Individual mutations already toast errors.
+                      }
+                    }}
+                    disabled={
                       saveProfileMutation.isPending ||
                       saveSocialMutation.isPending
-                    ) {
-                      return;
                     }
-                    try {
-                      await saveProfileMutation.mutateAsync({
-                        fullName: profileFullName,
-                        phone: profilePhone,
-                      });
-
-                      await saveSocialMutation.mutateAsync({
-                        facebookUrl: formData.facebookUrl,
-                        instagramUrl: formData.instagramUrl,
-                        tiktokUrl: String((formData as any).tiktokUrl || ""),
-                      } as any);
-                    } catch {
-                      // Individual mutations already toast errors.
-                    }
-                  }}
-                  disabled={
-                    saveProfileMutation.isPending ||
-                    saveSocialMutation.isPending
-                  }
-                  className="flex items-center gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  {saveProfileMutation.isPending || saveSocialMutation.isPending
-                    ? "Saving..."
-                    : "Save Profile"}
-                </Button>
-              </CardFooter>
-            </Card>
+                    className="flex items-center gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    {saveProfileMutation.isPending || saveSocialMutation.isPending
+                      ? "Saving..."
+                      : "Save Profile"}
+                  </Button>
+                </CardFooter>
+              </Card>
+            </>
           ) : null}
 
           {/* Business Information */}
@@ -762,7 +763,7 @@ export default function SettingsPage() {
                           variant="secondary"
                           onClick={() => router.push("/pricing")}
                         >
-                          Upgrade
+                          Upgrade to Basic
                         </Button>
                       </div>
 
@@ -996,49 +997,79 @@ export default function SettingsPage() {
             </CardFooter>
           </Card>
 
-          {devPlanOverrideEnabled ? (
-            <Card className="dark:bg-gray-800 dark:border-gray-700">
-              <CardHeader>
-                <CardTitle>Dev: Plan Override</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  For testing only. This updates your admin plan in the database
-                  and immediately refreshes UI guards.
-                </p>
+          {user?.role === "admin" ? (
+            <>
+              <Card className="dark:bg-gray-800 dark:border-gray-700">
+                <CardHeader>
+                  <CardTitle>Subscription</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      Current tier
+                    </div>
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-200 dark:ring-emerald-900/40">
+                      Current
+                    </span>
+                  </div>
 
-                <div className="max-w-sm">
-                  <Select
-                    value={
-                      (planGuards?.plan as any) ||
-                      ((user as any)?.plan as any) ||
-                      "free"
-                    }
-                    onValueChange={(v) => {
-                      const next =
-                        v === "free" ||
-                          v === "basic" ||
-                          v === "professional" ||
-                          v === "advanced"
-                          ? v
-                          : "free";
-                      devPlanMutation.mutate(next);
-                    }}
-                    disabled={devPlanMutation.isPending}
-                  >
-                    <SelectTrigger className="w-full justify-between">
-                      <SelectValue placeholder="Select plan" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="free">Free</SelectItem>
-                      <SelectItem value="basic">Basic</SelectItem>
-                      <SelectItem value="professional">Professional</SelectItem>
-                      <SelectItem value="advanced">Advanced</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
+                  <div className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                    {planGuardsLoading
+                      ? "Loading…"
+                      : String(planGuards?.planName ?? "Free").trim() || "Free"}
+                  </div>
+
+                  <Button type="button" onClick={() => router.push("/pricing")}>
+                    View pricing
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {devPlanOverrideEnabled ? (
+                <Card className="dark:bg-gray-800 dark:border-gray-700">
+                  <CardHeader>
+                    <CardTitle>Dev: Tier Override</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      For testing only. This updates your admin tier in the
+                      database and immediately refreshes UI guards.
+                    </p>
+
+                    <div className="max-w-sm">
+                      <Select
+                        value={
+                          (planGuards?.plan as any) ||
+                          ((user as any)?.plan as any) ||
+                          "free"
+                        }
+                        onValueChange={(v) => {
+                          const next =
+                            v === "free" ||
+                              v === "basic" ||
+                              v === "professional" ||
+                              v === "advanced"
+                              ? v
+                              : "free";
+                          devPlanMutation.mutate(next);
+                        }}
+                        disabled={devPlanMutation.isPending}
+                      >
+                        <SelectTrigger className="w-full justify-between">
+                          <SelectValue placeholder="Select tier" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="free">Free</SelectItem>
+                          <SelectItem value="basic">Basic</SelectItem>
+                          <SelectItem value="professional">Professional</SelectItem>
+                          <SelectItem value="advanced">Advanced</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : null}
+            </>
           ) : null}
         </div>
 

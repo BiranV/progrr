@@ -466,7 +466,7 @@ export default function ExercisesPage() {
                   variant="secondary"
                   onClick={() => router.push("/pricing")}
                 >
-                  Upgrade
+                  Upgrade to Basic
                 </Button>
               </div>
             ) : (

@@ -205,7 +205,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       { name: "Meal Plans", icon: UtensilsCrossed, href: "/meals" },
       { name: "Meetings", icon: Calendar, href: "/meetings" },
       { name: "Messages", icon: MessageSquare, href: "/messages" },
-      { name: "Pricing", icon: BadgeDollarSign, href: "/pricing" },
+      { name: "Subscription", icon: BadgeDollarSign, href: "/pricing" },
       { name: "Settings", icon: Settings, href: "/settings" },
     ]
     : [

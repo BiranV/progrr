@@ -398,7 +398,15 @@ export default function ClientsPage() {
   const canCreateClient = planGuards?.guards?.canCreateClient?.allowed ?? true;
   const createClientReason =
     planGuards?.guards?.canCreateClient?.reason ||
-    "You’ve reached the limit for your current plan. Upgrade to continue.";
+    "You’ve reached the limit for your current subscription. Upgrade to continue.";
+
+  const upgradeLabel = React.useMemo(() => {
+    const tier = String(planGuards?.plan ?? "").toLowerCase();
+    if (tier === "free") return "Upgrade to Basic";
+    if (tier === "basic") return "Upgrade to Professional";
+    if (tier === "professional") return "Upgrade to Advanced";
+    return "View pricing";
+  }, [planGuards?.plan]);
 
   return (
     <EntityPageLayout
@@ -419,7 +427,7 @@ export default function ClientsPage() {
             variant="secondary"
             onClick={() => router.push("/pricing")}
           >
-            Upgrade
+            {upgradeLabel}
           </Button>
         </div>
       ) : null}
