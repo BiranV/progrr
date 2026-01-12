@@ -16,82 +16,86 @@ function isSafeNextPath(next: string | null): next is string {
 function isPublicPath(pathname: string) {
   if (pathname === "/") return true;
   if (pathname.startsWith("/auth")) return true;
+  if (pathname.startsWith("/login")) return true;
   if (pathname.startsWith("/api")) return true;
   if (pathname.startsWith("/_next")) return true;
   if (pathname === "/favicon.ico") return true;
+  if (pathname === "/manifest.webmanifest") return true;
+  if (pathname === "/sw.js") return true;
+  if (pathname.startsWith("/icons")) return true;
+  if (pathname.startsWith("/uploads")) return true;
+  if (pathname === "/robots.txt") return true;
+  if (pathname === "/sitemap.xml") return true;
   if (pathname.startsWith("/public")) return true;
   return false;
+}
+
+function isBypassPath(pathname: string) {
+  if (pathname.startsWith("/api")) return true;
+  if (pathname.startsWith("/_next")) return true;
+  if (pathname === "/favicon.ico") return true;
+  if (pathname === "/manifest.webmanifest") return true;
+  if (pathname === "/sw.js") return true;
+  if (pathname.startsWith("/icons")) return true;
+  if (pathname.startsWith("/uploads")) return true;
+  if (pathname === "/robots.txt") return true;
+  if (pathname === "/sitemap.xml") return true;
+  return false;
+}
+
+function isOnboardingPath(pathname: string) {
+  return pathname === "/onboarding" || pathname.startsWith("/onboarding/");
 }
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  const canonicalBase = process.env.NEXT_PUBLIC_APP_URL;
-  if (canonicalBase) {
-    const canonical = new URL(canonicalBase);
-    const host = request.headers.get("host");
-    if (host && host !== canonical.host) {
-      const dest = new URL(
-        request.nextUrl.pathname + request.nextUrl.search,
-        canonical.origin
-      );
-      return NextResponse.redirect(dest, 308);
-    }
+  if (isBypassPath(pathname)) {
+    return NextResponse.next();
   }
 
-  const response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  });
-
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
-  let claims: { sub: string } | null = null;
+  let claims: { sub: string; onboardingCompleted?: boolean } | null = null;
   if (token) {
     try {
       const parsed = await verifyAuthToken(token);
-      claims = { sub: parsed.sub };
+      claims = { sub: parsed.sub, onboardingCompleted: parsed.onboardingCompleted };
     } catch {
       claims = null;
     }
   }
 
   const isAuthed = !!claims;
+  const onboardingCompleted = Boolean(claims?.onboardingCompleted);
 
   // Auth entry routes: if the user is already authenticated, they should never see
   // the login / welcome screens.
-  const isAuthEntryPath =
-    pathname === "/" ||
-    pathname.startsWith("/auth") ||
-    pathname.startsWith("/login");
+  const isAuthEntryPath = pathname.startsWith("/auth") || pathname.startsWith("/login");
 
-  // IMPORTANT: A valid JWT signature is not enough to treat the session as usable.
-  // Confirm via /api/me so missing users clear the cookie.
-  if (isAuthEntryPath && isAuthed) {
-    try {
-      const meUrl = new URL("/api/me", request.url);
-      const cookie = request.headers.get("cookie") || "";
-      const meRes = await fetch(meUrl, {
-        method: "GET",
-        headers: { cookie },
-        cache: "no-store",
-      });
-
-      if (meRes.ok) {
-        const next = request.nextUrl.searchParams.get("next");
-        const dest = isSafeNextPath(next) ? next : "/dashboard";
-        return NextResponse.redirect(new URL(dest, request.url));
-      }
-
-      // For 401 or other failures, allow the auth route to render.
-      if (meRes.status === 401) {
-        const res = NextResponse.next();
-        res.cookies.set(AUTH_COOKIE_NAME, "", { path: "/", maxAge: 0 });
-        return res;
-      }
-    } catch {
-      // If the check fails, do not break auth entry routes.
+  if (isAuthed && isAuthEntryPath) {
+    const dest = onboardingCompleted ? "/dashboard" : "/onboarding";
+    if (dest !== pathname) {
+      return NextResponse.redirect(new URL(dest, request.url));
     }
+  }
+
+  if (isAuthed && !onboardingCompleted && !isOnboardingPath(pathname)) {
+    return NextResponse.redirect(new URL("/onboarding", request.url));
+  }
+
+  if (isAuthed && onboardingCompleted && isOnboardingPath(pathname)) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
+  // Onboarding gate: if the user is authenticated but has not completed onboarding,
+  // they must stay on /onboarding (no dashboard/sidebar areas).
+  if (isAuthed && !onboardingCompleted && !isPublicPath(pathname) && !isOnboardingPath(pathname)) {
+    return NextResponse.redirect(new URL("/onboarding", request.url));
+  }
+
+  // If onboarding is complete, keep /onboarding inaccessible.
+  if (isAuthed && onboardingCompleted && isOnboardingPath(pathname)) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   if (!isPublicPath(pathname) && !isAuthed) {
@@ -104,7 +108,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {

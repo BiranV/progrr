@@ -7,6 +7,32 @@ export type UserDoc = {
   createdAt: Date;
   fullName?: string;
   phone?: string;
+  onboardingCompleted?: boolean;
+  onboarding?: {
+    businessType?: string;
+    business?: {
+      name?: string;
+      phone?: string;
+      address?: string;
+    };
+    services?: Array<{
+      id: string;
+      name: string;
+      durationMinutes: number;
+      price?: number;
+    }>;
+    availability?: {
+      timezone?: string;
+      days?: Array<{
+        day: number; // 0-6 (Sun-Sat)
+        enabled: boolean;
+        start?: string; // HH:mm
+        end?: string; // HH:mm
+      }>;
+    };
+    updatedAt?: Date;
+  };
+  onboardingCompletedAt?: Date;
 };
 
 export type OtpPurpose =

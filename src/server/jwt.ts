@@ -2,6 +2,7 @@ import { SignJWT, jwtVerify } from "jose";
 
 export type AuthClaims = {
   sub: string;
+  onboardingCompleted?: boolean;
   iat?: number;
 };
 
@@ -24,7 +25,12 @@ function getSecretKey() {
 export async function signAuthToken(claims: AuthClaims) {
   const key = getSecretKey();
 
-  return await new SignJWT({})
+  return await new SignJWT({
+    onboardingCompleted:
+      typeof claims.onboardingCompleted === "boolean"
+        ? claims.onboardingCompleted
+        : undefined,
+  })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(claims.sub)
     .setIssuedAt()
@@ -42,9 +48,14 @@ export async function verifyAuthToken(token: string): Promise<AuthClaims> {
     throw Object.assign(new Error("Invalid token"), { status: 401 });
   }
   const iat = typeof payload.iat === "number" ? payload.iat : undefined;
+  const onboardingCompleted =
+    typeof (payload as any).onboardingCompleted === "boolean"
+      ? Boolean((payload as any).onboardingCompleted)
+      : undefined;
 
   return {
     sub,
+    onboardingCompleted,
     iat,
   };
 }

@@ -32,14 +32,30 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const isOnboardingPath = pathname === "/onboarding" || pathname.startsWith("/onboarding/");
+  const onboardingCompleted = Boolean((user as any)?.onboardingCompleted);
+
   useEffect(() => {
     if (loading) return;
 
     const isAuthEntryPath = pathname === "/" || pathname.startsWith("/auth");
     if (user && isAuthEntryPath) {
+      router.replace(onboardingCompleted ? "/dashboard" : "/onboarding");
+    }
+  }, [loading, onboardingCompleted, pathname, router, user]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user) return;
+
+    if (!onboardingCompleted && !isOnboardingPath) {
+      router.replace("/onboarding");
+    }
+
+    if (onboardingCompleted && isOnboardingPath) {
       router.replace("/dashboard");
     }
-  }, [loading, pathname, router, user]);
+  }, [isOnboardingPath, loading, onboardingCompleted, router, user]);
 
   if (loading) {
     return (
@@ -60,6 +76,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">{children}</div>
+    );
+  }
+
+  // Onboarding should not show the sidebar/dashboard chrome.
+  if (isOnboardingPath) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+        <main className="min-h-screen p-4 sm:p-6 lg:p-8">{children}</main>
+      </div>
     );
   }
 

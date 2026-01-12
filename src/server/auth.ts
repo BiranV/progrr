@@ -8,6 +8,7 @@ export type AppUser = {
   email: string;
   full_name: string | null;
   phone?: string;
+  onboardingCompleted: boolean;
 };
 
 export async function requireAppUser(): Promise<AppUser> {
@@ -32,5 +33,6 @@ export async function requireAppUser(): Promise<AppUser> {
       typeof (user as any).phone === "string" && String((user as any).phone).trim()
         ? String((user as any).phone).trim()
         : undefined,
+    onboardingCompleted: Boolean((user as any).onboardingCompleted),
   };
 }

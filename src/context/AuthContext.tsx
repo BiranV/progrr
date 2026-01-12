@@ -15,6 +15,7 @@ interface User {
   id: string;
   email: string;
   full_name?: string;
+  onboardingCompleted?: boolean;
   [key: string]: any;
 }
 
@@ -57,6 +58,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     checkUserAuth();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    if (!user) return;
+
+    const completed = Boolean((user as any).onboardingCompleted);
+    const isOnboarding = pathname === "/onboarding" || pathname.startsWith("/onboarding/");
+    const isAuth = pathname === "/" || pathname.startsWith("/auth");
+
+    if (!completed && !isOnboarding) {
+      router.replace("/onboarding");
+    }
+
+    if (completed && isOnboarding) {
+      router.replace("/dashboard");
+    }
+
+    // Keep auth pages inaccessible once authenticated.
+    if (isAuth) {
+      router.replace(completed ? "/dashboard" : "/onboarding");
+    }
+  }, [isAuthenticated, pathname, router, user]);
 
   // Polling to keep status fresh (every 5 seconds)
   useEffect(() => {

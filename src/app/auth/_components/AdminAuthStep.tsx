@@ -44,7 +44,7 @@ export default function AdminAuthStep({
   useEffect(() => {
     if (isLoadingAuth) return;
     if (isAuthenticated) {
-      router.replace(nextPath || "/dashboard");
+      router.replace("/onboarding");
     }
   }, [isAuthenticated, isLoadingAuth, nextPath, router]);
 
@@ -161,7 +161,7 @@ export default function AdminAuthStep({
         return;
       }
 
-      router.replace(nextPath || "/dashboard");
+      router.replace("/onboarding");
       router.refresh();
     } catch (err: any) {
       setLoginError(err?.message || "Failed to verify code");
@@ -261,7 +261,7 @@ export default function AdminAuthStep({
         return;
       }
 
-      router.replace(nextPath || "/dashboard");
+      router.replace("/onboarding");
       router.refresh();
     } catch (err: any) {
       setSignupError(err?.message || "Failed to verify code");

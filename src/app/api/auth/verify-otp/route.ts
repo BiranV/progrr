@@ -88,18 +88,22 @@ export async function POST(req: Request) {
         await c.otps.deleteOne({ key: email, purpose });
 
         let userId: string;
+        let onboardingCompleted = false;
         if (existing) {
             userId = existing._id!.toHexString();
+            onboardingCompleted = Boolean((existing as any).onboardingCompleted);
         } else {
             const insert = await c.users.insertOne({
                 email,
                 createdAt: new Date(),
                 fullName: fullName || undefined,
+                onboardingCompleted: false,
             } as any);
             userId = insert.insertedId.toHexString();
+            onboardingCompleted = false;
         }
 
-        const token = await signAuthToken({ sub: userId });
+        const token = await signAuthToken({ sub: userId, onboardingCompleted });
 
         const res = NextResponse.json({ ok: true });
         setAuthCookie(res, token);
