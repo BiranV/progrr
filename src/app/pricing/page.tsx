@@ -105,7 +105,7 @@ export default function PricingPage() {
       capabilities: {
         externalCatalog: true,
         adminLogo: true,
-        customVideo: false,
+        customVideo: true,
         appBranding: false,
       },
     },
@@ -139,25 +139,16 @@ export default function PricingPage() {
   }, []);
 
   const renderCapability = React.useCallback(
-    (args: { label: string; included: boolean; gatedText: string }) => (
-      <li className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
-          {args.included ? (
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-          ) : (
-            <Lock className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
-          )}
-          <span className="text-gray-800 dark:text-gray-200">{args.label}</span>
-        </div>
+    (args: { label: string; included: boolean }) => (
+      <li className="flex items-start gap-3">
+        {args.included ? (
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+        ) : (
+          <Lock className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
+        )}
 
-        <span
-          className={
-            args.included
-              ? "text-xs font-medium text-emerald-700 dark:text-emerald-300"
-              : "text-xs font-medium text-gray-500 dark:text-gray-400"
-          }
-        >
-          {args.included ? "Included" : args.gatedText}
+        <span className="text-gray-800 dark:text-gray-200 flex-1">
+          {args.label}
         </span>
       </li>
     ),
@@ -226,18 +217,18 @@ export default function PricingPage() {
               <Card
                 key={plan.name}
                 className={`relative ${plan.theme.card} min-w-0 flex flex-col h-full ${isCurrentPlan
-                    ? "border-2 border-indigo-600 shadow-xl dark:border-indigo-400 dark:ring-1 dark:ring-indigo-400/30 dark:shadow-[0_18px_60px_rgba(99,102,241,0.25)]"
-                    : ""
+                  ? "border-2 border-indigo-600 shadow-xl dark:border-indigo-400 dark:ring-1 dark:ring-indigo-400/30 dark:shadow-[0_18px_60px_rgba(99,102,241,0.25)]"
+                  : ""
                   }`}
               >
                 {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-4 py-1 rounded-full text-sm font-semibold">
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-20 bg-indigo-600 text-white px-4 py-1 rounded-full text-sm font-semibold shadow-sm">
                     Most Popular
                   </div>
                 )}
 
                 {isCurrentPlan ? (
-                  <div className="absolute -top-4 right-4 rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200">
+                  <div className="absolute -top-4 right-4 z-20 rounded-full bg-indigo-100 px-3 py-1 text-xs font-semibold text-indigo-800 shadow-sm ring-1 ring-indigo-200 dark:bg-indigo-950 dark:text-indigo-100 dark:ring-indigo-400/40">
                     Current
                   </div>
                 ) : null}
@@ -272,24 +263,20 @@ export default function PricingPage() {
 
                   <ul className="space-y-3 mb-8">
                     {renderCapability({
-                      label: "External catalog search (foods & exercises)",
+                      label: "Exercise & food catalog",
                       included: plan.capabilities.externalCatalog,
-                      gatedText: "Available on Basic+",
                     })}
                     {renderCapability({
-                      label: "Admin logo branding",
+                      label: "Coach branding (logo)",
                       included: plan.capabilities.adminLogo,
-                      gatedText: "Available on Basic+",
                     })}
                     {renderCapability({
                       label: "Custom video uploads",
                       included: plan.capabilities.customVideo,
-                      gatedText: "Advanced only",
                     })}
                     {renderCapability({
-                      label: "App branding (icon & name on mobile)",
+                      label: "Your brand on the client app",
                       included: plan.capabilities.appBranding,
-                      gatedText: "Advanced only",
                     })}
                   </ul>
 

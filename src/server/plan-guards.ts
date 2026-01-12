@@ -38,7 +38,7 @@ export const PLAN_DEFINITIONS: Record<AdminPlan, PlanDefinition> = {
         maxClients: 100,
         maxPlans: Infinity,
         allowExternalCatalogApi: true,
-        allowCustomVideoUploads: false,
+        allowCustomVideoUploads: true,
         allowAdminLogo: true,
         allowPwaBranding: false,
     },
@@ -211,7 +211,7 @@ export async function canUploadCustomVideo(admin: {
     return {
         allowed: false,
         reason:
-            "Custom video uploads are available on Advanced. Upgrade your subscription to continue.",
+            "Custom video uploads are available on Professional and above. Upgrade your subscription to continue.",
     };
 }
 
