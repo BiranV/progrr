@@ -27,7 +27,10 @@ export default function PublicBusinessPage({
             try {
                 const res = await fetch(`/api/public/business/${encodeURIComponent(slug)}`);
                 const json = await res.json().catch(() => null);
-                if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
+                if (!res.ok) {
+                    if (res.status === 404) throw new Error("Business not found");
+                    throw new Error(json?.error || `Request failed (${res.status})`);
+                }
                 if (cancelled) return;
                 setData(json as PublicBusiness);
             } catch (e: any) {

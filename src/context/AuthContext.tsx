@@ -1,6 +1,14 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  ReactNode,
+} from "react";
 import { db } from "@/lib/db";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -60,6 +68,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [authStatus, setAuthStatus] = useState<"loading" | "guest" | "authenticated">("loading");
+  const didFetchMeRef = useRef(false);
+  const mountedRef = useRef(true);
   const router = useRouter();
   const pathname = usePathname();
   const isAuthenticated = useMemo(() => Boolean(user), [user]);
@@ -81,15 +91,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    let cancelled = false;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    // Fully public booking pages must never call /api/me.
+    if (pathname.startsWith("/b")) {
+      setIsLoadingAuth(false);
+      setAuthStatus(user ? "authenticated" : "guest");
+      return;
+    }
+
+    // Fetch /api/me at most once per app session.
+    if (didFetchMeRef.current) return;
+    didFetchMeRef.current = true;
+
     (async () => {
       setIsLoadingAuth(true);
       setAuthStatus("loading");
       const res = await fetchMeOnce();
-      if (cancelled) return;
+      if (!mountedRef.current) return;
 
       if (res.status === 401) {
-        // Explicit guest transition: stop loading, clear auth state, and redirect.
         setMeCache(null);
         setUser(null);
         setIsLoadingAuth(false);
@@ -105,11 +130,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsLoadingAuth(false);
       setAuthStatus(res.user ? "authenticated" : "guest");
     })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  }, [pathname, router, user]);
 
   useEffect(() => {
     if (isLoadingAuth) return;

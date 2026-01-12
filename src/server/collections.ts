@@ -19,6 +19,7 @@ export type UserDoc = {
       name?: string;
       phone?: string;
       address?: string;
+      slug?: string;
     };
     services?: Array<{
       id: string;
@@ -113,6 +114,10 @@ export async function ensureIndexes() {
   const c = await collections();
 
   await c.users.createIndex({ email: 1 }, { unique: true });
+  await c.users.createIndex(
+    { "onboarding.business.slug": 1 },
+    { unique: true, sparse: true }
+  );
 
   await c.otps.createIndex({ key: 1, purpose: 1 }, { unique: true });
   await c.otps.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });

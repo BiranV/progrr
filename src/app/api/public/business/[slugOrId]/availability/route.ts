@@ -8,6 +8,16 @@ function isValidDateString(s: string): boolean {
     return /^\d{4}-\d{2}-\d{2}$/.test(s);
 }
 
+function normalizeSlug(input: string): string {
+    return String(input ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-]/g, "")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "");
+}
+
 export async function GET(
     req: Request,
     ctx: { params: Promise<{ slugOrId: string }> }
@@ -33,16 +43,15 @@ export async function GET(
         }
 
         const { slugOrId } = await ctx.params;
-        const businessId = String(slugOrId ?? "").trim();
-
-        if (!/^[a-f0-9]{24}$/i.test(businessId)) {
+        const slug = normalizeSlug(String(slugOrId ?? "").trim());
+        if (!slug) {
             return NextResponse.json({ error: "Business not found" }, { status: 404 });
         }
 
         const c = await collections();
 
         const user = await c.users.findOne({
-            _id: new ObjectId(businessId),
+            "onboarding.business.slug": slug,
             onboardingCompleted: true,
         } as any);
 

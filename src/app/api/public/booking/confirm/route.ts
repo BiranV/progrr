@@ -18,6 +18,16 @@ function isValidTimeString(s: string): boolean {
     return /^\d{2}:\d{2}$/.test(s);
 }
 
+function normalizeSlug(input: string): string {
+    return String(input ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-]/g, "")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "");
+}
+
 export async function POST(req: Request) {
     try {
         await ensureIndexes();
@@ -82,13 +92,14 @@ export async function POST(req: Request) {
             );
         }
 
-        if (!/^[a-f0-9]{24}$/i.test(businessSlugOrId)) {
+        const slug = normalizeSlug(businessSlugOrId);
+        if (!slug) {
             return NextResponse.json({ error: "Business not found" }, { status: 404 });
         }
 
         const c = await collections();
         const user = await c.users.findOne({
-            _id: new ObjectId(businessSlugOrId),
+            "onboarding.business.slug": slug,
             onboardingCompleted: true,
         } as any);
 

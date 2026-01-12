@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
-import { ObjectId } from "mongodb";
 
 import { collections, ensureIndexes } from "@/server/collections";
 
-function isObjectIdLike(s: string): boolean {
-    return /^[a-f0-9]{24}$/i.test(s);
+function normalizeSlug(input: string): string {
+    return String(input ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-]/g, "")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "");
 }
 
 export async function GET(
@@ -19,14 +24,15 @@ export async function GET(
             return NextResponse.json({ error: "Business not found" }, { status: 404 });
         }
 
-        if (!isObjectIdLike(raw)) {
+        const slug = normalizeSlug(raw);
+        if (!slug) {
             return NextResponse.json({ error: "Business not found" }, { status: 404 });
         }
 
         const c = await collections();
 
         const user = await c.users.findOne({
-            _id: new ObjectId(raw),
+            "onboarding.business.slug": slug,
             onboardingCompleted: true,
         } as any);
 
@@ -43,7 +49,7 @@ export async function GET(
         return NextResponse.json({
             ok: true,
             business: {
-                id: user._id!.toHexString(),
+                slug,
                 name: String(business.name ?? "").trim(),
                 phone: String(business.phone ?? "").trim(),
                 address: String(business.address ?? "").trim(),

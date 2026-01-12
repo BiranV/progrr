@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Settings,
@@ -29,10 +29,34 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoadingAuth: loading, logout } = useAuth();
   const { darkMode, toggleDarkMode } = useTheme();
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const isOnboardingPath = pathname === "/onboarding" || pathname.startsWith("/onboarding/");
   const onboardingCompleted = Boolean((user as any)?.onboardingCompleted);
+
+  React.useEffect(() => {
+    if (loading) return;
+
+    // No user -> login
+    if (!user) {
+      if (!isPublicPath(pathname)) {
+        router.replace("/auth");
+      }
+      return;
+    }
+
+    // User but onboarding incomplete -> onboarding
+    if (!onboardingCompleted && !isOnboardingPath) {
+      router.replace("/onboarding");
+      return;
+    }
+
+    // User and onboarding complete -> keep onboarding inaccessible
+    if (onboardingCompleted && isOnboardingPath) {
+      router.replace("/dashboard");
+    }
+  }, [isOnboardingPath, loading, onboardingCompleted, pathname, router, user]);
 
   if (loading) {
     return (
@@ -43,13 +67,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    if (!isPublicPath(pathname)) {
-      return null;
-    }
+    return isPublicPath(pathname)
+      ? (<div className="min-h-screen bg-gray-50 dark:bg-gray-900">{children}</div>)
+      : null;
+  }
 
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">{children}</div>
-    );
+  // While redirecting to onboarding/dashboard, avoid rendering protected chrome.
+  if (!onboardingCompleted && !isOnboardingPath) {
+    return null;
+  }
+  if (onboardingCompleted && isOnboardingPath) {
+    return null;
   }
 
   // Onboarding should not show the sidebar/dashboard chrome.
