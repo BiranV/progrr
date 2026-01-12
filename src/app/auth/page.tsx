@@ -21,30 +21,25 @@ export default async function AuthEntryPage({
   const next = typeof sp.next === "string" ? sp.next : "";
   const authError = typeof sp.authError === "string" ? sp.authError : "";
   const authMessage = typeof sp.authMessage === "string" ? sp.authMessage : "";
-  const inviteToken = typeof sp.inviteToken === "string" ? sp.inviteToken : "";
 
   // Hard server-side guard: if already authenticated, the auth entry page must never render.
-  // Exception: invite acceptance flow is allowed to render when inviteToken is present.
-  if (!inviteToken) {
-    try {
-      await requireAppUser();
-      redirect(next && isSafeNextPath(next) ? next : "/dashboard");
-    } catch {
-      // Not authenticated (or blocked). Allow the auth UI to render.
-    }
+  try {
+    await requireAppUser();
+    redirect(next && isSafeNextPath(next) ? next : "/dashboard");
+  } catch {
+    // Not authenticated. Allow the auth UI to render.
   }
 
   const banner: AuthBannerState = authError
     ? { type: "error", text: authError }
     : authMessage
-    ? { type: "message", text: authMessage }
-    : null;
+      ? { type: "message", text: authMessage }
+      : null;
 
   return (
     <AuthFlow
       initialBanner={banner}
       initialNext={next}
-      initialInviteToken={inviteToken}
     />
   );
 }

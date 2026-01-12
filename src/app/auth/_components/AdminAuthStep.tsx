@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -27,10 +26,8 @@ const isValidFullName = (fullName: string) => {
 
 export default function AdminAuthStep({
   nextPath,
-  onBack,
 }: {
   nextPath: string;
-  onBack: () => void;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -109,7 +106,7 @@ export default function AdminAuthStep({
 
     setLoginLoading(true);
     try {
-      const res = await fetch("/api/auth/admin/send-otp", {
+      const res = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, flow: "login" }),
@@ -152,7 +149,7 @@ export default function AdminAuthStep({
 
     setLoginLoading(true);
     try {
-      const res = await fetch("/api/auth/admin/verify-otp", {
+      const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, code }),
@@ -199,7 +196,7 @@ export default function AdminAuthStep({
 
     setSignupLoading(true);
     try {
-      const res = await fetch("/api/auth/admin/send-otp", {
+      const res = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, flow: "signup" }),
@@ -252,7 +249,7 @@ export default function AdminAuthStep({
 
     setSignupLoading(true);
     try {
-      const res = await fetch("/api/auth/admin/verify-otp", {
+      const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, code, full_name: fullName }),
@@ -275,17 +272,6 @@ export default function AdminAuthStep({
 
   return (
     <div className="space-y-4">
-      <div className="text-sm">
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
-          onClick={onBack}
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back
-        </button>
-      </div>
-
       <AuthBanner banner={banner} />
 
       <Tabs
@@ -313,8 +299,8 @@ export default function AdminAuthStep({
               loginError
                 ? { type: "error", text: loginError }
                 : loginInfo
-                ? { type: "message", text: loginInfo }
-                : null
+                  ? { type: "message", text: loginInfo }
+                  : null
             }
           />
 
@@ -367,8 +353,8 @@ export default function AdminAuthStep({
                   ? "Sending..."
                   : "Send email code"
                 : loginLoading
-                ? "Verifying..."
-                : "Verify & Continue"}
+                  ? "Verifying..."
+                  : "Verify & Continue"}
             </Button>
 
             {loginStep === "code" ? (
@@ -396,8 +382,8 @@ export default function AdminAuthStep({
               signupError
                 ? { type: "error", text: signupError }
                 : signupInfo
-                ? { type: "message", text: signupInfo }
-                : null
+                  ? { type: "message", text: signupInfo }
+                  : null
             }
           />
 
@@ -466,8 +452,8 @@ export default function AdminAuthStep({
                   ? "Sending..."
                   : "Send email code"
                 : signupLoading
-                ? "Verifying..."
-                : "Verify & Create Account"}
+                  ? "Verifying..."
+                  : "Verify & Create Account"}
             </Button>
 
             {signupStep === "code" ? (

@@ -44,68 +44,8 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-class ApiEntity {
-  private entityName: string;
-
-  constructor(entityName: string) {
-    this.entityName = entityName;
-  }
-
-  async list(sort?: string) {
-    const params = new URLSearchParams();
-    if (sort) {
-      // existing code passes "-created_date" etc.
-      params.set("sort", sort);
-    }
-    const qs = params.toString();
-    return apiFetch<any[]>(
-      `/api/entities/${this.entityName}${qs ? `?${qs}` : ""}`
-    );
-  }
-
-  async get(id: string) {
-    return apiFetch<any>(`/api/entities/${this.entityName}/${id}`);
-  }
-
-  async create(data: any) {
-    return apiFetch<any>(`/api/entities/${this.entityName}`, {
-      method: "POST",
-      body: JSON.stringify(data ?? {}),
-    });
-  }
-
-  async update(id: string, data: any) {
-    return apiFetch<any>(`/api/entities/${this.entityName}/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data ?? {}),
-    });
-  }
-
-  async delete(id: string) {
-    return apiFetch<any>(`/api/entities/${this.entityName}/${id}`, {
-      method: "DELETE",
-    });
-  }
-
-  async filter(criteria: any) {
-    return apiFetch<any[]>(`/api/entities/${this.entityName}/filter`, {
-      method: "POST",
-      body: JSON.stringify(criteria ?? {}),
-    });
-  }
-}
-
-const entitiesHandler = {
-  get: function (target: any, prop: string) {
-    if (!target[prop]) {
-      target[prop] = new ApiEntity(prop);
-    }
-    return target[prop];
-  },
-};
-
 export const db = {
-  // Auth is handled via Supabase + /api/me; keep stub so existing imports compile.
+  // Auth uses httpOnly JWT cookies + /api/me.
   auth: {
     me: async () => apiFetch<any>("/api/me"),
     login: async () => {
@@ -125,9 +65,5 @@ export const db = {
         return false;
       }
     },
-  },
-  entities: new Proxy({}, entitiesHandler) as any,
-  appLogs: {
-    logUserInApp: async (_pageName: string) => true,
   },
 };
