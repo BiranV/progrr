@@ -6,6 +6,19 @@ export type AuthClaims = {
   iat?: number;
 };
 
+export type BookingVerifyClaims = {
+  purpose: "booking_verify";
+  phone: string;
+  iat?: number;
+};
+
+export type BookingCancelClaims = {
+  purpose: "booking_cancel";
+  appointmentId: string;
+  phone: string;
+  iat?: number;
+};
+
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -56,6 +69,74 @@ export async function verifyAuthToken(token: string): Promise<AuthClaims> {
   return {
     sub,
     onboardingCompleted,
+    iat,
+  };
+}
+
+export async function signBookingVerifyToken(args: { phone: string }) {
+  const key = getSecretKey();
+  return await new SignJWT({
+    purpose: "booking_verify",
+    phone: args.phone,
+  })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("20m")
+    .sign(key);
+}
+
+export async function verifyBookingVerifyToken(
+  token: string
+): Promise<BookingVerifyClaims> {
+  const key = getSecretKey();
+  const { payload } = await jwtVerify(token, key);
+  const purpose = (payload as any)?.purpose;
+  const phone = (payload as any)?.phone;
+  if (purpose !== "booking_verify" || typeof phone !== "string" || !phone.trim()) {
+    throw Object.assign(new Error("Invalid token"), { status: 401 });
+  }
+  const iat = typeof payload.iat === "number" ? payload.iat : undefined;
+  return { purpose: "booking_verify", phone: String(phone).trim(), iat };
+}
+
+export async function signBookingCancelToken(args: {
+  appointmentId: string;
+  phone: string;
+}) {
+  const key = getSecretKey();
+  return await new SignJWT({
+    purpose: "booking_cancel",
+    appointmentId: args.appointmentId,
+    phone: args.phone,
+  })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("30d")
+    .sign(key);
+}
+
+export async function verifyBookingCancelToken(
+  token: string
+): Promise<BookingCancelClaims> {
+  const key = getSecretKey();
+  const { payload } = await jwtVerify(token, key);
+  const purpose = (payload as any)?.purpose;
+  const appointmentId = (payload as any)?.appointmentId;
+  const phone = (payload as any)?.phone;
+  if (
+    purpose !== "booking_cancel" ||
+    typeof appointmentId !== "string" ||
+    !appointmentId.trim() ||
+    typeof phone !== "string" ||
+    !phone.trim()
+  ) {
+    throw Object.assign(new Error("Invalid token"), { status: 401 });
+  }
+  const iat = typeof payload.iat === "number" ? payload.iat : undefined;
+  return {
+    purpose: "booking_cancel",
+    appointmentId: String(appointmentId).trim(),
+    phone: String(phone).trim(),
     iat,
   };
 }

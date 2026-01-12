@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 
 import { requireAppUser } from "@/server/auth";
-import { collections } from "@/server/collections";
+import { collections, ensureIndexes } from "@/server/collections";
 import { signAuthToken } from "@/server/jwt";
 import { setAuthCookie } from "@/server/auth-cookie";
 
 export async function POST() {
     try {
+        await ensureIndexes();
         const appUser = await requireAppUser();
         const c = await collections();
 

@@ -29,7 +29,12 @@ type MeResult = { user: User | null; status?: number };
 let meResultPromise: Promise<MeResult> | null = null;
 
 function isPublicPath(pathname: string) {
-  return pathname === "/" || pathname.startsWith("/auth") || pathname.startsWith("/public");
+  return (
+    pathname === "/" ||
+    pathname.startsWith("/auth") ||
+    pathname.startsWith("/public") ||
+    pathname.startsWith("/b")
+  );
 }
 
 async function fetchMeOnce(): Promise<MeResult> {

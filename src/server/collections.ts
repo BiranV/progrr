@@ -41,6 +41,40 @@ export type UserDoc = {
   onboardingCompletedAt?: Date;
 };
 
+export type AppointmentDoc = {
+  _id?: ObjectId;
+  businessUserId: ObjectId;
+  serviceId: string;
+  serviceName: string;
+  durationMinutes: number;
+  price: number;
+  currency: string;
+  date: string; // YYYY-MM-DD (business local)
+  startTime: string; // HH:mm (business local)
+  endTime: string; // HH:mm (business local)
+  customer: {
+    fullName: string;
+    phone: string;
+  };
+  notes?: string;
+  status: "BOOKED" | "CANCELLED";
+  createdAt: Date;
+  cancelledAt?: Date;
+};
+
+export type CustomerOtpPurpose = "booking_verify";
+
+export type CustomerOtpDoc = {
+  _id?: ObjectId;
+  key: string; // normalized phone
+  purpose: CustomerOtpPurpose;
+  codeHash: string;
+  expiresAt: Date;
+  attempts: number;
+  createdAt: Date;
+  sentAt?: Date;
+};
+
 export type OtpPurpose =
   | "login"
   | "signup";
@@ -69,6 +103,8 @@ export async function collections() {
   return {
     users: db.collection<UserDoc>("users"),
     otps: db.collection<OtpDoc>("otps"),
+    customerOtps: db.collection<CustomerOtpDoc>("customer_otps"),
+    appointments: db.collection<AppointmentDoc>("appointments"),
     rateLimits: db.collection<RateLimitDoc>("rate_limits"),
   };
 }
@@ -80,6 +116,18 @@ export async function ensureIndexes() {
 
   await c.otps.createIndex({ key: 1, purpose: 1 }, { unique: true });
   await c.otps.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+  await c.customerOtps.createIndex({ key: 1, purpose: 1 }, { unique: true });
+  await c.customerOtps.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+  await c.appointments.createIndex(
+    { businessUserId: 1, date: 1, startTime: 1 },
+    {
+      unique: true,
+      partialFilterExpression: { status: "BOOKED" },
+    }
+  );
+  await c.appointments.createIndex({ businessUserId: 1, date: 1, status: 1 });
 
   await c.rateLimits.createIndex({ key: 1 }, { unique: true });
   await c.rateLimits.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });

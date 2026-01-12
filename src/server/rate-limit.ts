@@ -104,3 +104,31 @@ export async function checkRateLimit(args: {
     }
   }
 }
+
+export async function checkRateLimitPhone(args: {
+  db: Db;
+  req: Request;
+  purpose: string;
+  phone?: string;
+  perIp: RateLimitRule;
+  perPhone: RateLimitRule;
+}): Promise<void> {
+  const ip = getClientIp(args.req);
+
+  await hitOrThrow({
+    db: args.db,
+    key: `rl:${args.purpose}:ip:${ip}`,
+    rule: args.perIp,
+  });
+
+  const phone = String(args.phone ?? "")
+    .replace(/[^\d+]/g, "")
+    .trim();
+  if (phone) {
+    await hitOrThrow({
+      db: args.db,
+      key: `rl:${args.purpose}:phone:${phone}`,
+      rule: args.perPhone,
+    });
+  }
+}

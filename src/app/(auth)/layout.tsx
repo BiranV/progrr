@@ -129,7 +129,7 @@ export default function AuthGroupLayout({
                                                 </div>
                                                 <div>
                                                     <div className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
-                                                        Services and pricing
+                                                        Services
                                                     </div>
                                                     <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
                                                         Define what you offer with clear durations and rates.

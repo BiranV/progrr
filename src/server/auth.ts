@@ -1,7 +1,7 @@
 import { ObjectId } from "mongodb";
 import { readAuthCookie } from "@/server/auth-cookie";
 import { verifyAuthToken } from "@/server/jwt";
-import { collections } from "@/server/collections";
+import { collections, ensureIndexes } from "@/server/collections";
 
 export type AppUser = {
   id: string;
@@ -17,6 +17,8 @@ export async function requireAppUser(): Promise<AppUser> {
     throw Object.assign(new Error("Not authenticated"), { status: 401 });
   }
 
+  await ensureIndexes();
+
   const claims = await verifyAuthToken(token);
   const c = await collections();
 
@@ -24,6 +26,8 @@ export async function requireAppUser(): Promise<AppUser> {
   if (!user) {
     throw Object.assign(new Error("Not authenticated"), { status: 401 });
   }
+
+  const onboardingCompleted = Boolean((user as any).onboardingCompleted);
 
   return {
     id: user._id!.toHexString(),
@@ -33,6 +37,6 @@ export async function requireAppUser(): Promise<AppUser> {
       typeof (user as any).phone === "string" && String((user as any).phone).trim()
         ? String((user as any).phone).trim()
         : undefined,
-    onboardingCompleted: Boolean((user as any).onboardingCompleted),
+    onboardingCompleted,
   };
 }
