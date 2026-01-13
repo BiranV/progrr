@@ -352,15 +352,18 @@ export default function ServicesSettingsPage() {
 
                 {currencyChanged && hasAnyActiveService ? (
                     <div className="text-sm text-amber-700 dark:text-amber-300 rounded-md border border-amber-200 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-950/20 px-3 py-2">
-                        You changed currency. Existing service prices will stay the same numbers (no
-                        conversion). Click “Save changes” again to confirm.
+                        Changing currency will not convert existing service prices (numbers stay the
+                        same, symbol changes only).
+                        {currencyChangeConfirm ? " Click “Save changes” again to confirm." : null}
                     </div>
                 ) : null}
 
                 <div className="flex items-center gap-2 px-1">
                     <Label className="flex-1">Service name *</Label>
                     <Label className="w-[70px] shrink-0 text-center">Time</Label>
-                    <Label className="w-[70px] shrink-0 text-center">Price</Label>
+                    <Label className="w-[70px] shrink-0 text-center">
+                        Price ({currencySymbol(currencyCode)})
+                    </Label>
                     <div className="w-8 shrink-0"></div>
                 </div>
 

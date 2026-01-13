@@ -362,8 +362,14 @@ export async function PATCH(req: Request) {
         }
         set["onboarding.customCurrency.name"] = customCurrencyName;
         set["onboarding.customCurrency.symbol"] = customCurrencySymbol;
+
+        // Business-level currency is only for standard codes.
+        unset["onboarding.business.currency"] = "";
       } else {
         unset["onboarding.customCurrency"] = "";
+
+        // Keep business-level currency in sync (normalize legacy NIS -> ILS).
+        set["onboarding.business.currency"] = currency === "NIS" ? "ILS" : currency;
       }
 
       set["onboarding.currency"] = currency;
