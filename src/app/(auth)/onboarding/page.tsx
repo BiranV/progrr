@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { Check, Trash2, Loader2 } from "lucide-react";
@@ -422,13 +423,13 @@ export default function OnboardingPage() {
                         });
                       }}
                       className={
-                        "m-1 text-left rounded-xl border p-4 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 " +
+                        "m-1 text-left rounded-xl border px-4 py-3 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 " +
                         (selected
                           ? "border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/30 shadow-sm"
                           : "border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/30 hover:border-indigo-300 dark:hover:border-indigo-700")
                       }
                     >
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center justify-between gap-3">
                         <div>
                           <div className="font-medium text-gray-900 dark:text-white">
                             {opt.label}
@@ -439,7 +440,7 @@ export default function OnboardingPage() {
                         </div>
                         <div
                           className={
-                            "h-5 w-5 rounded-full border flex items-center justify-center shrink-0 mt-0.5 " +
+                            "h-5 w-5 rounded-full border flex items-center justify-center shrink-0 " +
                             (selected
                               ? "border-indigo-500 bg-indigo-500 text-white"
                               : "border-gray-300 dark:border-gray-700")
@@ -1034,16 +1035,14 @@ export default function OnboardingPage() {
       {/* Creative Header */}
       <div className="relative w-full bg-purple-600 h-[130px] rounded-b-[50%] flex justify-center shrink-0 mb-14 shadow-md">
         <div className="absolute -bottom-10 bg-white dark:bg-zinc-900 p-1.5 rounded-full shadow-lg z-10">
-          <div className="w-20 h-20 rounded-full bg-purple-50 flex items-center justify-center text-purple-700 text-3xl font-bold overflow-hidden border-2 border-purple-100">
-            {user?.image ? (
-              <img
-                src={user.image}
-                alt={user.full_name || "User"}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              userInitial
-            )}
+          <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center overflow-hidden border-2 border-purple-50">
+            <Image
+              src="/logo.png"
+              alt="Progrr"
+              width={48}
+              height={48}
+              className="object-contain"
+            />
           </div>
         </div>
         {/* Decorative background element */}
@@ -1107,7 +1106,7 @@ export default function OnboardingPage() {
       </div>
 
       {/* Sticky Bottom Actions */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-black/90 backdrop-blur-lg border-t border-gray-100 dark:border-gray-800 p-4 z-40 pb-[env(safe-area-inset-bottom,20px)] shadow-[0_-4px_8px_-1px_rgba(0,0,0,0.02)]">
+      <div className="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-black/90 backdrop-blur-lg border-t border-gray-100 dark:border-gray-800 p-4 z-40 shadow-[0_-4px_8px_-1px_rgba(0,0,0,0.02)]">
         <div className="max-w-[420px] mx-auto flex gap-3 w-full">
           {step > 0 && (
             <Button
