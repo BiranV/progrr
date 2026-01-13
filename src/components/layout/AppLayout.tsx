@@ -123,31 +123,30 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="absolute inset-0 opacity-20 bg-[url('/grid.svg')] mix-blend-overlay"></div>
       </div>
 
-      <div className="flex-1 -mt-16 bg-gray-50 dark:bg-zinc-900 rounded-t-[40px] relative z-10 flex flex-col shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
-        {/* Business logo sitting on the curve (same visual language as auth/onboarding) */}
-        <div className="-mt-10 flex justify-center">
-          <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-full">
-            <div className="w-20 h-20 rounded-full bg-white dark:bg-zinc-900 flex items-center justify-center overflow-hidden border-2 border-purple-50 dark:border-purple-900/30 shadow-xl">
-              {logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={logoUrl}
-                  alt={businessName ? `${businessName} logo` : "Business logo"}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <ClientAvatar
-                  name={headerName}
-                  size={72}
-                  className="w-[72px] h-[72px] bg-gray-100 text-purple-700"
-                />
-              )}
-            </div>
+      <div className="flex-1 -mt-16 bg-gray-50 dark:bg-zinc-900 rounded-t-[40px] relative z-10 flex flex-col items-center shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
+        {/* Logo sitting on the curve (match onboarding) */}
+        <div className="-mt-10 p-1.5 rounded-full bg-transparent">
+          <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center overflow-hidden border-2 border-purple-50 shadow-xl">
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoUrl}
+                alt={businessName ? `${businessName} logo` : "Business logo"}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src="/logo.png"
+                alt="Progrr"
+                className="w-12 h-12 object-contain"
+              />
+            )}
           </div>
         </div>
 
         <main className="flex-1 px-6 pt-6 pb-32 w-full max-w-md mx-auto">
-          <div className="text-center mb-6">
+          <div className="text-center space-y-1 mt-6 mb-8">
             <div className="text-xs font-semibold text-purple-600 dark:text-purple-400">
               {businessName ? "Your business" : "Welcome"}
             </div>
