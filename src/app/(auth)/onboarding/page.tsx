@@ -310,19 +310,18 @@ export default function OnboardingPage() {
   };
 
   const orderedAvailabilityDays = useMemo(() => {
-    const weekStartsOn = (data.availability?.weekStartsOn ?? 0) === 1 ? 1 : 0;
     const days = Array.isArray(data.availability?.days) && data.availability?.days?.length
       ? (data.availability.days as any[])
       : defaultDays();
     const byDay = new Map(days.map((d: any) => [d.day, d] as const));
-    return Array.from({ length: 7 }, (_, i) => (i + weekStartsOn) % 7)
+    return Array.from({ length: 7 }, (_, i) => i)
       .map((day) => byDay.get(day))
       .filter(Boolean) as Array<{
         day: number;
         enabled: boolean;
         ranges: Array<{ id: string; start: string; end: string }>;
       }>;
-  }, [data.availability?.days, data.availability?.weekStartsOn]);
+  }, [data.availability?.days]);
 
   const updateAvailabilityRangeTime = (
     day: number,
@@ -1648,46 +1647,11 @@ export default function OnboardingPage() {
           <div className="space-y-4">
             <div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Availability
+                Opening hours
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-300">
-                Set your weekly hours.
+                Set your working days and hours.
               </p>
-            </div>
-
-            <div className="flex items-center justify-between rounded-xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/30 px-3 py-3">
-              <div className="min-w-0">
-                <div className="text-sm font-medium text-gray-900 dark:text-white">
-                  Week starts on
-                </div>
-                <div className="text-xs text-gray-600 dark:text-gray-300">
-                  {(data.availability?.weekStartsOn ?? 0) === 1
-                    ? "Monday"
-                    : "Sunday"}
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-600 dark:text-gray-300 select-none">
-                  Sun
-                </span>
-                <UISwitch
-                  checked={(data.availability?.weekStartsOn ?? 0) === 1}
-                  onCheckedChange={(checked) =>
-                    setData((prev) => ({
-                      ...prev,
-                      availability: {
-                        ...(prev.availability || {}),
-                        weekStartsOn: checked ? 1 : 0,
-                      },
-                    }))
-                  }
-                  aria-label="Toggle week start between Sunday and Monday"
-                />
-                <span className="text-xs text-gray-600 dark:text-gray-300 select-none">
-                  Mon
-                </span>
-              </div>
             </div>
 
             <div className="space-y-3">
@@ -1956,24 +1920,20 @@ export default function OnboardingPage() {
 
               <div className="space-y-2">
                 <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                  Availability
+                  Opening hours
                 </div>
                 <div className="text-sm text-gray-700 dark:text-gray-200">
                   <span className="font-medium">Week starts:</span>{" "}
-                  {(data.availability?.weekStartsOn ?? 0) === 1
-                    ? "Monday"
-                    : "Sunday"}
+                  Sunday
                 </div>
 
                 <div className="space-y-2">
                   {(() => {
-                    const weekStartsOn =
-                      (data.availability?.weekStartsOn ?? 0) === 1 ? 1 : 0;
                     const days = data.availability?.days || [];
                     const byDay = new Map(days.map((d) => [d.day, d] as const));
                     const ordered = Array.from(
                       { length: 7 },
-                      (_, i) => (i + weekStartsOn) % 7
+                      (_, i) => i
                     )
                       .map((day) => byDay.get(day))
                       .filter(Boolean) as Array<{
@@ -2020,7 +1980,7 @@ export default function OnboardingPage() {
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-black pb-safe">
       {/* Header Container */}
       <div className="relative w-full z-0 h-[140px] bg-gradient-to-br from-neutral-950 via-zinc-900 to-zinc-800 shrink-0">
-        <div className="absolute inset-0 opacity-20 bg-[url('/grid.svg')] mix-blend-overlay"></div>
+        <div className="absolute inset-0 opacity-20 mix-blend-overlay"></div>
       </div>
 
       {/* Main Content Area with Convex Curve (Sides lower than center) */}
@@ -2039,7 +1999,7 @@ export default function OnboardingPage() {
                 : step === 2
                   ? "Setup Services"
                   : step === 3
-                    ? "Set Availability"
+                    ? "Set Opening hours"
                     : step === 4
                       ? "Business Branding"
                       : "Review & Finish"}
@@ -2061,7 +2021,10 @@ export default function OnboardingPage() {
         </div>
 
         <div className="flex-1 px-6 pb-28 w-full max-w-md mx-auto">
-          <AuthBanner banner={error ? { type: "error", text: error } : null} />
+          <AuthBanner
+            banner={error ? { type: "error", text: error } : null}
+            onClose={error ? () => setError(null) : undefined}
+          />
 
           <AnimatePresence mode="wait" initial={false}>
             {loading ? (

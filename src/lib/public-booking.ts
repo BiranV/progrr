@@ -19,6 +19,7 @@ export type PublicBusiness = {
     name: string;
     durationMinutes: number;
     price: number;
+    description?: string;
   }>;
   availability: {
     timezone?: string;

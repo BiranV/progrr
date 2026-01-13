@@ -308,7 +308,13 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
                 </h2>
               </div>
 
-              <AuthBanner banner={bannerState} />
+              <AuthBanner
+                banner={bannerState}
+                onClose={() => {
+                  setGlobalError(null);
+                  setInfo(null);
+                }}
+              />
 
               {view === "login" ? (
                 <form onSubmit={sendLoginCode} className="space-y-6">
@@ -383,7 +389,13 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
                 </h2>
               </div>
 
-              <AuthBanner banner={bannerState} />
+              <AuthBanner
+                banner={bannerState}
+                onClose={() => {
+                  setGlobalError(null);
+                  setInfo(null);
+                }}
+              />
 
               {view === "signup" ? (
                 <form onSubmit={sendSignupCode} className="space-y-6">

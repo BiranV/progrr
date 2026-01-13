@@ -31,7 +31,7 @@ export default function PublicBookingShell({
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-black pb-safe">
       <div className="relative w-full z-0 h-[140px] bg-gradient-to-br from-neutral-950 via-zinc-900 to-zinc-800 shrink-0">
-        <div className="absolute inset-0 opacity-20 bg-[url('/grid.svg')] mix-blend-overlay" />
+        <div className="absolute inset-0 opacity-20 mix-blend-overlay" />
       </div>
 
       <div className="flex-1 -mt-16 bg-gray-50 dark:bg-zinc-900 rounded-t-[40px] relative z-10 flex flex-col items-center shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">

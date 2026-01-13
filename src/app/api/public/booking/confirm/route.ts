@@ -112,13 +112,16 @@ export async function POST(req: Request) {
             ? onboarding.services
             : [];
 
-        const service = services.find((s) => String(s?.id ?? "") === serviceId);
+        const activeServices = services.filter((s) => (s as any)?.isActive !== false);
+
+        const service = activeServices.find((s) => String(s?.id ?? "") === serviceId);
         if (!service) {
             return NextResponse.json({ error: "Service not found" }, { status: 404 });
         }
 
         const durationMinutes = Number(service?.durationMinutes);
-        const price = Number(service?.price);
+        const rawPrice = Number(service?.price);
+        const price = Number.isFinite(rawPrice) ? rawPrice : 0;
         if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
             return NextResponse.json(
                 { error: "Invalid service duration" },
@@ -156,7 +159,10 @@ export async function POST(req: Request) {
         const endMin = startMin + durationMinutes;
         const endTime = minutesToTime(endMin);
 
-        const currency = String(onboarding.currency ?? "").trim() || "USD";
+        const currency =
+            String((onboarding as any)?.business?.currency ?? "").trim() ||
+            String(onboarding.currency ?? "").trim() ||
+            "ILS";
 
         try {
             const insert = await c.appointments.insertOne({

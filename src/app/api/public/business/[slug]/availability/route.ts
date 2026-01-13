@@ -64,7 +64,9 @@ export async function GET(
             ? onboarding.services
             : [];
 
-        const service = services.find((s) => String(s?.id ?? "") === serviceId);
+        const activeServices = services.filter((s) => (s as any)?.isActive !== false);
+
+        const service = activeServices.find((s) => String(s?.id ?? "") === serviceId);
         if (!service) {
             return NextResponse.json({ error: "Service not found" }, { status: 404 });
         }

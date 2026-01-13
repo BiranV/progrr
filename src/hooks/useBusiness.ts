@@ -6,6 +6,7 @@ export type Business = {
     address: string;
     slug: string;
     description: string;
+    currency?: string;
 };
 
 export type UpdateBusinessPayload = {
@@ -13,6 +14,7 @@ export type UpdateBusinessPayload = {
     phone: string;
     address?: string;
     description?: string;
+    currency?: string;
 };
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -55,6 +57,7 @@ export async function updateBusiness(payload: UpdateBusinessPayload) {
         phone: payload.phone,
         address: payload.address ?? "",
         description: payload.description ?? "",
+        ...(payload.currency ? { currency: payload.currency } : {}),
     };
 
     await apiFetch<{ success: true }>("/api/business", {

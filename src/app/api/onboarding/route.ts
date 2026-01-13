@@ -186,13 +186,22 @@ function normalizeService(s: any) {
   const name = asString(s?.name, 80);
   const durationMinutes = asNumber(s?.durationMinutes);
   const price = asNumber(s?.price);
+  const description = asString(s?.description, 1000) ?? "";
+
+  const rawActive = (s as any)?.isActive;
+  const isActive =
+    rawActive === false ||
+      rawActive === 0 ||
+      String(rawActive ?? "").trim().toLowerCase() === "false"
+      ? false
+      : true;
 
   if (!name) return null;
   if (!durationMinutes || durationMinutes <= 0 || durationMinutes > 24 * 60)
     return null;
   if (price !== undefined && (price < 0 || price > 1_000_000)) return null;
 
-  return { id, name, durationMinutes, price };
+  return { id, name, durationMinutes, price, description, isActive };
 }
 
 function firstServiceError(services: any[]): string | null {
@@ -215,6 +224,12 @@ function firstServiceError(services: any[]): string | null {
     const price = asNumber(s?.price);
     if (price !== undefined && (price < 0 || price > 1_000_000))
       return `${prefix}price is invalid`;
+
+    const description = asString(s?.description, 1000);
+    // description is optional; length is handled by asString maxLen
+    void description;
+
+    // isActive is optional boolean; we accept any value and coerce during normalize.
   }
 
   return null;

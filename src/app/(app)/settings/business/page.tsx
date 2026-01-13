@@ -33,6 +33,14 @@ export default function BusinessDetailsPage() {
     });
     const [errors, setErrors] = React.useState<Partial<Record<keyof BusinessDetailsForm, string>>>({});
     const [isSaving, setIsSaving] = React.useState(false);
+    const [copyStatus, setCopyStatus] = React.useState<"idle" | "copied">("idle");
+    const copyTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    React.useEffect(() => {
+        return () => {
+            if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+        };
+    }, []);
 
     React.useEffect(() => {
         if (!business) return;
@@ -98,6 +106,12 @@ export default function BusinessDetailsPage() {
         try {
             await navigator.clipboard.writeText(bookingLink);
             toast.success("Copied");
+
+            setCopyStatus("copied");
+            if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+            copyTimeoutRef.current = setTimeout(() => {
+                setCopyStatus("idle");
+            }, 3000);
         } catch {
             toast.error("Failed to copy");
         }
@@ -176,8 +190,8 @@ export default function BusinessDetailsPage() {
                     <Label htmlFor="booking-link">Public booking link</Label>
                     <div className="flex gap-2">
                         <Input id="booking-link" readOnly value={bookingLink} />
-                        <Button type="button" variant="outline" onClick={onCopy}>
-                            Copy
+                        <Button type="button" variant="outline" onClick={onCopy} disabled={!bookingLink}>
+                            {copyStatus === "copied" ? "Copied!" : "Copy"}
                         </Button>
                     </div>
                 </div>

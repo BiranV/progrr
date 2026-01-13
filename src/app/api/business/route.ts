@@ -14,6 +14,26 @@ function digitsOnly(value: string) {
     return value.replace(/\D/g, "");
 }
 
+const ALLOWED_CURRENCY_CODES = new Set([
+    "ILS",
+    "NIS",
+    "USD",
+    "EUR",
+    "GBP",
+    "AUD",
+    "CAD",
+    "CHF",
+]);
+
+function normalizeCurrencyCode(v: unknown): string | undefined {
+    const raw = String(v ?? "").trim().toUpperCase();
+    if (!raw) return undefined;
+    if (!ALLOWED_CURRENCY_CODES.has(raw)) return undefined;
+    // Normalize legacy/alt spelling.
+    if (raw === "NIS") return "ILS";
+    return raw;
+}
+
 export async function GET() {
     try {
         const appUser = await requireAppUser();
@@ -34,6 +54,10 @@ export async function GET() {
         const address = asString((business as any).address, 200);
         const slug = asString((business as any).slug, 120);
         const description = asString((business as any).description, 250);
+        const currency =
+            normalizeCurrencyCode((business as any).currency) ??
+            normalizeCurrencyCode((user as any)?.onboarding?.currency) ??
+            "ILS";
 
         if (!name || !phone || !slug) {
             return NextResponse.json({ error: "Business not found" }, { status: 404 });
@@ -45,6 +69,7 @@ export async function GET() {
             address: address ?? "",
             slug,
             description: description ?? "",
+            currency,
         });
     } catch (error: any) {
         const status = typeof error?.status === "number" ? error.status : 500;
@@ -72,10 +97,33 @@ export async function PATCH(req: Request) {
 
         const body = await req.json().catch(() => ({}));
 
-        const name = asString((body as any)?.name, 120);
-        const phone = asString((body as any)?.phone, 40);
-        const address = asString((body as any)?.address, 200) ?? "";
-        const description = asString((body as any)?.description, 250) ?? "";
+        const currentName = asString((business as any).name, 120);
+        const currentPhone = asString((business as any).phone, 40);
+        const currentAddress = asString((business as any).address, 200) ?? "";
+        const currentDescription = asString((business as any).description, 250) ?? "";
+        const currentCurrency =
+            normalizeCurrencyCode((business as any).currency) ??
+            normalizeCurrencyCode((user as any)?.onboarding?.currency) ??
+            "ILS";
+
+        const name = asString((body as any)?.name, 120) ?? currentName;
+        const phone = asString((body as any)?.phone, 40) ?? currentPhone;
+        const address =
+            (Object.prototype.hasOwnProperty.call(body as any, "address")
+                ? asString((body as any)?.address, 200) ?? ""
+                : currentAddress) ??
+            "";
+        const description =
+            (Object.prototype.hasOwnProperty.call(body as any, "description")
+                ? asString((body as any)?.description, 250) ?? ""
+                : currentDescription) ??
+            "";
+
+        const requestedCurrency = normalizeCurrencyCode((body as any)?.currency);
+        if (Object.prototype.hasOwnProperty.call(body as any, "currency") && !requestedCurrency) {
+            return NextResponse.json({ error: "Invalid currency" }, { status: 400 });
+        }
+        const currency = requestedCurrency ?? currentCurrency;
 
         if (!name) {
             return NextResponse.json(
@@ -99,6 +147,7 @@ export async function PATCH(req: Request) {
                     "onboarding.business.phone": phone,
                     "onboarding.business.address": address,
                     "onboarding.business.description": description,
+                    "onboarding.business.currency": currency,
                     "onboarding.updatedAt": new Date(),
                 },
             }

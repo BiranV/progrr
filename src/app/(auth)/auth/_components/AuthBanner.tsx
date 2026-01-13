@@ -1,13 +1,19 @@
 "use client";
 
-import { CheckCircle2, XCircle } from "lucide-react";
+import { X } from "lucide-react";
 
 export type AuthBannerState =
   | { type: "error"; text: string }
   | { type: "message"; text: string }
   | null;
 
-export default function AuthBanner({ banner }: { banner: AuthBannerState }) {
+export default function AuthBanner({
+  banner,
+  onClose,
+}: {
+  banner: AuthBannerState;
+  onClose?: () => void;
+}) {
   if (!banner) return null;
 
   const isError = banner.type === "error";
@@ -16,20 +22,28 @@ export default function AuthBanner({ banner }: { banner: AuthBannerState }) {
     <div
       className={`
                 flex items-center gap-3 rounded-xl border px-4 py-3 shadow-sm mb-4 text-left
-                ${
-                  isError
-                    ? "bg-[#FDE8EC] border-[#FDE8EC] text-[#B42318]"
-                    : "bg-emerald-500/10 border-emerald-500/20 text-white backdrop-blur-md"
-                }
+                ${isError
+          ? "bg-[#FDE8EC] border-[#FDE8EC] text-[#B42318]"
+          : "bg-emerald-500/10 border-emerald-500/20 text-white backdrop-blur-md"
+        }
             `}
     >
-      {/* Icons */}
-      {isError ? (
-        <XCircle className="h-5 w-5 text-[#B42318] shrink-0" />
-      ) : (
-        <CheckCircle2 className="h-5 w-5 text-emerald-200 shrink-0" />
-      )}
-      <p className="text-sm font-medium leading-tight">{banner.text}</p>
+      <p className="text-sm font-medium leading-tight flex-1">{banner.text}</p>
+
+      {onClose ? (
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Dismiss alert"
+          className={
+            isError
+              ? "-m-1 rounded-md p-1 text-[#B42318]/70 hover:text-[#B42318] hover:bg-[#B42318]/10"
+              : "-m-1 rounded-md p-1 text-white/70 hover:text-white hover:bg-white/10"
+          }
+        >
+          <X className="h-4 w-4" />
+        </button>
+      ) : null}
     </div>
   );
 }

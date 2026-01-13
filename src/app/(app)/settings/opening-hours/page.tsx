@@ -22,7 +22,6 @@ type TimeRange = {
 
 type AvailabilityState = {
     timezone: string;
-    weekStartsOn: 0 | 1;
     days: AvailabilityDay[];
 };
 
@@ -139,7 +138,6 @@ function stableStringifyAvailability(state: AvailabilityState): string {
 
     return JSON.stringify({
         timezone: String(state.timezone || ""),
-        weekStartsOn: state.weekStartsOn === 1 ? 1 : 0,
         days,
     });
 }
@@ -151,7 +149,6 @@ export default function OpeningHoursPage() {
     const initialRef = React.useRef<AvailabilityState | null>(null);
     const [availability, setAvailability] = React.useState<AvailabilityState>({
         timezone: "UTC",
-        weekStartsOn: 0,
         days: defaultDays(),
     });
 
@@ -168,11 +165,10 @@ export default function OpeningHoursPage() {
                 if (cancelled) return;
 
                 const av = (res as any)?.onboarding?.availability ?? {};
-                const weekStartsOn = (av as any)?.weekStartsOn === 1 ? 1 : 0;
                 const timezone = String((av as any)?.timezone ?? "").trim() || "UTC";
                 const days = normalizeDays((av as any)?.days);
 
-                const next: AvailabilityState = { weekStartsOn, timezone, days };
+                const next: AvailabilityState = { timezone, days };
                 initialRef.current = next;
                 setAvailability(next);
             } catch (e: any) {
@@ -249,7 +245,7 @@ export default function OpeningHoursPage() {
             const payload = {
                 availability: {
                     timezone: availability.timezone,
-                    weekStartsOn: availability.weekStartsOn,
+                    weekStartsOn: 0,
                     days: availability.days.map((d) => ({
                         day: d.day,
                         enabled: Boolean(d.enabled),
@@ -276,12 +272,11 @@ export default function OpeningHoursPage() {
     };
 
     const orderedDays = React.useMemo(() => {
-        const weekStartsOn = availability.weekStartsOn === 1 ? 1 : 0;
         const byDay = new Map(availability.days.map((d) => [d.day, d] as const));
-        return Array.from({ length: 7 }, (_, i) => (i + weekStartsOn) % 7)
+        return Array.from({ length: 7 }, (_, i) => i)
             .map((day) => byDay.get(day))
             .filter(Boolean) as AvailabilityDay[];
-    }, [availability.days, availability.weekStartsOn]);
+    }, [availability.days]);
 
     const lastToastAtRef = React.useRef(0);
     const toastOnce = (message: string) => {
@@ -381,37 +376,6 @@ export default function OpeningHoursPage() {
             </div>
 
             <div className="space-y-5">
-                <div className="flex items-center justify-between flex-nowrap rounded-xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/30 px-3 py-3">
-                    <div className="min-w-0">
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            Week starts on
-                        </div>
-                        <div className="text-xs text-gray-600 dark:text-gray-300">
-                            {availability.weekStartsOn === 1 ? "Monday" : "Sunday"}
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-600 dark:text-gray-300 select-none">
-                            Sun
-                        </span>
-                        <Switch
-                            checked={availability.weekStartsOn === 1}
-                            onCheckedChange={(checked) =>
-                                setAvailability((prev) => ({
-                                    ...prev,
-                                    weekStartsOn: checked ? 1 : 0,
-                                }))
-                            }
-                            aria-label="Toggle week start between Sunday and Monday"
-                            disabled={isLoading}
-                        />
-                        <span className="text-xs text-gray-600 dark:text-gray-300 select-none">
-                            Mon
-                        </span>
-                    </div>
-                </div>
-
                 <div className="space-y-3">
                     {orderedDays.map((d) => (
                         <div key={d.day} className="space-y-2">

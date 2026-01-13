@@ -21,12 +21,15 @@ export type UserDoc = {
       address?: string;
       slug?: string;
       description?: string;
+      currency?: string;
     };
     services?: Array<{
       id: string;
       name: string;
       durationMinutes: number;
       price?: number;
+      description?: string;
+      isActive?: boolean;
     }>;
     availability?: {
       timezone?: string;
