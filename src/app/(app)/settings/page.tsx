@@ -74,9 +74,12 @@ export default function SettingsPage() {
             />
             <SettingsRow
               title="Opening hours"
-              description="Manage availability and services"
+              description="Set your working days and hours"
             />
-            <SettingsRow title="Services" description="Manage availability and services" />
+            <SettingsRow
+              title="Services"
+              description="Manage services, duration and pricing"
+            />
             <SettingsRow title="Branding" description="Logo, gallery and brand color" />
           </div>
         </CardContent>
@@ -91,11 +94,11 @@ export default function SettingsPage() {
           <div className="divide-y">
             <SettingsRow
               title="Booking settings"
-              description="Control how bookings work for your business"
+              description="Control how customers book appointments"
             />
             <SettingsRow
               title="Cancellation policy"
-              description="Control how bookings work for your business"
+              description="Define cancellation rules"
             />
           </div>
         </CardContent>
@@ -110,11 +113,11 @@ export default function SettingsPage() {
           <div className="divide-y">
             <SettingsRow
               title="Plans & pricing"
-              description="Manage your subscription and payments"
+              description="View or upgrade your plan"
             />
             <SettingsRow
               title="Billing history"
-              description="Manage your subscription and payments"
+              description="Invoices and payment history"
             />
           </div>
         </CardContent>
@@ -129,19 +132,19 @@ export default function SettingsPage() {
           <div className="divide-y">
             <SettingsRow
               title="Support"
-              description="Help, policies and accessibility options"
+              description="Get help or contact support"
             />
             <SettingsRow
               title="Privacy policy"
-              description="Help, policies and accessibility options"
+              description="View privacy policy"
             />
             <SettingsRow
               title="Terms of service"
-              description="Help, policies and accessibility options"
+              description="View terms and conditions"
             />
             <SettingsRow
               title="Accessibility"
-              description="Help, policies and accessibility options"
+              description="Accessibility information"
             />
           </div>
         </CardContent>
@@ -154,15 +157,13 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="pt-0">
           <div className="divide-y">
-            <SettingsRow title="Log out" />
+            <SettingsRow title="Log out" description="Sign out from your account" />
+            <SettingsRow
+              title="Delete business"
+              description="Permanently delete your business"
+              destructive
+            />
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Destructive (separated) */}
-      <Card>
-        <CardContent className="pt-3">
-          <SettingsRow title="Delete business" destructive />
         </CardContent>
       </Card>
     </div>
