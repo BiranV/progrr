@@ -757,86 +757,70 @@ export default function OnboardingPage() {
                 return ordered.map((d) => (
                   <div
                     key={d.day}
-                    className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-950/20"
+                    className="flex items-center justify-between p-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-950/20 gap-3"
                   >
-                    <div className="flex items-center justify-between sm:w-32 shrink-0">
-                      <div className="flex items-center gap-3">
-                        <UISwitch
-                          checked={d.enabled}
-                          onCheckedChange={(checked) =>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <UISwitch
+                        checked={d.enabled}
+                        onCheckedChange={(checked) =>
+                          setData((prev) => ({
+                            ...prev,
+                            availability: {
+                              ...(prev.availability || {}),
+                              days: (prev.availability?.days || []).map((x) =>
+                                x.day === d.day ? { ...x, enabled: checked } : x
+                              ),
+                            },
+                          }))
+                        }
+                        aria-label={`Toggle ${DAY_LABELS[d.day]}`}
+                      />
+                      <span className="text-sm font-medium text-gray-900 dark:text-white select-none w-8">
+                        {DAY_LABELS[d.day].substring(0, 3)}
+                      </span>
+                    </div>
+
+                    {d.enabled && (
+                      <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
+                        <Input
+                          type="time"
+                          className="h-9 px-2 text-sm w-full min-w-[90px] text-center"
+                          disabled={!d.enabled}
+                          value={d.start || ""}
+                          onChange={(e) =>
                             setData((prev) => ({
                               ...prev,
                               availability: {
                                 ...(prev.availability || {}),
                                 days: (prev.availability?.days || []).map((x) =>
                                   x.day === d.day
-                                    ? { ...x, enabled: checked }
+                                    ? { ...x, start: e.target.value }
                                     : x
                                 ),
                               },
                             }))
                           }
-                          aria-label={`Toggle ${DAY_LABELS[d.day]}`}
                         />
-                        <span className="text-sm font-medium text-gray-900 dark:text-white select-none">
-                          {DAY_LABELS[d.day]}
-                        </span>
-                      </div>
-                    </div>
-
-                    {d.enabled && (
-                      <div className="grid grid-cols-2 sm:flex sm:items-center gap-4 flex-1">
-                        <div className="space-y-1.5 flex-1">
-                          <Label className="text-xs text-muted-foreground sm:hidden">
-                            Start
-                          </Label>
-                          <Input
-                            type="time"
-                            className="h-9"
-                            disabled={!d.enabled}
-                            value={d.start || ""}
-                            onChange={(e) =>
-                              setData((prev) => ({
-                                ...prev,
-                                availability: {
-                                  ...(prev.availability || {}),
-                                  days: (prev.availability?.days || []).map(
-                                    (x) =>
-                                      x.day === d.day
-                                        ? { ...x, start: e.target.value }
-                                        : x
-                                  ),
-                                },
-                              }))
-                            }
-                          />
-                        </div>
-
-                        <div className="space-y-1.5 flex-1">
-                          <Label className="text-xs text-muted-foreground sm:hidden">
-                            End
-                          </Label>
-                          <Input
-                            type="time"
-                            className="h-9"
-                            disabled={!d.enabled}
-                            value={d.end || ""}
-                            onChange={(e) =>
-                              setData((prev) => ({
-                                ...prev,
-                                availability: {
-                                  ...(prev.availability || {}),
-                                  days: (prev.availability?.days || []).map(
-                                    (x) =>
-                                      x.day === d.day
-                                        ? { ...x, end: e.target.value }
-                                        : x
-                                  ),
-                                },
-                              }))
-                            }
-                          />
-                        </div>
+                        <span className="text-gray-400 shrink-0">–</span>
+                        <Input
+                          type="time"
+                          className="h-9 px-2 text-sm w-full min-w-[90px] text-center"
+                          disabled={!d.enabled}
+                          value={d.end || ""}
+                          onChange={(e) =>
+                            setData((prev) => ({
+                              ...prev,
+                              availability: {
+                                ...(prev.availability || {}),
+                                days: (prev.availability?.days || []).map((x) =>
+                                  x.day === d.day
+                                    ? { ...x, end: e.target.value }
+                                    : x
+                                ),
+                              },
+                            }))
+                          }
+                        />
                       </div>
                     )}
                   </div>
