@@ -1,10 +1,14 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import React from "react";
 import { ChevronRight } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/context/AuthContext";
 
-function SettingsRow({
+function SettingsRowContent({
   title,
   description,
   destructive = false,
@@ -14,15 +18,7 @@ function SettingsRow({
   destructive?: boolean;
 }) {
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-disabled="true"
-      className={
-        "flex items-center justify-between gap-4 py-3 focus:outline-none" +
-        (destructive ? "" : "")
-      }
-    >
+    <>
       <div className="min-w-0">
         <div
           className={
@@ -45,11 +41,92 @@ function SettingsRow({
           (destructive ? " opacity-70" : "")
         }
       />
+    </>
+  );
+}
+
+function SettingsLinkRow({
+  href,
+  title,
+  description,
+  destructive = false,
+}: {
+  href: string;
+  title: string;
+  description?: string;
+  destructive?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={
+        "flex items-center justify-between gap-4 py-3 focus:outline-none cursor-pointer hover:bg-muted" +
+        (destructive ? "" : "")
+      }
+    >
+      <SettingsRowContent
+        title={title}
+        description={description}
+        destructive={destructive}
+      />
+    </Link>
+  );
+}
+
+function SettingsActionRow({
+  onActivate,
+  title,
+  description,
+  destructive = false,
+}: {
+  onActivate: () => void;
+  title: string;
+  description?: string;
+  destructive?: boolean;
+}) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onActivate}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onActivate();
+        }
+      }}
+      className={
+        "flex items-center justify-between gap-4 py-3 focus:outline-none cursor-pointer hover:bg-muted" +
+        (destructive ? "" : "")
+      }
+    >
+      <SettingsRowContent
+        title={title}
+        description={description}
+        destructive={destructive}
+      />
     </div>
   );
 }
 
 export default function SettingsPage() {
+  const { logout } = useAuth();
+  const router = useRouter();
+  const isLoggingOutRef = React.useRef(false);
+
+  const onLogout = async () => {
+    if (isLoggingOutRef.current) return;
+    isLoggingOutRef.current = true;
+
+    try {
+      await logout(false);
+    } finally {
+      router.replace("/auth");
+      router.refresh();
+      isLoggingOutRef.current = false;
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -68,19 +145,26 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="pt-0">
           <div className="divide-y">
-            <SettingsRow
+            <SettingsLinkRow
+              href="/settings/business"
               title="Business details"
               description="Edit your business information"
             />
-            <SettingsRow
+            <SettingsLinkRow
+              href="/settings/opening-hours"
               title="Opening hours"
               description="Set your working days and hours"
             />
-            <SettingsRow
+            <SettingsLinkRow
+              href="/settings/services"
               title="Services"
               description="Manage services, duration and pricing"
             />
-            <SettingsRow title="Branding" description="Logo, gallery and brand color" />
+            <SettingsLinkRow
+              href="/settings/branding"
+              title="Branding"
+              description="Logo, gallery and brand color"
+            />
           </div>
         </CardContent>
       </Card>
@@ -92,11 +176,13 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="pt-0">
           <div className="divide-y">
-            <SettingsRow
+            <SettingsLinkRow
+              href="/settings/booking"
               title="Booking settings"
               description="Control how customers book appointments"
             />
-            <SettingsRow
+            <SettingsLinkRow
+              href="/settings/cancellation"
               title="Cancellation policy"
               description="Define cancellation rules"
             />
@@ -111,11 +197,13 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="pt-0">
           <div className="divide-y">
-            <SettingsRow
+            <SettingsLinkRow
+              href="/settings/subscription"
               title="Plans & pricing"
               description="View or upgrade your plan"
             />
-            <SettingsRow
+            <SettingsLinkRow
+              href="/settings/billing"
               title="Billing history"
               description="Invoices and payment history"
             />
@@ -130,19 +218,23 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="pt-0">
           <div className="divide-y">
-            <SettingsRow
+            <SettingsLinkRow
+              href="/support"
               title="Support"
               description="Get help or contact support"
             />
-            <SettingsRow
+            <SettingsLinkRow
+              href="/legal/privacy"
               title="Privacy policy"
               description="View privacy policy"
             />
-            <SettingsRow
+            <SettingsLinkRow
+              href="/legal/terms"
               title="Terms of service"
               description="View terms and conditions"
             />
-            <SettingsRow
+            <SettingsLinkRow
+              href="/legal/accessibility"
               title="Accessibility"
               description="Accessibility information"
             />
@@ -157,8 +249,13 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="pt-0">
           <div className="divide-y">
-            <SettingsRow title="Log out" description="Sign out from your account" />
-            <SettingsRow
+            <SettingsActionRow
+              title="Log out"
+              description="Sign out from your account"
+              onActivate={onLogout}
+            />
+            <SettingsLinkRow
+              href="/settings/delete-business"
               title="Delete business"
               description="Permanently delete your business"
               destructive

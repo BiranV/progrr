@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
-import ClientAvatar from "@/components/ClientAvatar";
 import BottomNav from "./BottomNav";
 
 function isPublicPath(pathname: string) {
@@ -124,36 +123,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
 
       <div className="flex-1 -mt-16 bg-gray-50 dark:bg-zinc-900 rounded-t-[40px] relative z-10 flex flex-col items-center shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
-        {/* Logo sitting on the curve (match onboarding) */}
-        <div className="-mt-10 p-1.5 rounded-full bg-transparent">
-          <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center overflow-hidden border-2 border-purple-50 shadow-xl">
-            {logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={logoUrl}
-                alt={businessName ? `${businessName} logo` : "Business logo"}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src="/logo.png"
-                alt="Progrr"
-                className="w-12 h-12 object-contain"
-              />
-            )}
-          </div>
-        </div>
-
         <main className="flex-1 px-6 pt-4 pb-24 w-full max-w-md mx-auto">
-          <div className="text-center space-y-1 mb-4 mb-6">
-            {/* <div className="text-xs font-semibold text-purple-600 dark:text-purple-400">
+          {/* <div className="text-center space-y-1 mb-4 mb-6">
+            <div className="text-xs font-semibold text-purple-600 dark:text-purple-400">
               {businessName ? "Your business" : "Welcome"}
-            </div> */}
+            </div>
             <div className="text-base font-bold text-gray-900 dark:text-white truncate">
               Hi, {headerName}
             </div>
-          </div>
+          </div> */}
           {children}
         </main>
       </div>

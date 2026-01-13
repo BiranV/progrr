@@ -8,6 +8,7 @@ import { Check, Trash2, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TimePicker } from "@/components/ui/time-picker";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Switch as UISwitch } from "@/components/ui/switch";
@@ -1464,44 +1465,42 @@ export default function OnboardingPage() {
 
                     {d.enabled && (
                       <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
-                        <Input
-                          type="time"
-                          className="h-9 px-2 text-sm w-full min-w-[90px] text-center"
-                          disabled={!d.enabled}
+                        <TimePicker
                           value={d.start || ""}
-                          onChange={(e) =>
+                          onChange={(v) =>
                             setData((prev) => ({
                               ...prev,
                               availability: {
                                 ...(prev.availability || {}),
                                 days: (prev.availability?.days || []).map((x) =>
-                                  x.day === d.day
-                                    ? { ...x, start: e.target.value }
-                                    : x
+                                  x.day === d.day ? { ...x, start: v } : x
                                 ),
                               },
                             }))
                           }
+                          disabled={!d.enabled}
+                          minuteStep={15}
+                          className="h-9 px-2 text-sm w-full min-w-[90px]"
+                          aria-label={`${DAY_LABELS[d.day]} start time`}
                         />
                         <span className="text-gray-400 shrink-0">–</span>
-                        <Input
-                          type="time"
-                          className="h-9 px-2 text-sm w-full min-w-[90px] text-center"
-                          disabled={!d.enabled}
+                        <TimePicker
                           value={d.end || ""}
-                          onChange={(e) =>
+                          onChange={(v) =>
                             setData((prev) => ({
                               ...prev,
                               availability: {
                                 ...(prev.availability || {}),
                                 days: (prev.availability?.days || []).map((x) =>
-                                  x.day === d.day
-                                    ? { ...x, end: e.target.value }
-                                    : x
+                                  x.day === d.day ? { ...x, end: v } : x
                                 ),
                               },
                             }))
                           }
+                          disabled={!d.enabled}
+                          minuteStep={15}
+                          className="h-9 px-2 text-sm w-full min-w-[90px]"
+                          aria-label={`${DAY_LABELS[d.day]} end time`}
                         />
                       </div>
                     )}

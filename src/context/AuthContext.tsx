@@ -25,7 +25,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoadingAuth: boolean;
   authStatus: "loading" | "guest" | "authenticated";
-  logout: (shouldRedirect?: boolean) => void;
+  logout: (shouldRedirect?: boolean) => Promise<void> | void;
   setSessionUser: (user: User | null) => void;
   updateUser: (patch: Partial<User>) => void;
 }
@@ -147,13 +147,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [isLoadingAuth, pathname, router, user]);
 
-  const logout = (shouldRedirect = true) => {
+  const logout = async (shouldRedirect = true) => {
     setSessionUser(null);
 
     if (shouldRedirect) {
       db.auth.logout();
     } else {
-      db.auth.logout();
+      // Clear cookie server-side without forcing a full page navigation.
+      try {
+        await fetch("/api/auth/logout", { method: "POST" });
+      } catch {
+        // Ignore.
+      }
     }
   };
 

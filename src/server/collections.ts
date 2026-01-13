@@ -20,6 +20,7 @@ export type UserDoc = {
       phone?: string;
       address?: string;
       slug?: string;
+      description?: string;
     };
     services?: Array<{
       id: string;
