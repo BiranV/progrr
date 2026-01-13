@@ -50,10 +50,25 @@ export async function GET(
         address: String(business.address ?? "").trim(),
       },
       branding: {
-        logoUrl: String(branding.logoUrl ?? "").trim() || undefined,
+        // New shape (Cloudinary)
+        logo: branding.logo ?? undefined,
+        galleryItems: Array.isArray(branding.gallery)
+          ? branding.gallery.slice(0, 10)
+          : [],
+
+        // Legacy shape (string urls) for backwards compatibility
+        logoUrl:
+          (String(branding.logoUrl ?? "").trim() ||
+            String(branding.logo?.url ?? "").trim() ||
+            undefined) ??
+          undefined,
         gallery: Array.isArray(branding.gallery)
           ? branding.gallery
-              .map((x: any) => String(x ?? "").trim())
+              .map((x: any) =>
+                typeof x === "string"
+                  ? String(x ?? "").trim()
+                  : String(x?.url ?? "").trim()
+              )
               .filter(Boolean)
               .slice(0, 10)
           : [],

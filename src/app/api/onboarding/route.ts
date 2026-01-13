@@ -41,15 +41,50 @@ function asUrlPath(v: unknown, maxLen = 500): string | undefined {
   return s;
 }
 
-function normalizeGallery(v: unknown): string[] | undefined {
+function asHttpUrl(v: unknown, maxLen = 500): string | undefined {
+  const s = String(v ?? "").trim();
+  if (!s) return undefined;
+  if (s.length > maxLen) return s.slice(0, maxLen);
+  if (!/^https?:\/\//i.test(s)) return undefined;
+  return s;
+}
+
+function normalizeBrandingLogo(v: unknown) {
+  if (!v || typeof v !== "object") return undefined;
+  const url = asHttpUrl((v as any).url, 500);
+  const publicId = asString((v as any).publicId ?? (v as any).public_id, 300);
+  if (!url || !publicId) return undefined;
+  const width = asNumber((v as any).width);
+  const height = asNumber((v as any).height);
+  const bytes = asNumber((v as any).bytes);
+  const format = asString((v as any).format, 40);
+  return { url, publicId, width, height, bytes, format };
+}
+
+function normalizeBrandingGallery(v: unknown) {
   if (!Array.isArray(v)) return undefined;
-  const out: string[] = [];
+  const out: any[] = [];
   for (const item of v) {
-    const p = asUrlPath(item, 500);
-    if (!p) continue;
-    out.push(p);
+    if (typeof item === "string") {
+      const legacy = asUrlPath(item, 500) ?? asHttpUrl(item, 500);
+      if (legacy) out.push({ url: legacy, publicId: "" });
+      continue;
+    }
+    if (!item || typeof item !== "object") continue;
+    const url = asHttpUrl((item as any).url, 500);
+    const publicId =
+      asString((item as any).publicId ?? (item as any).public_id, 300) ?? "";
+    if (!url) continue;
+    out.push({
+      url,
+      publicId,
+      width: asNumber((item as any).width),
+      height: asNumber((item as any).height),
+      bytes: asNumber((item as any).bytes),
+      format: asString((item as any).format, 40),
+    });
   }
-  return Array.from(new Set(out)).slice(0, 10);
+  return out.slice(0, 10);
 }
 
 function asNumber(v: unknown): number | undefined {
@@ -173,6 +208,7 @@ export async function PATCH(req: Request) {
 
     const brandingLogoUrlRaw = (body as any)?.branding?.logoUrl;
     const brandingGalleryRaw = (body as any)?.branding?.gallery;
+    const brandingLogoRaw = (body as any)?.branding?.logo;
 
     const set: any = {};
     const unset: any = {};
@@ -258,22 +294,29 @@ export async function PATCH(req: Request) {
       set["onboarding.availability.days"] = normalized;
     }
 
-    if (brandingLogoUrlRaw !== undefined) {
-      const logoUrl = asUrlPath(brandingLogoUrlRaw, 500);
-      if (logoUrl) {
-        set["onboarding.branding.logoUrl"] = logoUrl;
-      } else {
-        unset["onboarding.branding.logoUrl"] = "";
+    // Branding (legacy + Cloudinary-compatible)
+    if (brandingLogoRaw !== undefined) {
+      const logo = normalizeBrandingLogo(brandingLogoRaw);
+      if (logo) {
+        set["onboarding.branding.logo"] = logo;
       }
     }
 
-    if (brandingGalleryRaw !== undefined) {
-      const gallery = normalizeGallery(brandingGalleryRaw);
-      if (!gallery) {
-        return NextResponse.json({ error: "Invalid gallery" }, { status: 400 });
-      }
-      set["onboarding.branding.gallery"] = gallery;
+    if (brandingLogoUrlRaw !== undefined) {
+      // Legacy support (local or https). Prefer Cloudinary object elsewhere.
+      const url =
+        asUrlPath(brandingLogoUrlRaw, 500) ??
+        asHttpUrl(brandingLogoUrlRaw, 500);
+      if (url) set["onboarding.branding.logoUrl"] = url;
     }
+
+    if (brandingGalleryRaw !== undefined) {
+      // Accept either legacy string[] or object[]
+      const gallery = normalizeBrandingGallery(brandingGalleryRaw);
+      if (gallery) set["onboarding.branding.gallery"] = gallery;
+    }
+
+    // NOTE: Branding validation is handled above in the Cloudinary-compatible blocks.
 
     set["onboarding.updatedAt"] = new Date();
 

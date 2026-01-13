@@ -18,7 +18,28 @@ import { useAuth } from "@/context/AuthContext";
 type OnboardingData = {
   businessTypes?: string[];
   business?: { name?: string; phone?: string; address?: string };
-  branding?: { logoUrl?: string; gallery?: string[] };
+  branding?: {
+    // New (Cloudinary)
+    logo?: {
+      url: string;
+      publicId: string;
+      width?: number;
+      height?: number;
+      bytes?: number;
+      format?: string;
+    };
+    gallery?: Array<{
+      url: string;
+      publicId?: string;
+      width?: number;
+      height?: number;
+      bytes?: number;
+      format?: string;
+    }>;
+
+    // Legacy (local disk or older shapes)
+    logoUrl?: string;
+  };
   currency?: string;
   customCurrency?: { name?: string; symbol?: string };
   services?: Array<{
@@ -144,6 +165,9 @@ export default function OnboardingPage() {
   const router = useRouter();
   const { updateUser, user } = useAuth();
 
+  const logoInputId = React.useId();
+  const galleryAddInputId = React.useId();
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -155,6 +179,17 @@ export default function OnboardingPage() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
   const [replacingIndex, setReplacingIndex] = useState<number | null>(null);
+  const [galleryPendingPreviews, setGalleryPendingPreviews] = useState<
+    string[]
+  >([]);
+
+  useEffect(() => {
+    return () => {
+      galleryPendingPreviews.forEach((u) => URL.revokeObjectURL(u));
+    };
+    // Intentionally only on unmount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const InlineError = ({ message }: { message?: string }) => {
     if (!message) return null;
@@ -170,7 +205,7 @@ export default function OnboardingPage() {
   const [data, setData] = useState<OnboardingData>({
     businessTypes: [],
     business: { name: "", phone: "", address: "" },
-    branding: { logoUrl: "", gallery: [] },
+    branding: { logo: undefined, gallery: [] },
     currency: "NIS",
     services: [
       {
@@ -210,10 +245,78 @@ export default function OnboardingPage() {
         }
 
         setData((prev) => {
+          const normalizeBranding = (b: any): OnboardingData["branding"] => {
+            const branding = (b && typeof b === "object" ? b : {}) as any;
+            const logoFromObj = branding.logo?.url
+              ? {
+                  url: String(branding.logo.url).trim(),
+                  publicId: String(branding.logo.publicId ?? "").trim(),
+                  width:
+                    typeof branding.logo.width === "number"
+                      ? branding.logo.width
+                      : undefined,
+                  height:
+                    typeof branding.logo.height === "number"
+                      ? branding.logo.height
+                      : undefined,
+                  bytes:
+                    typeof branding.logo.bytes === "number"
+                      ? branding.logo.bytes
+                      : undefined,
+                  format:
+                    typeof branding.logo.format === "string"
+                      ? branding.logo.format
+                      : undefined,
+                }
+              : undefined;
+
+            const legacyLogoUrl = String(branding.logoUrl ?? "").trim();
+
+            const galleryIn = Array.isArray(branding.gallery)
+              ? branding.gallery
+              : [];
+
+            const gallery = galleryIn
+              .map((x: any) => {
+                if (typeof x === "string") {
+                  const url = String(x ?? "").trim();
+                  if (!url) return null;
+                  return { url, publicId: "" };
+                }
+                const url = String(x?.url ?? "").trim();
+                if (!url) return null;
+                return {
+                  url,
+                  publicId: String(x?.publicId ?? x?.public_id ?? "").trim(),
+                  width: typeof x?.width === "number" ? x.width : undefined,
+                  height: typeof x?.height === "number" ? x.height : undefined,
+                  bytes: typeof x?.bytes === "number" ? x.bytes : undefined,
+                  format: typeof x?.format === "string" ? x.format : undefined,
+                };
+              })
+              .filter(Boolean)
+              .slice(0, 10) as NonNullable<
+              OnboardingData["branding"]
+            >["gallery"];
+
+            const logo =
+              logoFromObj ||
+              (legacyLogoUrl
+                ? { url: legacyLogoUrl, publicId: "" }
+                : undefined);
+
+            return {
+              ...branding,
+              logo,
+              gallery,
+            };
+          };
+
           const merged: OnboardingData = {
             ...prev,
             ...(res.onboarding || {}),
             business: { ...prev.business, ...(res.onboarding?.business || {}) },
+            branding: normalizeBranding((res.onboarding as any)?.branding),
             availability: {
               ...prev.availability,
               ...(res.onboarding?.availability || {}),
@@ -312,10 +415,15 @@ export default function OnboardingPage() {
       if (!res.ok)
         throw new Error(json?.error || `Request failed (${res.status})`);
 
-      const url = String(json?.url ?? "").trim();
+      const url = String(json?.logo?.url ?? json?.url ?? "").trim();
+      const publicId = String(json?.logo?.publicId ?? "").trim();
       setData((d) => ({
         ...d,
-        branding: { ...(d.branding || {}), logoUrl: url },
+        branding: {
+          ...(d.branding || {}),
+          logo: url ? { url, publicId } : undefined,
+          logoUrl: undefined,
+        },
       }));
     } finally {
       setUploadingLogo(false);
@@ -336,7 +444,11 @@ export default function OnboardingPage() {
 
       setData((d) => ({
         ...d,
-        branding: { ...(d.branding || {}), logoUrl: "" },
+        branding: {
+          ...(d.branding || {}),
+          logo: undefined,
+          logoUrl: undefined,
+        },
       }));
     } finally {
       setUploadingLogo(false);
@@ -348,15 +460,20 @@ export default function OnboardingPage() {
 
     setUploadingGallery(true);
     setError(null);
+    let localPreviews: string[] = [];
     try {
       const current = (data.branding?.gallery || []).length;
       const remaining = Math.max(0, 10 - current);
       if (remaining <= 0) throw new Error("Gallery limit reached (max 10)");
 
+      const selected = Array.from(files).slice(0, remaining);
+
+      // Show instant feedback (local previews) while upload happens.
+      localPreviews = selected.map((f) => URL.createObjectURL(f));
+      setGalleryPendingPreviews((prev) => [...prev, ...localPreviews]);
+
       const fd = new FormData();
-      Array.from(files)
-        .slice(0, remaining)
-        .forEach((f) => fd.append("files", f));
+      selected.forEach((f) => fd.append("files", f));
 
       const res = await fetch("/api/branding/gallery", {
         method: "POST",
@@ -368,7 +485,25 @@ export default function OnboardingPage() {
         throw new Error(json?.error || `Request failed (${res.status})`);
 
       const gallery = Array.isArray(json?.gallery)
-        ? json.gallery.map((x: any) => String(x ?? "").trim()).filter(Boolean)
+        ? json.gallery
+            .map((x: any) => {
+              if (typeof x === "string") {
+                const url = String(x ?? "").trim();
+                if (!url) return null;
+                return { url, publicId: "" };
+              }
+              const url = String(x?.url ?? "").trim();
+              if (!url) return null;
+              return {
+                url,
+                publicId: String(x?.publicId ?? x?.public_id ?? "").trim(),
+                width: typeof x?.width === "number" ? x.width : undefined,
+                height: typeof x?.height === "number" ? x.height : undefined,
+                bytes: typeof x?.bytes === "number" ? x.bytes : undefined,
+                format: typeof x?.format === "string" ? x.format : undefined,
+              };
+            })
+            .filter(Boolean)
         : [];
 
       setData((d) => ({
@@ -376,11 +511,20 @@ export default function OnboardingPage() {
         branding: { ...(d.branding || {}), gallery },
       }));
     } finally {
+      if (localPreviews.length) {
+        setGalleryPendingPreviews((prev) =>
+          prev.filter((u) => !localPreviews.includes(u))
+        );
+        localPreviews.forEach((u) => URL.revokeObjectURL(u));
+      }
       setUploadingGallery(false);
     }
   };
 
-  const removeGalleryImage = async (url: string) => {
+  const removeGalleryImage = async (item: {
+    url: string;
+    publicId?: string;
+  }) => {
     setUploadingGallery(true);
     setError(null);
     try {
@@ -388,14 +532,35 @@ export default function OnboardingPage() {
         method: "DELETE",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({
+          url: String(item?.url ?? "").trim(),
+          publicId: String(item?.publicId ?? "").trim() || undefined,
+        }),
       });
       const json = await res.json().catch(() => null);
       if (!res.ok)
         throw new Error(json?.error || `Request failed (${res.status})`);
 
       const gallery = Array.isArray(json?.gallery)
-        ? json.gallery.map((x: any) => String(x ?? "").trim()).filter(Boolean)
+        ? json.gallery
+            .map((x: any) => {
+              if (typeof x === "string") {
+                const url = String(x ?? "").trim();
+                if (!url) return null;
+                return { url, publicId: "" };
+              }
+              const url = String(x?.url ?? "").trim();
+              if (!url) return null;
+              return {
+                url,
+                publicId: String(x?.publicId ?? x?.public_id ?? "").trim(),
+                width: typeof x?.width === "number" ? x.width : undefined,
+                height: typeof x?.height === "number" ? x.height : undefined,
+                bytes: typeof x?.bytes === "number" ? x.bytes : undefined,
+                format: typeof x?.format === "string" ? x.format : undefined,
+              };
+            })
+            .filter(Boolean)
         : [];
 
       setData((d) => ({
@@ -428,17 +593,31 @@ export default function OnboardingPage() {
         throw new Error(upJson?.error || `Request failed (${upRes.status})`);
 
       const added = Array.isArray(upJson?.added) ? upJson.added : [];
-      const newUrl = String(added?.[0] ?? "").trim();
+      const first = added?.[0];
+      const newUrl =
+        typeof first === "string"
+          ? String(first ?? "").trim()
+          : String(first?.url ?? "").trim();
+      const newPublicId =
+        typeof first === "string"
+          ? ""
+          : String(first?.publicId ?? first?.public_id ?? "").trim();
       if (!newUrl) throw new Error("Upload failed");
 
       // Remove old
-      await removeGalleryImage(target);
+      await removeGalleryImage({
+        url: String((target as any)?.url ?? target ?? "").trim(),
+        publicId: String((target as any)?.publicId ?? "").trim(),
+      });
 
       // Reorder to keep the replaced image at the same position.
       const after = [...(data.branding?.gallery || [])]
         .filter((x) => x !== target)
-        .filter(Boolean);
-      after[index] = newUrl;
+        .filter(Boolean) as any[];
+      after[index] = {
+        url: newUrl,
+        publicId: newPublicId,
+      };
 
       await savePartial({
         branding: { ...(data.branding || {}), gallery: after },
@@ -708,12 +887,30 @@ export default function OnboardingPage() {
                 </div>
               </div>
 
+              <input
+                id={logoInputId}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={uploadingLogo || saving}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!file) return;
+                  uploadLogo(file).catch((err) =>
+                    setError(err?.message || "Failed to upload logo")
+                  );
+                }}
+              />
+
               <div className="mt-4 flex items-center gap-4">
                 <div className="h-20 w-20 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 ring-2 ring-purple-100 dark:ring-purple-900/40 shadow-sm flex items-center justify-center">
-                  {data.branding?.logoUrl ? (
+                  {data.branding?.logo?.url || data.branding?.logoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={data.branding.logoUrl}
+                      src={String(
+                        data.branding?.logo?.url || data.branding?.logoUrl
+                      ).trim()}
                       alt="Business logo"
                       className="h-full w-full object-cover"
                     />
@@ -725,36 +922,23 @@ export default function OnboardingPage() {
                 </div>
 
                 <div className="flex-1 flex flex-wrap gap-2">
-                  <label className="inline-flex">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      disabled={uploadingLogo || saving}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        e.target.value = "";
-                        if (!file) return;
-                        uploadLogo(file).catch((err) =>
-                          setError(err?.message || "Failed to upload logo")
-                        );
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={uploadingLogo || saving}
-                      className="rounded-xl"
-                    >
+                  <Button
+                    asChild
+                    type="button"
+                    variant="outline"
+                    disabled={uploadingLogo || saving}
+                    className="rounded-xl"
+                  >
+                    <label htmlFor={logoInputId} className="cursor-pointer">
                       {uploadingLogo
                         ? "Uploading…"
-                        : data.branding?.logoUrl
+                        : data.branding?.logo?.url || data.branding?.logoUrl
                         ? "Replace logo"
                         : "Upload logo"}
-                    </Button>
-                  </label>
+                    </label>
+                  </Button>
 
-                  {data.branding?.logoUrl ? (
+                  {data.branding?.logo?.url || data.branding?.logoUrl ? (
                     <Button
                       type="button"
                       variant="ghost"
@@ -784,90 +968,141 @@ export default function OnboardingPage() {
                   </div>
                 </div>
                 <div className="text-xs font-semibold text-purple-600 dark:text-purple-400 shrink-0">
-                  {(data.branding?.gallery || []).length}/10
+                  {(data.branding?.gallery || []).length +
+                    galleryPendingPreviews.length}
+                  /10
                 </div>
               </div>
 
+              <input
+                id={galleryAddInputId}
+                type="file"
+                multiple
+                accept="image/*"
+                className="hidden"
+                disabled={uploadingGallery || saving}
+                onChange={(e) => {
+                  const files = e.target.files;
+                  e.target.value = "";
+                  uploadGalleryFiles(files).catch((err) =>
+                    setError(err?.message || "Failed to upload images")
+                  );
+                }}
+              />
+
               <div className="mt-4 grid grid-cols-3 gap-3">
-                {(data.branding?.gallery || []).map((url, idx) => (
+                {galleryPendingPreviews.map((url, idx) => (
                   <div
-                    key={`${url}-${idx}`}
+                    key={`pending-${url}-${idx}`}
                     className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={url}
-                      alt={`Gallery image ${idx + 1}`}
-                      className="h-full w-full object-cover"
+                      alt="Uploading"
+                      className="h-full w-full object-cover opacity-70"
                     />
-
-                    <div className="absolute inset-x-0 top-0 p-1.5 flex justify-end gap-1">
-                      <label className="inline-flex">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          disabled={uploadingGallery || saving}
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            e.target.value = "";
-                            if (!file) return;
-                            replaceGalleryImage(idx, file).catch((err) =>
-                              setError(
-                                err?.message || "Failed to replace image"
-                              )
-                            );
-                          }}
-                        />
-                        <button
-                          type="button"
-                          disabled={
-                            uploadingGallery || saving || replacingIndex === idx
-                          }
-                          className="rounded-lg bg-black/45 text-white text-[11px] px-2 py-1 backdrop-blur-sm hover:bg-black/55 transition disabled:opacity-60"
-                        >
-                          {replacingIndex === idx ? "…" : "Replace"}
-                        </button>
-                      </label>
-
-                      <button
-                        type="button"
-                        disabled={uploadingGallery || saving}
-                        onClick={() =>
-                          removeGalleryImage(url).catch((err) =>
-                            setError(err?.message || "Failed to remove image")
-                          )
-                        }
-                        className="rounded-lg bg-black/45 text-white p-1.5 backdrop-blur-sm hover:bg-black/55 transition disabled:opacity-60"
-                        aria-label="Remove image"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="rounded-full bg-black/50 text-white p-2 backdrop-blur-sm">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      </div>
                     </div>
                   </div>
                 ))}
 
-                {(() => {
-                  const count = (data.branding?.gallery || []).length;
-                  if (count >= 10) return null;
+                {(data.branding?.gallery || []).map((item: any, idx) => {
+                  const url =
+                    typeof item === "string"
+                      ? String(item ?? "").trim()
+                      : String(item?.url ?? "").trim();
+                  const publicId =
+                    typeof item === "string"
+                      ? ""
+                      : String(item?.publicId ?? item?.public_id ?? "").trim();
+                  if (!url) return null;
                   return (
-                    <label className="aspect-square rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-950/10 flex items-center justify-center text-center p-2 cursor-pointer hover:border-purple-300 dark:hover:border-purple-700 transition">
+                    <div
+                      key={`${url}-${idx}`}
+                      className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                    >
                       <input
+                        id={`${galleryAddInputId}-replace-${idx}`}
                         type="file"
-                        multiple
                         accept="image/*"
                         className="hidden"
                         disabled={uploadingGallery || saving}
                         onChange={(e) => {
-                          const files = e.target.files;
+                          const file = e.target.files?.[0];
                           e.target.value = "";
-                          uploadGalleryFiles(files).catch((err) =>
-                            setError(err?.message || "Failed to upload images")
+                          if (!file) return;
+                          replaceGalleryImage(idx, file).catch((err) =>
+                            setError(err?.message || "Failed to replace image")
                           );
                         }}
                       />
-                      <div className="text-xs text-gray-600 dark:text-gray-300">
-                        {uploadingGallery ? "Uploading…" : "Add images"}
+
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={url}
+                        alt={`Gallery image ${idx + 1}`}
+                        className="h-full w-full object-cover"
+                      />
+
+                      <div className="absolute inset-x-0 top-0 p-1.5 flex justify-end gap-1">
+                        <label
+                          htmlFor={`${galleryAddInputId}-replace-${idx}`}
+                          className={
+                            "rounded-lg bg-black/45 text-white text-[11px] px-2 py-1 backdrop-blur-sm hover:bg-black/55 transition " +
+                            (uploadingGallery ||
+                            saving ||
+                            replacingIndex === idx
+                              ? "opacity-60 pointer-events-none"
+                              : "cursor-pointer")
+                          }
+                        >
+                          {replacingIndex === idx ? "…" : "Replace"}
+                        </label>
+
+                        <button
+                          type="button"
+                          disabled={uploadingGallery || saving}
+                          onClick={() =>
+                            removeGalleryImage({ url, publicId }).catch((err) =>
+                              setError(err?.message || "Failed to remove image")
+                            )
+                          }
+                          className="rounded-lg bg-black/45 text-white p-1.5 backdrop-blur-sm hover:bg-black/55 transition disabled:opacity-60"
+                          aria-label="Remove image"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {(() => {
+                  const count =
+                    (data.branding?.gallery || []).length +
+                    galleryPendingPreviews.length;
+                  if (count >= 10) return null;
+                  return (
+                    <label
+                      htmlFor={galleryAddInputId}
+                      className={
+                        "aspect-square rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-950/10 flex items-center justify-center text-center p-2 hover:border-purple-300 dark:hover:border-purple-700 transition " +
+                        (uploadingGallery || saving
+                          ? "opacity-60 pointer-events-none"
+                          : "cursor-pointer")
+                      }
+                    >
+                      <div className="flex flex-col items-center gap-1">
+                        {uploadingGallery ? (
+                          <Loader2 className="h-5 w-5 animate-spin text-gray-500 dark:text-gray-300" />
+                        ) : null}
+                        <div className="text-xs text-gray-600 dark:text-gray-300">
+                          {uploadingGallery ? "Uploading…" : "Add images"}
+                        </div>
                       </div>
                     </label>
                   );
@@ -1224,10 +1459,12 @@ export default function OnboardingPage() {
 
                 <div className="flex items-center gap-3">
                   <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center">
-                    {data.branding?.logoUrl ? (
+                    {data.branding?.logo?.url || data.branding?.logoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={data.branding.logoUrl}
+                        src={String(
+                          data.branding?.logo?.url || data.branding?.logoUrl
+                        ).trim()}
                         alt="Business logo"
                         className="h-full w-full object-cover"
                       />
@@ -1240,7 +1477,9 @@ export default function OnboardingPage() {
                   <div className="text-sm text-gray-700 dark:text-gray-200">
                     <div>
                       <span className="font-medium">Logo:</span>{" "}
-                      {data.branding?.logoUrl ? "Uploaded" : "Not set"}
+                      {data.branding?.logo?.url || data.branding?.logoUrl
+                        ? "Uploaded"
+                        : "Not set"}
                     </div>
                     <div>
                       <span className="font-medium">Gallery:</span>{" "}

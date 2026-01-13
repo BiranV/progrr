@@ -6,6 +6,11 @@ export type PublicBusiness = {
     address: string;
   };
   branding?: {
+    // New shape (Cloudinary-backed)
+    logo?: { url: string; publicId: string };
+    galleryItems?: Array<{ url: string; publicId?: string }>;
+
+    // Legacy shape (string urls)
     logoUrl?: string;
     gallery?: string[];
   };

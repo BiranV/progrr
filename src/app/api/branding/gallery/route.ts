@@ -1,42 +1,67 @@
 import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
-import path from "path";
-import fs from "fs/promises";
 
 import { requireAppUser } from "@/server/auth";
 import { collections } from "@/server/collections";
+import {
+  cloudinaryUrl,
+  destroyImage,
+  uploadImageBuffer,
+} from "@/server/cloudinary-upload";
 
 export const runtime = "nodejs";
 
 const MAX_FILES = 10;
 const MAX_BYTES = 5 * 1024 * 1024; // 5MB each
 
-function extensionFromMime(mime: string): string {
+function isAllowedImageMime(mime: string) {
   const t = String(mime || "").toLowerCase();
-  if (t === "image/png") return "png";
-  if (t === "image/jpeg") return "jpg";
-  if (t === "image/webp") return "webp";
-  if (t === "image/gif") return "gif";
-  return "";
+  return t === "image/png" || t === "image/jpeg" || t === "image/webp";
 }
 
-function safeFilename(ext: string) {
-  const stamp = Date.now();
-  const rand = crypto.randomUUID().slice(0, 8);
-  const cleanExt = ext.replace(/[^a-z0-9]/gi, "").toLowerCase();
-  return `gallery-${stamp}-${rand}${cleanExt ? `.${cleanExt}` : ""}`;
-}
+type GalleryItem = {
+  url: string;
+  publicId: string;
+  width?: number;
+  height?: number;
+  bytes?: number;
+  format?: string;
+};
 
-function normalizeGallery(v: any): string[] {
+function normalizeGallery(v: any): GalleryItem[] {
   if (!Array.isArray(v)) return [];
-  const out: string[] = [];
+  const out: GalleryItem[] = [];
   for (const item of v) {
-    const s = String(item ?? "").trim();
-    if (!s) continue;
-    if (s.length > 500) continue;
-    out.push(s);
+    if (typeof item === "string") {
+      const s = String(item ?? "").trim();
+      if (!s) continue;
+      out.push({ url: s, publicId: "" });
+      continue;
+    }
+
+    const url = String(item?.url ?? "").trim();
+    const publicId = String(item?.publicId ?? item?.public_id ?? "").trim();
+    if (!url) continue;
+    out.push({
+      url,
+      publicId,
+      width: typeof item?.width === "number" ? item.width : undefined,
+      height: typeof item?.height === "number" ? item.height : undefined,
+      bytes: typeof item?.bytes === "number" ? item.bytes : undefined,
+      format: typeof item?.format === "string" ? item.format : undefined,
+    });
   }
-  return Array.from(new Set(out));
+
+  // Dedup by publicId if present, otherwise by url.
+  const seen = new Set<string>();
+  const deduped: GalleryItem[] = [];
+  for (const x of out) {
+    const key = x.publicId ? `pid:${x.publicId}` : `url:${x.url}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(x);
+  }
+  return deduped.slice(0, MAX_FILES);
 }
 
 export async function POST(req: Request) {
@@ -54,9 +79,9 @@ export async function POST(req: Request) {
     }
 
     for (const f of files) {
-      if (!String(f.type || "").startsWith("image/")) {
+      if (!isAllowedImageMime(f.type)) {
         return NextResponse.json(
-          { error: "Gallery files must be images" },
+          { error: "Gallery files must be PNG, JPG, or WEBP images" },
           { status: 400 }
         );
       }
@@ -84,32 +109,30 @@ export async function POST(req: Request) {
     const remaining = MAX_FILES - existing.length;
     const toSave = files.slice(0, remaining);
 
-    const dir = path.join(
-      process.cwd(),
-      "public",
-      "uploads",
-      "business-branding",
-      userId
-    );
-    await fs.mkdir(dir, { recursive: true });
-
-    const newUrls: string[] = [];
-
+    const folder = `progrr/businesses/${userId}/gallery`;
+    const added: GalleryItem[] = [];
     for (const file of toSave) {
-      const ext = extensionFromMime(file.type);
-      const filename = safeFilename(ext);
-      const abs = path.join(dir, filename);
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const uploaded = await uploadImageBuffer(buffer, {
+        folder,
+        overwrite: false,
+        unique_filename: true,
+        resource_type: "image",
+      });
 
-      const buf = Buffer.from(await file.arrayBuffer());
-      await fs.writeFile(abs, buf);
-
-      const url = `/uploads/business-branding/${encodeURIComponent(
-        userId
-      )}/${encodeURIComponent(filename)}`;
-      newUrls.push(url);
+      const publicId = String(uploaded.public_id ?? "").trim();
+      const url = cloudinaryUrl(publicId, { width: 1400, crop: "limit" });
+      added.push({
+        url,
+        publicId,
+        width: uploaded.width,
+        height: uploaded.height,
+        bytes: uploaded.bytes,
+        format: uploaded.format,
+      });
     }
 
-    const next = [...existing, ...newUrls].slice(0, MAX_FILES);
+    const next = normalizeGallery([...existing, ...added]).slice(0, MAX_FILES);
 
     await c.users.updateOne(
       { _id: new ObjectId(userId) },
@@ -121,7 +144,7 @@ export async function POST(req: Request) {
       }
     );
 
-    return NextResponse.json({ ok: true, gallery: next, added: newUrls });
+    return NextResponse.json({ ok: true, gallery: next, added });
   } catch (error: any) {
     const status = typeof error?.status === "number" ? error.status : 500;
     return NextResponse.json(
@@ -138,13 +161,12 @@ export async function DELETE(req: Request) {
 
     const body = await req.json().catch(() => ({}));
     const url = String((body as any)?.url ?? "").trim();
-    if (!url) {
-      return NextResponse.json({ error: "Missing url" }, { status: 400 });
-    }
-
-    const prefix = `/uploads/business-branding/${encodeURIComponent(userId)}/`;
-    if (!url.startsWith(prefix)) {
-      return NextResponse.json({ error: "Invalid url" }, { status: 400 });
+    const publicId = String((body as any)?.publicId ?? "").trim();
+    if (!url && !publicId) {
+      return NextResponse.json(
+        { error: "Missing url or publicId" },
+        { status: 400 }
+      );
     }
 
     const c = await collections();
@@ -152,7 +174,15 @@ export async function DELETE(req: Request) {
     const existing = normalizeGallery(
       (user as any)?.onboarding?.branding?.gallery ?? []
     );
-    const next = existing.filter((x) => x !== url);
+    const toRemove =
+      existing.find((x) =>
+        publicId ? x.publicId === publicId : x.url === url
+      ) ?? null;
+    if (!toRemove) {
+      return NextResponse.json({ ok: true, gallery: existing });
+    }
+
+    const next = existing.filter((x) => x !== toRemove);
 
     await c.users.updateOne(
       { _id: new ObjectId(userId) },
@@ -164,16 +194,9 @@ export async function DELETE(req: Request) {
       }
     );
 
-    const filename = decodeURIComponent(url.slice(prefix.length));
-    const abs = path.join(
-      process.cwd(),
-      "public",
-      "uploads",
-      "business-branding",
-      userId,
-      filename
-    );
-    await fs.unlink(abs).catch(() => null);
+    if (toRemove.publicId) {
+      await destroyImage(toRemove.publicId).catch(() => null);
+    }
 
     return NextResponse.json({ ok: true, gallery: next });
   } catch (error: any) {

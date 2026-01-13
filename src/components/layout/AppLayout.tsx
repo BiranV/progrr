@@ -111,7 +111,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     (user as any)?.onboarding?.business?.name ?? ""
   ).trim();
   const logoUrl = String(
-    (user as any)?.onboarding?.branding?.logoUrl ?? ""
+    (user as any)?.onboarding?.branding?.logo?.url ??
+      (user as any)?.onboarding?.branding?.logoUrl ??
+      ""
   ).trim();
   const headerName = businessName || user?.full_name || "Progrr";
 
