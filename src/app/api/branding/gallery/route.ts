@@ -75,10 +75,7 @@ export async function POST(req: Request) {
       .filter((f) => f instanceof File) as File[];
 
     if (!files.length) {
-      return NextResponse.json(
-        { error: "Missing images" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing images" }, { status: 400 });
     }
 
     for (const f of files) {
@@ -100,7 +97,13 @@ export async function POST(req: Request) {
     const user = await c.users.findOne({ _id: new ObjectId(userId) });
     const existing = normalizeGallery(
       (user as any)?.onboarding?.branding?.gallery ?? []
-    );
+    ).map((x) => {
+      if (!x.publicId) return x;
+      return {
+        ...x,
+        url: cloudinaryUrl(x.publicId, { width: 1400, crop: "limit" }),
+      };
+    });
 
     if (existing.length >= MAX_FILES) {
       return NextResponse.json(
@@ -176,7 +179,13 @@ export async function DELETE(req: Request) {
     const user = await c.users.findOne({ _id: new ObjectId(userId) });
     const existing = normalizeGallery(
       (user as any)?.onboarding?.branding?.gallery ?? []
-    );
+    ).map((x) => {
+      if (!x.publicId) return x;
+      return {
+        ...x,
+        url: cloudinaryUrl(x.publicId, { width: 1400, crop: "limit" }),
+      };
+    });
     const toRemove =
       existing.find((x) =>
         publicId ? x.publicId === publicId : x.url === url

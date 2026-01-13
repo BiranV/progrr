@@ -458,7 +458,7 @@ export default function OnboardingPage() {
     }
   };
 
-  const uploadGalleryFiles = async (files: FileList | null) => {
+  const uploadGalleryFiles = async (files: File[] | null) => {
     if (!files || files.length === 0) return;
 
     setUploadingGallery(true);
@@ -471,7 +471,7 @@ export default function OnboardingPage() {
       const remaining = Math.max(0, 10 - current);
       if (remaining <= 0) throw new Error("Gallery limit reached (max 10)");
 
-      const selected = Array.from(files).slice(0, remaining);
+      const selected = files.slice(0, remaining);
 
       const allowed = new Set(["image/png", "image/jpeg", "image/webp"]);
       const maxBytes = 5 * 1024 * 1024;
@@ -786,7 +786,25 @@ export default function OnboardingPage() {
       await apiFetch<{ ok: true }>("/api/onboarding/complete", {
         method: "POST",
       });
+      // Immediately hydrate onboarding data so the dashboard header can show the
+      // business name + logo on first paint.
       updateUser({ onboardingCompleted: true });
+      try {
+        const res = await fetch("/api/onboarding", { method: "GET" });
+        if (res.ok) {
+          const payload = await res.json().catch(() => null);
+          if (payload && typeof payload === "object") {
+            updateUser({
+              onboardingCompleted: Boolean(
+                (payload as any).onboardingCompleted ?? true
+              ),
+              onboarding: (payload as any).onboarding ?? {},
+            });
+          }
+        }
+      } catch {
+        // Ignore.
+      }
       router.replace("/dashboard");
     } catch (e: any) {
       setError(e?.message || "Failed to finish onboarding");
@@ -1052,15 +1070,15 @@ export default function OnboardingPage() {
                 className="hidden"
                 disabled={uploadingGallery || saving}
                 onChange={(e) => {
-                  const files = e.target.files;
+                  const picked = Array.from(e.target.files ?? []);
                   e.target.value = "";
-                  uploadGalleryFiles(files).catch((err) =>
+                  uploadGalleryFiles(picked).catch((err) =>
                     setError(err?.message || "Failed to upload images")
                   );
                 }}
               />
 
-              <div className="mt-4 grid grid-cols-3 gap-3">
+              <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {galleryPendingPreviews.map((url, idx) => (
                   <div
                     key={`pending-${url}-${idx}`}
@@ -1093,7 +1111,7 @@ export default function OnboardingPage() {
                   return (
                     <div
                       key={`${url}-${idx}`}
-                      className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                      className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm"
                     >
                       <input
                         id={`${galleryAddInputId}-replace-${idx}`}
@@ -1116,6 +1134,7 @@ export default function OnboardingPage() {
                         src={url}
                         alt={`Gallery image ${idx + 1}`}
                         className="h-full w-full object-cover"
+                        loading="lazy"
                       />
 
                       <div className="absolute inset-x-0 top-0 p-1.5 flex justify-end gap-1">
@@ -1563,6 +1582,36 @@ export default function OnboardingPage() {
                     </div>
                   </div>
                 </div>
+
+                {(data.branding?.gallery || []).length > 0 ? (
+                  <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {(data.branding?.gallery || []).map((item: any, idx) => {
+                      const url =
+                        typeof item === "string"
+                          ? String(item ?? "").trim()
+                          : String(item?.url ?? "").trim();
+                      if (!url) return null;
+                      return (
+                        <div
+                          key={`${url}-${idx}`}
+                          className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={url}
+                            alt={`Gallery image ${idx + 1}`}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    No gallery images yet.
+                  </div>
+                )}
               </div>
 
               <div className="h-px bg-gray-200 dark:bg-gray-800" />

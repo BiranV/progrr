@@ -47,12 +47,14 @@ export function cloudinaryUrl(
   const transformation: any[] = [{ quality: "auto", fetch_format: "auto" }];
 
   if (args.width || args.height) {
-    transformation.unshift({
-      width: args.width,
-      height: args.height,
+    const resize: Record<string, any> = {
       crop: args.crop ?? "limit",
-      gravity: "auto",
-    });
+    };
+    if (typeof args.width === "number") resize.width = args.width;
+    if (typeof args.height === "number") resize.height = args.height;
+    if ((args.crop ?? "limit") === "fill") resize.gravity = "auto";
+
+    transformation.unshift(resize);
   }
 
   return cloudinary.url(pid, {
