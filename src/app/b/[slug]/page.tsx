@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/public-booking";
+import { CenteredSpinner } from "@/components/CenteredSpinner";
 import PublicBookingShell from "./_components/PublicBookingShell";
 import { usePublicBusiness } from "./_components/usePublicBusiness";
 
@@ -29,11 +30,7 @@ export default function PublicBusinessPage({
       showGallery
     >
       {loading ? (
-        <Card>
-          <CardContent className="p-6 text-sm text-gray-600 dark:text-gray-300">
-            Loading…
-          </CardContent>
-        </Card>
+        <CenteredSpinner fullPage />
       ) : error || !data ? (
         <Card>
           <CardHeader>

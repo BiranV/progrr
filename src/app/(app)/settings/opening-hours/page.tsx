@@ -2,7 +2,7 @@
 
 import React from "react";
 import { toast } from "sonner";
-import { Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { TimePicker } from "@/components/ui/time-picker";
@@ -463,7 +463,11 @@ export default function OpeningHoursPage() {
                         onClick={onSave}
                         disabled={!isDirty || isSaving || isLoading || !initialRef.current}
                     >
-                        {isSaving ? "Saving…" : "Save changes"}
+                        {isSaving ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                            "Save changes"
+                        )}
                     </Button>
                 </div>
             </div>

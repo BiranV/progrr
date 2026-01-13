@@ -2,11 +2,12 @@
 
 import React from "react";
 import { toast } from "sonner";
-import { Trash2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CenteredSpinner } from "@/components/CenteredSpinner";
 import {
     Select,
     SelectContent,
@@ -369,8 +370,8 @@ export default function ServicesSettingsPage() {
 
                 <div className="space-y-3">
                     {isLoading ? (
-                        <div className="text-sm text-gray-600 dark:text-gray-300 px-1">
-                            Loading…
+                        <div className="px-1">
+                            <CenteredSpinner />
                         </div>
                     ) : null}
 
@@ -546,7 +547,11 @@ export default function ServicesSettingsPage() {
                         onClick={onSave}
                         disabled={!isDirty || isLoading || isSaving || !initialRef.current}
                     >
-                        {isSaving ? "Saving…" : "Save changes"}
+                        {isSaving ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                            "Save changes"
+                        )}
                     </Button>
                 </div>
             </div>

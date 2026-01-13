@@ -1288,11 +1288,16 @@ export default function OnboardingPage() {
                     className="rounded-xl"
                   >
                     <label htmlFor={logoInputId} className="cursor-pointer">
-                      {uploadingLogo
-                        ? "Uploading…"
-                        : data.branding?.logo?.url || data.branding?.logoUrl
-                          ? "Replace logo"
-                          : "Upload logo"}
+                      <span className="inline-flex items-center gap-2">
+                        {uploadingLogo ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : null}
+                        <span>
+                          {data.branding?.logo?.url || data.branding?.logoUrl
+                            ? "Replace logo"
+                            : "Upload logo"}
+                        </span>
+                      </span>
                     </label>
                   </Button>
 
@@ -1460,7 +1465,7 @@ export default function OnboardingPage() {
                           <Loader2 className="h-5 w-5 animate-spin text-gray-500 dark:text-gray-300" />
                         ) : null}
                         <div className="text-xs text-gray-600 dark:text-gray-300">
-                          {uploadingGallery ? "Uploading…" : "Add images"}
+                          Add images
                         </div>
                       </div>
                     </label>
@@ -2073,7 +2078,7 @@ export default function OnboardingPage() {
               }
               className="h-14 flex-[2] rounded-2xl text-lg font-bold bg-neutral-900 hover:bg-neutral-800 text-white shadow-lg shadow-black/10 dark:shadow-none transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
-              {saving ? "Saving…" : "Next"}
+              {saving ? <Loader2 className="h-6 w-6 animate-spin" /> : "Next"}
             </Button>
           ) : (
             <Button
@@ -2082,7 +2087,11 @@ export default function OnboardingPage() {
               disabled={saving || loading}
               className="h-14 flex-1 rounded-2xl text-lg font-bold bg-neutral-900 hover:bg-neutral-800 text-white shadow-lg shadow-black/10 dark:shadow-none transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
-              {saving ? "Finishing…" : "Finish Setup"}
+              {saving ? (
+                <Loader2 className="h-6 w-6 animate-spin" />
+              ) : (
+                "Finish Setup"
+              )}
             </Button>
           )}
         </div>

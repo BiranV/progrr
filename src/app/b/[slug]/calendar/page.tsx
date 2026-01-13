@@ -7,6 +7,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatDateInTimeZone } from "@/lib/public-booking";
+import { CenteredSpinner } from "@/components/CenteredSpinner";
 import PublicBookingShell from "../_components/PublicBookingShell";
 import { usePublicBusiness } from "../_components/usePublicBusiness";
 
@@ -105,16 +106,12 @@ export default function PublicCalendarPage({
     <PublicBookingShell
       business={business}
       title="Pick a date"
-      subtitle={business?.business?.name ? "Choose a date" : "Loading…"}
+      subtitle={business?.business?.name ? "Choose a date" : ""}
       onBack={() => router.replace(`/b/${encodeURIComponent(normalizedSlug)}`)}
       showGallery
     >
       {loading ? (
-        <Card className="rounded-3xl">
-          <CardContent className="p-6 text-sm text-gray-600 dark:text-gray-300">
-            Loading…
-          </CardContent>
-        </Card>
+        <CenteredSpinner fullPage />
       ) : !business ? (
         <Card className="rounded-3xl">
           <CardHeader>

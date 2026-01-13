@@ -2,6 +2,7 @@
 
 import React from "react";
 import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 import { updateBusiness, useBusiness } from "@/hooks/useBusiness";
 
@@ -203,7 +204,11 @@ export default function BusinessDetailsPage() {
                         onClick={onSave}
                         disabled={!isDirty || isSaving || !initialRef.current}
                     >
-                        {isSaving ? "Saving…" : "Save changes"}
+                        {isSaving ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                            "Save changes"
+                        )}
                     </Button>
                 </div>
             </div>
