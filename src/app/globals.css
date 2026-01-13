@@ -115,6 +115,10 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+.mobile-layout {
+  @apply mx-auto max-w-[480px] min-h-screen bg-background;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

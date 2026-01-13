@@ -1,480 +1,401 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowLeft, ChevronLeft, Zap } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import AuthBanner, { type AuthBannerState } from "./AuthBanner";
 import OtpInput from "./OtpInput";
 
-const isValidEmail = (email: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-};
+const isValidEmail = (email: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const isValidFullName = (fullName: string) =>
+  fullName.trim().split(/\s+/).length >= 2;
 
-const isValidFullName = (fullName: string) => {
-    const parts = String(fullName).trim().split(/\s+/).filter(Boolean);
+type ViewState =
+  | "landing"
+  | "login"
+  | "login-verify"
+  | "signup"
+  | "signup-verify";
 
-    if (parts.length < 2) return false;
-    return parts.every((p) => /^\p{L}+$/u.test(p));
-};
+export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { setSessionUser } = useAuth();
 
-export default function AdminAuthStep({
-    nextPath,
-}: {
-    nextPath: string;
-}) {
-    const router = useRouter();
-    const searchParams = useSearchParams();
-    const { isAuthenticated, isLoadingAuth, setSessionUser } = useAuth();
+  // State
+  const [view, setView] = useState<ViewState>("landing");
 
-    const banner = useMemo<AuthBannerState>(() => {
-        const authError = searchParams.get("authError");
-        const authMessage = searchParams.get("authMessage");
-        if (authError) return { type: "error", text: authError };
-        if (authMessage) return { type: "message", text: authMessage };
-        return null;
-    }, [searchParams]);
+  // Login State
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginCode, setLoginCode] = useState("");
 
-    useEffect(() => {
-        // Intentionally do not redirect here.
-        // Auth redirects are handled server-side (middleware / server page), and
-        // OTP verify handlers navigate to the correct destination.
-    }, []);
+  // Signup State
+  const [signupName, setSignupName] = useState("");
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupCode, setSignupCode] = useState("");
 
-    const [tab, setTab] = useState<"login" | "signup">("login");
+  // UI State
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
 
-    const [loginStep, setLoginStep] = useState<"email" | "code">("email");
-    const [loginEmail, setLoginEmail] = useState("");
-    const [loginCode, setLoginCode] = useState("");
-    const [loginError, setLoginError] = useState<string | null>(null);
-    const [loginInfo, setLoginInfo] = useState<string | null>(null);
-    const [loginLoading, setLoginLoading] = useState(false);
+  // Initial Error/Message handling
+  useEffect(() => {
+    const authError = searchParams.get("authError");
+    const authMessage = searchParams.get("authMessage");
+    if (authError) setError(authError);
+    if (authMessage) setInfo(authMessage);
+  }, [searchParams]);
 
-    const [signupStep, setSignupStep] = useState<"details" | "code">("details");
-    const [signupFullName, setSignupFullName] = useState("");
-    const [signupEmail, setSignupEmail] = useState("");
-    const [signupCode, setSignupCode] = useState("");
-    const [signupError, setSignupError] = useState<string | null>(null);
-    const [signupInfo, setSignupInfo] = useState<string | null>(null);
-    const [signupLoading, setSignupLoading] = useState(false);
+  const resetError = () => {
+    setError(null);
+    setInfo(null);
+  };
 
-    const resetAll = () => {
-        setLoginStep("email");
-        setLoginEmail("");
-        setLoginCode("");
-        setLoginError(null);
-        setLoginInfo(null);
-        setLoginLoading(false);
+  const handleBack = () => {
+    resetError();
+    if (view === "login" || view === "signup") setView("landing");
+    if (view === "login-verify") setView("login");
+    if (view === "signup-verify") setView("signup");
+  };
 
-        setSignupStep("details");
-        setSignupFullName("");
-        setSignupEmail("");
-        setSignupCode("");
-        setSignupError(null);
-        setSignupInfo(null);
-        setSignupLoading(false);
-    };
+  // --- Actions ---
 
-    useEffect(() => {
-        resetAll();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [tab]);
+  const sendLoginCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    resetError();
+    if (!isValidEmail(loginEmail)) return setError("Valid email required");
 
-    const handleSendLoginOtp = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoginError(null);
-        setLoginInfo(null);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginEmail, flow: "login" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
 
-        const email = loginEmail.trim();
-        if (!email) {
-            setLoginError("Email is required");
-            return;
-        }
-        if (!isValidEmail(email)) {
-            setLoginError("Please enter a valid email address");
-            return;
-        }
+      setInfo("Code sent to email");
+      setView("login-verify");
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        setLoginLoading(true);
-        try {
-            const res = await fetch("/api/auth/send-otp", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, flow: "login" }),
-            });
+  const verifyLoginCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    resetError();
+    if (!loginCode) return setError("Code required");
 
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                setLoginError(data?.error || `Failed to send code (${res.status})`);
-                return;
-            }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginEmail, code: loginCode }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
 
-            setLoginInfo("Verification code sent to your email.");
-            setLoginStep("code");
-        } catch (err: any) {
-            setLoginError(err?.message || "Failed to send code");
-        } finally {
-            setLoginLoading(false);
-        }
-    };
+      if (data.user) setSessionUser(data.user);
 
-    const handleVerifyLoginOtp = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoginError(null);
-        setLoginInfo(null);
+      const dest =
+        typeof data?.redirectTo === "string"
+          ? data.redirectTo
+          : data?.onboardingCompleted
+          ? "/dashboard"
+          : "/onboarding";
+      router.replace(dest);
+    } catch (err: any) {
+      setError(err.message);
+      setLoading(false);
+    }
+  };
 
-        const email = loginEmail.trim();
-        const code = loginCode.trim();
-        if (!email) {
-            setLoginError("Email is required");
-            return;
-        }
-        if (!isValidEmail(email)) {
-            setLoginError("Please enter a valid email address");
-            return;
-        }
-        if (!code) {
-            setLoginError("Verification code is required");
-            return;
-        }
+  const sendSignupCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    resetError();
+    if (!isValidFullName(signupName)) return setError("Full name required");
+    if (!isValidEmail(signupEmail)) return setError("Valid email required");
 
-        setLoginLoading(true);
-        try {
-            const res = await fetch("/api/auth/verify-otp", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, code }),
-            });
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: signupEmail, flow: "signup" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
 
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                setLoginError(data?.error || `Failed to verify code (${res.status})`);
-                return;
-            }
+      setInfo("Code sent to email");
+      setView("signup-verify");
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-            const dest = typeof data?.redirectTo === "string"
-                ? data.redirectTo
-                : (data?.onboardingCompleted ? "/dashboard" : "/onboarding");
+  const verifySignupCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    resetError();
+    if (!signupCode) return setError("Code required");
 
-            if (data?.user) {
-                setSessionUser(data.user);
-            }
-            router.replace(dest);
-        } catch (err: any) {
-            setLoginError(err?.message || "Failed to verify code");
-        } finally {
-            setLoginLoading(false);
-        }
-    };
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: signupEmail,
+          code: signupCode,
+          full_name: signupName,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed");
 
-    const handleSendSignupOtp = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setSignupError(null);
-        setSignupInfo(null);
+      if (data.user) setSessionUser(data.user);
 
-        const fullName = signupFullName.trim();
-        const email = signupEmail.trim();
-        if (!fullName) {
-            setSignupError("Full name is required");
-            return;
-        }
-        if (!isValidFullName(fullName)) {
-            setSignupError("Please enter your first and last name");
-            return;
-        }
-        if (!email) {
-            setSignupError("Email is required");
-            return;
-        }
-        if (!isValidEmail(email)) {
-            setSignupError("Please enter a valid email address");
-            return;
-        }
+      const dest =
+        typeof data?.redirectTo === "string"
+          ? data.redirectTo
+          : data?.onboardingCompleted
+          ? "/dashboard"
+          : "/onboarding";
+      router.replace(dest);
+    } catch (err: any) {
+      setError(err.message);
+      setLoading(false);
+    }
+  };
 
-        setSignupLoading(true);
-        try {
-            const res = await fetch("/api/auth/send-otp", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, flow: "signup" }),
-            });
+  // --- Renderers ---
 
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                setSignupError(data?.error || `Failed to send code (${res.status})`);
-                return;
-            }
+  const bannerState: AuthBannerState = error
+    ? { type: "error", text: error }
+    : info
+    ? { type: "message", text: info }
+    : null;
 
-            setSignupInfo("Verification code sent to your email.");
-            setSignupStep("code");
-        } catch (err: any) {
-            setSignupError(err?.message || "Failed to send code");
-        } finally {
-            setSignupLoading(false);
-        }
-    };
-
-    const handleVerifySignupOtp = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setSignupError(null);
-        setSignupInfo(null);
-
-        const email = signupEmail.trim();
-        const code = signupCode.trim();
-        const fullName = signupFullName.trim();
-
-        if (!fullName) {
-            setSignupError("Full name is required");
-            return;
-        }
-        if (!isValidFullName(fullName)) {
-            setSignupError("Please enter your first and last name");
-            return;
-        }
-        if (!email) {
-            setSignupError("Email is required");
-            return;
-        }
-        if (!isValidEmail(email)) {
-            setSignupError("Please enter a valid email address");
-            return;
-        }
-        if (!code) {
-            setSignupError("Verification code is required");
-            return;
-        }
-
-        setSignupLoading(true);
-        try {
-            const res = await fetch("/api/auth/verify-otp", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, code, full_name: fullName }),
-            });
-
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                setSignupError(data?.error || `Failed to verify code (${res.status})`);
-                return;
-            }
-
-            const dest = typeof data?.redirectTo === "string"
-                ? data.redirectTo
-                : (data?.onboardingCompleted ? "/dashboard" : "/onboarding");
-
-            if (data?.user) {
-                setSessionUser(data.user);
-            }
-            router.replace(dest);
-        } catch (err: any) {
-            setSignupError(err?.message || "Failed to verify code");
-        } finally {
-            setSignupLoading(false);
-        }
-    };
-
-    return (
-        <div className="space-y-4">
-            <AuthBanner banner={banner} />
-
-            <Tabs
-                value={tab}
-                onValueChange={(v) => setTab(v as "login" | "signup")}
-            >
-                <TabsList className="grid grid-cols-2 rounded-xl border border-gray-200/70 dark:border-gray-700/60 bg-white/60 dark:bg-gray-900/30 p-1">
-                    <TabsTrigger
-                        value="login"
-                        className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
-                    >
-                        Login
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="signup"
-                        className="rounded-lg data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
-                    >
-                        Create account
-                    </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="login" className="space-y-4">
-                    {loginStep === "email" ? (
-                        <form onSubmit={handleSendLoginOtp} className="space-y-4">
-                            {loginError ? (
-                                <AuthBanner banner={{ type: "error", text: loginError }} />
-                            ) : null}
-                            {loginInfo ? (
-                                <AuthBanner banner={{ type: "message", text: loginInfo }} />
-                            ) : null}
-
-                            <div className="space-y-2">
-                                <Label htmlFor="loginEmail">Email *</Label>
-                                <Input
-                                    id="loginEmail"
-                                    type="email"
-                                    autoComplete="email"
-                                    value={loginEmail}
-                                    onChange={(e) => setLoginEmail(e.target.value)}
-                                    placeholder="you@company.com"
-                                />
-                            </div>
-
-                            <Button
-                                type="submit"
-                                className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700"
-                                disabled={loginLoading}
-                            >
-                                {loginLoading ? "Sending…" : "Send code"}
-                            </Button>
-                        </form>
-                    ) : (
-                        <form onSubmit={handleVerifyLoginOtp} className="space-y-4">
-                            {loginError ? (
-                                <AuthBanner banner={{ type: "error", text: loginError }} />
-                            ) : null}
-                            {loginInfo ? (
-                                <AuthBanner banner={{ type: "message", text: loginInfo }} />
-                            ) : null}
-
-                            <div className="space-y-2">
-                                <Label htmlFor="loginCode">Verification code *</Label>
-                                <OtpInput
-                                    id="loginCode"
-                                    name="loginCode"
-                                    value={loginCode}
-                                    onChange={setLoginCode}
-                                    length={6}
-                                    disabled={loginLoading}
-                                />
-                            </div>
-
-                            <div className="flex gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    className="flex-1"
-                                    disabled={loginLoading}
-                                    onClick={() => {
-                                        setLoginCode("");
-                                        setLoginStep("email");
-                                    }}
-                                >
-                                    Edit email
-                                </Button>
-                                <Button
-                                    type="submit"
-                                    className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700"
-                                    disabled={loginLoading}
-                                >
-                                    {loginLoading ? "Verifying…" : "Verify"}
-                                </Button>
-                            </div>
-                        </form>
-                    )}
-                </TabsContent>
-
-                <TabsContent value="signup" className="space-y-4">
-                    {signupStep === "details" ? (
-                        <form onSubmit={handleSendSignupOtp} className="space-y-4">
-                            {signupError ? (
-                                <AuthBanner banner={{ type: "error", text: signupError }} />
-                            ) : null}
-                            {signupInfo ? (
-                                <AuthBanner banner={{ type: "message", text: signupInfo }} />
-                            ) : null}
-
-                            <div className="space-y-2">
-                                <Label htmlFor="signupFullName">Full name *</Label>
-                                <Input
-                                    id="signupFullName"
-                                    value={signupFullName}
-                                    onChange={(e) => setSignupFullName(e.target.value)}
-                                    placeholder="First Last"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="signupEmail">Email *</Label>
-                                <Input
-                                    id="signupEmail"
-                                    type="email"
-                                    autoComplete="email"
-                                    value={signupEmail}
-                                    onChange={(e) => setSignupEmail(e.target.value)}
-                                    placeholder="you@company.com"
-                                />
-                            </div>
-
-                            <Button
-                                type="submit"
-                                className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700"
-                                disabled={signupLoading}
-                            >
-                                {signupLoading ? "Sending…" : "Send code"}
-                            </Button>
-                        </form>
-                    ) : (
-                        <form onSubmit={handleVerifySignupOtp} className="space-y-4">
-                            {signupError ? (
-                                <AuthBanner banner={{ type: "error", text: signupError }} />
-                            ) : null}
-                            {signupInfo ? (
-                                <AuthBanner banner={{ type: "message", text: signupInfo }} />
-                            ) : null}
-
-                            <div className="space-y-2">
-                                <Label htmlFor="signupCode">Verification code *</Label>
-                                <OtpInput
-                                    id="signupCode"
-                                    name="signupCode"
-                                    value={signupCode}
-                                    onChange={setSignupCode}
-                                    length={6}
-                                    disabled={signupLoading}
-                                />
-                            </div>
-
-                            <div className="flex gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    className="flex-1"
-                                    disabled={signupLoading}
-                                    onClick={() => {
-                                        setSignupCode("");
-                                        setSignupStep("details");
-                                    }}
-                                >
-                                    Edit details
-                                </Button>
-                                <Button
-                                    type="submit"
-                                    className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700"
-                                    disabled={signupLoading}
-                                >
-                                    {signupLoading ? "Verifying…" : "Verify"}
-                                </Button>
-                            </div>
-                        </form>
-                    )}
-
-                    <div className="pt-2 text-center text-xs text-gray-500 dark:text-gray-400">
-                        By creating an account, you agree to our{" "}
-                        <Link href="#" className="underline">
-                            Terms
-                        </Link>
-                        {" "}and{" "}
-                        <Link href="#" className="underline">
-                            Privacy Policy
-                        </Link>
-                        .
-                    </div>
-                </TabsContent>
-            </Tabs>
+  return (
+    <div className="w-full flex flex-col items-center">
+      <motion.div
+        initial={{ opacity: 0, y: -100 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 260, damping: 20 }}
+        className="mb-10 relative flex flex-col items-center"
+      >
+        <div className="relative z-10 w-24 h-24 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-xl mb-4">
+          <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center shadow-inner overflow-hidden p-3">
+            <Image
+              src="/logo.png"
+              alt="Progrr"
+              width={64}
+              height={64}
+              className="object-contain"
+            />
+          </div>
         </div>
-    );
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-24 bg-purple-500/30 blur-xl rounded-full -z-10" />
+
+        <h1 className="text-2xl font-bold text-white tracking-tight">Progrr</h1>
+        <p className="text-white/70 text-sm mt-1 font-medium">
+          Simple appointment scheduling for your business
+        </p>
+      </motion.div>
+
+      <div className="w-full">
+        <AnimatePresence mode="wait">
+          {view === "landing" && (
+            <motion.div
+              key="landing"
+              initial={{ opacity: 0, y: 100 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="space-y-4 pt-12"
+            >
+              <Button
+                className="w-full h-14 text-lg font-semibold bg-white text-purple-700 hover:bg-white/90 rounded-2xl"
+                onClick={() => setView("login")}
+              >
+                Login
+              </Button>
+              <Button
+                className="w-full h-14 text-lg font-semibold bg-transparent text-white border-2 border-white/20 hover:bg-white/10 rounded-2xl"
+                onClick={() => setView("signup")}
+              >
+                Create Account
+              </Button>
+            </motion.div>
+          )}
+
+          {(view === "login" || view === "login-verify") && (
+            <motion.div
+              key="login"
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -50 }}
+              className="space-y-6"
+            >
+              <div className="flex items-center gap-4 mb-8">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="text-white hover:bg-white/10 -ml-2"
+                  onClick={handleBack}
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </Button>
+                <h2 className="text-xl font-bold text-white">
+                  {view === "login" ? "Welcome Back" : "Verify Login"}
+                </h2>
+              </div>
+
+              <AuthBanner banner={bannerState} />
+
+              {view === "login" ? (
+                <form onSubmit={sendLoginCode} className="space-y-6">
+                  <div className="space-y-2">
+                    <Label className="text-white/80 ml-1">Email Address</Label>
+                    <Input
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      className="h-14 bg-white/10 border-white/20 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60"
+                      placeholder="name@company.com"
+                      autoFocus
+                    />
+                  </div>
+                  <Button
+                    disabled={loading}
+                    className="w-full h-14 bg-white text-purple-700 hover:bg-white/90 rounded-xl text-lg font-medium"
+                  >
+                    {loading ? "Sending..." : "Continue"}
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={verifyLoginCode} className="space-y-6">
+                  <div className="space-y-2">
+                    <Label className="text-white/80 ml-1">Enter Code</Label>
+                    <OtpInput
+                      id="otp-login"
+                      name="code"
+                      value={loginCode}
+                      onChange={setLoginCode}
+                      length={6}
+                      disabled={loading}
+                      inputClassName="bg-white/10 border-white/20 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent"
+                    />
+                    <p className="text-xs text-white/60 ml-1 pt-1">
+                      Code sent to {loginEmail}
+                    </p>
+                  </div>
+                  <Button
+                    disabled={loading}
+                    className="w-full h-14 bg-white text-purple-700 hover:bg-white/90 rounded-xl text-lg font-medium"
+                  >
+                    {loading ? "Verifying..." : "Login"}
+                  </Button>
+                </form>
+              )}
+            </motion.div>
+          )}
+
+          {(view === "signup" || view === "signup-verify") && (
+            <motion.div
+              key="signup"
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -50 }}
+              className="space-y-6"
+            >
+              <div className="flex items-center gap-4 mb-8">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="text-white hover:bg-white/10 -ml-2"
+                  onClick={handleBack}
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </Button>
+                <h2 className="text-xl font-bold text-white">
+                  {view === "signup" ? "Create Account" : "Verify Email"}
+                </h2>
+              </div>
+
+              <AuthBanner banner={bannerState} />
+
+              {view === "signup" ? (
+                <form onSubmit={sendSignupCode} className="space-y-6">
+                  <div className="space-y-2">
+                    <Label className="text-white/80 ml-1">Full Name</Label>
+                    <Input
+                      value={signupName}
+                      onChange={(e) => setSignupName(e.target.value)}
+                      className="h-14 bg-white/10 border-white/20 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60"
+                      placeholder="Jane Doe"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-white/80 ml-1">Email Address</Label>
+                    <Input
+                      value={signupEmail}
+                      onChange={(e) => setSignupEmail(e.target.value)}
+                      className="h-14 bg-white/10 border-white/20 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60"
+                      placeholder="name@company.com"
+                    />
+                  </div>
+                  <Button
+                    disabled={loading}
+                    className="w-full h-14 bg-white text-purple-700 hover:bg-white/90 rounded-xl text-lg font-medium"
+                  >
+                    {loading ? "Sending..." : "Continue"}
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={verifySignupCode} className="space-y-6">
+                  <div className="space-y-2">
+                    <Label className="text-white/80 ml-1">Enter Code</Label>
+                    <OtpInput
+                      id="otp-signup"
+                      name="code"
+                      value={signupCode}
+                      onChange={setSignupCode}
+                      length={6}
+                      disabled={loading}
+                      inputClassName="bg-white/10 border-white/20 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent"
+                    />
+                    <p className="text-xs text-white/60 ml-1 pt-1">
+                      Code sent to {signupEmail}
+                    </p>
+                  </div>
+                  <Button
+                    disabled={loading}
+                    className="w-full h-14 bg-white text-purple-700 hover:bg-white/90 rounded-xl text-lg font-medium"
+                  >
+                    {loading ? "Verifying..." : "Create Account"}
+                  </Button>
+                </form>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
 }

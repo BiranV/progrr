@@ -1,21 +1,11 @@
 ﻿"use client";
 
-import React, { useState } from "react";
-import Link from "next/link";
+import React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  LayoutDashboard,
-  Settings,
-  LogOut,
-  Loader2,
-  Menu,
-  X,
-  Moon,
-  Sun,
-} from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
-import { useTheme } from "@/context/ThemeContext";
+import BottomNav from "./BottomNav";
 
 function isPublicPath(pathname: string) {
   return (
@@ -26,13 +16,12 @@ function isPublicPath(pathname: string) {
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, isLoadingAuth: loading, logout } = useAuth();
-  const { darkMode, toggleDarkMode } = useTheme();
+  const { user, isLoadingAuth: loading } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const isOnboardingPath = pathname === "/onboarding" || pathname.startsWith("/onboarding/");
+  const isOnboardingPath =
+    pathname === "/onboarding" || pathname.startsWith("/onboarding/");
   const onboardingCompleted = Boolean((user as any)?.onboardingCompleted);
 
   React.useEffect(() => {
@@ -60,142 +49,43 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-600 dark:text-gray-300" />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
+  // Public paths (no layout/nav)
   if (!user) {
-    return isPublicPath(pathname)
-      ? (<div className="min-h-screen bg-gray-50 dark:bg-gray-900">{children}</div>)
-      : null;
-  }
-
-  // While redirecting to onboarding/dashboard, avoid rendering protected chrome.
-  if (!onboardingCompleted && !isOnboardingPath) {
-    return null;
-  }
-  if (onboardingCompleted && isOnboardingPath) {
+    if (isPublicPath(pathname)) {
+      return <>{children}</>;
+    }
     return null;
   }
 
-  // Onboarding should not show the sidebar/dashboard chrome.
+  // Redirecting...
+  if (!onboardingCompleted && !isOnboardingPath) return null;
+  if (onboardingCompleted && isOnboardingPath) return null;
+
+  // Onboarding Layout (Minimal, no nav)
   if (isOnboardingPath) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-        <main className="min-h-screen p-4 sm:p-6 lg:p-8">{children}</main>
+      <div className="min-h-screen bg-neutral-100 dark:bg-black/90 flex justify-center">
+        <div className="mobile-layout w-full bg-background flex flex-col">
+          <main className="flex-1 p-4">{children}</main>
+        </div>
       </div>
     );
   }
 
-  const navItems = [
-    { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-    { name: "Settings", icon: Settings, href: "/settings" },
-  ];
-
+  // Main App Layout (Dashboard, Settings, etc.)
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
-      {/* Mobile header */}
-      <div className="lg:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-white truncate">
-          Progrr
-        </h1>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={toggleDarkMode}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-            aria-label="Toggle theme"
-          >
-            {darkMode ? (
-              <Sun className="w-5 h-5 text-gray-300" />
-            ) : (
-              <Moon className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-            )}
-          </button>
-          <button
-            onClick={() => setSidebarOpen((v) => !v)}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-            aria-label="Toggle navigation"
-          >
-            {sidebarOpen ? (
-              <X className="w-6 h-6 text-gray-700 dark:text-gray-300" />
-            ) : (
-              <Menu className="w-6 h-6 text-gray-700 dark:text-gray-300" />
-            )}
-          </button>
-        </div>
-      </div>
-
-      <div className="flex">
-        {/* Sidebar */}
-        <aside
-          className={`
-            fixed lg:sticky lg:top-0 lg:h-screen inset-y-0 left-0 z-50
-            w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
-            transform transition-transform duration-200 ease-in-out
-            ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
-          `}
-        >
-          <div className="h-full flex flex-col">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white truncate">
-                Progrr
-              </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 truncate">
-                {user.full_name || ""}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                {user.email}
-              </p>
-            </div>
-
-            <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = pathname === item.href;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setSidebarOpen(false)}
-                    className={`
-                      flex items-center gap-3 px-4 py-3 rounded-lg transition-colors
-                      ${isActive
-                        ? "bg-indigo-50 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 font-medium"
-                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                      }
-                    `}
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span>{item.name}</span>
-                  </Link>
-                );
-              })}
-            </nav>
-
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
-              <button
-                onClick={toggleDarkMode}
-                className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              >
-                {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                <span>{darkMode ? "Light mode" : "Dark mode"}</span>
-              </button>
-
-              <button
-                onClick={() => logout()}
-                className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              >
-                <LogOut className="w-5 h-5" />
-                <span>Logout</span>
-              </button>
-            </div>
-          </div>
-        </aside>
-
-        {/* Main */}
-        <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8">{children}</main>
+    <div className="min-h-screen bg-neutral-100 dark:bg-black/90 flex justify-center">
+      <div className="mobile-layout w-full bg-background flex flex-col relative shadow-xl overflow-hidden">
+        <main className="flex-1 overflow-y-auto pb-24 scrollbar-hide">
+          {children}
+        </main>
+        <BottomNav />
       </div>
     </div>
   );
