@@ -475,7 +475,6 @@ export default function OpeningHoursPage() {
                                                 value={String(r.start ?? "")}
                                                 onChange={(v) => updateRangeTime(d.day, r.id, "start", v)}
                                                 disabled={isLoading || !d.enabled}
-                                                minuteStep={15}
                                                 className="h-8 w-[78px] min-w-[78px] px-1.5 text-[13px] shrink-0"
                                                 aria-label={`${DAY_LABELS[d.day]} ${idx === 0 ? "start" : "additional start"} time`}
                                             />
@@ -484,7 +483,6 @@ export default function OpeningHoursPage() {
                                                 value={String(r.end ?? "")}
                                                 onChange={(v) => updateRangeTime(d.day, r.id, "end", v)}
                                                 disabled={isLoading || !d.enabled}
-                                                minuteStep={15}
                                                 className="h-8 w-[78px] min-w-[78px] px-1.5 text-[13px] shrink-0"
                                                 aria-label={`${DAY_LABELS[d.day]} ${idx === 0 ? "end" : "additional end"} time`}
                                             />

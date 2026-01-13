@@ -1512,7 +1512,6 @@ export default function OnboardingPage() {
                             }))
                           }
                           disabled={!d.enabled}
-                          minuteStep={15}
                           className="h-9 px-2 text-sm w-full min-w-[90px]"
                           aria-label={`${DAY_LABELS[d.day]} start time`}
                         />
@@ -1531,7 +1530,6 @@ export default function OnboardingPage() {
                             }))
                           }
                           disabled={!d.enabled}
-                          minuteStep={15}
                           className="h-9 px-2 text-sm w-full min-w-[90px]"
                           aria-label={`${DAY_LABELS[d.day]} end time`}
                         />

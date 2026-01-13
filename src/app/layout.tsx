@@ -1,8 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Providers from "@/components/providers";
-import { Toaster } from "@/components/ui/sonner";
+import { Providers } from "./providers";
 import PWARegister from "@/components/PWARegister";
 
 const geistSans = Geist({
@@ -54,7 +53,6 @@ export default async function RootLayout({
         <Providers>
           <PWARegister />
           {children}
-          <Toaster />
         </Providers>
       </body>
     </html>
