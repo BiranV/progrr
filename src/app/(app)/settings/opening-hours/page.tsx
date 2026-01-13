@@ -299,41 +299,6 @@ export default function OpeningHoursPage() {
                     r.id === rangeId ? { ...r, [field]: value } : r
                 );
 
-                // Validate only if we have fully-formed times.
-                const parsed = nextRanges
-                    .map((r) => ({
-                        id: r.id,
-                        start: String(r.start ?? "").trim(),
-                        end: String(r.end ?? "").trim(),
-                        startMin: parseTimeToMinutes(String(r.start ?? "").trim()),
-                        endMin: parseTimeToMinutes(String(r.end ?? "").trim()),
-                    }))
-                    .filter((x) => x.start || x.end);
-
-                const hasInvalid = parsed.some((r) => {
-                    if (!r.start || !r.end) return false;
-                    if (!Number.isFinite(r.startMin) || !Number.isFinite(r.endMin)) return true;
-                    return r.endMin <= r.startMin;
-                });
-
-                if (hasInvalid) {
-                    toastOnce(`End time must be after start time for ${DAY_LABELS[day]}.`);
-                    return d;
-                }
-
-                const complete = parsed.filter(
-                    (r) => r.start && r.end && Number.isFinite(r.startMin) && Number.isFinite(r.endMin)
-                );
-                const ordered = [...complete].sort((a, b) => a.startMin - b.startMin);
-                for (let i = 1; i < ordered.length; i++) {
-                    const a = ordered[i - 1];
-                    const b = ordered[i];
-                    if (overlaps(a.startMin, a.endMin, b.startMin, b.endMin)) {
-                        toastOnce(`Overlapping time ranges for ${DAY_LABELS[day]}.`);
-                        return d;
-                    }
-                }
-
                 return {
                     ...d,
                     ranges: nextRanges.length ? nextRanges : [{ id: newId(), start: "09:00", end: "17:00" }],
@@ -410,6 +375,9 @@ export default function OpeningHoursPage() {
                 <p className="text-sm text-gray-600 dark:text-gray-300">
                     Set your working days and hours.
                 </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Tap a time to open the hour picker.
+                </p>
             </div>
 
             <div className="space-y-5">
@@ -475,7 +443,7 @@ export default function OpeningHoursPage() {
                                                 value={String(r.start ?? "")}
                                                 onChange={(v) => updateRangeTime(d.day, r.id, "start", v)}
                                                 disabled={isLoading || !d.enabled}
-                                                className="h-8 w-[78px] min-w-[78px] px-1.5 text-[13px] shrink-0"
+                                                className="h-8 w-[78px] min-w-[78px] px-1.5 text-[13px] shrink-0 cursor-pointer hover:bg-muted/30"
                                                 aria-label={`${DAY_LABELS[d.day]} ${idx === 0 ? "start" : "additional start"} time`}
                                             />
                                             <span className="text-gray-400 shrink-0">–</span>
@@ -483,7 +451,7 @@ export default function OpeningHoursPage() {
                                                 value={String(r.end ?? "")}
                                                 onChange={(v) => updateRangeTime(d.day, r.id, "end", v)}
                                                 disabled={isLoading || !d.enabled}
-                                                className="h-8 w-[78px] min-w-[78px] px-1.5 text-[13px] shrink-0"
+                                                className="h-8 w-[78px] min-w-[78px] px-1.5 text-[13px] shrink-0 cursor-pointer hover:bg-muted/30"
                                                 aria-label={`${DAY_LABELS[d.day]} ${idx === 0 ? "end" : "additional end"} time`}
                                             />
                                         </div>

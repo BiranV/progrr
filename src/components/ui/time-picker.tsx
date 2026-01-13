@@ -99,6 +99,10 @@ export function TimePicker({
             <button
                 type="button"
                 disabled={disabled}
+                onClick={() => {
+                    if (disabled) return;
+                    setOpen(true);
+                }}
                 className={cn(
                     "border-input dark:bg-input/30 bg-transparent focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
                     "inline-flex items-center justify-center rounded-md border shadow-xs outline-none",
@@ -113,14 +117,14 @@ export function TimePicker({
 
             <DialogContent
                 className={cn(
-                    "p-4 gap-3",
-                    // Mobile bottom-sheet; desktop stays centered.
-                    "top-auto left-0 right-0 bottom-0 translate-x-0 translate-y-0 rounded-t-2xl rounded-b-none",
-                    "sm:top-[50%] sm:left-[50%] sm:right-auto sm:bottom-auto sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg"
+                    "p-3 gap-2",
+                    // Always centered (mobile + desktop)
+                    "top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] rounded-lg",
+                    "w-[calc(100%-2rem)] max-w-sm"
                 )}
             >
                 <DialogHeader className="gap-1">
-                    <DialogTitle className="text-base">Select time</DialogTitle>
+                    <DialogTitle className="text-sm">Select time</DialogTitle>
                 </DialogHeader>
 
                 <div className="space-y-2">
@@ -138,6 +142,7 @@ export function TimePicker({
                             }
                         }}
                         aria-label="Time value"
+                        className="h-9 text-sm"
                     />
 
                     <div className="grid grid-cols-2 gap-3">
@@ -145,7 +150,7 @@ export function TimePicker({
                             <div className="text-xs text-muted-foreground mb-1">Hours</div>
                             <div
                                 ref={hourListRef}
-                                className="max-h-56 overflow-y-auto rounded-md border border-border/60 bg-background/40 p-1 snap-y snap-mandatory"
+                                className="max-h-40 overflow-y-auto rounded-md border border-border/60 bg-background/40 p-1 snap-y snap-mandatory"
                             >
                                 {HOURS.map((h) => {
                                     const selected = h === hour;
@@ -161,7 +166,7 @@ export function TimePicker({
                                                 setDraft(next);
                                             }}
                                             className={cn(
-                                                "w-full snap-center rounded-md px-2 py-2 text-sm text-center tabular-nums",
+                                                "w-full snap-center rounded-md px-2 py-1.5 text-[13px] text-center tabular-nums",
                                                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                                                 selected
                                                     ? "bg-primary text-primary-foreground"
@@ -179,7 +184,7 @@ export function TimePicker({
                             <div className="text-xs text-muted-foreground mb-1">Minutes</div>
                             <div
                                 ref={minuteListRef}
-                                className="max-h-56 overflow-y-auto rounded-md border border-border/60 bg-background/40 p-1 snap-y snap-mandatory"
+                                className="max-h-40 overflow-y-auto rounded-md border border-border/60 bg-background/40 p-1 snap-y snap-mandatory"
                             >
                                 {MINUTES.map((m) => {
                                     const selected = m === minute;
@@ -195,7 +200,7 @@ export function TimePicker({
                                                 setDraft(next);
                                             }}
                                             className={cn(
-                                                "w-full snap-center rounded-md px-2 py-2 text-sm text-center tabular-nums",
+                                                "w-full snap-center rounded-md px-2 py-1.5 text-[13px] text-center tabular-nums",
                                                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
                                                 selected
                                                     ? "bg-primary text-primary-foreground"
@@ -213,9 +218,9 @@ export function TimePicker({
 
                 <DialogFooter className="gap-2">
                     <DialogClose asChild>
-                        <Button type="button" variant="ghost">Cancel</Button>
+                        <Button type="button" variant="ghost" size="sm">Cancel</Button>
                     </DialogClose>
-                    <Button type="button" onClick={commit}>Done</Button>
+                    <Button type="button" onClick={commit} size="sm">Done</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

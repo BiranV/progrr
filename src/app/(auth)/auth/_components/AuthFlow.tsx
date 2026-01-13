@@ -93,7 +93,7 @@ export default function AuthFlow({
   // We'll let AdminAuthStep handle it completely for the "Modern" feel.
 
   return (
-    <div className="w-full flex-1 flex flex-col justify-center px-8 pb-12">
+    <div className="w-full flex-1 flex flex-col justify-center max-w-md mx-auto px-6 pb-12">
       <AdminAuthStep nextPath={nextPath} />
     </div>
   );

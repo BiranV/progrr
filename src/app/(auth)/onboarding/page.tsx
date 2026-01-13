@@ -187,7 +187,8 @@ function normalizeRangesForUi(raw: any): Array<{ id: string; start: string; end:
 function defaultDays() {
   return DAY_LABELS.map((_, day) => ({
     day,
-    enabled: day >= 1 && day <= 5,
+    // Default: Sun-Thu enabled, Fri-Sat disabled
+    enabled: day >= 0 && day <= 4,
     ranges: [{ id: newId(), start: "09:00", end: "17:00" }],
   }));
 }
@@ -339,41 +340,6 @@ export default function OnboardingPage() {
         const nextRanges = normalizeRangesForUi(d.ranges).map((r) =>
           r.id === rangeId ? { ...r, [field]: value } : r
         );
-
-        const parsed = nextRanges
-          .map((r) => ({
-            id: r.id,
-            start: String(r.start ?? "").trim(),
-            end: String(r.end ?? "").trim(),
-            startMin: parseTimeToMinutes(String(r.start ?? "").trim()),
-            endMin: parseTimeToMinutes(String(r.end ?? "").trim()),
-          }))
-          .filter((x) => x.start || x.end);
-
-        const hasInvalid = parsed.some((r) => {
-          if (!r.start || !r.end) return false;
-          if (!Number.isFinite(r.startMin) || !Number.isFinite(r.endMin)) return true;
-          return r.endMin <= r.startMin;
-        });
-
-        if (hasInvalid) {
-          toastOnce(`End time must be after start time for ${DAY_LABELS[day]}.`);
-          return d;
-        }
-
-        const complete = parsed.filter(
-          (r) => r.start && r.end && Number.isFinite(r.startMin) && Number.isFinite(r.endMin)
-        );
-        const ordered = [...complete].sort((a, b) => a.startMin - b.startMin);
-        for (let i = 1; i < ordered.length; i++) {
-          const a = ordered[i - 1];
-          const b = ordered[i];
-          if (overlaps(a.startMin, a.endMin, b.startMin, b.endMin)) {
-            toastOnce(`Overlapping time ranges for ${DAY_LABELS[day]}.`);
-            return d;
-          }
-        }
-
         return { ...d, ranges: nextRanges.length ? nextRanges : normalizeRangesForUi(null) };
       });
 
@@ -1002,6 +968,57 @@ export default function OnboardingPage() {
       }
       if (step === 3) {
         const days = normalizeAvailabilityDaysForUi(data.availability?.days);
+
+        const validateAvailability = (): string | null => {
+          for (const d of days) {
+            if (!d.enabled) continue;
+
+            const ranges = normalizeRangesForUi((d as any).ranges);
+            if (!ranges.length) {
+              return `Please set valid hours for ${DAY_LABELS[d.day]}.`;
+            }
+
+            const parsed = ranges
+              .map((r) => ({
+                start: String(r.start ?? "").trim(),
+                end: String(r.end ?? "").trim(),
+                startMin: parseTimeToMinutes(String(r.start ?? "").trim()),
+                endMin: parseTimeToMinutes(String(r.end ?? "").trim()),
+              }))
+              .filter((x) => x.start || x.end);
+
+            if (!parsed.length) {
+              return `Please set valid hours for ${DAY_LABELS[d.day]}.`;
+            }
+
+            for (const r of parsed) {
+              if (!r.start || !r.end || !Number.isFinite(r.startMin) || !Number.isFinite(r.endMin)) {
+                return `Please set valid hours for ${DAY_LABELS[d.day]}.`;
+              }
+              if (r.endMin <= r.startMin) {
+                return `End time must be after start time for ${DAY_LABELS[d.day]}.`;
+              }
+            }
+
+            const ordered = [...parsed].sort((a, b) => a.startMin - b.startMin);
+            for (let i = 1; i < ordered.length; i++) {
+              const prev = ordered[i - 1];
+              const curr = ordered[i];
+              if (overlaps(prev.startMin, prev.endMin, curr.startMin, curr.endMin)) {
+                return `Overlapping time ranges for ${DAY_LABELS[d.day]}.`;
+              }
+            }
+          }
+
+          return null;
+        };
+
+        const availabilityError = validateAvailability();
+        if (availabilityError) {
+          setError(availabilityError);
+          return;
+        }
+
         await savePartial({
           availability: {
             ...(data.availability || {}),
@@ -1102,10 +1119,10 @@ export default function OnboardingPage() {
                         });
                       }}
                       className={
-                        "m-1 text-left rounded-xl border px-4 py-3 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 " +
+                        "m-1 text-left rounded-xl border px-4 py-3 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-neutral-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 " +
                         (selected
-                          ? "border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/30 shadow-sm"
-                          : "border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/30 hover:border-indigo-300 dark:hover:border-indigo-700")
+                          ? "border-neutral-900 bg-neutral-50/70 dark:bg-neutral-900/30 shadow-sm"
+                          : "border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/30 hover:border-gray-300 dark:hover:border-gray-700")
                       }
                     >
                       <div className="flex items-center justify-between gap-3">
@@ -1121,7 +1138,7 @@ export default function OnboardingPage() {
                           className={
                             "h-5 w-5 rounded-full border flex items-center justify-center shrink-0 " +
                             (selected
-                              ? "border-indigo-500 bg-indigo-500 text-white"
+                              ? "border-neutral-900 bg-neutral-900 text-white"
                               : "border-gray-300 dark:border-gray-700")
                           }
                           aria-hidden="true"
@@ -1246,7 +1263,7 @@ export default function OnboardingPage() {
               />
 
               <div className="mt-4 flex items-center gap-4">
-                <div className="h-20 w-20 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 ring-2 ring-purple-100 dark:ring-purple-900/40 shadow-sm flex items-center justify-center">
+                <div className="h-20 w-20 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 ring-2 ring-gray-200 dark:ring-gray-700 shadow-sm flex items-center justify-center">
                   {data.branding?.logo?.url || data.branding?.logoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -1309,7 +1326,7 @@ export default function OnboardingPage() {
                     Up to 10 images of your space, work, products, or services.
                   </div>
                 </div>
-                <div className="text-xs font-semibold text-purple-600 dark:text-purple-400 shrink-0">
+                <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 shrink-0">
                   {(data.branding?.gallery || []).length +
                     galleryPendingPreviews.length}
                   /10
@@ -1433,7 +1450,7 @@ export default function OnboardingPage() {
                     <label
                       htmlFor={galleryAddInputId}
                       className={
-                        "aspect-square rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-950/10 flex items-center justify-center text-center p-2 hover:border-purple-300 dark:hover:border-purple-700 transition " +
+                        "aspect-square rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-950/10 flex items-center justify-center text-center p-2 hover:border-gray-300 dark:hover:border-gray-600 transition " +
                         (uploadingGallery || saving
                           ? "opacity-60 pointer-events-none"
                           : "cursor-pointer")
@@ -2002,27 +2019,15 @@ export default function OnboardingPage() {
   const card = (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-black pb-safe">
       {/* Header Container */}
-      <div className="relative w-full z-0 h-[140px] bg-purple-600 shrink-0">
+      <div className="relative w-full z-0 h-[140px] bg-gradient-to-br from-neutral-950 via-zinc-900 to-zinc-800 shrink-0">
         <div className="absolute inset-0 opacity-20 bg-[url('/grid.svg')] mix-blend-overlay"></div>
       </div>
 
       {/* Main Content Area with Convex Curve (Sides lower than center) */}
-      <div className="flex-1 -mt-16 bg-gray-50 dark:bg-zinc-900 rounded-t-[40px] relative z-10 flex flex-col items-center shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
-        {/* Logo sitting on the curve */}
-        <div className="-mt-10 p-1.5 rounded-full bg-transparent">
-          <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center overflow-hidden border-2 border-purple-50 shadow-xl">
-            <Image
-              src="/logo.png"
-              alt="Progrr"
-              width={48}
-              height={48}
-              className="object-contain"
-            />
-          </div>
-        </div>
+      <div className="flex-1 -mt-10 bg-gray-50 dark:bg-zinc-900 rounded-t-[40px] relative z-10 flex flex-col items-center shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
 
         {/* User & Step Info */}
-        <div className="text-center space-y-1 mt-4 mb-6 px-6 w-full max-w-md">
+        <div className="text-center space-y-1 mt-6 mb-6 px-6 w-full max-w-md">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
             {user?.full_name ? `Welcome, ${user.full_name}` : "Welcome"}
           </h2>
@@ -2042,7 +2047,7 @@ export default function OnboardingPage() {
 
           {/* Progress Bar */}
           <div className="pt-4 max-w-xs mx-auto w-full">
-            <div className="flex justify-between text-xs font-semibold text-purple-600 dark:text-purple-400 mb-2 px-1">
+            <div className="flex justify-between text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 px-1">
               <span>
                 Step {step + 1} of {totalSteps}
               </span>
@@ -2050,7 +2055,7 @@ export default function OnboardingPage() {
             </div>
             <Progress
               value={progress}
-              className="h-2.5 w-full bg-purple-100 dark:bg-purple-900/40 [&>div]:bg-purple-600 rounded-full"
+              className="h-2.5 w-full bg-gray-200 dark:bg-gray-800 [&>div]:bg-neutral-900 rounded-full"
             />
           </div>
         </div>
@@ -2061,7 +2066,7 @@ export default function OnboardingPage() {
           <AnimatePresence mode="wait" initial={false}>
             {loading ? (
               <div className="py-20 text-center text-muted-foreground flex flex-col items-center">
-                <Loader2 className="w-8 h-8 animate-spin mb-3 text-purple-600" />
+                <Loader2 className="w-8 h-8 animate-spin mb-3 text-neutral-900 dark:text-white" />
                 <p>Loading details...</p>
               </div>
             ) : (
@@ -2103,7 +2108,7 @@ export default function OnboardingPage() {
                 loading ||
                 (step === 0 && (data.businessTypes || []).length === 0)
               }
-              className="h-14 flex-[2] rounded-2xl text-lg font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-200/50 dark:shadow-none transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className="h-14 flex-[2] rounded-2xl text-lg font-bold bg-neutral-900 hover:bg-neutral-800 text-white shadow-lg shadow-black/10 dark:shadow-none transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
               {saving ? "Saving…" : "Next"}
             </Button>
@@ -2112,7 +2117,7 @@ export default function OnboardingPage() {
               type="button"
               onClick={complete}
               disabled={saving || loading}
-              className="h-14 flex-1 rounded-2xl text-lg font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-200/50 dark:shadow-none transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className="h-14 flex-1 rounded-2xl text-lg font-bold bg-neutral-900 hover:bg-neutral-800 text-white shadow-lg shadow-black/10 dark:shadow-none transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
               {saving ? "Finishing…" : "Finish Setup"}
             </Button>

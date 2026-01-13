@@ -13,11 +13,10 @@ export default function AuthGroupLayout({
 
   return (
     <div
-      className={`min-h-screen w-full relative overflow-hidden flex flex-col ${
-        isOnboarding
+      className={`min-h-screen w-full relative overflow-hidden flex flex-col ${isOnboarding
           ? "bg-background"
-          : "bg-gradient-to-br from-purple-600 to-indigo-700"
-      }`}
+          : "bg-gradient-to-br from-neutral-950 via-zinc-900 to-zinc-800"
+        }`}
     >
       <main className="flex-1 w-full h-full flex flex-col">{children}</main>
     </div>

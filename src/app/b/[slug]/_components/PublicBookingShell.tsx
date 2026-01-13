@@ -30,7 +30,7 @@ export default function PublicBookingShell({
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-black pb-safe">
-      <div className="relative w-full z-0 h-[140px] bg-purple-600 shrink-0">
+      <div className="relative w-full z-0 h-[140px] bg-gradient-to-br from-neutral-950 via-zinc-900 to-zinc-800 shrink-0">
         <div className="absolute inset-0 opacity-20 bg-[url('/grid.svg')] mix-blend-overlay" />
       </div>
 
@@ -52,7 +52,7 @@ export default function PublicBookingShell({
             </div>
 
             <div className="p-1.5 rounded-full bg-transparent">
-              <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center overflow-hidden border-2 border-purple-50 shadow-xl">
+              <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center overflow-hidden border-2 border-gray-100 dark:border-gray-800 shadow-xl">
                 {logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
