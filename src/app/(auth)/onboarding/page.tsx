@@ -155,9 +155,21 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [step, setStep] = useState(0);
   const totalSteps = 5;
+
+  const InlineError = ({ message }: { message?: string }) => {
+    if (!message) return null;
+    return (
+      <p className="text-[13px] text-rose-500 dark:text-rose-400 mt-0.5 ml-1">
+        {message}
+      </p>
+    );
+  };
+
+  const inputErrorClass = "border-rose-300 ring-1 ring-rose-300/20";
 
   const [data, setData] = useState<OnboardingData>({
     businessTypes: [],
@@ -286,68 +298,64 @@ export default function OnboardingPage() {
     }
   };
 
-  const businessDetailsMissing = React.useMemo(() => {
-    const name = String(data.business?.name ?? "").trim();
-    const phone = String(data.business?.phone ?? "").trim();
-    const address = String(data.business?.address ?? "").trim();
-
-    const missing: string[] = [];
-    if (!name) missing.push("Name");
-    if (!phone) missing.push("Phone");
-    if (!address) missing.push("Address");
-    return missing;
-  }, [data.business?.address, data.business?.name, data.business?.phone]);
-
-  const businessDetailsValid = businessDetailsMissing.length === 0;
-
-  const servicesFirstError = React.useMemo(() => {
-    const currency = normalizeCurrency(data.currency);
-    if (!currency) return "Currency is required";
-    if (currency === OTHER_CURRENCY_CODE) {
-      if (!String(data.customCurrency?.name ?? "").trim())
-        return "Currency name is required";
-      if (!String(data.customCurrency?.symbol ?? "").trim())
-        return "Currency symbol is required";
-    }
-
-    const services = data.services || [];
-    if (services.length === 0) return "Service is required";
-
-    const multi = services.length > 1;
-    for (let i = 0; i < services.length; i++) {
-      const s = services[i];
-      const prefix = multi ? `Service ${i + 1} ` : "Service ";
-
-      if (!String(s?.name ?? "").trim()) return `${prefix}name is required`;
-      if (
-        !Number.isFinite(s?.durationMinutes) ||
-        Number(s.durationMinutes) <= 0
-      ) {
-        return `${prefix}duration is required`;
-      }
-      if (!Number.isFinite(s?.price)) return `${prefix}price is required`;
-    }
-
-    return null;
-  }, [data.services]);
-
   const next = async () => {
+    setFieldErrors({});
+    setError(null);
+    const newErrors: Record<string, string> = {};
+
     try {
       if (step === 0) {
         await savePartial({ businessTypes: data.businessTypes });
       }
       if (step === 1) {
-        if (!businessDetailsValid) {
-          setError(`${businessDetailsMissing[0]} is required`);
+        if (!data.business?.name?.trim())
+          newErrors.businessName = "Business name is required";
+        if (!data.business?.phone?.trim())
+          newErrors.businessPhone = "Phone number is required";
+        if (!data.business?.address?.trim())
+          newErrors.businessAddress = "Address is required";
+
+        if (Object.keys(newErrors).length > 0) {
+          setFieldErrors(newErrors);
           return;
         }
         await savePartial({ business: data.business });
       }
       if (step === 2) {
-        if (servicesFirstError) {
-          setError(servicesFirstError);
+        const currency = normalizeCurrency(data.currency);
+        if (currency === OTHER_CURRENCY_CODE) {
+          if (!data.customCurrency?.name?.trim())
+            newErrors.currencyName = "Currency name is required";
+          if (!data.customCurrency?.symbol?.trim())
+            newErrors.currencySymbol = "Symbol is required";
+        }
+
+        const services = data.services || [];
+        if (services.length === 0) {
+          setError("At least one service is required");
           return;
         }
+
+        services.forEach((s) => {
+          if (!s.name?.trim())
+            newErrors[`serviceName_${s.id}`] = "Service name is required";
+          if (!s.durationMinutes || s.durationMinutes <= 0)
+            newErrors[`serviceDuration_${s.id}`] = "Duration is required";
+          // Price implies 0 allowed? "price is required" check used isFinite in old code.
+          // If 0 is valid price, check undefined. OLD code: !Number.isFinite(s?.price).
+          if (
+            s.price === undefined ||
+            s.price === null ||
+            s.price === ("" as any)
+          )
+            newErrors[`servicePrice_${s.id}`] = "Price is required";
+        });
+
+        if (Object.keys(newErrors).length > 0) {
+          setFieldErrors(newErrors);
+          return;
+        }
+
         await savePartial({
           services: data.services,
           currency: normalizeCurrency(data.currency),
@@ -474,6 +482,7 @@ export default function OnboardingPage() {
               <div className="space-y-2">
                 <Label>Name *</Label>
                 <Input
+                  className={fieldErrors.businessName ? inputErrorClass : ""}
                   value={data.business?.name || ""}
                   onChange={(e) =>
                     setData((d) => ({
@@ -483,10 +492,12 @@ export default function OnboardingPage() {
                   }
                   placeholder="Acme Studio"
                 />
+                <InlineError message={fieldErrors.businessName} />
               </div>
               <div className="space-y-2">
                 <Label>Phone *</Label>
                 <Input
+                  className={fieldErrors.businessPhone ? inputErrorClass : ""}
                   value={data.business?.phone || ""}
                   onChange={(e) =>
                     setData((d) => ({
@@ -499,10 +510,12 @@ export default function OnboardingPage() {
                   }
                   placeholder="+1 (555) 123-4567"
                 />
+                <InlineError message={fieldErrors.businessPhone} />
               </div>
               <div className="space-y-2 sm:col-span-2">
                 <Label>Address *</Label>
                 <Input
+                  className={fieldErrors.businessAddress ? inputErrorClass : ""}
                   value={data.business?.address || ""}
                   onChange={(e) =>
                     setData((d) => ({
@@ -515,6 +528,7 @@ export default function OnboardingPage() {
                   }
                   placeholder="123 Main St, City"
                 />
+                <InlineError message={fieldErrors.businessAddress} />
               </div>
             </div>
           </div>
@@ -573,6 +587,9 @@ export default function OnboardingPage() {
                     <div className="space-y-2 sm:w-48">
                       <Label>Currency name *</Label>
                       <Input
+                        className={
+                          fieldErrors.currencyName ? inputErrorClass : ""
+                        }
                         value={String(data.customCurrency?.name ?? "")}
                         onChange={(e) =>
                           setData((d) => ({
@@ -585,10 +602,14 @@ export default function OnboardingPage() {
                         }
                         placeholder="e.g. Shekel"
                       />
+                      <InlineError message={fieldErrors.currencyName} />
                     </div>
                     <div className="space-y-2 sm:w-28">
                       <Label>Symbol *</Label>
                       <Input
+                        className={
+                          fieldErrors.currencySymbol ? inputErrorClass : ""
+                        }
                         value={String(data.customCurrency?.symbol ?? "")}
                         onChange={(e) =>
                           setData((d) => ({
@@ -601,6 +622,7 @@ export default function OnboardingPage() {
                         }
                         placeholder="e.g. ₪"
                       />
+                      <InlineError message={fieldErrors.currencySymbol} />
                     </div>
                   </div>
                 ) : null}
@@ -616,6 +638,11 @@ export default function OnboardingPage() {
                   <div className="space-y-2">
                     <Label>Service name *</Label>
                     <Input
+                      className={
+                        fieldErrors[`serviceName_${s.id}`]
+                          ? inputErrorClass
+                          : ""
+                      }
                       value={s.name}
                       onChange={(e) =>
                         setData((d) => ({
@@ -627,6 +654,7 @@ export default function OnboardingPage() {
                       }
                       placeholder="Consultation"
                     />
+                    <InlineError message={fieldErrors[`serviceName_${s.id}`]} />
                   </div>
 
                   <div className="space-y-2">
@@ -634,6 +662,11 @@ export default function OnboardingPage() {
                     <Input
                       type="number"
                       min={5}
+                      className={
+                        fieldErrors[`serviceDuration_${s.id}`]
+                          ? inputErrorClass
+                          : ""
+                      }
                       value={s.durationMinutes}
                       onChange={(e) =>
                         setData((d) => ({
@@ -649,6 +682,9 @@ export default function OnboardingPage() {
                         }))
                       }
                     />
+                    <InlineError
+                      message={fieldErrors[`serviceDuration_${s.id}`]}
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -658,7 +694,11 @@ export default function OnboardingPage() {
                         {effectiveCurrencySymbol(data)}
                       </div>
                       <Input
-                        className="pl-10"
+                        className={`pl-10 ${
+                          fieldErrors[`servicePrice_${s.id}`]
+                            ? inputErrorClass
+                            : ""
+                        }`}
                         type="number"
                         min={0}
                         value={typeof s.price === "number" ? s.price : ""}
@@ -680,6 +720,9 @@ export default function OnboardingPage() {
                         }
                       />
                     </div>
+                    <InlineError
+                      message={fieldErrors[`servicePrice_${s.id}`]}
+                    />
                   </div>
 
                   <div className="flex items-end justify-end sm:pb-0.5">
