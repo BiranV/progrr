@@ -404,7 +404,7 @@ export default function OnboardingPage() {
 
             <div className="space-y-2">
               <Label>Select one or more *</Label>
-              <div className="-m-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="-m-1 grid grid-cols-2 gap-3">
                 {BUSINESS_TYPE_OPTIONS.map((opt) => {
                   const selected = (data.businessTypes || []).includes(
                     opt.value
