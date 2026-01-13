@@ -461,6 +461,7 @@ export default function OnboardingPage() {
     setUploadingGallery(true);
     setError(null);
     let localPreviews: string[] = [];
+    let clearPreviewsDelayMs = 0;
     try {
       const current = (data.branding?.gallery || []).length;
       const remaining = Math.max(0, 10 - current);
@@ -468,12 +469,43 @@ export default function OnboardingPage() {
 
       const selected = Array.from(files).slice(0, remaining);
 
+      const allowed = new Set(["image/png", "image/jpeg", "image/webp"]);
+      const maxBytes = 5 * 1024 * 1024;
+      const valid: File[] = [];
+      const skipped: string[] = [];
+
+      for (const f of selected) {
+        const t = String(f.type || "").toLowerCase();
+        if (t && !allowed.has(t)) {
+          skipped.push(`${f.name || "image"} (unsupported format)`);
+          continue;
+        }
+        if (f.size > maxBytes) {
+          skipped.push(`${f.name || "image"} (too large)`);
+          continue;
+        }
+        valid.push(f);
+      }
+
+      if (!valid.length) {
+        throw new Error(
+          "Please upload JPG, PNG, or WEBP images (max 5MB each)"
+        );
+      }
+      if (skipped.length) {
+        setError(
+          `Some files were skipped: ${skipped.slice(0, 3).join(", ")}${
+            skipped.length > 3 ? "…" : ""
+          }`
+        );
+      }
+
       // Show instant feedback (local previews) while upload happens.
-      localPreviews = selected.map((f) => URL.createObjectURL(f));
+      localPreviews = valid.map((f) => URL.createObjectURL(f));
       setGalleryPendingPreviews((prev) => [...prev, ...localPreviews]);
 
       const fd = new FormData();
-      selected.forEach((f) => fd.append("files", f));
+      valid.forEach((f) => fd.append("files", f));
 
       const res = await fetch("/api/branding/gallery", {
         method: "POST",
@@ -510,12 +542,27 @@ export default function OnboardingPage() {
         ...d,
         branding: { ...(d.branding || {}), gallery },
       }));
+
+      // Success: clear previews immediately.
+      clearPreviewsDelayMs = 0;
+    } catch (e) {
+      // Failure: keep previews visible briefly so it doesn't feel like "nothing happened".
+      clearPreviewsDelayMs = 2500;
+      throw e;
     } finally {
       if (localPreviews.length) {
-        setGalleryPendingPreviews((prev) =>
-          prev.filter((u) => !localPreviews.includes(u))
-        );
-        localPreviews.forEach((u) => URL.revokeObjectURL(u));
+        const clear = () => {
+          setGalleryPendingPreviews((prev) =>
+            prev.filter((u) => !localPreviews.includes(u))
+          );
+          localPreviews.forEach((u) => URL.revokeObjectURL(u));
+        };
+
+        if (clearPreviewsDelayMs > 0) {
+          window.setTimeout(clear, clearPreviewsDelayMs);
+        } else {
+          clear();
+        }
       }
       setUploadingGallery(false);
     }
@@ -890,7 +937,7 @@ export default function OnboardingPage() {
               <input
                 id={logoInputId}
                 type="file"
-                accept="image/*"
+                accept="image/png,image/jpeg,image/webp"
                 className="hidden"
                 disabled={uploadingLogo || saving}
                 onChange={(e) => {
@@ -978,7 +1025,7 @@ export default function OnboardingPage() {
                 id={galleryAddInputId}
                 type="file"
                 multiple
-                accept="image/*"
+                accept="image/png,image/jpeg,image/webp"
                 className="hidden"
                 disabled={uploadingGallery || saving}
                 onChange={(e) => {
@@ -1028,7 +1075,7 @@ export default function OnboardingPage() {
                       <input
                         id={`${galleryAddInputId}-replace-${idx}`}
                         type="file"
-                        accept="image/*"
+                        accept="image/png,image/jpeg,image/webp"
                         className="hidden"
                         disabled={uploadingGallery || saving}
                         onChange={(e) => {
