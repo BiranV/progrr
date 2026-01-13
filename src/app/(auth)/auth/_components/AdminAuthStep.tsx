@@ -38,27 +38,39 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
   // Login State
   const [loginEmail, setLoginEmail] = useState("");
   const [loginCode, setLoginCode] = useState("");
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   // Signup State
   const [signupName, setSignupName] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupCode, setSignupCode] = useState("");
 
+  // Field Errors
+  const [signupNameError, setSignupNameError] = useState<string | null>(null);
+  const [signupEmailError, setSignupEmailError] = useState<string | null>(null);
+  const [signupCodeError, setSignupCodeError] = useState<string | null>(null);
+  const [loginCodeError, setLoginCodeError] = useState<string | null>(null);
+
   // UI State
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [globalError, setGlobalError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
   // Initial Error/Message handling
   useEffect(() => {
     const authError = searchParams.get("authError");
     const authMessage = searchParams.get("authMessage");
-    if (authError) setError(authError);
+    if (authError) setGlobalError(authError);
     if (authMessage) setInfo(authMessage);
   }, [searchParams]);
 
   const resetError = () => {
-    setError(null);
+    setLoginError(null);
+    setSignupNameError(null);
+    setSignupEmailError(null);
+    setSignupCodeError(null);
+    setLoginCodeError(null);
+    setGlobalError(null);
     setInfo(null);
   };
 
@@ -74,7 +86,10 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
   const sendLoginCode = async (e: React.FormEvent) => {
     e.preventDefault();
     resetError();
-    if (!isValidEmail(loginEmail)) return setError("Valid email required");
+    if (!isValidEmail(loginEmail)) {
+      setLoginError("Please enter a valid email address");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -89,7 +104,7 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
       setInfo("Code sent to email");
       setView("login-verify");
     } catch (err: any) {
-      setError(err.message);
+      setLoginError(err.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -98,7 +113,10 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
   const verifyLoginCode = async (e: React.FormEvent) => {
     e.preventDefault();
     resetError();
-    if (!loginCode) return setError("Code required");
+    if (!loginCode) {
+      setLoginCodeError("Code required");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -120,7 +138,7 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
           : "/onboarding";
       router.replace(dest);
     } catch (err: any) {
-      setError(err.message);
+      setLoginCodeError(err.message || "Invalid code");
       setLoading(false);
     }
   };
@@ -128,8 +146,19 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
   const sendSignupCode = async (e: React.FormEvent) => {
     e.preventDefault();
     resetError();
-    if (!isValidFullName(signupName)) return setError("Full name required");
-    if (!isValidEmail(signupEmail)) return setError("Valid email required");
+    let hasError = false;
+
+    if (!isValidFullName(signupName)) {
+      setSignupNameError("Please enter your full name");
+      hasError = true;
+    }
+
+    if (!isValidEmail(signupEmail)) {
+      setSignupEmailError("Please enter a valid email address");
+      hasError = true;
+    }
+
+    if (hasError) return;
 
     setLoading(true);
     try {
@@ -144,7 +173,7 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
       setInfo("Code sent to email");
       setView("signup-verify");
     } catch (err: any) {
-      setError(err.message);
+      setSignupEmailError(err.message || "Sign up failed");
     } finally {
       setLoading(false);
     }
@@ -153,7 +182,10 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
   const verifySignupCode = async (e: React.FormEvent) => {
     e.preventDefault();
     resetError();
-    if (!signupCode) return setError("Code required");
+    if (!signupCode) {
+      setSignupCodeError("Code required");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -179,18 +211,28 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
           : "/onboarding";
       router.replace(dest);
     } catch (err: any) {
-      setError(err.message);
+      setSignupCodeError(err.message || "Verification failed");
       setLoading(false);
     }
   };
 
   // --- Renderers ---
 
-  const bannerState: AuthBannerState = error
-    ? { type: "error", text: error }
+  // Inline Helper using requested styles
+  const InlineError = ({ message }: { message: string | null }) => {
+    if (!message) return null;
+    return <p className="text-[13px] text-red-200/80 ml-1">{message}</p>;
+  };
+
+  // Only show global errors in banner, field errors are inline
+  const bannerState: AuthBannerState = globalError
+    ? { type: "error", text: globalError }
     : info
     ? { type: "message", text: info }
     : null;
+
+  // For inputs
+  const inputErrorClass = "border-red-300/50 ring-1 ring-red-300/20";
 
   return (
     <div className="w-full flex flex-col items-center">
@@ -275,10 +317,13 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
                     <Input
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
-                      className="h-14 bg-white/10 border-white/20 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60"
+                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${
+                        loginError ? inputErrorClass : "border-white/20"
+                      }`}
                       placeholder="name@company.com"
                       autoFocus
                     />
+                    <InlineError message={loginError} />
                   </div>
                   <Button
                     disabled={loading}
@@ -298,8 +343,11 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
                       onChange={setLoginCode}
                       length={6}
                       disabled={loading}
-                      inputClassName="bg-white/10 border-white/20 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent"
+                      inputClassName={`bg-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent ${
+                        loginCodeError ? inputErrorClass : "border-white/20"
+                      }`}
                     />
+                    <InlineError message={loginCodeError} />
                     <p className="text-xs text-white/60 ml-1 pt-1">
                       Code sent to {loginEmail}
                     </p>
@@ -346,19 +394,25 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
                     <Input
                       value={signupName}
                       onChange={(e) => setSignupName(e.target.value)}
-                      className="h-14 bg-white/10 border-white/20 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60"
+                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${
+                        signupNameError ? inputErrorClass : "border-white/20"
+                      }`}
                       placeholder="Jane Doe"
                       autoFocus
                     />
+                    <InlineError message={signupNameError} />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-white/80 ml-1">Email Address</Label>
                     <Input
                       value={signupEmail}
                       onChange={(e) => setSignupEmail(e.target.value)}
-                      className="h-14 bg-white/10 border-white/20 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60"
+                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${
+                        signupEmailError ? inputErrorClass : "border-white/20"
+                      }`}
                       placeholder="name@company.com"
                     />
+                    <InlineError message={signupEmailError} />
                   </div>
                   <Button
                     disabled={loading}
@@ -378,8 +432,11 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
                       onChange={setSignupCode}
                       length={6}
                       disabled={loading}
-                      inputClassName="bg-white/10 border-white/20 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent"
+                      inputClassName={`bg-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent ${
+                        signupCodeError ? inputErrorClass : "border-white/20"
+                      }`}
                     />
+                    <InlineError message={signupCodeError} />
                     <p className="text-xs text-white/60 ml-1 pt-1">
                       Code sent to {signupEmail}
                     </p>

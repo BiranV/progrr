@@ -15,17 +15,17 @@ export default function AuthBanner({ banner }: { banner: AuthBannerState }) {
   return (
     <div
       className={`
-                flex items-center gap-3 rounded-xl border px-4 py-3 backdrop-blur-md shadow-sm mb-4
+                flex items-center gap-3 rounded-xl border px-4 py-3 shadow-sm mb-4 text-left
                 ${
                   isError
-                    ? "bg-red-500/10 border-red-500/20 text-white"
-                    : "bg-emerald-500/10 border-emerald-500/20 text-white"
+                    ? "bg-[#FDE8EC] border-[#FDE8EC] text-[#B42318]"
+                    : "bg-emerald-500/10 border-emerald-500/20 text-white backdrop-blur-md"
                 }
             `}
     >
       {/* Icons */}
       {isError ? (
-        <XCircle className="h-5 w-5 text-red-200 shrink-0" />
+        <XCircle className="h-5 w-5 text-[#B42318] shrink-0" />
       ) : (
         <CheckCircle2 className="h-5 w-5 text-emerald-200 shrink-0" />
       )}

@@ -149,7 +149,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { updateUser } = useAuth();
+  const { updateUser, user } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1027,12 +1027,36 @@ export default function OnboardingPage() {
     }
   };
 
+  const userInitial = (user?.full_name?.[0] || "U").toUpperCase();
+
   const card = (
-    <div className="flex flex-col min-h-[50vh] relative pb-safe">
-      {/* Header with Progress */}
-      <OnboardingHeader
-        title={
-          step === 0
+    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-black pb-safe">
+      {/* Creative Header */}
+      <div className="relative w-full bg-purple-600 h-[130px] rounded-b-[50%] flex justify-center shrink-0 mb-14 shadow-md">
+        <div className="absolute -bottom-10 bg-white dark:bg-zinc-900 p-1.5 rounded-full shadow-lg z-10">
+          <div className="w-20 h-20 rounded-full bg-purple-50 flex items-center justify-center text-purple-700 text-3xl font-bold overflow-hidden border-2 border-purple-100">
+            {user?.image ? (
+              <img
+                src={user.image}
+                alt={user.full_name || "User"}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              userInitial
+            )}
+          </div>
+        </div>
+        {/* Decorative background element */}
+        <div className="absolute top-0 w-full h-full opacity-20 bg-[url('/grid.svg')] mix-blend-overlay"></div>
+      </div>
+
+      {/* User & Step Info */}
+      <div className="text-center space-y-1 mb-8 px-6 shrink-0 z-0">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
+          {user?.full_name ? `Welcome, ${user.full_name}` : "Welcome"}
+        </h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+          {step === 0
             ? "Select Business Type"
             : step === 1
             ? "Business Details"
@@ -1040,40 +1064,39 @@ export default function OnboardingPage() {
             ? "Setup Services"
             : step === 3
             ? "Set Availability"
-            : "Review & Finish"
-        }
-        showBack={step > 0}
-        onBack={back}
-      />
+            : "Review & Finish"}
+        </p>
 
-      <div className="px-6 mb-6">
-        <div className="flex justify-between text-xs font-medium text-muted-foreground mb-2">
-          <span>
-            Step {step + 1}/{totalSteps}
-          </span>
-          <span>{Math.round(progress)}%</span>
+        {/* Progress Bar */}
+        <div className="pt-5 max-w-xs mx-auto w-full">
+          <div className="flex justify-between text-xs font-semibold text-purple-600 dark:text-purple-400 mb-2 px-1">
+            <span>
+              Step {step + 1} of {totalSteps}
+            </span>
+            <span>{Math.round(progress)}%</span>
+          </div>
+          <Progress
+            value={progress}
+            className="h-2.5 w-full bg-purple-100 dark:bg-purple-900/40 [&>div]:bg-purple-600 rounded-full"
+          />
         </div>
-        <Progress
-          value={progress}
-          className="h-1.5 w-full bg-emerald-100 dark:bg-emerald-950/30 [&>div]:bg-emerald-500"
-        />
       </div>
 
-      <div className="flex-1 pb-24">
+      <div className="flex-1 px-6 pb-36 w-full max-w-md mx-auto">
         <AuthBanner banner={error ? { type: "error", text: error } : null} />
 
         <AnimatePresence mode="wait" initial={false}>
           {loading ? (
-            <div className="py-20 text-center text-muted-foreground">
-              <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
-              <p>Loading onboarding...</p>
+            <div className="py-20 text-center text-muted-foreground flex flex-col items-center">
+              <Loader2 className="w-8 h-8 animate-spin mb-3 text-purple-600" />
+              <p>Loading details...</p>
             </div>
           ) : (
             <motion.div
               key={`step-${step}`}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
               className="space-y-6"
             >
@@ -1084,15 +1107,15 @@ export default function OnboardingPage() {
       </div>
 
       {/* Sticky Bottom Actions */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-md border-t border-border p-4 z-20 pb-[env(safe-area-inset-bottom,20px)]">
+      <div className="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-black/90 backdrop-blur-lg border-t border-gray-100 dark:border-gray-800 p-4 z-40 pb-[env(safe-area-inset-bottom,20px)] shadow-[0_-4px_8px_-1px_rgba(0,0,0,0.02)]">
         <div className="max-w-[420px] mx-auto flex gap-3 w-full">
           {step > 0 && (
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               onClick={back}
               disabled={saving}
-              className="h-14 flex-1 rounded-xl text-lg"
+              className="h-14 flex-1 rounded-2xl text-lg font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
             >
               Back
             </Button>
@@ -1106,7 +1129,7 @@ export default function OnboardingPage() {
                 loading ||
                 (step === 0 && (data.businessTypes || []).length === 0)
               }
-              className="h-14 flex-[2] rounded-xl text-lg font-medium"
+              className="h-14 flex-[2] rounded-2xl text-lg font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-200/50 dark:shadow-none transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
               {saving ? "Saving…" : "Next"}
             </Button>
@@ -1115,7 +1138,7 @@ export default function OnboardingPage() {
               type="button"
               onClick={complete}
               disabled={saving || loading}
-              className="h-14 flex-1 rounded-xl text-lg font-medium"
+              className="h-14 flex-1 rounded-2xl text-lg font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-200/50 dark:shadow-none transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
               {saving ? "Finishing…" : "Finish Setup"}
             </Button>
