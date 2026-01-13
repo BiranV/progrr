@@ -139,6 +139,29 @@ function defaultDays() {
   }));
 }
 
+function normalizeAvailabilityDaysForUi(input: any) {
+  const base = defaultDays();
+  const byDay = new Map<number, any>();
+
+  if (Array.isArray(input)) {
+    for (const raw of input) {
+      const day = Number(raw?.day);
+      if (!Number.isInteger(day) || day < 0 || day > 6) continue;
+      const enabled = Boolean(raw?.enabled);
+
+      const ranges = Array.isArray(raw?.ranges) ? raw.ranges : null;
+      const first = ranges && ranges.length ? ranges[0] : null;
+
+      const start = String((first?.start ?? raw?.start ?? "") as any).trim();
+      const end = String((first?.end ?? raw?.end ?? "") as any).trim();
+
+      byDay.set(day, { day, enabled, start, end });
+    }
+  }
+
+  return base.map((d) => ({ ...d, ...(byDay.get(d.day) || {}) }));
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     credentials: "include",
@@ -327,7 +350,7 @@ export default function OnboardingPage() {
               days:
                 res.onboarding?.availability?.days &&
                   res.onboarding.availability.days.length
-                  ? res.onboarding.availability.days
+                  ? normalizeAvailabilityDaysForUi(res.onboarding.availability.days)
                   : prev.availability?.days,
             },
             services:
@@ -760,7 +783,17 @@ export default function OnboardingPage() {
         });
       }
       if (step === 3) {
-        await savePartial({ availability: data.availability });
+        const days = normalizeAvailabilityDaysForUi(data.availability?.days);
+        await savePartial({
+          availability: {
+            ...(data.availability || {}),
+            days: days.map((d) => ({
+              day: d.day,
+              enabled: Boolean(d.enabled),
+              ranges: [{ start: String(d.start ?? "").trim(), end: String(d.end ?? "").trim() }],
+            })),
+          },
+        });
       }
       if (step === 4) {
         const gallery = data.branding?.gallery || [];

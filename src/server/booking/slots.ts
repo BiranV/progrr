@@ -57,7 +57,7 @@ export function weekdayForDateInTimeZone(args: {
 export function getBusinessDaySchedule(args: {
     onboardingAvailability: OnboardingAvailability | undefined;
     date: string;
-}): { enabled: boolean; start: string; end: string; timeZone: string } {
+}): { enabled: boolean; ranges: Array<{ start: string; end: string }>; timeZone: string } {
     const availability = args.onboardingAvailability ?? {};
     const timeZone = String((availability as any)?.timezone ?? "").trim() || "UTC";
 
@@ -68,13 +68,29 @@ export function getBusinessDaySchedule(args: {
 
     const day = days.find((d) => Number(d?.day) === weekday);
     const enabled = Boolean(day?.enabled);
-    const start = String(day?.start ?? "").trim();
-    const end = String(day?.end ?? "").trim();
+
+    const rangesRaw = Array.isArray((day as any)?.ranges) ? ((day as any).ranges as any[]) : null;
+    const ranges = rangesRaw
+        ? rangesRaw
+            .map((r) => ({
+                start: String(r?.start ?? "").trim(),
+                end: String(r?.end ?? "").trim(),
+            }))
+            .filter((r) => r.start || r.end)
+        : [];
+
+    // Legacy fallback: {start,end} on the day.
+    const legacyStart = String((day as any)?.start ?? "").trim();
+    const legacyEnd = String((day as any)?.end ?? "").trim();
+    const normalizedRanges = ranges.length
+        ? ranges
+        : legacyStart || legacyEnd
+            ? [{ start: legacyStart, end: legacyEnd }]
+            : [];
 
     return {
         enabled,
-        start,
-        end,
+        ranges: normalizedRanges,
         timeZone,
     };
 }
@@ -91,13 +107,8 @@ export function computeAvailableSlots(args: {
     });
 
     if (!schedule.enabled) return [];
-
-    const startMin = parseTimeToMinutes(schedule.start);
-    const endMin = parseTimeToMinutes(schedule.end);
     const duration = Number(args.durationMinutes);
-    if (!Number.isFinite(startMin) || !Number.isFinite(endMin)) return [];
     if (!Number.isFinite(duration) || duration <= 0) return [];
-    if (endMin <= startMin) return [];
 
     const busy = (args.bookedAppointments || [])
         .filter((a) => a.status === "BOOKED")
@@ -109,17 +120,24 @@ export function computeAvailableSlots(args: {
 
     const out: Array<{ startTime: string; endTime: string }> = [];
 
-    for (let t = startMin; t + duration <= endMin; t += duration) {
-        const slotStart = t;
-        const slotEnd = t + duration;
+    for (const r of schedule.ranges) {
+        const startMin = parseTimeToMinutes(r.start);
+        const endMin = parseTimeToMinutes(r.end);
+        if (!Number.isFinite(startMin) || !Number.isFinite(endMin)) continue;
+        if (endMin <= startMin) continue;
 
-        const collides = busy.some((b) => overlaps(slotStart, slotEnd, b.start, b.end));
-        if (collides) continue;
+        for (let t = startMin; t + duration <= endMin; t += duration) {
+            const slotStart = t;
+            const slotEnd = t + duration;
 
-        out.push({
-            startTime: minutesToTime(slotStart),
-            endTime: minutesToTime(slotEnd),
-        });
+            const collides = busy.some((b) => overlaps(slotStart, slotEnd, b.start, b.end));
+            if (collides) continue;
+
+            out.push({
+                startTime: minutesToTime(slotStart),
+                endTime: minutesToTime(slotEnd),
+            });
+        }
     }
 
     return out;

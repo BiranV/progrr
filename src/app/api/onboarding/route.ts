@@ -93,15 +93,92 @@ function asNumber(v: unknown): number | undefined {
   return n;
 }
 
-function normalizeDay(d: any) {
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function parseTimeToMinutes(hhmm: string): number {
+  const m = /^\s*(\d{1,2}):(\d{2})\s*$/.exec(String(hhmm ?? ""));
+  if (!m) return NaN;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (!Number.isFinite(h) || !Number.isFinite(min)) return NaN;
+  if (h < 0 || h > 23) return NaN;
+  if (min < 0 || min > 59) return NaN;
+  return h * 60 + min;
+}
+
+function overlaps(aStart: number, aEnd: number, bStart: number, bEnd: number): boolean {
+  return aStart < bEnd && bStart < aEnd;
+}
+
+function normalizeAvailabilityRanges(input: any): Array<{ start: string; end: string }> {
+  if (!Array.isArray(input)) return [];
+  const out: Array<{ start: string; end: string }> = [];
+  for (const r of input) {
+    const start = asString((r as any)?.start, 10) ?? "";
+    const end = asString((r as any)?.end, 10) ?? "";
+    if (!start && !end) continue;
+    out.push({ start, end });
+  }
+  return out;
+}
+
+function normalizeAvailabilityDay(d: any) {
   const day = Number(d?.day);
   if (!Number.isInteger(day) || day < 0 || day > 6) return null;
 
   const enabled = Boolean(d?.enabled);
-  const start = asString(d?.start, 10);
-  const end = asString(d?.end, 10);
+  const rangesIn = normalizeAvailabilityRanges(d?.ranges);
 
-  return { day, enabled, start, end };
+  // Legacy migration: { start, end } => ranges: [{start,end}]
+  const legacyStart = asString(d?.start, 10);
+  const legacyEnd = asString(d?.end, 10);
+  const ranges =
+    rangesIn.length > 0
+      ? rangesIn
+      : legacyStart || legacyEnd
+        ? [{ start: legacyStart ?? "", end: legacyEnd ?? "" }]
+        : [];
+
+  return { day, enabled, ranges };
+}
+
+function validateAvailabilityDays(days: Array<{ day: number; enabled: boolean; ranges: Array<{ start: string; end: string }> }>): string | null {
+  for (const d of days) {
+    if (!d.enabled) continue;
+
+    const ranges = Array.isArray(d.ranges) ? d.ranges : [];
+    if (!ranges.length) {
+      return `Please set valid hours for ${DAY_LABELS[d.day]}.`;
+    }
+
+    const parsed = ranges
+      .map((r) => ({
+        start: String(r.start ?? "").trim(),
+        end: String(r.end ?? "").trim(),
+        startMin: parseTimeToMinutes(String(r.start ?? "").trim()),
+        endMin: parseTimeToMinutes(String(r.end ?? "").trim()),
+      }))
+      .filter((x) => x.start || x.end);
+
+    for (const r of parsed) {
+      if (!r.start || !r.end || !Number.isFinite(r.startMin) || !Number.isFinite(r.endMin)) {
+        return `Please set valid hours for ${DAY_LABELS[d.day]}.`;
+      }
+      if (r.endMin <= r.startMin) {
+        return `End time must be after start time for ${DAY_LABELS[d.day]}.`;
+      }
+    }
+
+    const ordered = [...parsed].sort((a, b) => a.startMin - b.startMin);
+    for (let i = 1; i < ordered.length; i++) {
+      const prev = ordered[i - 1];
+      const curr = ordered[i];
+      if (overlaps(prev.startMin, prev.endMin, curr.startMin, curr.endMin)) {
+        return `Overlapping time ranges for ${DAY_LABELS[d.day]}.`;
+      }
+    }
+  }
+  return null;
 }
 
 function normalizeService(s: any) {
@@ -151,6 +228,40 @@ export async function GET() {
     const user = await c.users.findOne({ _id: new ObjectId(appUser.id) });
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Lazy migration: convert legacy availability day {start,end} into {ranges:[{start,end}]}.
+    try {
+      const days = Array.isArray((user as any)?.onboarding?.availability?.days)
+        ? ((user as any).onboarding.availability.days as any[])
+        : [];
+      let changed = false;
+      const migrated = days
+        .map((d) => {
+          const normalized = normalizeAvailabilityDay(d);
+          if (!normalized) return null;
+          const hadRanges = Array.isArray((d as any)?.ranges);
+          const hadLegacy = (d as any)?.start !== undefined || (d as any)?.end !== undefined;
+          if (!hadRanges && hadLegacy) changed = true;
+          return normalized;
+        })
+        .filter(Boolean) as Array<any>;
+
+      if (changed) {
+        const err = validateAvailabilityDays(migrated);
+        // If legacy data is invalid, still migrate shape (don’t block GET).
+        await c.users.updateOne(
+          { _id: new ObjectId(appUser.id) },
+          { $set: { "onboarding.availability.days": migrated, "onboarding.updatedAt": new Date() } }
+        );
+        // If invalid, we leave it to the UI to prompt fix.
+        void err;
+        (user as any).onboarding = (user as any).onboarding ?? {};
+        (user as any).onboarding.availability = (user as any).onboarding.availability ?? {};
+        (user as any).onboarding.availability.days = migrated;
+      }
+    } catch {
+      // Ignore migration failures.
     }
 
     return NextResponse.json({
@@ -290,7 +401,15 @@ export async function PATCH(req: Request) {
     }
 
     if (daysIn) {
-      const normalized = daysIn.map(normalizeDay).filter(Boolean) as Array<any>;
+      const normalized = daysIn
+        .map(normalizeAvailabilityDay)
+        .filter(Boolean) as Array<any>;
+
+      const err = validateAvailabilityDays(normalized as any);
+      if (err) {
+        return NextResponse.json({ error: err }, { status: 400 });
+      }
+
       set["onboarding.availability.days"] = normalized;
     }
 

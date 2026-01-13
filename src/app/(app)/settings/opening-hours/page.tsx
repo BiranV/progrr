@@ -253,9 +253,10 @@ export default function OpeningHoursPage() {
                     days: availability.days.map((d) => ({
                         day: d.day,
                         enabled: Boolean(d.enabled),
-                        // API-compatible (current server model). We persist only the first range for now.
-                        start: String(d.ranges?.[0]?.start ?? "").trim(),
-                        end: String(d.ranges?.[0]?.end ?? "").trim(),
+                        ranges: (d.ranges || []).map((r) => ({
+                            start: String(r.start ?? "").trim(),
+                            end: String(r.end ?? "").trim(),
+                        })),
                     })),
                 },
             };

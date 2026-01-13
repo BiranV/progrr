@@ -34,6 +34,11 @@ export type UserDoc = {
       days?: Array<{
         day: number; // 0-6 (Sun-Sat)
         enabled: boolean;
+        ranges?: Array<{
+          start?: string; // HH:mm
+          end?: string; // HH:mm
+        }>;
+        // Legacy (migrated to ranges)
         start?: string; // HH:mm
         end?: string; // HH:mm
       }>;
