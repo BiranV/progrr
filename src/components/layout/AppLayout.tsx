@@ -80,13 +80,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Main App Layout (Dashboard, Settings, etc.)
   return (
-    <div className="min-h-screen bg-neutral-100 dark:bg-black/90 flex justify-center">
-      <div className="mobile-layout w-full bg-background flex flex-col relative shadow-xl overflow-hidden">
-        <main className="flex-1 overflow-y-auto pb-24 scrollbar-hide">
+    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-black pb-safe">
+      <div className="relative w-full z-0 h-[180px] bg-purple-600 shrink-0">
+        <div className="absolute inset-0 opacity-20 bg-[url('/grid.svg')] mix-blend-overlay"></div>
+      </div>
+
+      <div className="flex-1 -mt-16 bg-gray-50 dark:bg-zinc-900 rounded-t-[40px] relative z-10 flex flex-col shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
+        <main className="flex-1 px-6 pt-8 pb-32 w-full max-w-md mx-auto">
           {children}
         </main>
-        <BottomNav />
       </div>
+      <BottomNav />
     </div>
   );
 }
