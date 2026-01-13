@@ -146,12 +146,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         <main className="flex-1 px-6 pt-4 pb-24 w-full max-w-md mx-auto">
-          <div className="text-center space-y-1 mt-4 mb-6">
-            <div className="text-xs font-semibold text-purple-600 dark:text-purple-400">
+          <div className="text-center space-y-1 mb-4 mb-6">
+            {/* <div className="text-xs font-semibold text-purple-600 dark:text-purple-400">
               {businessName ? "Your business" : "Welcome"}
-            </div>
+            </div> */}
             <div className="text-base font-bold text-gray-900 dark:text-white truncate">
-              {headerName}
+              Hi, {headerName}
             </div>
           </div>
           {children}

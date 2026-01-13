@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function CalendarPage() {
     return (
@@ -14,10 +15,21 @@ export default function CalendarPage() {
                 </p>
             </div>
 
-            <div className="rounded-xl border bg-card text-card-foreground p-4">
-                <div className="text-sm text-muted-foreground">
-                    Calendar view coming next.
-                </div>
+            <Card>
+                <CardContent className="p-6">
+                    <div className="min-h-[52vh] flex flex-col items-center justify-center text-center px-4">
+                        <div className="text-sm text-muted-foreground">
+                            Calendar view coming next.
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                            You will be able to view and manage appointments here.
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <div className="text-sm text-muted-foreground">
+                Appointments will appear here once customers start booking.
             </div>
         </div>
     );
