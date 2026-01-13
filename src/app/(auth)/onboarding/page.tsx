@@ -165,6 +165,8 @@ export default function OnboardingPage() {
   const router = useRouter();
   const { updateUser, user } = useAuth();
 
+  const isDev = process.env.NODE_ENV !== "production";
+
   const logoInputId = React.useId();
   const galleryAddInputId = React.useId();
 
@@ -182,6 +184,7 @@ export default function OnboardingPage() {
   const [galleryPendingPreviews, setGalleryPendingPreviews] = useState<
     string[]
   >([]);
+  const [galleryError, setGalleryError] = useState<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -460,6 +463,7 @@ export default function OnboardingPage() {
 
     setUploadingGallery(true);
     setError(null);
+    setGalleryError(null);
     let localPreviews: string[] = [];
     let clearPreviewsDelayMs = 0;
     try {
@@ -504,8 +508,19 @@ export default function OnboardingPage() {
       localPreviews = valid.map((f) => URL.createObjectURL(f));
       setGalleryPendingPreviews((prev) => [...prev, ...localPreviews]);
 
+      if (isDev) {
+        console.log(
+          "[branding/gallery] selected:",
+          valid.map((f) => ({ name: f.name, type: f.type, size: f.size }))
+        );
+      }
+
       const fd = new FormData();
-      valid.forEach((f) => fd.append("files", f));
+      valid.forEach((f) => fd.append("images", f));
+
+      if (isDev) {
+        console.log("[branding/gallery] form keys:", Array.from(fd.keys()));
+      }
 
       const res = await fetch("/api/branding/gallery", {
         method: "POST",
@@ -513,6 +528,11 @@ export default function OnboardingPage() {
         credentials: "include",
       });
       const json = await res.json().catch(() => null);
+
+      if (isDev) {
+        console.log("[branding/gallery] response:", res.status, json);
+      }
+
       if (!res.ok)
         throw new Error(json?.error || `Request failed (${res.status})`);
 
@@ -548,6 +568,9 @@ export default function OnboardingPage() {
     } catch (e) {
       // Failure: keep previews visible briefly so it doesn't feel like "nothing happened".
       clearPreviewsDelayMs = 2500;
+      const msg = (e as any)?.message || "Failed to upload images";
+      setGalleryError(msg);
+      setError(msg);
       throw e;
     } finally {
       if (localPreviews.length) {
@@ -629,7 +652,7 @@ export default function OnboardingPage() {
 
       // Upload new (server appends)
       const fd = new FormData();
-      fd.append("files", file);
+      fd.append("images", file);
       const upRes = await fetch("/api/branding/gallery", {
         method: "POST",
         body: fd,
@@ -1159,6 +1182,12 @@ export default function OnboardingPage() {
               <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
                 These photos appear on your public booking page.
               </div>
+
+              {galleryError ? (
+                <div className="mt-2 text-xs text-rose-600 dark:text-rose-400">
+                  {galleryError}
+                </div>
+              ) : null}
             </div>
           </div>
         );

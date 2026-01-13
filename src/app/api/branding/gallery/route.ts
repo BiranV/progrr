@@ -71,11 +71,14 @@ export async function POST(req: Request) {
 
     const form = await req.formData();
     const files = form
-      .getAll("files")
+      .getAll("images")
       .filter((f) => f instanceof File) as File[];
 
     if (!files.length) {
-      return NextResponse.json({ error: "Missing files" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing images" },
+        { status: 400 }
+      );
     }
 
     for (const f of files) {
