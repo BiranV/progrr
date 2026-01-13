@@ -8,184 +8,208 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import PublicBookingShell from "../_components/PublicBookingShell";
+import { usePublicBusiness } from "../_components/usePublicBusiness";
 
 type BookingDraft = {
-    businessSlug: string;
-    serviceId: string;
-    date: string;
-    startTime: string;
-    customerFullName: string;
-    customerPhone: string;
-    notes?: string;
+  businessSlug: string;
+  serviceId: string;
+  date: string;
+  startTime: string;
+  customerFullName: string;
+  customerPhone: string;
+  notes?: string;
 };
 
 const DRAFT_KEY = "progrr.bookingDraft.v1";
 
 export default function PublicDetailsPage({
-    params,
+  params,
 }: {
-    params: Promise<{ slug: string }>;
+  params: Promise<{ slug: string }>;
 }) {
-    const router = useRouter();
-    const searchParams = useSearchParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-    const { slug } = React.use(params);
-    const normalizedSlug = String(slug ?? "").trim();
+  const { slug } = React.use(params);
+  const normalizedSlug = String(slug ?? "").trim();
 
-    const serviceId = String(searchParams.get("serviceId") ?? "").trim();
-    const date = String(searchParams.get("date") ?? "").trim();
-    const time = String(searchParams.get("time") ?? "").trim();
+  const serviceId = String(searchParams.get("serviceId") ?? "").trim();
+  const date = String(searchParams.get("date") ?? "").trim();
+  const time = String(searchParams.get("time") ?? "").trim();
 
-    const [fullName, setFullName] = React.useState("");
-    const [phone, setPhone] = React.useState("");
-    const [notes, setNotes] = React.useState("");
+  const { data: business } = usePublicBusiness(normalizedSlug);
 
-    const [submitting, setSubmitting] = React.useState(false);
-    const [error, setError] = React.useState<string | null>(null);
+  const [fullName, setFullName] = React.useState("");
+  const [phone, setPhone] = React.useState("");
+  const [notes, setNotes] = React.useState("");
 
-    React.useEffect(() => {
-        if (!normalizedSlug) {
-            router.replace("/");
-            return;
-        }
+  const [submitting, setSubmitting] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
-        if (!serviceId) {
-            router.replace(`/b/${encodeURIComponent(normalizedSlug)}`);
-            return;
-        }
+  React.useEffect(() => {
+    if (!normalizedSlug) {
+      router.replace("/");
+      return;
+    }
 
-        if (!date) {
-            router.replace(
-                `/b/${encodeURIComponent(
-                    normalizedSlug
-                )}/calendar?serviceId=${encodeURIComponent(serviceId)}`
-            );
-            return;
-        }
+    if (!serviceId) {
+      router.replace(`/b/${encodeURIComponent(normalizedSlug)}`);
+      return;
+    }
 
-        if (!time) {
-            router.replace(
-                `/b/${encodeURIComponent(
-                    normalizedSlug
-                )}/times?serviceId=${encodeURIComponent(
-                    serviceId
-                )}&date=${encodeURIComponent(date)}`
-            );
-            return;
-        }
-    }, [date, router, serviceId, normalizedSlug, time]);
+    if (!date) {
+      router.replace(
+        `/b/${encodeURIComponent(
+          normalizedSlug
+        )}/calendar?serviceId=${encodeURIComponent(serviceId)}`
+      );
+      return;
+    }
 
-    const submit = async () => {
-        setSubmitting(true);
-        setError(null);
+    if (!time) {
+      router.replace(
+        `/b/${encodeURIComponent(
+          normalizedSlug
+        )}/times?serviceId=${encodeURIComponent(
+          serviceId
+        )}&date=${encodeURIComponent(date)}`
+      );
+      return;
+    }
+  }, [date, router, serviceId, normalizedSlug, time]);
 
-        try {
-            const draft: BookingDraft = {
-                businessSlug: normalizedSlug,
-                serviceId,
-                date,
-                startTime: time,
-                customerFullName: fullName.trim(),
-                customerPhone: phone.trim(),
-                notes: notes.trim() || undefined,
-            };
+  const submit = async () => {
+    setSubmitting(true);
+    setError(null);
 
-            if (!draft.customerFullName) throw new Error("Full Name is required");
-            if (!draft.customerPhone) throw new Error("Phone is required");
+    try {
+      const draft: BookingDraft = {
+        businessSlug: normalizedSlug,
+        serviceId,
+        date,
+        startTime: time,
+        customerFullName: fullName.trim(),
+        customerPhone: phone.trim(),
+        notes: notes.trim() || undefined,
+      };
 
-            sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      if (!draft.customerFullName) throw new Error("Full Name is required");
+      if (!draft.customerPhone) throw new Error("Phone is required");
 
-            const res = await fetch("/api/public/booking/request-otp", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ phone: draft.customerPhone }),
-            });
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
 
-            const json = await res.json().catch(() => null);
-            if (!res.ok)
-                throw new Error(json?.error || `Request failed (${res.status})`);
+      const res = await fetch("/api/public/booking/request-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: draft.customerPhone }),
+      });
 
-            router.push(
-                `/b/${encodeURIComponent(
-                    normalizedSlug
-                )}/verify?phone=${encodeURIComponent(draft.customerPhone)}`
-            );
-        } catch (e: any) {
-            setError(e?.message || "Failed");
-        } finally {
-            setSubmitting(false);
-        }
-    };
+      const json = await res.json().catch(() => null);
+      if (!res.ok)
+        throw new Error(json?.error || `Request failed (${res.status})`);
 
-    return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-6 lg:p-10">
-            <div className="mx-auto w-full max-w-3xl space-y-6">
-                <Card>
-                    <CardHeader className="space-y-1">
-                        <CardTitle>Your details</CardTitle>
-                        <div className="text-sm text-gray-600 dark:text-gray-300">
-                            {date} • {time}
-                        </div>
-                    </CardHeader>
+      router.push(
+        `/b/${encodeURIComponent(
+          normalizedSlug
+        )}/verify?phone=${encodeURIComponent(draft.customerPhone)}`
+      );
+    } catch (e: any) {
+      setError(e?.message || "Failed");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-                    <CardContent className="space-y-4">
-                        {error && (
-                            <div className="text-sm text-red-600 dark:text-red-400">
-                                {error}
-                            </div>
-                        )}
+  return (
+    <PublicBookingShell
+      business={business}
+      title="Your details"
+      subtitle={date && time ? `${date} • ${time}` : "Tell us who you are"}
+      onBack={() =>
+        router.replace(
+          `/b/${encodeURIComponent(
+            normalizedSlug
+          )}/times?serviceId=${encodeURIComponent(
+            serviceId
+          )}&date=${encodeURIComponent(date)}`
+        )
+      }
+      showGallery
+    >
+      <Card className="rounded-3xl">
+        <CardHeader className="space-y-1">
+          <CardTitle>Your details</CardTitle>
+          <div className="text-sm text-gray-600 dark:text-gray-300">
+            {date} • {time}
+          </div>
+        </CardHeader>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="fullName">Full Name</Label>
-                            <Input
-                                id="fullName"
-                                value={fullName}
-                                onChange={(e) => setFullName(e.target.value)}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="phone">Phone</Label>
-                            <Input
-                                id="phone"
-                                value={phone}
-                                onChange={(e) => setPhone(e.target.value)}
-                                placeholder="+1 555 123 4567"
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="notes">Notes (optional)</Label>
-                            <Textarea
-                                id="notes"
-                                value={notes}
-                                onChange={(e) => setNotes(e.target.value)}
-                            />
-                        </div>
-
-                        <div className="flex gap-2">
-                            <Button
-                                variant="outline"
-                                onClick={() =>
-                                    router.replace(
-                                        `/b/${encodeURIComponent(
-                                            normalizedSlug
-                                        )}/times?serviceId=${encodeURIComponent(
-                                            serviceId
-                                        )}&date=${encodeURIComponent(date)}`
-                                    )
-                                }
-                            >
-                                Back
-                            </Button>
-
-                            <Button onClick={submit} disabled={submitting}>
-                                {submitting ? "Sending code…" : "Verify phone"}
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
+        <CardContent className="space-y-4">
+          {error && (
+            <div className="text-sm text-red-600 dark:text-red-400">
+              {error}
             </div>
-        </div>
-    );
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="fullName">Full Name</Label>
+            <Input
+              id="fullName"
+              className="rounded-2xl"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="phone">Phone</Label>
+            <Input
+              id="phone"
+              className="rounded-2xl"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+1 555 123 4567"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes (optional)</Label>
+            <Textarea
+              id="notes"
+              className="rounded-2xl"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="rounded-2xl"
+              onClick={() =>
+                router.replace(
+                  `/b/${encodeURIComponent(
+                    normalizedSlug
+                  )}/times?serviceId=${encodeURIComponent(
+                    serviceId
+                  )}&date=${encodeURIComponent(date)}`
+                )
+              }
+            >
+              Back
+            </Button>
+
+            <Button
+              onClick={submit}
+              disabled={submitting}
+              className="rounded-2xl flex-1"
+            >
+              {submitting ? "Sending code…" : "Verify phone"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </PublicBookingShell>
+  );
 }

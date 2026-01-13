@@ -7,19 +7,10 @@ import { useRouter } from "next/navigation";
 import { Check, Trash2, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Switch as UISwitch } from "@/components/ui/switch";
-import OnboardingHeader from "./_components/OnboardingHeader";
 
 import AuthBanner from "../auth/_components/AuthBanner";
 import { useAuth } from "@/context/AuthContext";
@@ -27,6 +18,7 @@ import { useAuth } from "@/context/AuthContext";
 type OnboardingData = {
   businessTypes?: string[];
   business?: { name?: string; phone?: string; address?: string };
+  branding?: { logoUrl?: string; gallery?: string[] };
   currency?: string;
   customCurrency?: { name?: string; symbol?: string };
   services?: Array<{
@@ -158,7 +150,11 @@ export default function OnboardingPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [step, setStep] = useState(0);
-  const totalSteps = 5;
+  const totalSteps = 6;
+
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingGallery, setUploadingGallery] = useState(false);
+  const [replacingIndex, setReplacingIndex] = useState<number | null>(null);
 
   const InlineError = ({ message }: { message?: string }) => {
     if (!message) return null;
@@ -174,6 +170,7 @@ export default function OnboardingPage() {
   const [data, setData] = useState<OnboardingData>({
     businessTypes: [],
     business: { name: "", phone: "", address: "" },
+    branding: { logoUrl: "", gallery: [] },
     currency: "NIS",
     services: [
       {
@@ -287,6 +284,7 @@ export default function OnboardingPage() {
         ...prev,
         ...(res.onboarding || {}),
         business: { ...prev.business, ...(res.onboarding?.business || {}) },
+        branding: { ...prev.branding, ...(res.onboarding?.branding || {}) },
         availability: {
           ...prev.availability,
           ...(res.onboarding?.availability || {}),
@@ -295,6 +293,158 @@ export default function OnboardingPage() {
       }));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const uploadLogo = async (file: File) => {
+    setUploadingLogo(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+
+      const res = await fetch("/api/branding/logo", {
+        method: "POST",
+        body: fd,
+        credentials: "include",
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok)
+        throw new Error(json?.error || `Request failed (${res.status})`);
+
+      const url = String(json?.url ?? "").trim();
+      setData((d) => ({
+        ...d,
+        branding: { ...(d.branding || {}), logoUrl: url },
+      }));
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const removeLogo = async () => {
+    setUploadingLogo(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/branding/logo", {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok)
+        throw new Error(json?.error || `Request failed (${res.status})`);
+
+      setData((d) => ({
+        ...d,
+        branding: { ...(d.branding || {}), logoUrl: "" },
+      }));
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
+  const uploadGalleryFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    setUploadingGallery(true);
+    setError(null);
+    try {
+      const current = (data.branding?.gallery || []).length;
+      const remaining = Math.max(0, 10 - current);
+      if (remaining <= 0) throw new Error("Gallery limit reached (max 10)");
+
+      const fd = new FormData();
+      Array.from(files)
+        .slice(0, remaining)
+        .forEach((f) => fd.append("files", f));
+
+      const res = await fetch("/api/branding/gallery", {
+        method: "POST",
+        body: fd,
+        credentials: "include",
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok)
+        throw new Error(json?.error || `Request failed (${res.status})`);
+
+      const gallery = Array.isArray(json?.gallery)
+        ? json.gallery.map((x: any) => String(x ?? "").trim()).filter(Boolean)
+        : [];
+
+      setData((d) => ({
+        ...d,
+        branding: { ...(d.branding || {}), gallery },
+      }));
+    } finally {
+      setUploadingGallery(false);
+    }
+  };
+
+  const removeGalleryImage = async (url: string) => {
+    setUploadingGallery(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/branding/gallery", {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok)
+        throw new Error(json?.error || `Request failed (${res.status})`);
+
+      const gallery = Array.isArray(json?.gallery)
+        ? json.gallery.map((x: any) => String(x ?? "").trim()).filter(Boolean)
+        : [];
+
+      setData((d) => ({
+        ...d,
+        branding: { ...(d.branding || {}), gallery },
+      }));
+    } finally {
+      setUploadingGallery(false);
+    }
+  };
+
+  const replaceGalleryImage = async (index: number, file: File) => {
+    setReplacingIndex(index);
+    setError(null);
+    try {
+      const before = [...(data.branding?.gallery || [])];
+      const target = before[index];
+      if (!target) throw new Error("Image not found");
+
+      // Upload new (server appends)
+      const fd = new FormData();
+      fd.append("files", file);
+      const upRes = await fetch("/api/branding/gallery", {
+        method: "POST",
+        body: fd,
+        credentials: "include",
+      });
+      const upJson = await upRes.json().catch(() => null);
+      if (!upRes.ok)
+        throw new Error(upJson?.error || `Request failed (${upRes.status})`);
+
+      const added = Array.isArray(upJson?.added) ? upJson.added : [];
+      const newUrl = String(added?.[0] ?? "").trim();
+      if (!newUrl) throw new Error("Upload failed");
+
+      // Remove old
+      await removeGalleryImage(target);
+
+      // Reorder to keep the replaced image at the same position.
+      const after = [...(data.branding?.gallery || [])]
+        .filter((x) => x !== target)
+        .filter(Boolean);
+      after[index] = newUrl;
+
+      await savePartial({
+        branding: { ...(data.branding || {}), gallery: after },
+      });
+    } finally {
+      setReplacingIndex(null);
     }
   };
 
@@ -362,6 +512,14 @@ export default function OnboardingPage() {
       }
       if (step === 3) {
         await savePartial({ availability: data.availability });
+      }
+      if (step === 4) {
+        const gallery = data.branding?.gallery || [];
+        if (gallery.length > 10) {
+          setError("Gallery limit reached (max 10 images)");
+          return;
+        }
+        await savePartial({ branding: data.branding });
       }
 
       setStep((s) => Math.min(s + 1, totalSteps - 1));
@@ -470,7 +628,7 @@ export default function OnboardingPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-4">
               <div className="space-y-2">
                 <Label>Name *</Label>
                 <Input
@@ -504,7 +662,7 @@ export default function OnboardingPage() {
                 />
                 <InlineError message={fieldErrors.businessPhone} />
               </div>
-              <div className="space-y-2 sm:col-span-2">
+              <div className="space-y-2">
                 <Label>Address *</Label>
                 <Input
                   className={fieldErrors.businessAddress ? inputErrorClass : ""}
@@ -521,6 +679,203 @@ export default function OnboardingPage() {
                   placeholder="123 Main St, City"
                 />
                 <InlineError message={fieldErrors.businessAddress} />
+              </div>
+            </div>
+          </div>
+        );
+
+      case 4:
+        return (
+          <div className="space-y-5">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                Business branding
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-300">
+                Add a logo and a few photos — these will be visible to clients.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-semibold text-gray-900 dark:text-white">
+                    Business logo
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-300">
+                    Recommended: square image (will display as a circle)
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center gap-4">
+                <div className="h-20 w-20 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 ring-2 ring-purple-100 dark:ring-purple-900/40 shadow-sm flex items-center justify-center">
+                  {data.branding?.logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={data.branding.logoUrl}
+                      alt="Business logo"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-xs font-medium text-gray-500 dark:text-gray-300">
+                      No logo
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex-1 flex flex-wrap gap-2">
+                  <label className="inline-flex">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      disabled={uploadingLogo || saving}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (!file) return;
+                        uploadLogo(file).catch((err) =>
+                          setError(err?.message || "Failed to upload logo")
+                        );
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={uploadingLogo || saving}
+                      className="rounded-xl"
+                    >
+                      {uploadingLogo
+                        ? "Uploading…"
+                        : data.branding?.logoUrl
+                        ? "Replace logo"
+                        : "Upload logo"}
+                    </Button>
+                  </label>
+
+                  {data.branding?.logoUrl ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={uploadingLogo || saving}
+                      className="rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                      onClick={() =>
+                        removeLogo().catch((err) =>
+                          setError(err?.message || "Failed to remove logo")
+                        )
+                      }
+                    >
+                      Remove
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-semibold text-gray-900 dark:text-white">
+                    Business gallery
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-300">
+                    Up to 10 images of your space, work, products, or services.
+                  </div>
+                </div>
+                <div className="text-xs font-semibold text-purple-600 dark:text-purple-400 shrink-0">
+                  {(data.branding?.gallery || []).length}/10
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-3 gap-3">
+                {(data.branding?.gallery || []).map((url, idx) => (
+                  <div
+                    key={`${url}-${idx}`}
+                    className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={url}
+                      alt={`Gallery image ${idx + 1}`}
+                      className="h-full w-full object-cover"
+                    />
+
+                    <div className="absolute inset-x-0 top-0 p-1.5 flex justify-end gap-1">
+                      <label className="inline-flex">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={uploadingGallery || saving}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = "";
+                            if (!file) return;
+                            replaceGalleryImage(idx, file).catch((err) =>
+                              setError(
+                                err?.message || "Failed to replace image"
+                              )
+                            );
+                          }}
+                        />
+                        <button
+                          type="button"
+                          disabled={
+                            uploadingGallery || saving || replacingIndex === idx
+                          }
+                          className="rounded-lg bg-black/45 text-white text-[11px] px-2 py-1 backdrop-blur-sm hover:bg-black/55 transition disabled:opacity-60"
+                        >
+                          {replacingIndex === idx ? "…" : "Replace"}
+                        </button>
+                      </label>
+
+                      <button
+                        type="button"
+                        disabled={uploadingGallery || saving}
+                        onClick={() =>
+                          removeGalleryImage(url).catch((err) =>
+                            setError(err?.message || "Failed to remove image")
+                          )
+                        }
+                        className="rounded-lg bg-black/45 text-white p-1.5 backdrop-blur-sm hover:bg-black/55 transition disabled:opacity-60"
+                        aria-label="Remove image"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {(() => {
+                  const count = (data.branding?.gallery || []).length;
+                  if (count >= 10) return null;
+                  return (
+                    <label className="aspect-square rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-950/10 flex items-center justify-center text-center p-2 cursor-pointer hover:border-purple-300 dark:hover:border-purple-700 transition">
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploadingGallery || saving}
+                        onChange={(e) => {
+                          const files = e.target.files;
+                          e.target.value = "";
+                          uploadGalleryFiles(files).catch((err) =>
+                            setError(err?.message || "Failed to upload images")
+                          );
+                        }}
+                      />
+                      <div className="text-xs text-gray-600 dark:text-gray-300">
+                        {uploadingGallery ? "Uploading…" : "Add images"}
+                      </div>
+                    </label>
+                  );
+                })()}
+              </div>
+
+              <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                These photos appear on your public booking page.
               </div>
             </div>
           </div>
@@ -830,7 +1185,7 @@ export default function OnboardingPage() {
           </div>
         );
 
-      case 4:
+      case 5:
         return (
           <div className="space-y-4">
             <div>
@@ -857,6 +1212,41 @@ export default function OnboardingPage() {
                         )
                         .join(", ")
                     : "—"}
+                </div>
+              </div>
+
+              <div className="h-px bg-gray-200 dark:bg-gray-800" />
+
+              <div className="space-y-2">
+                <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                  Branding
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center">
+                    {data.branding?.logoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={data.branding.logoUrl}
+                        alt="Business logo"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs text-gray-500 dark:text-gray-300">
+                        —
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-sm text-gray-700 dark:text-gray-200">
+                    <div>
+                      <span className="font-medium">Logo:</span>{" "}
+                      {data.branding?.logoUrl ? "Uploaded" : "Not set"}
+                    </div>
+                    <div>
+                      <span className="font-medium">Gallery:</span>{" "}
+                      {(data.branding?.gallery || []).length} image(s)
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -988,8 +1378,6 @@ export default function OnboardingPage() {
     }
   };
 
-  const userInitial = (user?.full_name?.[0] || "U").toUpperCase();
-
   const card = (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-black pb-safe">
       {/* Header Container */}
@@ -1026,6 +1414,8 @@ export default function OnboardingPage() {
               ? "Setup Services"
               : step === 3
               ? "Set Availability"
+              : step === 4
+              ? "Business Branding"
               : "Review & Finish"}
           </p>
 

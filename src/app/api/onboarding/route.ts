@@ -32,6 +32,26 @@ function asString(v: unknown, maxLen = 200): string | undefined {
   return s.length > maxLen ? s.slice(0, maxLen) : s;
 }
 
+function asUrlPath(v: unknown, maxLen = 500): string | undefined {
+  const s = String(v ?? "").trim();
+  if (!s) return undefined;
+  if (s.length > maxLen) return s.slice(0, maxLen);
+  // We only allow site-local upload paths for branding assets.
+  if (!s.startsWith("/uploads/")) return undefined;
+  return s;
+}
+
+function normalizeGallery(v: unknown): string[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const out: string[] = [];
+  for (const item of v) {
+    const p = asUrlPath(item, 500);
+    if (!p) continue;
+    out.push(p);
+  }
+  return Array.from(new Set(out)).slice(0, 10);
+}
+
 function asNumber(v: unknown): number | undefined {
   const n = typeof v === "number" ? v : Number(v);
   if (!Number.isFinite(n)) return undefined;
@@ -151,6 +171,9 @@ export async function PATCH(req: Request) {
       ? body.availability.days
       : undefined;
 
+    const brandingLogoUrlRaw = (body as any)?.branding?.logoUrl;
+    const brandingGalleryRaw = (body as any)?.branding?.gallery;
+
     const set: any = {};
     const unset: any = {};
 
@@ -233,6 +256,23 @@ export async function PATCH(req: Request) {
     if (daysIn) {
       const normalized = daysIn.map(normalizeDay).filter(Boolean) as Array<any>;
       set["onboarding.availability.days"] = normalized;
+    }
+
+    if (brandingLogoUrlRaw !== undefined) {
+      const logoUrl = asUrlPath(brandingLogoUrlRaw, 500);
+      if (logoUrl) {
+        set["onboarding.branding.logoUrl"] = logoUrl;
+      } else {
+        unset["onboarding.branding.logoUrl"] = "";
+      }
+    }
+
+    if (brandingGalleryRaw !== undefined) {
+      const gallery = normalizeGallery(brandingGalleryRaw);
+      if (!gallery) {
+        return NextResponse.json({ error: "Invalid gallery" }, { status: 400 });
+      }
+      set["onboarding.branding.gallery"] = gallery;
     }
 
     set["onboarding.updatedAt"] = new Date();

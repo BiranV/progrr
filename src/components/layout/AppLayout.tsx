@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
+import ClientAvatar from "@/components/ClientAvatar";
 import BottomNav from "./BottomNav";
 
 function isPublicPath(pathname: string) {
@@ -16,13 +17,40 @@ function isPublicPath(pathname: string) {
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, isLoadingAuth: loading } = useAuth();
+  const { user, isLoadingAuth: loading, updateUser } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
 
   const isOnboardingPath =
     pathname === "/onboarding" || pathname.startsWith("/onboarding/");
   const onboardingCompleted = Boolean((user as any)?.onboardingCompleted);
+
+  const didHydrateOnboardingRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (loading) return;
+    if (!user) return;
+    if (!onboardingCompleted) return;
+    if (didHydrateOnboardingRef.current) return;
+
+    // Load onboarding data once so admin UI can use business branding.
+    didHydrateOnboardingRef.current = true;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/onboarding", { method: "GET" });
+        if (!res.ok) return;
+        const data = await res.json().catch(() => null);
+        if (!data || typeof data !== "object") return;
+        updateUser({
+          onboardingCompleted: Boolean((data as any).onboardingCompleted),
+          onboarding: (data as any).onboarding ?? {},
+        });
+      } catch {
+        // Ignore.
+      }
+    })();
+  }, [loading, onboardingCompleted, updateUser, user]);
 
   React.useEffect(() => {
     if (loading) return;
@@ -79,6 +107,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   // Main App Layout (Dashboard, Settings, etc.)
+  const businessName = String(
+    (user as any)?.onboarding?.business?.name ?? ""
+  ).trim();
+  const logoUrl = String(
+    (user as any)?.onboarding?.branding?.logoUrl ?? ""
+  ).trim();
+  const headerName = businessName || user?.full_name || "Progrr";
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-black pb-safe">
       <div className="relative w-full z-0 h-[180px] bg-purple-600 shrink-0">
@@ -87,6 +123,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       <div className="flex-1 -mt-16 bg-gray-50 dark:bg-zinc-900 rounded-t-[40px] relative z-10 flex flex-col shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
         <main className="flex-1 px-6 pt-8 pb-32 w-full max-w-md mx-auto">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-1 bg-white dark:bg-zinc-900 rounded-full shadow">
+              <ClientAvatar
+                name={headerName}
+                src={logoUrl || undefined}
+                size={44}
+                className="bg-gray-100 text-purple-700"
+              />
+            </div>
+            <div className="min-w-0">
+              <div className="text-xs font-semibold text-purple-600 dark:text-purple-400">
+                {businessName ? "Your business" : "Welcome"}
+              </div>
+              <div className="text-base font-bold text-gray-900 dark:text-white truncate">
+                {headerName}
+              </div>
+            </div>
+          </div>
           {children}
         </main>
       </div>

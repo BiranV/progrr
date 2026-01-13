@@ -53,7 +53,8 @@ async function fetchMeOnce(): Promise<MeResult> {
       .catch((err: any) => {
         const status = typeof err?.status === "number" ? err.status : undefined;
         const message = String(err?.message || "");
-        const inferred = status ?? (message === "Unauthorized" ? 401 : undefined);
+        const inferred =
+          status ?? (message === "Unauthorized" ? 401 : undefined);
         return { user: null, status: inferred };
       });
   }
@@ -67,7 +68,9 @@ function setMeCache(user: User | null) {
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [authStatus, setAuthStatus] = useState<"loading" | "guest" | "authenticated">("loading");
+  const [authStatus, setAuthStatus] = useState<
+    "loading" | "guest" | "authenticated"
+  >("loading");
   const didFetchMeRef = useRef(false);
   const mountedRef = useRef(true);
   const router = useRouter();
@@ -99,8 +102,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // Fully public booking pages must never call /api/me.
     if (pathname.startsWith("/b")) {
-      setIsLoadingAuth(false);
-      setAuthStatus(user ? "authenticated" : "guest");
+      queueMicrotask(() => {
+        if (!mountedRef.current) return;
+        setIsLoadingAuth(false);
+        setAuthStatus(user ? "authenticated" : "guest");
+      });
       return;
     }
 
