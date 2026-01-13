@@ -341,14 +341,6 @@ export default function OnboardingPage() {
             newErrors[`serviceName_${s.id}`] = "Service name is required";
           if (!s.durationMinutes || s.durationMinutes <= 0)
             newErrors[`serviceDuration_${s.id}`] = "Duration is required";
-          // Price implies 0 allowed? "price is required" check used isFinite in old code.
-          // If 0 is valid price, check undefined. OLD code: !Number.isFinite(s?.price).
-          if (
-            s.price === undefined ||
-            s.price === null ||
-            s.price === ("" as any)
-          )
-            newErrors[`servicePrice_${s.id}`] = "Price is required";
         });
 
         if (Object.keys(newErrors).length > 0) {
@@ -546,206 +538,131 @@ export default function OnboardingPage() {
               </p>
             </div>
 
-            <div className="space-y-2">
-              <Label>Currency *</Label>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                <div className="sm:flex-1">
-                  <Select
-                    value={normalizeCurrency(data.currency)}
-                    onValueChange={(v) =>
-                      setData((d) => {
-                        const code = normalizeCurrency(v);
-                        return {
-                          ...d,
-                          currency: code,
-                          customCurrency:
-                            code === OTHER_CURRENCY_CODE
-                              ? {
-                                  name: d.customCurrency?.name ?? "",
-                                  symbol: d.customCurrency?.symbol ?? "",
-                                }
-                              : undefined,
-                        };
-                      })
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select currency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CURRENCIES.map((c) => (
-                        <SelectItem key={c.code} value={c.code}>
-                          {c.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {normalizeCurrency(data.currency) === OTHER_CURRENCY_CODE ? (
-                  <div className="flex flex-col gap-3 sm:flex-row sm:justify-end sm:ml-auto">
-                    <div className="space-y-2 sm:w-48">
-                      <Label>Currency name *</Label>
-                      <Input
-                        className={
-                          fieldErrors.currencyName ? inputErrorClass : ""
-                        }
-                        value={String(data.customCurrency?.name ?? "")}
-                        onChange={(e) =>
-                          setData((d) => ({
-                            ...d,
-                            customCurrency: {
-                              ...(d.customCurrency || {}),
-                              name: e.target.value,
-                            },
-                          }))
-                        }
-                        placeholder="e.g. Shekel"
-                      />
-                      <InlineError message={fieldErrors.currencyName} />
-                    </div>
-                    <div className="space-y-2 sm:w-28">
-                      <Label>Symbol *</Label>
-                      <Input
-                        className={
-                          fieldErrors.currencySymbol ? inputErrorClass : ""
-                        }
-                        value={String(data.customCurrency?.symbol ?? "")}
-                        onChange={(e) =>
-                          setData((d) => ({
-                            ...d,
-                            customCurrency: {
-                              ...(d.customCurrency || {}),
-                              symbol: e.target.value,
-                            },
-                          }))
-                        }
-                        placeholder="e.g. ₪"
-                      />
-                      <InlineError message={fieldErrors.currencySymbol} />
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
             <div className="space-y-4">
-              {(data.services || []).map((s) => (
-                <div
-                  key={s.id}
-                  className="grid grid-cols-1 sm:grid-cols-[1fr_140px_140px_44px] gap-3"
-                >
-                  <div className="space-y-2">
-                    <Label>Service name *</Label>
-                    <Input
-                      className={
-                        fieldErrors[`serviceName_${s.id}`]
-                          ? inputErrorClass
-                          : ""
-                      }
-                      value={s.name}
-                      onChange={(e) =>
-                        setData((d) => ({
-                          ...d,
-                          services: (d.services || []).map((x) =>
-                            x.id === s.id ? { ...x, name: e.target.value } : x
-                          ),
-                        }))
-                      }
-                      placeholder="Consultation"
-                    />
-                    <InlineError message={fieldErrors[`serviceName_${s.id}`]} />
-                  </div>
+              <div className="flex items-center gap-2 px-1">
+                <Label className="flex-1">Service name *</Label>
+                <Label className="w-[70px] shrink-0 text-center">Time</Label>
+                <Label className="w-[70px] shrink-0 text-center">Price</Label>
+                <div className="w-8 shrink-0"></div>
+              </div>
 
-                  <div className="space-y-2">
-                    <Label>Duration (min) *</Label>
-                    <Input
-                      type="number"
-                      min={5}
-                      className={
-                        fieldErrors[`serviceDuration_${s.id}`]
-                          ? inputErrorClass
-                          : ""
-                      }
-                      value={s.durationMinutes}
-                      onChange={(e) =>
-                        setData((d) => ({
-                          ...d,
-                          services: (d.services || []).map((x) =>
-                            x.id === s.id
-                              ? {
-                                  ...x,
-                                  durationMinutes: Number(e.target.value || 0),
-                                }
-                              : x
-                          ),
-                        }))
-                      }
-                    />
-                    <InlineError
-                      message={fieldErrors[`serviceDuration_${s.id}`]}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Price *</Label>
-                    <div className="relative">
-                      <div className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-gray-600 dark:text-gray-300">
-                        {effectiveCurrencySymbol(data)}
+              <div className="space-y-3">
+                {(data.services || []).map((s) => (
+                  <div key={s.id}>
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <Input
+                          className={
+                            fieldErrors[`serviceName_${s.id}`]
+                              ? inputErrorClass
+                              : ""
+                          }
+                          value={s.name}
+                          onChange={(e) =>
+                            setData((d) => ({
+                              ...d,
+                              services: (d.services || []).map((x) =>
+                                x.id === s.id
+                                  ? { ...x, name: e.target.value }
+                                  : x
+                              ),
+                            }))
+                          }
+                          placeholder="Service"
+                        />
                       </div>
-                      <Input
-                        className={`pl-10 ${
-                          fieldErrors[`servicePrice_${s.id}`]
-                            ? inputErrorClass
-                            : ""
-                        }`}
-                        type="number"
-                        min={0}
-                        value={typeof s.price === "number" ? s.price : ""}
-                        onChange={(e) =>
-                          setData((d) => ({
-                            ...d,
-                            services: (d.services || []).map((x) =>
-                              x.id === s.id
-                                ? {
-                                    ...x,
-                                    price:
-                                      e.target.value === ""
-                                        ? undefined
-                                        : Number(e.target.value),
-                                  }
-                                : x
-                            ),
-                          }))
-                        }
-                      />
-                    </div>
-                    <InlineError
-                      message={fieldErrors[`servicePrice_${s.id}`]}
-                    />
-                  </div>
 
-                  <div className="flex items-end justify-end sm:pb-0.5">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      disabled={(data.services || []).length <= 1}
-                      aria-label="Remove service"
-                      onClick={() =>
-                        setData((d) => ({
-                          ...d,
-                          services: (d.services || []).filter(
-                            (x) => x.id !== s.id
-                          ),
-                        }))
-                      }
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      <div className="w-[70px] shrink-0">
+                        <Input
+                          type="number"
+                          min={5}
+                          className={`px-2 text-center ${
+                            fieldErrors[`serviceDuration_${s.id}`]
+                              ? inputErrorClass
+                              : ""
+                          }`}
+                          value={s.durationMinutes}
+                          onChange={(e) =>
+                            setData((d) => ({
+                              ...d,
+                              services: (d.services || []).map((x) =>
+                                x.id === s.id
+                                  ? {
+                                      ...x,
+                                      durationMinutes: Number(
+                                        e.target.value || 0
+                                      ),
+                                    }
+                                  : x
+                              ),
+                            }))
+                          }
+                        />
+                      </div>
+
+                      <div className="w-[70px] shrink-0">
+                        <Input
+                          className={`px-2 text-center ${
+                            fieldErrors[`servicePrice_${s.id}`]
+                              ? inputErrorClass
+                              : ""
+                          }`}
+                          type="number"
+                          min={0}
+                          value={typeof s.price === "number" ? s.price : ""}
+                          onChange={(e) =>
+                            setData((d) => ({
+                              ...d,
+                              services: (d.services || []).map((x) =>
+                                x.id === s.id
+                                  ? {
+                                      ...x,
+                                      price:
+                                        e.target.value === ""
+                                          ? undefined
+                                          : Number(e.target.value),
+                                    }
+                                  : x
+                              ),
+                            }))
+                          }
+                          placeholder={effectiveCurrencySymbol(data)}
+                        />
+                      </div>
+
+                      <div className="w-8 shrink-0 flex pt-1 justify-center">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-400 hover:text-red-500"
+                          disabled={(data.services || []).length <= 1}
+                          aria-label="Remove service"
+                          onClick={() =>
+                            setData((d) => ({
+                              ...d,
+                              services: (d.services || []).filter(
+                                (x) => x.id !== s.id
+                              ),
+                            }))
+                          }
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    {(fieldErrors[`serviceName_${s.id}`] ||
+                      fieldErrors[`serviceDuration_${s.id}`] ||
+                      fieldErrors[`servicePrice_${s.id}`]) && (
+                      <div className="text-xs text-rose-500 mt-1 px-1">
+                        {fieldErrors[`serviceName_${s.id}`] ||
+                          fieldErrors[`serviceDuration_${s.id}`] ||
+                          fieldErrors[`servicePrice_${s.id}`]}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
 
               <div>
                 <Button
@@ -840,72 +757,88 @@ export default function OnboardingPage() {
                 return ordered.map((d) => (
                   <div
                     key={d.day}
-                    className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end"
+                    className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-950/20"
                   >
-                    <div className="flex items-center gap-2">
-                      <UISwitch
-                        checked={d.enabled}
-                        onCheckedChange={(checked) =>
-                          setData((prev) => ({
-                            ...prev,
-                            availability: {
-                              ...(prev.availability || {}),
-                              days: (prev.availability?.days || []).map((x) =>
-                                x.day === d.day ? { ...x, enabled: checked } : x
-                              ),
-                            },
-                          }))
-                        }
-                        aria-label={`Toggle ${DAY_LABELS[d.day]}`}
-                      />
-                      <span className="text-sm font-medium text-gray-900 dark:text-white select-none">
-                        {DAY_LABELS[d.day]}
-                      </span>
+                    <div className="flex items-center justify-between sm:w-32 shrink-0">
+                      <div className="flex items-center gap-3">
+                        <UISwitch
+                          checked={d.enabled}
+                          onCheckedChange={(checked) =>
+                            setData((prev) => ({
+                              ...prev,
+                              availability: {
+                                ...(prev.availability || {}),
+                                days: (prev.availability?.days || []).map((x) =>
+                                  x.day === d.day
+                                    ? { ...x, enabled: checked }
+                                    : x
+                                ),
+                              },
+                            }))
+                          }
+                          aria-label={`Toggle ${DAY_LABELS[d.day]}`}
+                        />
+                        <span className="text-sm font-medium text-gray-900 dark:text-white select-none">
+                          {DAY_LABELS[d.day]}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="space-y-1">
-                      <Label className="text-xs">Start</Label>
-                      <Input
-                        type="time"
-                        disabled={!d.enabled}
-                        value={d.start || ""}
-                        onChange={(e) =>
-                          setData((prev) => ({
-                            ...prev,
-                            availability: {
-                              ...(prev.availability || {}),
-                              days: (prev.availability?.days || []).map((x) =>
-                                x.day === d.day
-                                  ? { ...x, start: e.target.value }
-                                  : x
-                              ),
-                            },
-                          }))
-                        }
-                      />
-                    </div>
+                    {d.enabled && (
+                      <div className="grid grid-cols-2 sm:flex sm:items-center gap-4 flex-1">
+                        <div className="space-y-1.5 flex-1">
+                          <Label className="text-xs text-muted-foreground sm:hidden">
+                            Start
+                          </Label>
+                          <Input
+                            type="time"
+                            className="h-9"
+                            disabled={!d.enabled}
+                            value={d.start || ""}
+                            onChange={(e) =>
+                              setData((prev) => ({
+                                ...prev,
+                                availability: {
+                                  ...(prev.availability || {}),
+                                  days: (prev.availability?.days || []).map(
+                                    (x) =>
+                                      x.day === d.day
+                                        ? { ...x, start: e.target.value }
+                                        : x
+                                  ),
+                                },
+                              }))
+                            }
+                          />
+                        </div>
 
-                    <div className="space-y-1">
-                      <Label className="text-xs">End</Label>
-                      <Input
-                        type="time"
-                        disabled={!d.enabled}
-                        value={d.end || ""}
-                        onChange={(e) =>
-                          setData((prev) => ({
-                            ...prev,
-                            availability: {
-                              ...(prev.availability || {}),
-                              days: (prev.availability?.days || []).map((x) =>
-                                x.day === d.day
-                                  ? { ...x, end: e.target.value }
-                                  : x
-                              ),
-                            },
-                          }))
-                        }
-                      />
-                    </div>
+                        <div className="space-y-1.5 flex-1">
+                          <Label className="text-xs text-muted-foreground sm:hidden">
+                            End
+                          </Label>
+                          <Input
+                            type="time"
+                            className="h-9"
+                            disabled={!d.enabled}
+                            value={d.end || ""}
+                            onChange={(e) =>
+                              setData((prev) => ({
+                                ...prev,
+                                availability: {
+                                  ...(prev.availability || {}),
+                                  days: (prev.availability?.days || []).map(
+                                    (x) =>
+                                      x.day === d.day
+                                        ? { ...x, end: e.target.value }
+                                        : x
+                                  ),
+                                },
+                              }))
+                            }
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ));
               })()}
@@ -1075,10 +1008,16 @@ export default function OnboardingPage() {
 
   const card = (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-black pb-safe">
-      {/* Creative Header */}
-      <div className="relative w-full bg-purple-600 h-[130px] rounded-b-[50%] flex justify-center shrink-0 mb-14 shadow-md">
-        <div className="absolute -bottom-10 bg-white dark:bg-zinc-900 p-1.5 rounded-full shadow-lg z-10">
-          <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center overflow-hidden border-2 border-purple-50">
+      {/* Header Container */}
+      <div className="relative w-full z-0 h-[180px] bg-purple-600 shrink-0">
+        <div className="absolute inset-0 opacity-20 bg-[url('/grid.svg')] mix-blend-overlay"></div>
+      </div>
+
+      {/* Main Content Area with Convex Curve (Sides lower than center) */}
+      <div className="flex-1 -mt-16 bg-gray-50 dark:bg-zinc-900 rounded-t-[40px] relative z-10 flex flex-col items-center shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
+        {/* Logo sitting on the curve */}
+        <div className="-mt-10 p-1.5 rounded-full bg-transparent">
+          <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center overflow-hidden border-2 border-purple-50 shadow-xl">
             <Image
               src="/logo.png"
               alt="Progrr"
@@ -1088,68 +1027,66 @@ export default function OnboardingPage() {
             />
           </div>
         </div>
-        {/* Decorative background element */}
-        <div className="absolute top-0 w-full h-full opacity-20 bg-[url('/grid.svg')] mix-blend-overlay"></div>
-      </div>
 
-      {/* User & Step Info */}
-      <div className="text-center space-y-1 mb-8 px-6 shrink-0 z-0">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
-          {user?.full_name ? `Welcome, ${user.full_name}` : "Welcome"}
-        </h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
-          {step === 0
-            ? "Select Business Type"
-            : step === 1
-            ? "Business Details"
-            : step === 2
-            ? "Setup Services"
-            : step === 3
-            ? "Set Availability"
-            : "Review & Finish"}
-        </p>
+        {/* User & Step Info */}
+        <div className="text-center space-y-1 mt-6 mb-8 px-6 w-full max-w-md">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
+            {user?.full_name ? `Welcome, ${user.full_name}` : "Welcome"}
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+            {step === 0
+              ? "Select Business Type"
+              : step === 1
+              ? "Business Details"
+              : step === 2
+              ? "Setup Services"
+              : step === 3
+              ? "Set Availability"
+              : "Review & Finish"}
+          </p>
 
-        {/* Progress Bar */}
-        <div className="pt-5 max-w-xs mx-auto w-full">
-          <div className="flex justify-between text-xs font-semibold text-purple-600 dark:text-purple-400 mb-2 px-1">
-            <span>
-              Step {step + 1} of {totalSteps}
-            </span>
-            <span>{Math.round(progress)}%</span>
+          {/* Progress Bar */}
+          <div className="pt-5 max-w-xs mx-auto w-full">
+            <div className="flex justify-between text-xs font-semibold text-purple-600 dark:text-purple-400 mb-2 px-1">
+              <span>
+                Step {step + 1} of {totalSteps}
+              </span>
+              <span>{Math.round(progress)}%</span>
+            </div>
+            <Progress
+              value={progress}
+              className="h-2.5 w-full bg-purple-100 dark:bg-purple-900/40 [&>div]:bg-purple-600 rounded-full"
+            />
           </div>
-          <Progress
-            value={progress}
-            className="h-2.5 w-full bg-purple-100 dark:bg-purple-900/40 [&>div]:bg-purple-600 rounded-full"
-          />
+        </div>
+
+        <div className="flex-1 px-6 pb-36 w-full max-w-md mx-auto">
+          <AuthBanner banner={error ? { type: "error", text: error } : null} />
+
+          <AnimatePresence mode="wait" initial={false}>
+            {loading ? (
+              <div className="py-20 text-center text-muted-foreground flex flex-col items-center">
+                <Loader2 className="w-8 h-8 animate-spin mb-3 text-purple-600" />
+                <p>Loading details...</p>
+              </div>
+            ) : (
+              <motion.div
+                key={`step-${step}`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-6"
+              >
+                {content()}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
-      <div className="flex-1 px-6 pb-36 w-full max-w-md mx-auto">
-        <AuthBanner banner={error ? { type: "error", text: error } : null} />
-
-        <AnimatePresence mode="wait" initial={false}>
-          {loading ? (
-            <div className="py-20 text-center text-muted-foreground flex flex-col items-center">
-              <Loader2 className="w-8 h-8 animate-spin mb-3 text-purple-600" />
-              <p>Loading details...</p>
-            </div>
-          ) : (
-            <motion.div
-              key={`step-${step}`}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
-              className="space-y-6"
-            >
-              {content()}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
       {/* Sticky Bottom Actions */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-black/90 backdrop-blur-lg border-t border-gray-100 dark:border-gray-800 p-4 z-40 shadow-[0_-4px_8px_-1px_rgba(0,0,0,0.02)]">
+      <div className="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-lg border-t border-gray-100 dark:border-gray-800 p-4 z-40 shadow-[0_-4px_8px_-1px_rgba(0,0,0,0.02)]">
         <div className="max-w-[420px] mx-auto flex gap-3 w-full">
           {step > 0 && (
             <Button
