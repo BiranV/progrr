@@ -3,10 +3,14 @@
 import React from "react";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { TimePicker } from "@/components/ui/time-picker";
 import { Switch } from "@/components/ui/switch";
+import { CenteredSpinner } from "@/components/CenteredSpinner";
+
+import { ONBOARDING_QUERY_KEY, useOnboardingSettings } from "@/hooks/useOnboardingSettings";
 
 type AvailabilityDay = {
     day: number; // 0..6 (Sun..Sat)
@@ -143,8 +147,17 @@ function stableStringifyAvailability(state: AvailabilityState): string {
 }
 
 export default function OpeningHoursPage() {
-    const [isLoading, setIsLoading] = React.useState(true);
     const [isSaving, setIsSaving] = React.useState(false);
+    const queryClient = useQueryClient();
+
+    const {
+        data: onboardingRes,
+        isPending,
+        dataUpdatedAt,
+        refetch,
+        isError,
+        error,
+    } = useOnboardingSettings();
 
     const initialRef = React.useRef<AvailabilityState | null>(null);
     const [availability, setAvailability] = React.useState<AvailabilityState>({
@@ -153,35 +166,10 @@ export default function OpeningHoursPage() {
     });
 
     React.useEffect(() => {
-        let cancelled = false;
-
-        (async () => {
-            try {
-                setIsLoading(true);
-                const res = await apiFetch<{ onboarding: any }>("/api/onboarding", {
-                    method: "GET",
-                });
-
-                if (cancelled) return;
-
-                const av = (res as any)?.onboarding?.availability ?? {};
-                const timezone = String((av as any)?.timezone ?? "").trim() || "UTC";
-                const days = normalizeDays((av as any)?.days);
-
-                const next: AvailabilityState = { timezone, days };
-                initialRef.current = next;
-                setAvailability(next);
-            } catch (e: any) {
-                toast.error(e?.message || "Failed to load opening hours");
-            } finally {
-                if (!cancelled) setIsLoading(false);
-            }
-        })();
-
-        return () => {
-            cancelled = true;
-        };
-    }, []);
+        if (isError) {
+            toast.error((error as any)?.message || "Failed to load opening hours");
+        }
+    }, [isError, error]);
 
     const isDirty = React.useMemo(() => {
         if (!initialRef.current) return false;
@@ -190,6 +178,30 @@ export default function OpeningHoursPage() {
             stableStringifyAvailability(initialRef.current)
         );
     }, [availability]);
+
+    React.useEffect(() => {
+        if (!onboardingRes) return;
+
+        const av = (onboardingRes as any)?.onboarding?.availability ?? {};
+        const timezone = String((av as any)?.timezone ?? "").trim() || "UTC";
+        const days = normalizeDays((av as any)?.days);
+        const next: AvailabilityState = { timezone, days };
+
+        // First hydrate, and background refresh only when user isn't editing.
+        if (!initialRef.current || (!isDirty && !isSaving)) {
+            initialRef.current = next;
+            setAvailability(next);
+        }
+    }, [onboardingRes, isDirty, isSaving]);
+
+    React.useEffect(() => {
+        // Background refresh if cached data is older than 2 minutes.
+        if (!onboardingRes) return;
+        if (Date.now() - dataUpdatedAt < 2 * 60 * 1000) return;
+        refetch();
+    }, [dataUpdatedAt, onboardingRes, refetch]);
+
+    const showFullPageSpinner = isPending && !onboardingRes && !initialRef.current;
 
     const validate = React.useCallback((): string | null => {
         for (const d of availability.days) {
@@ -263,6 +275,13 @@ export default function OpeningHoursPage() {
             });
 
             initialRef.current = availability;
+            queryClient.setQueryData(ONBOARDING_QUERY_KEY, (prev: any) => ({
+                ...(prev || {}),
+                onboarding: {
+                    ...((prev as any)?.onboarding || {}),
+                    availability: payload.availability,
+                },
+            }));
             toast.success("Changes saved");
         } catch (e: any) {
             toast.error(e?.message || "Failed to save changes");
@@ -361,7 +380,9 @@ export default function OpeningHoursPage() {
         });
     };
 
-    return (
+    return showFullPageSpinner ? (
+        <CenteredSpinner fullPage />
+    ) : (
         <div className="space-y-6">
             <div className="space-y-2">
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -392,7 +413,7 @@ export default function OpeningHoursPage() {
                                             }))
                                         }
                                         aria-label={`Toggle ${DAY_LABELS[d.day]}`}
-                                        disabled={isLoading}
+                                        disabled={isSaving || (isPending && !initialRef.current)}
                                     />
                                 </div>
 
@@ -406,7 +427,7 @@ export default function OpeningHoursPage() {
                                             <TimePicker
                                                 value={String(r.start ?? "")}
                                                 onChange={(v) => updateRangeTime(d.day, r.id, "start", v)}
-                                                disabled={isLoading || !d.enabled}
+                                                disabled={isSaving || (isPending && !initialRef.current) || !d.enabled}
                                                 className="h-8 w-[78px] min-w-[78px] px-1.5 text-[13px] shrink-0 cursor-pointer hover:bg-muted/30"
                                                 aria-label={`${DAY_LABELS[d.day]} ${idx === 0 ? "start" : "additional start"} time`}
                                             />
@@ -414,7 +435,7 @@ export default function OpeningHoursPage() {
                                             <TimePicker
                                                 value={String(r.end ?? "")}
                                                 onChange={(v) => updateRangeTime(d.day, r.id, "end", v)}
-                                                disabled={isLoading || !d.enabled}
+                                                disabled={isSaving || (isPending && !initialRef.current) || !d.enabled}
                                                 className="h-8 w-[78px] min-w-[78px] px-1.5 text-[13px] shrink-0 cursor-pointer hover:bg-muted/30"
                                                 aria-label={`${DAY_LABELS[d.day]} ${idx === 0 ? "end" : "additional end"} time`}
                                             />
@@ -431,7 +452,7 @@ export default function OpeningHoursPage() {
                                                     variant="ghost"
                                                     size="icon-sm"
                                                     onClick={() => addRange(d.day)}
-                                                    disabled={isLoading || !d.enabled}
+                                                    disabled={isSaving || (isPending && !initialRef.current) || !d.enabled}
                                                     aria-label={`Add time range for ${DAY_LABELS[d.day]}`}
                                                 >
                                                     <Plus className="h-4 w-4 ms-4" />
@@ -442,7 +463,7 @@ export default function OpeningHoursPage() {
                                                     variant="ghost"
                                                     size="icon-sm"
                                                     onClick={() => deleteRange(d.day, r.id)}
-                                                    disabled={isLoading || !d.enabled || (d.ranges?.length ?? 0) <= 1}
+                                                    disabled={isSaving || (isPending && !initialRef.current) || !d.enabled || (d.ranges?.length ?? 0) <= 1}
                                                     aria-label={`Delete time range for ${DAY_LABELS[d.day]}`}
                                                 >
                                                     <Trash2 className="h-4 w-4 ms-4" />
@@ -461,7 +482,7 @@ export default function OpeningHoursPage() {
                         type="button"
                         className="w-full"
                         onClick={onSave}
-                        disabled={!isDirty || isSaving || isLoading || !initialRef.current}
+                        disabled={!isDirty || isSaving || (isPending && !initialRef.current) || !initialRef.current}
                     >
                         {isSaving ? (
                             <Loader2 className="h-5 w-5 animate-spin" />

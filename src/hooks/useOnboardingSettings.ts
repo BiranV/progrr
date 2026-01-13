@@ -1,20 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 
-export type Business = {
-    name: string;
-    phone: string;
-    address: string;
-    slug: string;
-    description: string;
-    currency?: string;
-};
-
-export type UpdateBusinessPayload = {
-    name: string;
-    phone: string;
-    address?: string;
-    description?: string;
-    currency?: string;
+type OnboardingResponse = {
+    onboardingCompleted?: boolean;
+    onboarding?: any;
 };
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -44,28 +32,18 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     return (await res.json()) as T;
 }
 
-export function useBusiness() {
+export const ONBOARDING_QUERY_KEY = ["onboarding"] as const;
+
+// Settings-focused onboarding cache. Uses React Query (already in the app) and
+// avoids refetching on every navigation; pages can optionally trigger a background
+// refresh based on dataUpdatedAt.
+export function useOnboardingSettings() {
     return useQuery({
-        queryKey: ["business"],
-        queryFn: () => apiFetch<Business>("/api/business"),
+        queryKey: ONBOARDING_QUERY_KEY,
+        queryFn: () => apiFetch<OnboardingResponse>("/api/onboarding"),
         staleTime: 2 * 60 * 1000,
         gcTime: 30 * 60 * 1000,
         refetchOnMount: false,
         refetchOnReconnect: false,
-    });
-}
-
-export async function updateBusiness(payload: UpdateBusinessPayload) {
-    const body = {
-        name: payload.name,
-        phone: payload.phone,
-        address: payload.address ?? "",
-        description: payload.description ?? "",
-        ...(payload.currency ? { currency: payload.currency } : {}),
-    };
-
-    await apiFetch<{ success: true }>("/api/business", {
-        method: "PATCH",
-        body: JSON.stringify(body),
     });
 }

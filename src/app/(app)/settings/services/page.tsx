@@ -3,6 +3,7 @@
 import React from "react";
 import { toast } from "sonner";
 import { Loader2, Trash2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+
+import { useBusiness } from "@/hooks/useBusiness";
+import { ONBOARDING_QUERY_KEY, useOnboardingSettings } from "@/hooks/useOnboardingSettings";
 
 type Service = {
     id: string;
@@ -108,15 +112,32 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export default function ServicesSettingsPage() {
-    const [isLoading, setIsLoading] = React.useState(true);
     const [isSaving, setIsSaving] = React.useState(false);
+    const queryClient = useQueryClient();
+
+    const {
+        data: business,
+        isPending: isPendingBusiness,
+        dataUpdatedAt: businessUpdatedAt,
+        refetch: refetchBusiness,
+        isError: isBusinessError,
+        error: businessError,
+    } = useBusiness();
+
+    const {
+        data: onboardingRes,
+        isPending: isPendingOnboarding,
+        dataUpdatedAt: onboardingUpdatedAt,
+        refetch: refetchOnboarding,
+        isError: isOnboardingError,
+        error: onboardingError,
+    } = useOnboardingSettings();
 
     const [services, setServices] = React.useState<Service[]>([]);
     const initialRef = React.useRef<string | null>(null);
     const initialCurrencyRef = React.useRef<string>("ILS");
 
     const [currencyCode, setCurrencyCode] = React.useState<string>("ILS");
-    const [currencyChangeConfirm, setCurrencyChangeConfirm] = React.useState(false);
 
     const [globalError, setGlobalError] = React.useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
@@ -142,36 +163,60 @@ export default function ServicesSettingsPage() {
         [stableStringifyServices]
     );
 
+    const isFirstLoad =
+        (!initialRef.current && (isPendingBusiness || isPendingOnboarding) && !business && !onboardingRes);
+
+    const isDirty = React.useMemo(() => {
+        if (!initialRef.current) return false;
+        return stableStringifyState(services, currencyCode) !== initialRef.current;
+    }, [services, currencyCode, stableStringifyState]);
+
     React.useEffect(() => {
-        let cancelled = false;
+        if (isBusinessError) {
+            toast.error((businessError as any)?.message || "Failed to load business");
+        }
+    }, [isBusinessError, businessError]);
 
-        (async () => {
-            try {
-                setIsLoading(true);
-                const [onboardingRes, businessRes] = await Promise.all([
-                    apiFetch<any>("/api/onboarding", { method: "GET" }),
-                    apiFetch<any>("/api/business", { method: "GET" }),
-                ]);
-                if (cancelled) return;
+    React.useEffect(() => {
+        if (isOnboardingError) {
+            toast.error((onboardingError as any)?.message || "Failed to load services");
+        }
+    }, [isOnboardingError, onboardingError]);
 
-                const next = normalizeServices((onboardingRes as any)?.onboarding?.services);
-                setServices(next);
+    React.useEffect(() => {
+        if (!onboardingRes) return;
 
-                const businessCurrency = normalizeCurrency((businessRes as any)?.currency);
-                initialCurrencyRef.current = businessCurrency;
-                setCurrencyCode(businessCurrency);
-                initialRef.current = stableStringifyState(next, businessCurrency);
-            } catch (e: any) {
-                toast.error(e?.message || "Failed to load services");
-            } finally {
-                if (!cancelled) setIsLoading(false);
-            }
-        })();
+        const nextServices = normalizeServices((onboardingRes as any)?.onboarding?.services);
 
-        return () => {
-            cancelled = true;
-        };
-    }, []);
+        // First hydrate, and background refresh only when user isn't editing.
+        const nextCurrency = normalizeCurrency((business as any)?.currency ?? "ILS");
+        if (!initialRef.current) {
+            setServices(nextServices);
+            initialCurrencyRef.current = nextCurrency;
+            setCurrencyCode(nextCurrency);
+            initialRef.current = stableStringifyState(nextServices, nextCurrency);
+            return;
+        }
+
+        if (!isDirty && !isSaving) {
+            setServices(nextServices);
+            initialCurrencyRef.current = nextCurrency;
+            setCurrencyCode(nextCurrency);
+            initialRef.current = stableStringifyState(nextServices, nextCurrency);
+        }
+    }, [onboardingRes, business, isDirty, isSaving, stableStringifyState]);
+
+    React.useEffect(() => {
+        if (!business) return;
+        if (Date.now() - businessUpdatedAt < 2 * 60 * 1000) return;
+        refetchBusiness();
+    }, [business, businessUpdatedAt, refetchBusiness]);
+
+    React.useEffect(() => {
+        if (!onboardingRes) return;
+        if (Date.now() - onboardingUpdatedAt < 2 * 60 * 1000) return;
+        refetchOnboarding();
+    }, [onboardingRes, onboardingUpdatedAt, refetchOnboarding]);
 
     const activeServices = React.useMemo(() => services.filter((s) => s.isActive !== false), [services]);
     const inactiveServices = React.useMemo(() => services.filter((s) => s.isActive === false), [services]);
@@ -179,11 +224,6 @@ export default function ServicesSettingsPage() {
     const hasAnyActiveService = activeServices.length > 0;
     const currencyChanged =
         normalizeCurrency(currencyCode) !== normalizeCurrency(initialCurrencyRef.current);
-
-    const isDirty = React.useMemo(() => {
-        if (!initialRef.current) return false;
-        return stableStringifyState(services, currencyCode) !== initialRef.current;
-    }, [services, currencyCode, stableStringifyState]);
 
     const persistServices = async (nextServices: Service[]) => {
         const payload = {
@@ -282,11 +322,6 @@ export default function ServicesSettingsPage() {
         const next = [...services];
         if (!validateAll(next)) return;
 
-        if (currencyChanged && hasAnyActiveService && !currencyChangeConfirm) {
-            setCurrencyChangeConfirm(true);
-            return;
-        }
-
         setIsSaving(true);
         try {
             if (currencyChanged) {
@@ -297,7 +332,27 @@ export default function ServicesSettingsPage() {
             setServices(next);
             initialCurrencyRef.current = normalizeCurrency(currencyCode);
             initialRef.current = stableStringifyState(next, currencyCode);
-            setCurrencyChangeConfirm(false);
+
+            // Keep React Query caches in sync so other settings pages render instantly.
+            queryClient.setQueryData(["business"], (prev: any) => ({
+                ...(prev || {}),
+                currency: normalizeCurrency(currencyCode),
+            }));
+            queryClient.setQueryData(ONBOARDING_QUERY_KEY, (prev: any) => ({
+                ...(prev || {}),
+                onboarding: {
+                    ...((prev as any)?.onboarding || {}),
+                    services: next.map((s) => ({
+                        id: s.id,
+                        name: String(s.name ?? "").trim(),
+                        durationMinutes: Number(s.durationMinutes),
+                        price: Number(s.price),
+                        description: String(s.description ?? "").trim(),
+                        isActive: Boolean(s.isActive),
+                    })),
+                },
+            }));
+
             toast.success("Changes saved");
         } catch (e: any) {
             toast.error(e?.message || "Failed to save changes");
@@ -305,6 +360,10 @@ export default function ServicesSettingsPage() {
             setIsSaving(false);
         }
     };
+
+    if (isFirstLoad) {
+        return <CenteredSpinner fullPage />;
+    }
 
     return (
         <div className="w-full max-w-md mx-auto space-y-4">
@@ -330,9 +389,8 @@ export default function ServicesSettingsPage() {
                         value={normalizeCurrency(currencyCode)}
                         onValueChange={(v) => {
                             setCurrencyCode(v);
-                            setCurrencyChangeConfirm(false);
                         }}
-                        disabled={isLoading || isSaving}
+                        disabled={isFirstLoad || isSaving}
                     >
                         <SelectTrigger>
                             <SelectValue placeholder="Select currency" />
@@ -355,7 +413,6 @@ export default function ServicesSettingsPage() {
                     <div className="text-sm text-amber-700 dark:text-amber-300 rounded-md border border-amber-200 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-950/20 px-3 py-2">
                         Changing currency will not convert existing service prices (numbers stay the
                         same, symbol changes only).
-                        {currencyChangeConfirm ? " Click “Save changes” again to confirm." : null}
                     </div>
                 ) : null}
 
@@ -369,13 +426,7 @@ export default function ServicesSettingsPage() {
                 </div>
 
                 <div className="space-y-3">
-                    {isLoading ? (
-                        <div className="px-1">
-                            <CenteredSpinner />
-                        </div>
-                    ) : null}
-
-                    {!isLoading && activeServices.length === 0 ? (
+                    {activeServices.length === 0 ? (
                         <div className="text-sm text-gray-600 dark:text-gray-300 px-1">
                             No active services.
                         </div>
@@ -486,7 +537,7 @@ export default function ServicesSettingsPage() {
                         type="button"
                         variant="outline"
                         onClick={addService}
-                        disabled={isLoading || isSaving}
+                        disabled={isFirstLoad || isSaving}
                     >
                         Add service
                     </Button>
@@ -545,7 +596,7 @@ export default function ServicesSettingsPage() {
                         type="button"
                         className="w-full"
                         onClick={onSave}
-                        disabled={!isDirty || isLoading || isSaving || !initialRef.current}
+                        disabled={!isDirty || isFirstLoad || isSaving || !initialRef.current}
                     >
                         {isSaving ? (
                             <Loader2 className="h-5 w-5 animate-spin" />

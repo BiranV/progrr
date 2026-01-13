@@ -3,8 +3,10 @@
 import React from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { updateBusiness, useBusiness } from "@/hooks/useBusiness";
+import { CenteredSpinner } from "@/components/CenteredSpinner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +25,8 @@ function digitsOnly(value: string) {
 }
 
 export default function BusinessDetailsPage() {
-    const { data: business } = useBusiness();
+    const { data: business, isPending, dataUpdatedAt, refetch } = useBusiness();
+    const queryClient = useQueryClient();
 
     const initialRef = React.useRef<BusinessDetailsForm | null>(null);
     const [form, setForm] = React.useState<BusinessDetailsForm>({
@@ -45,8 +48,6 @@ export default function BusinessDetailsPage() {
 
     React.useEffect(() => {
         if (!business) return;
-        if (initialRef.current) return;
-
         const next: BusinessDetailsForm = {
             name: String(business.name ?? ""),
             phone: String(business.phone ?? ""),
@@ -54,9 +55,35 @@ export default function BusinessDetailsPage() {
             description: String(business.description ?? ""),
         };
 
-        initialRef.current = next;
-        setForm(next);
-    }, [business]);
+        setForm((currentForm) => {
+            // First hydrate.
+            if (!initialRef.current) {
+                initialRef.current = next;
+                return next;
+            }
+
+            // Background refresh only when user isn't editing.
+            const initialData = initialRef.current;
+            const isDirtyNow =
+                currentForm.name !== initialData.name ||
+                currentForm.phone !== initialData.phone ||
+                currentForm.address !== initialData.address ||
+                currentForm.description !== initialData.description;
+
+            if (!isDirtyNow && !isSaving) {
+                initialRef.current = next;
+                return next;
+            }
+
+            return currentForm;
+        });
+    }, [business, isSaving]);
+
+    React.useEffect(() => {
+        if (!business) return;
+        if (Date.now() - dataUpdatedAt < 2 * 60 * 1000) return;
+        refetch();
+    }, [business, dataUpdatedAt, refetch]);
 
     const bookingLink = business?.slug ? `https://www.progrr.io/b/${business.slug}` : "";
 
@@ -94,6 +121,13 @@ export default function BusinessDetailsPage() {
         try {
             await updateBusiness(form);
             initialRef.current = { ...form };
+            queryClient.setQueryData(["business"], (prev: any) => ({
+                ...(prev || {}),
+                name: form.name,
+                phone: form.phone,
+                address: form.address,
+                description: form.description,
+            }));
             toast.success("Changes saved");
         } catch (err: any) {
             toast.error(err?.message || "Failed to save changes");
@@ -127,7 +161,11 @@ export default function BusinessDetailsPage() {
         });
     };
 
-    return (
+    const showFullPageSpinner = isPending && !business && !initialRef.current;
+
+    return showFullPageSpinner ? (
+        <CenteredSpinner fullPage />
+    ) : (
         <div className="space-y-6">
             <div className="space-y-2">
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Business details</h1>
