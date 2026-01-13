@@ -57,12 +57,23 @@ export function formatPrice(args: {
 
 export function formatDateInTimeZone(date: Date, timeZone: string): string {
   const tz = String(timeZone || "UTC").trim() || "UTC";
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: tz,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(date);
+  } catch {
+    // If a user-supplied timezone is invalid (RangeError), fall back to UTC.
+    parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "UTC",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(date);
+  }
 
   const get = (type: string) => parts.find((p) => p.type === type)?.value;
   const y = get("year");

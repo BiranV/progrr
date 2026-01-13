@@ -4,7 +4,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { Check, Trash2, Loader2 } from "lucide-react";
+import { Check, Trash2, Loader2, Plus } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,8 +56,11 @@ type OnboardingData = {
     days?: Array<{
       day: number;
       enabled: boolean;
+      // Legacy shape (kept for backwards compatibility; UI uses ranges).
       start?: string;
       end?: string;
+      // New shape (supports multiple ranges/day). `id` is UI-only.
+      ranges?: Array<{ id?: string; start?: string; end?: string }>;
     }>;
   };
 };
@@ -130,12 +134,61 @@ const BUSINESS_TYPE_OPTIONS: Array<{
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+function newId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function parseTimeToMinutes(hhmm: string): number {
+  const m = /^\s*(\d{1,2}):(\d{2})\s*$/.exec(String(hhmm ?? ""));
+  if (!m) return NaN;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (!Number.isFinite(h) || !Number.isFinite(min)) return NaN;
+  if (h < 0 || h > 23) return NaN;
+  if (min < 0 || min > 59) return NaN;
+  return h * 60 + min;
+}
+
+function minutesToTime(totalMinutes: number): string {
+  const clamped = Math.max(0, Math.min(23 * 60 + 59, Math.floor(totalMinutes)));
+  const h = Math.floor(clamped / 60);
+  const m = clamped % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function overlaps(aStart: number, aEnd: number, bStart: number, bEnd: number): boolean {
+  return aStart < bEnd && bStart < aEnd;
+}
+
+function normalizeRangesForUi(raw: any): Array<{ id: string; start: string; end: string }> {
+  if (Array.isArray(raw)) {
+    const out: Array<{ id: string; start: string; end: string }> = [];
+    for (const r of raw) {
+      const start = typeof (r as any)?.start === "string" ? String((r as any).start) : "";
+      const end = typeof (r as any)?.end === "string" ? String((r as any).end) : "";
+      if (!start && !end) continue;
+      const id = typeof (r as any)?.id === "string" && String((r as any).id).trim()
+        ? String((r as any).id)
+        : newId();
+      out.push({ id, start, end });
+    }
+    return out.length ? out : [{ id: newId(), start: "09:00", end: "17:00" }];
+  }
+
+  const start = typeof raw?.start === "string" ? String(raw.start) : "";
+  const end = typeof raw?.end === "string" ? String(raw.end) : "";
+  if (start || end) return [{ id: newId(), start, end }];
+  return [{ id: newId(), start: "09:00", end: "17:00" }];
+}
+
 function defaultDays() {
   return DAY_LABELS.map((_, day) => ({
     day,
     enabled: day >= 1 && day <= 5,
-    start: "09:00",
-    end: "17:00",
+    ranges: [{ id: newId(), start: "09:00", end: "17:00" }],
   }));
 }
 
@@ -149,13 +202,11 @@ function normalizeAvailabilityDaysForUi(input: any) {
       if (!Number.isInteger(day) || day < 0 || day > 6) continue;
       const enabled = Boolean(raw?.enabled);
 
-      const ranges = Array.isArray(raw?.ranges) ? raw.ranges : null;
-      const first = ranges && ranges.length ? ranges[0] : null;
+      const ranges = Array.isArray(raw?.ranges)
+        ? normalizeRangesForUi(raw.ranges)
+        : normalizeRangesForUi({ start: raw?.start, end: raw?.end });
 
-      const start = String((first?.start ?? raw?.start ?? "") as any).trim();
-      const end = String((first?.end ?? raw?.end ?? "") as any).trim();
-
-      byDay.set(day, { day, enabled, start, end });
+      byDay.set(day, { day, enabled, ranges });
     }
   }
 
@@ -247,6 +298,167 @@ export default function OnboardingPage() {
       days: defaultDays(),
     },
   });
+
+  const availabilityToastAtRef = React.useRef(0);
+
+  const toastOnce = (message: string) => {
+    const now = Date.now();
+    if (now - availabilityToastAtRef.current < 900) return;
+    availabilityToastAtRef.current = now;
+    toast.error(message);
+  };
+
+  const orderedAvailabilityDays = useMemo(() => {
+    const weekStartsOn = (data.availability?.weekStartsOn ?? 0) === 1 ? 1 : 0;
+    const days = Array.isArray(data.availability?.days) && data.availability?.days?.length
+      ? (data.availability.days as any[])
+      : defaultDays();
+    const byDay = new Map(days.map((d: any) => [d.day, d] as const));
+    return Array.from({ length: 7 }, (_, i) => (i + weekStartsOn) % 7)
+      .map((day) => byDay.get(day))
+      .filter(Boolean) as Array<{
+        day: number;
+        enabled: boolean;
+        ranges: Array<{ id: string; start: string; end: string }>;
+      }>;
+  }, [data.availability?.days, data.availability?.weekStartsOn]);
+
+  const updateAvailabilityRangeTime = (
+    day: number,
+    rangeId: string,
+    field: "start" | "end",
+    value: string
+  ) => {
+    setData((prev) => {
+      const current = prev.availability || { weekStartsOn: 0, days: defaultDays() };
+      const normalizedDays = normalizeAvailabilityDaysForUi(current.days);
+
+      const nextDays = normalizedDays.map((d: any) => {
+        if (d.day !== day) return d;
+
+        const nextRanges = normalizeRangesForUi(d.ranges).map((r) =>
+          r.id === rangeId ? { ...r, [field]: value } : r
+        );
+
+        const parsed = nextRanges
+          .map((r) => ({
+            id: r.id,
+            start: String(r.start ?? "").trim(),
+            end: String(r.end ?? "").trim(),
+            startMin: parseTimeToMinutes(String(r.start ?? "").trim()),
+            endMin: parseTimeToMinutes(String(r.end ?? "").trim()),
+          }))
+          .filter((x) => x.start || x.end);
+
+        const hasInvalid = parsed.some((r) => {
+          if (!r.start || !r.end) return false;
+          if (!Number.isFinite(r.startMin) || !Number.isFinite(r.endMin)) return true;
+          return r.endMin <= r.startMin;
+        });
+
+        if (hasInvalid) {
+          toastOnce(`End time must be after start time for ${DAY_LABELS[day]}.`);
+          return d;
+        }
+
+        const complete = parsed.filter(
+          (r) => r.start && r.end && Number.isFinite(r.startMin) && Number.isFinite(r.endMin)
+        );
+        const ordered = [...complete].sort((a, b) => a.startMin - b.startMin);
+        for (let i = 1; i < ordered.length; i++) {
+          const a = ordered[i - 1];
+          const b = ordered[i];
+          if (overlaps(a.startMin, a.endMin, b.startMin, b.endMin)) {
+            toastOnce(`Overlapping time ranges for ${DAY_LABELS[day]}.`);
+            return d;
+          }
+        }
+
+        return { ...d, ranges: nextRanges.length ? nextRanges : normalizeRangesForUi(null) };
+      });
+
+      return {
+        ...prev,
+        availability: {
+          ...(current as any),
+          days: nextDays,
+        },
+      };
+    });
+  };
+
+  const addAvailabilityRange = (day: number) => {
+    setData((prev) => {
+      const current = prev.availability || { weekStartsOn: 0, days: defaultDays() };
+      const normalizedDays = normalizeAvailabilityDaysForUi(current.days);
+
+      const nextDays = normalizedDays.map((d: any) => {
+        if (d.day !== day) return d;
+
+        const ranges = normalizeRangesForUi(d.ranges);
+        const complete = ranges
+          .map((r) => ({
+            startMin: parseTimeToMinutes(String(r.start ?? "").trim()),
+            endMin: parseTimeToMinutes(String(r.end ?? "").trim()),
+          }))
+          .filter((x) => Number.isFinite(x.startMin) && Number.isFinite(x.endMin) && x.endMin > x.startMin)
+          .sort((a, b) => a.startMin - b.startMin);
+
+        const lastEnd = complete.length ? complete[complete.length - 1].endMin : 17 * 60;
+        const startMin = Math.max(0, Math.min(23 * 60 + 59, lastEnd));
+        if (startMin >= 23 * 60 + 59) {
+          toastOnce(`No room to add another range on ${DAY_LABELS[day]}.`);
+          return d;
+        }
+
+        const endMin = Math.min(23 * 60 + 59, startMin + 60);
+        if (endMin <= startMin) {
+          toastOnce(`No room to add another range on ${DAY_LABELS[day]}.`);
+          return d;
+        }
+
+        const candidate = { id: newId(), start: minutesToTime(startMin), end: minutesToTime(endMin) };
+        const collides = complete.some((r) => overlaps(r.startMin, r.endMin, startMin, endMin));
+        if (collides) {
+          toastOnce(`Overlapping time ranges for ${DAY_LABELS[day]}.`);
+          return d;
+        }
+
+        return { ...d, ranges: [...ranges, candidate] };
+      });
+
+      return {
+        ...prev,
+        availability: {
+          ...(current as any),
+          days: nextDays,
+        },
+      };
+    });
+  };
+
+  const deleteAvailabilityRange = (day: number, rangeId: string) => {
+    setData((prev) => {
+      const current = prev.availability || { weekStartsOn: 0, days: defaultDays() };
+      const normalizedDays = normalizeAvailabilityDaysForUi(current.days);
+
+      const nextDays = normalizedDays.map((d: any) => {
+        if (d.day !== day) return d;
+        const ranges = normalizeRangesForUi(d.ranges);
+        if (ranges.length <= 1) return d;
+        const nextRanges = ranges.filter((r) => r.id !== rangeId);
+        return { ...d, ranges: nextRanges.length ? nextRanges : ranges };
+      });
+
+      return {
+        ...prev,
+        availability: {
+          ...(current as any),
+          days: nextDays,
+        },
+      };
+    });
+  };
 
   const progress = useMemo(
     () => Math.round(((step + 1) / totalSteps) * 100),
@@ -418,6 +630,12 @@ export default function OnboardingPage() {
         availability: {
           ...prev.availability,
           ...(res.onboarding?.availability || {}),
+          days:
+            res.onboarding?.availability?.days &&
+              Array.isArray(res.onboarding.availability.days) &&
+              res.onboarding.availability.days.length
+              ? normalizeAvailabilityDaysForUi(res.onboarding.availability.days)
+              : prev.availability?.days,
         },
         services: res.onboarding?.services ?? prev.services,
       }));
@@ -790,7 +1008,10 @@ export default function OnboardingPage() {
             days: days.map((d) => ({
               day: d.day,
               enabled: Boolean(d.enabled),
-              ranges: [{ start: String(d.start ?? "").trim(), end: String(d.end ?? "").trim() }],
+              ranges: normalizeRangesForUi((d as any).ranges).map((r) => ({
+                start: String(r.start ?? "").trim(),
+                end: String(r.end ?? "").trim(),
+              })),
             })),
           },
         });
@@ -1453,91 +1674,94 @@ export default function OnboardingPage() {
             </div>
 
             <div className="space-y-3">
-              {(() => {
-                const weekStartsOn =
-                  (data.availability?.weekStartsOn ?? 0) === 1 ? 1 : 0;
-                const days = data.availability?.days || [];
-                const byDay = new Map(days.map((d) => [d.day, d] as const));
-                const ordered = Array.from(
-                  { length: 7 },
-                  (_, i) => (i + weekStartsOn) % 7
-                )
-                  .map((day) => byDay.get(day))
-                  .filter(Boolean) as Array<{
-                    day: number;
-                    enabled: boolean;
-                    start?: string;
-                    end?: string;
-                  }>;
+              {orderedAvailabilityDays.map((d) => {
+                const ranges = normalizeRangesForUi((d as any).ranges);
 
-                return ordered.map((d) => (
-                  <div
-                    key={d.day}
-                    className="flex items-center justify-between p-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-950/20 gap-3"
-                  >
-                    <div className="flex items-center gap-3 shrink-0">
-                      <UISwitch
-                        checked={d.enabled}
-                        onCheckedChange={(checked) =>
-                          setData((prev) => ({
-                            ...prev,
-                            availability: {
-                              ...(prev.availability || {}),
-                              days: (prev.availability?.days || []).map((x) =>
-                                x.day === d.day ? { ...x, enabled: checked } : x
-                              ),
-                            },
-                          }))
-                        }
-                        aria-label={`Toggle ${DAY_LABELS[d.day]}`}
-                      />
-                      <span className="text-sm font-medium text-gray-900 dark:text-white select-none w-8">
-                        {DAY_LABELS[d.day].substring(0, 3)}
-                      </span>
-                    </div>
-
-                    {d.enabled && (
-                      <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
-                        <TimePicker
-                          value={d.start || ""}
-                          onChange={(v) =>
-                            setData((prev) => ({
-                              ...prev,
-                              availability: {
-                                ...(prev.availability || {}),
-                                days: (prev.availability?.days || []).map((x) =>
-                                  x.day === d.day ? { ...x, start: v } : x
-                                ),
-                              },
-                            }))
+                return (
+                  <div key={d.day} className="space-y-2">
+                    <div className="grid grid-cols-[48px_48px_1fr_40px] items-start gap-x-2 p-3 rounded-xl border border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-950/20">
+                      <div className="h-8 flex items-center justify-center">
+                        <UISwitch
+                          checked={Boolean(d.enabled)}
+                          onCheckedChange={(checked) =>
+                            setData((prev) => {
+                              const current = prev.availability || { weekStartsOn: 0, days: defaultDays() };
+                              const days = normalizeAvailabilityDaysForUi(current.days);
+                              return {
+                                ...prev,
+                                availability: {
+                                  ...(current as any),
+                                  days: days.map((x: any) =>
+                                    x.day === d.day ? { ...x, enabled: checked } : x
+                                  ),
+                                },
+                              };
+                            })
                           }
-                          disabled={!d.enabled}
-                          className="h-9 px-2 text-sm w-full min-w-[90px]"
-                          aria-label={`${DAY_LABELS[d.day]} start time`}
-                        />
-                        <span className="text-gray-400 shrink-0">–</span>
-                        <TimePicker
-                          value={d.end || ""}
-                          onChange={(v) =>
-                            setData((prev) => ({
-                              ...prev,
-                              availability: {
-                                ...(prev.availability || {}),
-                                days: (prev.availability?.days || []).map((x) =>
-                                  x.day === d.day ? { ...x, end: v } : x
-                                ),
-                              },
-                            }))
-                          }
-                          disabled={!d.enabled}
-                          className="h-9 px-2 text-sm w-full min-w-[90px]"
-                          aria-label={`${DAY_LABELS[d.day]} end time`}
+                          aria-label={`Toggle ${DAY_LABELS[d.day]}`}
+                          disabled={loading || saving}
                         />
                       </div>
-                    )}
+
+                      <div className="h-8 flex items-center text-sm font-medium text-gray-900 dark:text-white select-none">
+                        <span className="w-8">{DAY_LABELS[d.day].substring(0, 3)}</span>
+                      </div>
+
+                      <div className="space-y-2 min-w-0">
+                        {ranges.map((r, idx) => (
+                          <div key={r.id} className="h-8 flex items-center flex-nowrap gap-2 min-w-0">
+                            <TimePicker
+                              value={String(r.start ?? "")}
+                              onChange={(v) => updateAvailabilityRangeTime(d.day, r.id, "start", v)}
+                              disabled={loading || saving || !d.enabled}
+                              className="h-8 w-[78px] min-w-[78px] px-1.5 text-[13px] shrink-0"
+                              aria-label={`${DAY_LABELS[d.day]} ${idx === 0 ? "start" : "additional start"} time`}
+                            />
+                            <span className="text-gray-400 shrink-0">–</span>
+                            <TimePicker
+                              value={String(r.end ?? "")}
+                              onChange={(v) => updateAvailabilityRangeTime(d.day, r.id, "end", v)}
+                              disabled={loading || saving || !d.enabled}
+                              className="h-8 w-[78px] min-w-[78px] px-1.5 text-[13px] shrink-0"
+                              aria-label={`${DAY_LABELS[d.day]} ${idx === 0 ? "end" : "additional end"} time`}
+                            />
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="space-y-2 flex flex-col items-end">
+                        {ranges.map((r, idx) => (
+                          <div key={r.id} className="h-8 flex items-center justify-end">
+                            {idx === 0 ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => addAvailabilityRange(d.day)}
+                                disabled={loading || saving || !d.enabled}
+                                aria-label={`Add time range for ${DAY_LABELS[d.day]}`}
+                              >
+                                <Plus className="h-4 w-4 ms-4" />
+                              </Button>
+                            ) : (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                onClick={() => deleteAvailabilityRange(d.day, r.id)}
+                                disabled={loading || saving || !d.enabled || ranges.length <= 1}
+                                aria-label={`Delete time range for ${DAY_LABELS[d.day]}`}
+                              >
+                                <Trash2 className="h-4 w-4 ms-4" />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                ));
-              })()}
+                );
+              })}
             </div>
           </div>
         );
@@ -1738,6 +1962,7 @@ export default function OnboardingPage() {
                       .filter(Boolean) as Array<{
                         day: number;
                         enabled: boolean;
+                        ranges?: Array<{ id?: string; start?: string; end?: string }>;
                         start?: string;
                         end?: string;
                       }>;
@@ -1752,7 +1977,12 @@ export default function OnboardingPage() {
                         </div>
                         <div className="text-sm text-gray-700 dark:text-gray-200">
                           {d.enabled
-                            ? `${d.start || "—"} – ${d.end || "—"}`
+                            ? (() => {
+                              const ranges = normalizeRangesForUi((d as any).ranges ?? { start: (d as any).start, end: (d as any).end });
+                              return ranges
+                                .map((r) => `${String(r.start || "—")} – ${String(r.end || "—")}`)
+                                .join(", ");
+                            })()
                             : "Closed"}
                         </div>
                       </div>
