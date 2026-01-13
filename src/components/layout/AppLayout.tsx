@@ -112,14 +112,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   ).trim();
   const logoUrl = String(
     (user as any)?.onboarding?.branding?.logo?.url ??
-      (user as any)?.onboarding?.branding?.logoUrl ??
-      ""
+    (user as any)?.onboarding?.branding?.logoUrl ??
+    ""
   ).trim();
   const headerName = businessName || user?.full_name || "Progrr";
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-black pb-safe">
-      <div className="relative w-full z-0 h-[180px] bg-purple-600 shrink-0">
+      <div className="relative w-full z-0 h-[140px] bg-purple-600 shrink-0">
         <div className="absolute inset-0 opacity-20 bg-[url('/grid.svg')] mix-blend-overlay"></div>
       </div>
 
@@ -145,8 +145,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <main className="flex-1 px-6 pt-6 pb-32 w-full max-w-md mx-auto">
-          <div className="text-center space-y-1 mt-6 mb-8">
+        <main className="flex-1 px-6 pt-4 pb-24 w-full max-w-md mx-auto">
+          <div className="text-center space-y-1 mt-4 mb-6">
             <div className="text-xs font-semibold text-purple-600 dark:text-purple-400">
               {businessName ? "Your business" : "Welcome"}
             </div>

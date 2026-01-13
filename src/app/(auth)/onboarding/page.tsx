@@ -111,21 +111,21 @@ const BUSINESS_TYPE_OPTIONS: Array<{
   label: string;
   description: string;
 }> = [
-  { value: "salon", label: "Salon", description: "Hair, beauty, nails" },
-  {
-    value: "barbershop",
-    label: "Barbershop",
-    description: "Cuts, shaves, grooming",
-  },
-  { value: "fitness", label: "Fitness", description: "Training, coaching" },
-  { value: "therapy", label: "Therapy", description: "Counseling, wellness" },
-  {
-    value: "consulting",
-    label: "Consulting",
-    description: "Advisory services",
-  },
-  { value: "other", label: "Other", description: "Anything else" },
-];
+    { value: "salon", label: "Salon", description: "Hair, beauty, nails" },
+    {
+      value: "barbershop",
+      label: "Barbershop",
+      description: "Cuts, shaves, grooming",
+    },
+    { value: "fitness", label: "Fitness", description: "Training, coaching" },
+    { value: "therapy", label: "Therapy", description: "Counseling, wellness" },
+    {
+      value: "consulting",
+      label: "Consulting",
+      description: "Advisory services",
+    },
+    { value: "other", label: "Other", description: "Anything else" },
+  ];
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -252,25 +252,25 @@ export default function OnboardingPage() {
             const branding = (b && typeof b === "object" ? b : {}) as any;
             const logoFromObj = branding.logo?.url
               ? {
-                  url: String(branding.logo.url).trim(),
-                  publicId: String(branding.logo.publicId ?? "").trim(),
-                  width:
-                    typeof branding.logo.width === "number"
-                      ? branding.logo.width
-                      : undefined,
-                  height:
-                    typeof branding.logo.height === "number"
-                      ? branding.logo.height
-                      : undefined,
-                  bytes:
-                    typeof branding.logo.bytes === "number"
-                      ? branding.logo.bytes
-                      : undefined,
-                  format:
-                    typeof branding.logo.format === "string"
-                      ? branding.logo.format
-                      : undefined,
-                }
+                url: String(branding.logo.url).trim(),
+                publicId: String(branding.logo.publicId ?? "").trim(),
+                width:
+                  typeof branding.logo.width === "number"
+                    ? branding.logo.width
+                    : undefined,
+                height:
+                  typeof branding.logo.height === "number"
+                    ? branding.logo.height
+                    : undefined,
+                bytes:
+                  typeof branding.logo.bytes === "number"
+                    ? branding.logo.bytes
+                    : undefined,
+                format:
+                  typeof branding.logo.format === "string"
+                    ? branding.logo.format
+                    : undefined,
+              }
               : undefined;
 
             const legacyLogoUrl = String(branding.logoUrl ?? "").trim();
@@ -299,8 +299,8 @@ export default function OnboardingPage() {
               })
               .filter(Boolean)
               .slice(0, 10) as NonNullable<
-              OnboardingData["branding"]
-            >["gallery"];
+                OnboardingData["branding"]
+              >["gallery"];
 
             const logo =
               logoFromObj ||
@@ -325,7 +325,7 @@ export default function OnboardingPage() {
               ...(res.onboarding?.availability || {}),
               days:
                 res.onboarding?.availability?.days &&
-                res.onboarding.availability.days.length
+                  res.onboarding.availability.days.length
                   ? res.onboarding.availability.days
                   : prev.availability?.days,
             },
@@ -498,8 +498,7 @@ export default function OnboardingPage() {
       }
       if (skipped.length) {
         setError(
-          `Some files were skipped: ${skipped.slice(0, 3).join(", ")}${
-            skipped.length > 3 ? "…" : ""
+          `Some files were skipped: ${skipped.slice(0, 3).join(", ")}${skipped.length > 3 ? "…" : ""
           }`
         );
       }
@@ -538,24 +537,24 @@ export default function OnboardingPage() {
 
       const gallery = Array.isArray(json?.gallery)
         ? json.gallery
-            .map((x: any) => {
-              if (typeof x === "string") {
-                const url = String(x ?? "").trim();
-                if (!url) return null;
-                return { url, publicId: "" };
-              }
-              const url = String(x?.url ?? "").trim();
+          .map((x: any) => {
+            if (typeof x === "string") {
+              const url = String(x ?? "").trim();
               if (!url) return null;
-              return {
-                url,
-                publicId: String(x?.publicId ?? x?.public_id ?? "").trim(),
-                width: typeof x?.width === "number" ? x.width : undefined,
-                height: typeof x?.height === "number" ? x.height : undefined,
-                bytes: typeof x?.bytes === "number" ? x.bytes : undefined,
-                format: typeof x?.format === "string" ? x.format : undefined,
-              };
-            })
-            .filter(Boolean)
+              return { url, publicId: "" };
+            }
+            const url = String(x?.url ?? "").trim();
+            if (!url) return null;
+            return {
+              url,
+              publicId: String(x?.publicId ?? x?.public_id ?? "").trim(),
+              width: typeof x?.width === "number" ? x.width : undefined,
+              height: typeof x?.height === "number" ? x.height : undefined,
+              bytes: typeof x?.bytes === "number" ? x.bytes : undefined,
+              format: typeof x?.format === "string" ? x.format : undefined,
+            };
+          })
+          .filter(Boolean)
         : [];
 
       setData((d) => ({
@@ -613,24 +612,24 @@ export default function OnboardingPage() {
 
       const gallery = Array.isArray(json?.gallery)
         ? json.gallery
-            .map((x: any) => {
-              if (typeof x === "string") {
-                const url = String(x ?? "").trim();
-                if (!url) return null;
-                return { url, publicId: "" };
-              }
-              const url = String(x?.url ?? "").trim();
+          .map((x: any) => {
+            if (typeof x === "string") {
+              const url = String(x ?? "").trim();
               if (!url) return null;
-              return {
-                url,
-                publicId: String(x?.publicId ?? x?.public_id ?? "").trim(),
-                width: typeof x?.width === "number" ? x.width : undefined,
-                height: typeof x?.height === "number" ? x.height : undefined,
-                bytes: typeof x?.bytes === "number" ? x.bytes : undefined,
-                format: typeof x?.format === "string" ? x.format : undefined,
-              };
-            })
-            .filter(Boolean)
+              return { url, publicId: "" };
+            }
+            const url = String(x?.url ?? "").trim();
+            if (!url) return null;
+            return {
+              url,
+              publicId: String(x?.publicId ?? x?.public_id ?? "").trim(),
+              width: typeof x?.width === "number" ? x.width : undefined,
+              height: typeof x?.height === "number" ? x.height : undefined,
+              bytes: typeof x?.bytes === "number" ? x.bytes : undefined,
+              format: typeof x?.format === "string" ? x.format : undefined,
+            };
+          })
+          .filter(Boolean)
         : [];
 
       setData((d) => ({
@@ -753,9 +752,9 @@ export default function OnboardingPage() {
           customCurrency:
             normalizeCurrency(data.currency) === OTHER_CURRENCY_CODE
               ? {
-                  name: String(data.customCurrency?.name ?? "").trim(),
-                  symbol: String(data.customCurrency?.symbol ?? "").trim(),
-                }
+                name: String(data.customCurrency?.name ?? "").trim(),
+                symbol: String(data.customCurrency?.symbol ?? "").trim(),
+              }
               : undefined,
         });
       }
@@ -1021,8 +1020,8 @@ export default function OnboardingPage() {
                       {uploadingLogo
                         ? "Uploading…"
                         : data.branding?.logo?.url || data.branding?.logoUrl
-                        ? "Replace logo"
-                        : "Upload logo"}
+                          ? "Replace logo"
+                          : "Upload logo"}
                     </label>
                   </Button>
 
@@ -1143,8 +1142,8 @@ export default function OnboardingPage() {
                           className={
                             "rounded-lg bg-black/45 text-white text-[11px] px-2 py-1 backdrop-blur-sm hover:bg-black/55 transition " +
                             (uploadingGallery ||
-                            saving ||
-                            replacingIndex === idx
+                              saving ||
+                              replacingIndex === idx
                               ? "opacity-60 pointer-events-none"
                               : "cursor-pointer")
                           }
@@ -1261,11 +1260,10 @@ export default function OnboardingPage() {
                         <Input
                           type="number"
                           min={5}
-                          className={`px-2 text-center ${
-                            fieldErrors[`serviceDuration_${s.id}`]
-                              ? inputErrorClass
-                              : ""
-                          }`}
+                          className={`px-2 text-center ${fieldErrors[`serviceDuration_${s.id}`]
+                            ? inputErrorClass
+                            : ""
+                            }`}
                           value={s.durationMinutes}
                           onChange={(e) =>
                             setData((d) => ({
@@ -1273,11 +1271,11 @@ export default function OnboardingPage() {
                               services: (d.services || []).map((x) =>
                                 x.id === s.id
                                   ? {
-                                      ...x,
-                                      durationMinutes: Number(
-                                        e.target.value || 0
-                                      ),
-                                    }
+                                    ...x,
+                                    durationMinutes: Number(
+                                      e.target.value || 0
+                                    ),
+                                  }
                                   : x
                               ),
                             }))
@@ -1287,11 +1285,10 @@ export default function OnboardingPage() {
 
                       <div className="w-[70px] shrink-0">
                         <Input
-                          className={`px-2 text-center ${
-                            fieldErrors[`servicePrice_${s.id}`]
-                              ? inputErrorClass
-                              : ""
-                          }`}
+                          className={`px-2 text-center ${fieldErrors[`servicePrice_${s.id}`]
+                            ? inputErrorClass
+                            : ""
+                            }`}
                           type="number"
                           min={0}
                           value={typeof s.price === "number" ? s.price : ""}
@@ -1301,12 +1298,12 @@ export default function OnboardingPage() {
                               services: (d.services || []).map((x) =>
                                 x.id === s.id
                                   ? {
-                                      ...x,
-                                      price:
-                                        e.target.value === ""
-                                          ? undefined
-                                          : Number(e.target.value),
-                                    }
+                                    ...x,
+                                    price:
+                                      e.target.value === ""
+                                        ? undefined
+                                        : Number(e.target.value),
+                                  }
                                   : x
                               ),
                             }))
@@ -1339,12 +1336,12 @@ export default function OnboardingPage() {
                     {(fieldErrors[`serviceName_${s.id}`] ||
                       fieldErrors[`serviceDuration_${s.id}`] ||
                       fieldErrors[`servicePrice_${s.id}`]) && (
-                      <div className="text-xs text-rose-500 mt-1 px-1">
-                        {fieldErrors[`serviceName_${s.id}`] ||
-                          fieldErrors[`serviceDuration_${s.id}`] ||
-                          fieldErrors[`servicePrice_${s.id}`]}
-                      </div>
-                    )}
+                        <div className="text-xs text-rose-500 mt-1 px-1">
+                          {fieldErrors[`serviceName_${s.id}`] ||
+                            fieldErrors[`serviceDuration_${s.id}`] ||
+                            fieldErrors[`servicePrice_${s.id}`]}
+                        </div>
+                      )}
                   </div>
                 ))}
               </div>
@@ -1433,11 +1430,11 @@ export default function OnboardingPage() {
                 )
                   .map((day) => byDay.get(day))
                   .filter(Boolean) as Array<{
-                  day: number;
-                  enabled: boolean;
-                  start?: string;
-                  end?: string;
-                }>;
+                    day: number;
+                    enabled: boolean;
+                    start?: string;
+                    end?: string;
+                  }>;
 
                 return ordered.map((d) => (
                   <div
@@ -1535,12 +1532,12 @@ export default function OnboardingPage() {
                 <div className="text-sm text-gray-700 dark:text-gray-200">
                   {data.businessTypes && data.businessTypes.length > 0
                     ? data.businessTypes
-                        .map(
-                          (v) =>
-                            BUSINESS_TYPE_OPTIONS.find((o) => o.value === v)
-                              ?.label ?? v
-                        )
-                        .join(", ")
+                      .map(
+                        (v) =>
+                          BUSINESS_TYPE_OPTIONS.find((o) => o.value === v)
+                            ?.label ?? v
+                      )
+                      .join(", ")
                     : "—"}
                 </div>
               </div>
@@ -1709,11 +1706,11 @@ export default function OnboardingPage() {
                     )
                       .map((day) => byDay.get(day))
                       .filter(Boolean) as Array<{
-                      day: number;
-                      enabled: boolean;
-                      start?: string;
-                      end?: string;
-                    }>;
+                        day: number;
+                        enabled: boolean;
+                        start?: string;
+                        end?: string;
+                      }>;
 
                     return ordered.map((d) => (
                       <div
@@ -1745,7 +1742,7 @@ export default function OnboardingPage() {
   const card = (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-black pb-safe">
       {/* Header Container */}
-      <div className="relative w-full z-0 h-[180px] bg-purple-600 shrink-0">
+      <div className="relative w-full z-0 h-[140px] bg-purple-600 shrink-0">
         <div className="absolute inset-0 opacity-20 bg-[url('/grid.svg')] mix-blend-overlay"></div>
       </div>
 
@@ -1765,7 +1762,7 @@ export default function OnboardingPage() {
         </div>
 
         {/* User & Step Info */}
-        <div className="text-center space-y-1 mt-6 mb-8 px-6 w-full max-w-md">
+        <div className="text-center space-y-1 mt-4 mb-6 px-6 w-full max-w-md">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
             {user?.full_name ? `Welcome, ${user.full_name}` : "Welcome"}
           </h2>
@@ -1773,18 +1770,18 @@ export default function OnboardingPage() {
             {step === 0
               ? "Select Business Type"
               : step === 1
-              ? "Business Details"
-              : step === 2
-              ? "Setup Services"
-              : step === 3
-              ? "Set Availability"
-              : step === 4
-              ? "Business Branding"
-              : "Review & Finish"}
+                ? "Business Details"
+                : step === 2
+                  ? "Setup Services"
+                  : step === 3
+                    ? "Set Availability"
+                    : step === 4
+                      ? "Business Branding"
+                      : "Review & Finish"}
           </p>
 
           {/* Progress Bar */}
-          <div className="pt-5 max-w-xs mx-auto w-full">
+          <div className="pt-4 max-w-xs mx-auto w-full">
             <div className="flex justify-between text-xs font-semibold text-purple-600 dark:text-purple-400 mb-2 px-1">
               <span>
                 Step {step + 1} of {totalSteps}
@@ -1798,7 +1795,7 @@ export default function OnboardingPage() {
           </div>
         </div>
 
-        <div className="flex-1 px-6 pb-36 w-full max-w-md mx-auto">
+        <div className="flex-1 px-6 pb-28 w-full max-w-md mx-auto">
           <AuthBanner banner={error ? { type: "error", text: error } : null} />
 
           <AnimatePresence mode="wait" initial={false}>

@@ -30,7 +30,7 @@ export default function PublicBookingShell({
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-black pb-safe">
-      <div className="relative w-full z-0 h-[180px] bg-purple-600 shrink-0">
+      <div className="relative w-full z-0 h-[140px] bg-purple-600 shrink-0">
         <div className="absolute inset-0 opacity-20 bg-[url('/grid.svg')] mix-blend-overlay" />
       </div>
 
@@ -75,7 +75,7 @@ export default function PublicBookingShell({
             <div className="w-10" />
           </div>
 
-          <div className="text-center space-y-1 mt-6 mb-5">
+          <div className="text-center space-y-1 mt-4 mb-5">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
               {business?.business?.name || title}
             </h1>
