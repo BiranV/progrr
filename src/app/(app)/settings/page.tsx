@@ -4,8 +4,20 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React from "react";
 import { ChevronRight } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 
 function SettingsRowContent({
@@ -110,9 +122,12 @@ function SettingsActionRow({
 }
 
 export default function SettingsPage() {
-  const { logout } = useAuth();
+  const { logout, setSessionUser } = useAuth();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const isLoggingOutRef = React.useRef(false);
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [deletePending, setDeletePending] = React.useState(false);
 
   const onLogout = async () => {
     if (isLoggingOutRef.current) return;
@@ -120,10 +135,41 @@ export default function SettingsPage() {
 
     try {
       await logout(false);
+      await queryClient.cancelQueries();
+      queryClient.clear();
     } finally {
       router.replace("/auth");
-      router.refresh();
       isLoggingOutRef.current = false;
+    }
+  };
+
+  const onDeleteAccount = async () => {
+    if (deletePending) return;
+    setDeletePending(true);
+
+    try {
+      const res = await fetch("/api/account", { method: "DELETE" });
+      if (!res.ok) {
+        let message = `Request failed (${res.status})`;
+        try {
+          const body = await res.json();
+          if (body?.error) message = body.error;
+        } catch {
+          // ignore
+        }
+        throw new Error(message);
+      }
+
+      // Clear all client-side state/caches.
+      setSessionUser(null);
+      await queryClient.cancelQueries();
+      queryClient.clear();
+
+      router.replace("/auth/goodbye");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to delete account");
+    } finally {
+      setDeletePending(false);
     }
   };
 
@@ -254,6 +300,12 @@ export default function SettingsPage() {
               description="Sign out from your account"
               onActivate={onLogout}
             />
+            <SettingsActionRow
+              title="Delete account"
+              description="Permanently delete your account and data"
+              destructive
+              onActivate={() => setDeleteOpen(true)}
+            />
             <SettingsLinkRow
               href="/settings/delete-business"
               title="Delete business"
@@ -263,6 +315,43 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog
+        open={deleteOpen}
+        onOpenChange={(open) => !deletePending && setDeleteOpen(open)}
+      >
+        <DialogContent showCloseButton={!deletePending}>
+          <DialogHeader>
+            <DialogTitle>Delete account?</DialogTitle>
+            <DialogDescription>
+              This will permanently delete your account and all your data. This
+              action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={deletePending}
+              onClick={() => setDeleteOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deletePending}
+              onClick={onDeleteAccount}
+            >
+              {deletePending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : null}
+              Delete account
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
