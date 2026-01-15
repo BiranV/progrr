@@ -403,7 +403,11 @@ export async function PATCH(req: Request) {
         .filter(Boolean)
         .map((v: any) => String(v).toLowerCase())
         .filter((v: string) => ALLOWED_BUSINESS_TYPES.has(v));
-      set["onboarding.businessTypes"] = Array.from(new Set(normalized));
+      // Single-select: keep only one business type.
+      set["onboarding.businessTypes"] = Array.from(new Set(normalized)).slice(
+        0,
+        1
+      );
     } else if (legacyBusinessType !== undefined) {
       const v = legacyBusinessType.toLowerCase();
       if (ALLOWED_BUSINESS_TYPES.has(v)) {

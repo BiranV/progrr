@@ -368,7 +368,9 @@ export default function OnboardingPage() {
     if (loading) return;
     if (step !== 2) return;
 
-    const types = Array.isArray(data.businessTypes) ? data.businessTypes : [];
+    const types = (
+      Array.isArray(data.businessTypes) ? data.businessTypes : []
+    ).slice(0, 1);
     const generated = generateServicePresetsForTypes(types);
 
     const canAutoPrefill =
@@ -691,6 +693,14 @@ export default function OnboardingPage() {
           if (!merged.businessTypes) {
             merged.businessTypes = [];
           }
+
+          // Single-select: keep only one business type.
+          merged.businessTypes = (
+            Array.isArray(merged.businessTypes) ? merged.businessTypes : []
+          )
+            .map((v) => String(v || "").trim())
+            .filter(Boolean)
+            .slice(0, 1);
 
           merged.currency = normalizeCurrency((merged as any).currency);
 
@@ -1237,8 +1247,8 @@ export default function OnboardingPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Select one or more *</Label>
-              <div className="-m-1 grid grid-cols-2 gap-3">
+              <Label>Select one *</Label>
+              <div className="flex flex-wrap gap-3">
                 {BUSINESS_TYPE_OPTIONS.map((opt) => {
                   const selected = (data.businessTypes || []).includes(opt.key);
                   return (
@@ -1248,25 +1258,27 @@ export default function OnboardingPage() {
                       onClick={() => {
                         setData((d) => {
                           const current = d.businessTypes || [];
+
+                          // Single-select: choosing one replaces the previous selection.
                           const next = current.includes(opt.key)
-                            ? current.filter((x) => x !== opt.key)
-                            : [...current, opt.key];
+                            ? []
+                            : [opt.key];
                           return { ...d, businessTypes: next };
                         });
                       }}
                       className={
-                        "m-1 text-left rounded-xl border px-4 py-3 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-neutral-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 " +
+                        "w-[160px] h-[90px] text-left rounded-xl border px-4 py-3 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-neutral-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 overflow-hidden " +
                         (selected
                           ? "border-neutral-900 bg-neutral-50/70 dark:bg-neutral-900/30 shadow-sm"
                           : "border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/30 hover:border-gray-300 dark:hover:border-gray-700")
                       }
                     >
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <div className="font-medium text-gray-900 dark:text-white">
+                      <div className="flex h-full items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="font-medium text-gray-900 dark:text-white truncate">
                             {opt.title}
                           </div>
-                          <div className="text-sm text-gray-600 dark:text-gray-300">
+                          <div className="text-xs leading-snug text-gray-600 dark:text-gray-300">
                             {opt.description}
                           </div>
                         </div>
