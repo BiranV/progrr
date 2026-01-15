@@ -24,9 +24,6 @@ type SlotsResponse = {
   slots: Array<{ startTime: string; endTime: string }>;
 };
 
-const DRAFT_KEY = "progrr.bookingDraft.v1";
-const RESULT_KEY = "progrr.bookingResult.v1";
-
 type BookingResult = {
   ok: true;
   appointment: {
@@ -149,6 +146,7 @@ export default function PublicBookingFlow({
   const [notes, setNotes] = React.useState<string>("");
 
   const [otpCode, setOtpCode] = React.useState<string>("");
+  const [bookingSessionId, setBookingSessionId] = React.useState<string>("");
   const [submitting, setSubmitting] = React.useState(false);
   const [formError, setFormError] = React.useState<string | null>(null);
 
@@ -160,72 +158,53 @@ export default function PublicBookingFlow({
   const [result, setResult] = React.useState<BookingResult | null>(null);
   const [activeConflict, setActiveConflict] =
     React.useState<ActiveAppointmentConflict | null>(null);
-  // Restore success screen on refresh if the user is still on this business.
+  const [identified, setIdentified] = React.useState(false);
+
+  // Cookie-based customer identification (server-side): load active appointment if present.
   React.useEffect(() => {
-    if (typeof window === "undefined") return;
     if (!publicId) return;
+    if (!data) return;
     if (result) return;
 
-    try {
-      const raw = sessionStorage.getItem(RESULT_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as any;
-      if (!parsed?.appointment) return;
-      setResult(parsed as BookingResult);
-      setStep("success");
-    } catch {
-      // ignore
-    }
-  }, [publicId, result]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/public/booking/active?businessPublicId=${encodeURIComponent(
+            publicId
+          )}`
+        );
+        const json = await res.json().catch(() => null);
+        if (cancelled) return;
+        if (!res.ok) return;
 
-  // Restore a draft (optional) so verify links still work after refresh.
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!publicId) return;
+        if (json?.ok && json?.appointment) {
+          setResult(json as BookingResult);
+          setStep("success");
+          setIdentified(true);
+        }
+      } catch {
+        // ignore
+      }
+    })();
 
-    try {
-      const raw = sessionStorage.getItem(DRAFT_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as any;
-      const pid = String(
-        parsed?.businessPublicId ?? parsed?.businessSlug ?? ""
-      ).trim();
-      if (pid && pid !== publicId) return;
-
-      if (!serviceId) setServiceId(String(parsed?.serviceId ?? "").trim());
-      if (!date) setDate(String(parsed?.date ?? "").trim());
-      if (!startTime) setStartTime(String(parsed?.startTime ?? "").trim());
-      if (!customerFullName)
-        setCustomerFullName(String(parsed?.customerFullName ?? "").trim());
-      if (!customerEmail)
-        setCustomerEmail(String(parsed?.customerEmail ?? "").trim());
-      if (!customerPhone)
-        setCustomerPhone(String(parsed?.customerPhone ?? "").trim());
-      if (!notes)
-        setNotes(typeof parsed?.notes === "string" ? parsed.notes.trim() : "");
-    } catch {
-      // ignore
-    }
-  }, [
-    customerFullName,
-    customerEmail,
-    customerPhone,
-    date,
-    notes,
-    publicId,
-    serviceId,
-    startTime,
-  ]);
+    return () => {
+      cancelled = true;
+    };
+  }, [data, publicId, result]);
   const [cancelError, setCancelError] = React.useState<string | null>(null);
   const [cancelling, setCancelling] = React.useState(false);
 
   const resetFlow = React.useCallback(() => {
     setResult(null);
+    setIdentified(false);
+    setActiveConflict(null);
     setCancelError(null);
     setCancelling(false);
     setSubmitting(false);
     setFormError(null);
     setOtpCode("");
+    setBookingSessionId("");
     setCustomerFullName("");
     setCustomerEmail("");
     setCustomerPhone("");
@@ -238,13 +217,6 @@ export default function PublicBookingFlow({
     setSlotsLoading(false);
     slotsCacheRef.current.clear();
     setMonth(new Date());
-
-    try {
-      sessionStorage.removeItem(RESULT_KEY);
-      sessionStorage.removeItem(DRAFT_KEY);
-    } catch {
-      // ignore
-    }
 
     setStep("service");
   }, []);
@@ -478,24 +450,6 @@ export default function PublicBookingFlow({
     if (!serviceId || !date || !startTime)
       throw new Error("Missing booking details");
 
-    try {
-      sessionStorage.setItem(
-        DRAFT_KEY,
-        JSON.stringify({
-          businessPublicId: publicId,
-          serviceId,
-          date,
-          startTime,
-          customerFullName: customerFullName.trim(),
-          customerEmail: customerEmail.trim(),
-          customerPhone: customerPhone.trim(),
-          notes: notes.trim() || undefined,
-        })
-      );
-    } catch {
-      // ignore
-    }
-
     const res = await fetch("/api/public/booking/request-otp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -507,28 +461,59 @@ export default function PublicBookingFlow({
       throw new Error(json?.error || `Request failed (${res.status})`);
   };
 
-  const confirmBooking = async () => {
+  const verifyBookingSession = async (): Promise<string> => {
     if (!publicId) throw new Error("Business not found");
-    if (!serviceId || !date || !startTime)
-      throw new Error("Missing booking details");
+    if (!customerEmail.trim()) throw new Error("Email is required");
+    if (!otpCode.trim()) throw new Error("Code is required");
 
     const verifyRes = await fetch("/api/public/booking/verify-otp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        businessPublicId: publicId,
         email: customerEmail.trim(),
         code: otpCode.trim(),
       }),
     });
 
     const verifyJson = await verifyRes.json().catch(() => null);
-    if (!verifyRes.ok)
+
+    if (
+      verifyRes.status === 409 &&
+      String(verifyJson?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS"
+    ) {
+      const sessionId = String(verifyJson?.bookingSessionId ?? "").trim();
+      if (sessionId) setBookingSessionId(sessionId);
+      setActiveConflict({
+        bookingSessionId: sessionId,
+        existingAppointment: verifyJson?.existingAppointment,
+      });
+      const err: any = new Error(
+        verifyJson?.error ||
+          "You already have an active upcoming appointment. Please cancel it first."
+      );
+      err.code = "ACTIVE_APPOINTMENT_EXISTS";
+      throw err;
+    }
+
+    if (!verifyRes.ok) {
       throw new Error(
         verifyJson?.error || `Request failed (${verifyRes.status})`
       );
+    }
 
-    const bookingSessionId = String(verifyJson?.bookingSessionId ?? "").trim();
-    if (!bookingSessionId) throw new Error("Verification failed");
+    const sessionId = String(verifyJson?.bookingSessionId ?? "").trim();
+    if (!sessionId) throw new Error("Verification failed");
+    setBookingSessionId(sessionId);
+    setActiveConflict(null);
+    return sessionId;
+  };
+
+  const confirmBookingWithSession = async (sessionId: string) => {
+    if (!publicId) throw new Error("Business not found");
+    if (!serviceId || !date || !startTime)
+      throw new Error("Missing booking details");
+    if (!sessionId) throw new Error("Email verification required");
 
     const confirmRes = await fetch("/api/public/booking/confirm", {
       method: "POST",
@@ -542,7 +527,7 @@ export default function PublicBookingFlow({
         customerEmail: customerEmail.trim(),
         customerPhone: customerPhone.trim(),
         notes: notes.trim() || undefined,
-        bookingSessionId,
+        bookingSessionId: sessionId,
       }),
     });
 
@@ -553,7 +538,7 @@ export default function PublicBookingFlow({
         String(confirmJson?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS"
       ) {
         setActiveConflict({
-          bookingSessionId,
+          bookingSessionId: sessionId,
           existingAppointment: confirmJson?.existingAppointment,
         });
 
@@ -572,31 +557,28 @@ export default function PublicBookingFlow({
 
     setActiveConflict(null);
 
-    try {
-      sessionStorage.setItem(RESULT_KEY, JSON.stringify(confirmJson));
-      sessionStorage.removeItem(DRAFT_KEY);
-    } catch {
-      // ignore
-    }
-
     return confirmJson as BookingResult;
   };
 
+  const disconnectCustomer = async () => {
+    await fetch("/api/public/booking/disconnect", { method: "POST" });
+  };
+
   const cancelExistingAppointment = async () => {
-    const bookingSessionId = String(
-      activeConflict?.bookingSessionId ?? ""
+    const sessionId = String(
+      bookingSessionId || activeConflict?.bookingSessionId || ""
     ).trim();
     const appointmentId = String(
       activeConflict?.existingAppointment?.id ?? ""
     ).trim();
-    if (!bookingSessionId) throw new Error("Verification required");
+    if (!sessionId) throw new Error("Verification required");
     if (!appointmentId) throw new Error("Appointment not found");
 
     const res = await fetch("/api/public/booking/cancel", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        bookingSessionId,
+        bookingSessionId: sessionId,
         appointmentId,
         customerEmail: customerEmail.trim(),
       }),
@@ -624,12 +606,7 @@ export default function PublicBookingFlow({
 
   if (loading && !data) {
     return (
-      <PublicBookingShell
-        business={null}
-        title="Booking"
-        subtitle="Loading…"
-        showGallery={false}
-      >
+      <PublicBookingShell business={null} title="Booking" showGallery={false}>
         <CenteredSpinner fullPage />
       </PublicBookingShell>
     );
@@ -918,7 +895,11 @@ export default function PublicBookingFlow({
                     try {
                       await cancelExistingAppointment();
                       setActiveConflict(null);
-                      const r = await confirmBooking();
+                      const sessionId =
+                        bookingSessionId ||
+                        String(activeConflict?.bookingSessionId ?? "").trim();
+                      if (!sessionId) throw new Error("Verification required");
+                      const r = await confirmBookingWithSession(sessionId);
                       setResult(r);
                       setStep("success");
                     } catch (e: any) {
@@ -971,11 +952,16 @@ export default function PublicBookingFlow({
                 setSubmitting(true);
                 setFormError(null);
                 try {
-                  const r = await confirmBooking();
+                  const sessionId = await verifyBookingSession();
+                  const r = await confirmBookingWithSession(sessionId);
                   setResult(r);
                   setStep("success");
+                  setIdentified(true);
                 } catch (e: any) {
-                  // The backend enforces ACTIVE_APPOINTMENT_EXISTS; show conflict UI.
+                  if (String(e?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS") {
+                    // Business rule violation; show conflict UI, not an OTP error.
+                    return;
+                  }
                   setFormError(e?.message || "Failed");
                 } finally {
                   setSubmitting(false);
@@ -1013,6 +999,28 @@ export default function PublicBookingFlow({
           </div>
 
           <div className="flex flex-wrap gap-2">
+            {identified ? (
+              <Button
+                variant="ghost"
+                className="rounded-2xl"
+                onClick={async () => {
+                  setCancelling(true);
+                  setCancelError(null);
+                  try {
+                    await disconnectCustomer();
+                    resetFlow();
+                  } catch (e: any) {
+                    setCancelError(e?.message || "Failed");
+                  } finally {
+                    setCancelling(false);
+                  }
+                }}
+                disabled={cancelling}
+              >
+                {cancelling ? "Disconnecting…" : "Not you? Disconnect"}
+              </Button>
+            ) : null}
+
             <Button
               variant="outline"
               className="rounded-2xl"

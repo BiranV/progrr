@@ -5,6 +5,10 @@ import { verifyOtp } from "@/server/otp";
 import { signBookingVerifyToken } from "@/server/jwt";
 import { getDb } from "@/server/mongo";
 import { checkRateLimit } from "@/server/rate-limit";
+import { isValidBusinessPublicId } from "@/server/business-public-id";
+import { formatDateInTimeZone } from "@/lib/public-booking";
+import { ObjectId } from "mongodb";
+import { customerIdFor } from "@/server/customer-id";
 
 function normalizeEmail(input: unknown): string {
   return String(input ?? "")
@@ -17,11 +21,38 @@ function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function formatTimeInTimeZone(date: Date, timeZone: string): string {
+  const tz = String(timeZone || "UTC").trim() || "UTC";
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: tz,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(date);
+  } catch {
+    parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "UTC",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(date);
+  }
+
+  const get = (type: string) => parts.find((p) => p.type === type)?.value;
+  const h = get("hour");
+  const m = get("minute");
+  if (!h || !m) return "";
+  return `${h}:${m}`;
+}
+
 export async function POST(req: Request) {
   try {
     await ensureIndexes();
 
     const body = await req.json().catch(() => ({}));
+    const businessPublicId = String(body?.businessPublicId ?? "").trim();
     const email = normalizeEmail(body?.email);
     const code = String(body?.code ?? "").trim();
 
@@ -36,6 +67,18 @@ export async function POST(req: Request) {
     }
     if (!code) {
       return NextResponse.json({ error: "Code is required" }, { status: 400 });
+    }
+    if (!businessPublicId) {
+      return NextResponse.json(
+        { error: "businessPublicId is required" },
+        { status: 400 }
+      );
+    }
+    if (!isValidBusinessPublicId(businessPublicId)) {
+      return NextResponse.json(
+        { error: "Invalid businessPublicId" },
+        { status: 400 }
+      );
     }
 
     const c = await collections();
@@ -78,9 +121,72 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid code" }, { status: 401 });
     }
 
-    await c.customerOtps.deleteOne({ key: email, purpose });
-
+    // Identity verified: issue a short-lived booking session token.
+    // IMPORTANT: Do NOT consume/invalidate the OTP here.
     const bookingSessionId = await signBookingVerifyToken({ email });
+
+    // After successful OTP verification, check business rule: one active future appointment.
+    // If blocked, return ACTIVE_APPOINTMENT_EXISTS without touching OTP.
+    const user = await c.users.findOne({
+      "onboarding.business.publicId": businessPublicId,
+      onboardingCompleted: true,
+    } as any);
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "Business not found" },
+        { status: 404 }
+      );
+    }
+
+    const onboarding = (user as any).onboarding ?? {};
+    const timeZone =
+      String((onboarding as any)?.availability?.timezone ?? "").trim() || "UTC";
+
+    const todayStr = formatDateInTimeZone(new Date(), timeZone);
+    const nowTimeStr = formatTimeInTimeZone(new Date(), timeZone);
+
+    const businessUserId = (user._id as ObjectId).toHexString();
+    const customerId = customerIdFor({ businessUserId, email });
+
+    const existing = await c.appointments.findOne(
+      {
+        businessUserId: user._id as ObjectId,
+        status: "BOOKED",
+        $and: [
+          {
+            $or: [{ "customer.id": customerId }, { "customer.email": email }],
+          },
+          {
+            $or: [
+              { date: { $gt: todayStr } },
+              { date: todayStr, startTime: { $gt: nowTimeStr } },
+            ],
+          },
+        ],
+      } as any,
+      { sort: { date: 1, startTime: 1 } }
+    );
+
+    if (existing) {
+      return NextResponse.json(
+        {
+          error:
+            "You already have an active upcoming appointment. Please cancel it first.",
+          code: "ACTIVE_APPOINTMENT_EXISTS",
+          bookingSessionId,
+          existingAppointment: {
+            id: (existing as any)?._id?.toHexString?.() ?? undefined,
+            date: (existing as any)?.date,
+            startTime: (existing as any)?.startTime,
+            endTime: (existing as any)?.endTime,
+            serviceName: (existing as any)?.serviceName,
+          },
+        },
+        { status: 409 }
+      );
+    }
+
     return NextResponse.json({ ok: true, bookingSessionId });
   } catch (error: any) {
     const status = typeof error?.status === "number" ? error.status : 500;

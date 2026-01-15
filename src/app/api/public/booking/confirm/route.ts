@@ -9,8 +9,14 @@ import {
   minutesToTime,
 } from "@/server/booking/slots";
 import { verifyBookingVerifyToken, signBookingCancelToken } from "@/server/jwt";
+import { signCustomerAccessToken } from "@/server/jwt";
 import { isValidBusinessPublicId } from "@/server/business-public-id";
 import { formatDateInTimeZone } from "@/lib/public-booking";
+import { customerIdFor } from "@/server/customer-id";
+import {
+  CUSTOMER_ACCESS_COOKIE_NAME,
+  customerAccessCookieOptions,
+} from "@/server/customer-access";
 
 function normalizeEmail(input: unknown): string {
   return String(input ?? "")
@@ -188,6 +194,9 @@ export async function POST(req: Request) {
     const todayStr = formatDateInTimeZone(new Date(), timeZone);
     const nowTimeStr = formatTimeInTimeZone(new Date(), timeZone);
 
+    const businessUserId = (user._id as ObjectId).toHexString();
+    const customerId = customerIdFor({ businessUserId, email: customerEmail });
+
     const existing = await c.appointments.findOne(
       {
         businessUserId: user._id as ObjectId,
@@ -195,6 +204,7 @@ export async function POST(req: Request) {
         $and: [
           {
             $or: [
+              { "customer.id": customerId },
               { "customer.email": customerEmail },
               { "customer.phone": customerPhone },
             ],
@@ -263,8 +273,54 @@ export async function POST(req: Request) {
       "ILS";
 
     try {
+      // Create/reuse a business-scoped customer record.
+      // Customers are server-side only and used by the Admin → Customers screen.
+      let customerDocId: ObjectId | null = null;
+      try {
+        const upsertedCustomer = await c.customers.findOneAndUpdate(
+          {
+            businessUserId: user._id as ObjectId,
+            $or: [{ phone: customerPhone }, { email: customerEmail }],
+          } as any,
+          {
+            $setOnInsert: {
+              businessUserId: user._id as ObjectId,
+              createdAt: new Date(),
+              appointmentsCount: 0,
+            },
+            $set: {
+              fullName: customerFullName,
+              phone: customerPhone,
+              email: customerEmail,
+            },
+          },
+          { upsert: true, returnDocument: "after" }
+        );
+
+        customerDocId = upsertedCustomer?._id ?? null;
+      } catch (e: any) {
+        // Handle unique index races.
+        if (e?.code === 11000) {
+          const existingCustomer = await c.customers.findOne({
+            businessUserId: user._id as ObjectId,
+            $or: [{ phone: customerPhone }, { email: customerEmail }],
+          } as any);
+          customerDocId = existingCustomer?._id ?? null;
+        } else {
+          throw e;
+        }
+      }
+
+      if (!customerDocId) {
+        return NextResponse.json(
+          { error: "Failed to create customer" },
+          { status: 500 }
+        );
+      }
+
       const insert = await c.appointments.insertOne({
         businessUserId: user._id as ObjectId,
+        customerId: customerDocId,
         serviceId,
         serviceName: String(service?.name ?? "").trim(),
         durationMinutes,
@@ -274,6 +330,7 @@ export async function POST(req: Request) {
         startTime,
         endTime,
         customer: {
+          id: customerId,
           fullName: customerFullName,
           phone: customerPhone,
           email: customerEmail,
@@ -284,12 +341,33 @@ export async function POST(req: Request) {
       } as any);
 
       const appointmentId = insert.insertedId.toHexString();
+
+      await c.customers.updateOne(
+        { _id: customerDocId },
+        {
+          $inc: { appointmentsCount: 1 },
+          $set: { lastAppointmentAt: new Date() },
+        }
+      );
+
+      // Consume OTP only when an appointment is successfully created.
+      // This avoids forcing a resend if appointment creation is blocked by business rules.
+      await c.customerOtps.deleteOne({
+        key: customerEmail,
+        purpose: "booking_verify",
+      });
+
       const cancelToken = await signBookingCancelToken({
         appointmentId,
         phone: customerPhone,
       });
 
-      return NextResponse.json({
+      const accessToken = await signCustomerAccessToken({
+        customerId,
+        businessUserId,
+      });
+
+      const res = NextResponse.json({
         ok: true,
         appointment: {
           id: appointmentId,
@@ -311,6 +389,14 @@ export async function POST(req: Request) {
         },
         cancelToken,
       });
+
+      res.cookies.set(
+        CUSTOMER_ACCESS_COOKIE_NAME,
+        accessToken,
+        customerAccessCookieOptions()
+      );
+
+      return res;
     } catch (e: any) {
       // Duplicate booking due to race.
       if (e?.code === 11000) {

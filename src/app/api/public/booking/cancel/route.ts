@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
+import { cookies } from "next/headers";
 
 import { collections, ensureIndexes } from "@/server/collections";
 import { normalizePhone } from "@/server/phone";
 import {
   verifyBookingCancelToken,
   verifyBookingVerifyToken,
+  verifyCustomerAccessToken,
 } from "@/server/jwt";
+import { CUSTOMER_ACCESS_COOKIE_NAME } from "@/server/customer-access";
 
 function normalizeEmail(input: unknown): string {
   return String(input ?? "")
@@ -26,6 +29,43 @@ export async function POST(req: Request) {
     const customerEmail = normalizeEmail(body?.customerEmail);
 
     const c = await collections();
+
+    // Cancellation via customer access cookie (HttpOnly, long-lived)
+    // This supports "Not you?" identification + cancellation across reloads.
+    if (!cancelToken && !bookingSessionId && appointmentId) {
+      const cookieStore = await cookies();
+      const token = cookieStore.get(CUSTOMER_ACCESS_COOKIE_NAME)?.value;
+      if (!token) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
+      const claims = await verifyCustomerAccessToken(token);
+      const apptId = new ObjectId(appointmentId);
+      const appt = await c.appointments.findOne({ _id: apptId });
+      if (!appt) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+
+      const businessUserId = (appt.businessUserId as ObjectId).toHexString();
+      if (claims.businessUserId !== businessUserId) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
+      if (String((appt as any)?.customer?.id ?? "") !== claims.customerId) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
+      if (appt.status === "CANCELLED") {
+        return NextResponse.json({ ok: true, alreadyCancelled: true });
+      }
+
+      await c.appointments.updateOne(
+        { _id: apptId },
+        { $set: { status: "CANCELLED", cancelledAt: new Date() } }
+      );
+
+      return NextResponse.json({ ok: true });
+    }
 
     // Legacy cancellation: cancelToken (phone-bound)
     if (cancelToken) {

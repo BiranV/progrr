@@ -215,28 +215,7 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Section 2: Appointments */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Appointments</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="divide-y">
-            <SettingsLinkRow
-              href="/settings/booking"
-              title="Booking settings"
-              description="Control how customers book appointments"
-            />
-            <SettingsLinkRow
-              href="/settings/cancellation"
-              title="Cancellation policy"
-              description="Define cancellation rules"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Section 3: Subscription */}
+      {/* Section 2: Subscription */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Subscription</CardTitle>
@@ -257,7 +236,7 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Section 4: Support & Legal */}
+      {/* Section 3: Support & Legal */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Support & Legal</CardTitle>
@@ -288,7 +267,7 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Section 5: Account */}
+      {/* Section 4: Account */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Account</CardTitle>

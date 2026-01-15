@@ -55,6 +55,7 @@ export type UserDoc = {
 export type AppointmentDoc = {
   _id?: ObjectId;
   businessUserId: ObjectId;
+  customerId?: ObjectId;
   serviceId: string;
   serviceName: string;
   durationMinutes: number;
@@ -64,6 +65,7 @@ export type AppointmentDoc = {
   startTime: string; // HH:mm (business local)
   endTime: string; // HH:mm (business local)
   customer: {
+    id?: string;
     fullName: string;
     phone: string;
     email?: string;
@@ -72,6 +74,17 @@ export type AppointmentDoc = {
   status: "BOOKED" | "CANCELLED";
   createdAt: Date;
   cancelledAt?: Date;
+};
+
+export type CustomerDoc = {
+  _id?: ObjectId;
+  businessUserId: ObjectId;
+  fullName: string;
+  phone: string;
+  email?: string;
+  createdAt: Date;
+  appointmentsCount: number;
+  lastAppointmentAt?: Date;
 };
 
 export type CustomerOtpPurpose = "booking_verify";
@@ -115,6 +128,7 @@ export async function collections() {
     otps: db.collection<OtpDoc>("otps"),
     customerOtps: db.collection<CustomerOtpDoc>("customer_otps"),
     appointments: db.collection<AppointmentDoc>("appointments"),
+    customers: db.collection<CustomerDoc>("customers"),
     rateLimits: db.collection<RateLimitDoc>("rate_limits"),
   };
 }
@@ -146,6 +160,26 @@ export async function ensureIndexes() {
     }
   );
   await c.appointments.createIndex({ businessUserId: 1, date: 1, status: 1 });
+  await c.appointments.createIndex({
+    businessUserId: 1,
+    "customer.id": 1,
+    status: 1,
+    date: 1,
+    startTime: 1,
+  });
+
+  await c.customers.createIndex(
+    { businessUserId: 1, phone: 1 },
+    { unique: true }
+  );
+  await c.customers.createIndex(
+    { businessUserId: 1, email: 1 },
+    { unique: true, sparse: true }
+  );
+  await c.customers.createIndex(
+    { businessUserId: 1, appointmentsCount: 1, lastAppointmentAt: -1 },
+    { name: "customers_admin_list" }
+  );
 
   await c.rateLimits.createIndex({ key: 1 }, { unique: true });
   await c.rateLimits.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });

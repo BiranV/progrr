@@ -19,6 +19,13 @@ export type BookingCancelClaims = {
   iat?: number;
 };
 
+export type CustomerAccessClaims = {
+  purpose: "customer_access";
+  customerId: string;
+  businessUserId: string;
+  iat?: number;
+};
+
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -141,6 +148,50 @@ export async function verifyBookingCancelToken(
     purpose: "booking_cancel",
     appointmentId: String(appointmentId).trim(),
     phone: String(phone).trim(),
+    iat,
+  };
+}
+
+export async function signCustomerAccessToken(args: {
+  customerId: string;
+  businessUserId: string;
+}) {
+  const key = getSecretKey();
+  return await new SignJWT({
+    purpose: "customer_access",
+    customerId: args.customerId,
+    businessUserId: args.businessUserId,
+  })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("60d")
+    .sign(key);
+}
+
+export async function verifyCustomerAccessToken(
+  token: string
+): Promise<CustomerAccessClaims> {
+  const key = getSecretKey();
+  const { payload } = await jwtVerify(token, key);
+
+  const purpose = (payload as any)?.purpose;
+  const customerId = (payload as any)?.customerId;
+  const businessUserId = (payload as any)?.businessUserId;
+  if (
+    purpose !== "customer_access" ||
+    typeof customerId !== "string" ||
+    !customerId.trim() ||
+    typeof businessUserId !== "string" ||
+    !businessUserId.trim()
+  ) {
+    throw Object.assign(new Error("Invalid token"), { status: 401 });
+  }
+
+  const iat = typeof payload.iat === "number" ? payload.iat : undefined;
+  return {
+    purpose: "customer_access",
+    customerId: String(customerId).trim(),
+    businessUserId: String(businessUserId).trim(),
     iat,
   };
 }

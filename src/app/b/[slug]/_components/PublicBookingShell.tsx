@@ -225,7 +225,7 @@ export default function PublicBookingShell({
                 <div
                   ref={galleryRef}
                   className={cn(
-                    "flex gap-3 overflow-x-auto pb-2 -mx-2 px-2",
+                    "flex gap-3 overflow-x-auto pb-2 px-0",
                     "snap-x snap-mandatory scroll-smooth",
                     "no-scrollbar"
                   )}
@@ -253,8 +253,8 @@ export default function PublicBookingShell({
 
                 {gallery.length > 1 ? (
                   <>
-                    <div className="pointer-events-none absolute inset-y-0 left-2 w-10 bg-gradient-to-r from-gray-50 dark:from-black to-transparent" />
-                    <div className="pointer-events-none absolute inset-y-0 right-2 w-10 bg-gradient-to-l from-gray-50 dark:from-black to-transparent" />
+                    <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-gray-50 dark:from-black to-transparent" />
+                    <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-gray-50 dark:from-black to-transparent" />
                     <button
                       type="button"
                       aria-label="Scroll gallery left"
