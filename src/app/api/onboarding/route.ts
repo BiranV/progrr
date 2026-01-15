@@ -3,15 +3,9 @@ import { ObjectId } from "mongodb";
 
 import { requireAppUser } from "@/server/auth";
 import { collections } from "@/server/collections";
+import { BUSINESS_TYPES } from "@/lib/onboardingPresets";
 
-const ALLOWED_BUSINESS_TYPES = new Set([
-  "salon",
-  "barbershop",
-  "fitness",
-  "therapy",
-  "consulting",
-  "other",
-]);
+const ALLOWED_BUSINESS_TYPES = new Set(BUSINESS_TYPES.map((t) => t.key));
 
 const OTHER_CURRENCY_CODE = "OTHER";
 
@@ -106,11 +100,18 @@ function parseTimeToMinutes(hhmm: string): number {
   return h * 60 + min;
 }
 
-function overlaps(aStart: number, aEnd: number, bStart: number, bEnd: number): boolean {
+function overlaps(
+  aStart: number,
+  aEnd: number,
+  bStart: number,
+  bEnd: number
+): boolean {
   return aStart < bEnd && bStart < aEnd;
 }
 
-function normalizeAvailabilityRanges(input: any): Array<{ start: string; end: string }> {
+function normalizeAvailabilityRanges(
+  input: any
+): Array<{ start: string; end: string }> {
   if (!Array.isArray(input)) return [];
   const out: Array<{ start: string; end: string }> = [];
   for (const r of input) {
@@ -136,13 +137,19 @@ function normalizeAvailabilityDay(d: any) {
     rangesIn.length > 0
       ? rangesIn
       : legacyStart || legacyEnd
-        ? [{ start: legacyStart ?? "", end: legacyEnd ?? "" }]
-        : [];
+      ? [{ start: legacyStart ?? "", end: legacyEnd ?? "" }]
+      : [];
 
   return { day, enabled, ranges };
 }
 
-function validateAvailabilityDays(days: Array<{ day: number; enabled: boolean; ranges: Array<{ start: string; end: string }> }>): string | null {
+function validateAvailabilityDays(
+  days: Array<{
+    day: number;
+    enabled: boolean;
+    ranges: Array<{ start: string; end: string }>;
+  }>
+): string | null {
   for (const d of days) {
     if (!d.enabled) continue;
 
@@ -161,7 +168,12 @@ function validateAvailabilityDays(days: Array<{ day: number; enabled: boolean; r
       .filter((x) => x.start || x.end);
 
     for (const r of parsed) {
-      if (!r.start || !r.end || !Number.isFinite(r.startMin) || !Number.isFinite(r.endMin)) {
+      if (
+        !r.start ||
+        !r.end ||
+        !Number.isFinite(r.startMin) ||
+        !Number.isFinite(r.endMin)
+      ) {
         return `Please set valid hours for ${DAY_LABELS[d.day]}.`;
       }
       if (r.endMin <= r.startMin) {
@@ -191,8 +203,10 @@ function normalizeService(s: any) {
   const rawActive = (s as any)?.isActive;
   const isActive =
     rawActive === false ||
-      rawActive === 0 ||
-      String(rawActive ?? "").trim().toLowerCase() === "false"
+    rawActive === 0 ||
+    String(rawActive ?? "")
+      .trim()
+      .toLowerCase() === "false"
       ? false
       : true;
 
@@ -256,7 +270,8 @@ export async function GET() {
           const normalized = normalizeAvailabilityDay(d);
           if (!normalized) return null;
           const hadRanges = Array.isArray((d as any)?.ranges);
-          const hadLegacy = (d as any)?.start !== undefined || (d as any)?.end !== undefined;
+          const hadLegacy =
+            (d as any)?.start !== undefined || (d as any)?.end !== undefined;
           if (!hadRanges && hadLegacy) changed = true;
           return normalized;
         })
@@ -267,12 +282,18 @@ export async function GET() {
         // If legacy data is invalid, still migrate shape (don’t block GET).
         await c.users.updateOne(
           { _id: new ObjectId(appUser.id) },
-          { $set: { "onboarding.availability.days": migrated, "onboarding.updatedAt": new Date() } }
+          {
+            $set: {
+              "onboarding.availability.days": migrated,
+              "onboarding.updatedAt": new Date(),
+            },
+          }
         );
         // If invalid, we leave it to the UI to prompt fix.
         void err;
         (user as any).onboarding = (user as any).onboarding ?? {};
-        (user as any).onboarding.availability = (user as any).onboarding.availability ?? {};
+        (user as any).onboarding.availability =
+          (user as any).onboarding.availability ?? {};
         (user as any).onboarding.availability.days = migrated;
       }
     } catch {
@@ -369,7 +390,8 @@ export async function PATCH(req: Request) {
         unset["onboarding.customCurrency"] = "";
 
         // Keep business-level currency in sync (normalize legacy NIS -> ILS).
-        set["onboarding.business.currency"] = currency === "NIS" ? "ILS" : currency;
+        set["onboarding.business.currency"] =
+          currency === "NIS" ? "ILS" : currency;
       }
 
       set["onboarding.currency"] = currency;
