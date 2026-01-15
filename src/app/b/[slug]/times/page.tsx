@@ -3,7 +3,6 @@
 import React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 import PublicBookingShell from "../_components/PublicBookingShell";
@@ -104,19 +103,70 @@ export default function PublicTimesPage({
           )}/calendar?serviceId=${encodeURIComponent(serviceId)}`
         )
       }
-      showGallery
+      showGallery={false}
     >
       {loading ? (
         <CenteredSpinner fullPage />
       ) : error || !data ? (
-        <Card className="rounded-3xl">
-          <CardHeader>
-            <CardTitle>Pick a time</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-sm text-red-600 dark:text-red-400">
-              {error || "No slots"}
+        <div className="space-y-4">
+          <div className="text-sm text-red-600 dark:text-red-400">
+            {error || "No slots"}
+          </div>
+          <Button
+            variant="outline"
+            className="rounded-2xl"
+            onClick={() =>
+              router.replace(
+                `/b/${encodeURIComponent(
+                  normalizedSlug
+                )}/calendar?serviceId=${encodeURIComponent(serviceId)}`
+              )
+            }
+          >
+            Back
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {data.slots.map((s) => (
+            <button
+              key={s.startTime}
+              className={
+                "w-full rounded-2xl border border-gray-200 dark:border-gray-800 " +
+                "bg-white/70 dark:bg-gray-950/20 p-4 text-left shadow-sm " +
+                "transition cursor-pointer " +
+                "hover:bg-white hover:shadow-md hover:-translate-y-[1px] " +
+                "dark:hover:bg-gray-900/30 " +
+                "active:translate-y-0 active:shadow-sm"
+              }
+              onClick={() =>
+                router.push(
+                  `/b/${encodeURIComponent(
+                    normalizedSlug
+                  )}/details?serviceId=${encodeURIComponent(
+                    serviceId
+                  )}&date=${encodeURIComponent(date)}&time=${encodeURIComponent(
+                    s.startTime
+                  )}`
+                )
+              }
+            >
+              <div className="font-semibold text-gray-900 dark:text-white">
+                {s.startTime}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-300">
+                Ends {s.endTime}
+              </div>
+            </button>
+          ))}
+
+          {!data.slots.length && (
+            <div className="text-sm text-gray-600 dark:text-gray-300">
+              No times available.
             </div>
+          )}
+
+          <div className="pt-2">
             <Button
               variant="outline"
               className="rounded-2xl"
@@ -130,66 +180,8 @@ export default function PublicTimesPage({
             >
               Back
             </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="rounded-3xl">
-          <CardHeader className="space-y-1">
-            <CardTitle>Pick a time</CardTitle>
-            <div className="text-sm text-gray-600 dark:text-gray-300">
-              {data.service.name} • {data.date}
-            </div>
-          </CardHeader>
-
-          <CardContent className="space-y-3">
-            {data.slots.map((s) => (
-              <button
-                key={s.startTime}
-                className="w-full rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4 text-left hover:bg-white dark:hover:bg-gray-900/30 transition shadow-sm"
-                onClick={() =>
-                  router.push(
-                    `/b/${encodeURIComponent(
-                      normalizedSlug
-                    )}/details?serviceId=${encodeURIComponent(
-                      serviceId
-                    )}&date=${encodeURIComponent(
-                      date
-                    )}&time=${encodeURIComponent(s.startTime)}`
-                  )
-                }
-              >
-                <div className="font-semibold text-gray-900 dark:text-white">
-                  {s.startTime}
-                </div>
-                <div className="text-sm text-gray-600 dark:text-gray-300">
-                  Ends {s.endTime}
-                </div>
-              </button>
-            ))}
-
-            {!data.slots.length && (
-              <div className="text-sm text-gray-600 dark:text-gray-300">
-                No times available.
-              </div>
-            )}
-
-            <div className="pt-2">
-              <Button
-                variant="outline"
-                className="rounded-2xl"
-                onClick={() =>
-                  router.replace(
-                    `/b/${encodeURIComponent(
-                      normalizedSlug
-                    )}/calendar?serviceId=${encodeURIComponent(serviceId)}`
-                  )
-                }
-              >
-                Back
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
     </PublicBookingShell>
   );

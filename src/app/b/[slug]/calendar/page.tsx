@@ -4,7 +4,6 @@ import React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { Calendar } from "@/components/ui/calendar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatDateInTimeZone } from "@/lib/public-booking";
 import { CenteredSpinner } from "@/components/CenteredSpinner";
@@ -108,19 +107,52 @@ export default function PublicCalendarPage({
       title="Pick a date"
       subtitle={business?.business?.name ? "Choose a date" : ""}
       onBack={() => router.replace(`/b/${encodeURIComponent(normalizedSlug)}`)}
-      showGallery
+      showGallery={false}
     >
       {loading ? (
         <CenteredSpinner fullPage />
       ) : !business ? (
-        <Card className="rounded-3xl">
-          <CardHeader>
-            <CardTitle>Pick a date</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-sm text-red-600 dark:text-red-400">
-              Business not found
-            </div>
+        <div className="space-y-4">
+          <div className="text-sm text-red-600 dark:text-red-400">
+            Business not found
+          </div>
+          <Button
+            variant="outline"
+            className="rounded-2xl"
+            onClick={() =>
+              router.replace(`/b/${encodeURIComponent(normalizedSlug)}`)
+            }
+          >
+            Back
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <Calendar
+            mode="single"
+            month={month}
+            onMonthChange={setMonth}
+            disabled={(date) => {
+              const dateStr = formatDateInTimeZone(date, tz);
+              return !enabledDates.has(dateStr);
+            }}
+            onSelect={(date) => {
+              if (!date) return;
+              const dateStr = formatDateInTimeZone(date, tz);
+              if (!dateStr) return;
+              if (!enabledDates.has(dateStr)) return;
+
+              router.push(
+                `/b/${encodeURIComponent(
+                  normalizedSlug
+                )}/times?serviceId=${encodeURIComponent(
+                  serviceId
+                )}&date=${encodeURIComponent(dateStr)}`
+              );
+            }}
+          />
+
+          <div className="flex gap-2">
             <Button
               variant="outline"
               className="rounded-2xl"
@@ -130,54 +162,8 @@ export default function PublicCalendarPage({
             >
               Back
             </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="rounded-3xl">
-          <CardHeader className="space-y-1">
-            <CardTitle>Pick a date</CardTitle>
-            <div className="text-sm text-gray-600 dark:text-gray-300">
-              {business.business.name}
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Calendar
-              mode="single"
-              month={month}
-              onMonthChange={setMonth}
-              disabled={(date) => {
-                const dateStr = formatDateInTimeZone(date, tz);
-                return !enabledDates.has(dateStr);
-              }}
-              onSelect={(date) => {
-                if (!date) return;
-                const dateStr = formatDateInTimeZone(date, tz);
-                if (!dateStr) return;
-                if (!enabledDates.has(dateStr)) return;
-
-                router.push(
-                  `/b/${encodeURIComponent(
-                    normalizedSlug
-                  )}/times?serviceId=${encodeURIComponent(
-                    serviceId
-                  )}&date=${encodeURIComponent(dateStr)}`
-                );
-              }}
-            />
-
-            <div className="mt-4 flex gap-2">
-              <Button
-                variant="outline"
-                className="rounded-2xl"
-                onClick={() =>
-                  router.replace(`/b/${encodeURIComponent(normalizedSlug)}`)
-                }
-              >
-                Back
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
     </PublicBookingShell>
   );

@@ -3,7 +3,6 @@
 import React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -135,81 +134,70 @@ export default function PublicDetailsPage({
           )}&date=${encodeURIComponent(date)}`
         )
       }
-      showGallery
+      showGallery={false}
     >
-      <Card className="rounded-3xl">
-        <CardHeader className="space-y-1">
-          <CardTitle>Your details</CardTitle>
-          <div className="text-sm text-gray-600 dark:text-gray-300">
-            {date} • {time}
-          </div>
-        </CardHeader>
+      <div className="space-y-4">
+        {error && (
+          <div className="text-sm text-red-600 dark:text-red-400">{error}</div>
+        )}
 
-        <CardContent className="space-y-4">
-          {error && (
-            <div className="text-sm text-red-600 dark:text-red-400">
-              {error}
-            </div>
-          )}
+        <div className="space-y-2">
+          <Label htmlFor="fullName">Full Name</Label>
+          <Input
+            id="fullName"
+            className="rounded-2xl"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+          />
+        </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="fullName">Full Name</Label>
-            <Input
-              id="fullName"
-              className="rounded-2xl"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="phone">Phone</Label>
+          <Input
+            id="phone"
+            className="rounded-2xl"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="+1 555 123 4567"
+          />
+        </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="phone">Phone</Label>
-            <Input
-              id="phone"
-              className="rounded-2xl"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+1 555 123 4567"
-            />
-          </div>
+        <div className="space-y-2">
+          <Label htmlFor="notes">Notes (optional)</Label>
+          <Textarea
+            id="notes"
+            className="rounded-2xl"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
+        </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes (optional)</Label>
-            <Textarea
-              id="notes"
-              className="rounded-2xl"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="rounded-2xl"
+            onClick={() =>
+              router.replace(
+                `/b/${encodeURIComponent(
+                  normalizedSlug
+                )}/times?serviceId=${encodeURIComponent(
+                  serviceId
+                )}&date=${encodeURIComponent(date)}`
+              )
+            }
+          >
+            Back
+          </Button>
 
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="rounded-2xl"
-              onClick={() =>
-                router.replace(
-                  `/b/${encodeURIComponent(
-                    normalizedSlug
-                  )}/times?serviceId=${encodeURIComponent(
-                    serviceId
-                  )}&date=${encodeURIComponent(date)}`
-                )
-              }
-            >
-              Back
-            </Button>
-
-            <Button
-              onClick={submit}
-              disabled={submitting}
-              className="rounded-2xl flex-1"
-            >
-              {submitting ? "Sending code…" : "Verify phone"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          <Button
+            onClick={submit}
+            disabled={submitting}
+            className="rounded-2xl flex-1"
+          >
+            {submitting ? "Sending code…" : "Verify phone"}
+          </Button>
+        </div>
+      </div>
     </PublicBookingShell>
   );
 }

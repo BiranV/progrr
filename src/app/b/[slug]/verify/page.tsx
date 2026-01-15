@@ -3,7 +3,6 @@
 import React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import PublicBookingShell from "../_components/PublicBookingShell";
@@ -146,50 +145,39 @@ export default function PublicVerifyPage({
       title="Verify phone"
       subtitle={phone ? `We sent a code to ${phone}` : "Enter the code"}
       onBack={() => router.back()}
-      showGallery
+      showGallery={false}
     >
-      <Card className="rounded-3xl">
-        <CardHeader className="space-y-1">
-          <CardTitle>Verify phone</CardTitle>
-          <div className="text-sm text-gray-600 dark:text-gray-300">
-            We sent a code to {phone}
-          </div>
-        </CardHeader>
+      <div className="space-y-4">
+        {error && (
+          <div className="text-sm text-red-600 dark:text-red-400">{error}</div>
+        )}
 
-        <CardContent className="space-y-4">
-          {error && (
-            <div className="text-sm text-red-600 dark:text-red-400">
-              {error}
-            </div>
-          )}
+        <Input
+          className="rounded-2xl"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          placeholder="Enter 6-digit code"
+        />
 
-          <Input
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
             className="rounded-2xl"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            placeholder="Enter 6-digit code"
-          />
+            onClick={resend}
+            disabled={submitting}
+          >
+            Resend
+          </Button>
 
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="rounded-2xl"
-              onClick={resend}
-              disabled={submitting}
-            >
-              Resend
-            </Button>
-
-            <Button
-              className="rounded-2xl flex-1"
-              onClick={verifyAndConfirm}
-              disabled={submitting || code.trim().length < 4}
-            >
-              {submitting ? "Confirming…" : "Confirm booking"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          <Button
+            className="rounded-2xl flex-1"
+            onClick={verifyAndConfirm}
+            disabled={submitting || code.trim().length < 4}
+          >
+            {submitting ? "Confirming…" : "Confirm booking"}
+          </Button>
+        </div>
+      </div>
     </PublicBookingShell>
   );
 }

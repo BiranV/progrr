@@ -3,7 +3,6 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import PublicBookingShell from "../_components/PublicBookingShell";
 import { usePublicBusiness } from "../_components/usePublicBusiness";
@@ -65,26 +64,21 @@ export default function PublicSuccessPage({
         onBack={() =>
           router.replace(`/b/${encodeURIComponent(normalizedSlug)}`)
         }
-        showGallery
+        showGallery={false}
       >
-        <Card className="rounded-3xl">
-          <CardHeader>
-            <CardTitle>Booking</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="text-sm text-gray-600 dark:text-gray-300">
-              No booking found.
-            </div>
-            <Button
-              className="rounded-2xl"
-              onClick={() =>
-                router.replace(`/b/${encodeURIComponent(normalizedSlug)}`)
-              }
-            >
-              Start over
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <div className="text-sm text-gray-600 dark:text-gray-300">
+            No booking found.
+          </div>
+          <Button
+            className="rounded-2xl"
+            onClick={() =>
+              router.replace(`/b/${encodeURIComponent(normalizedSlug)}`)
+            }
+          >
+            Start over
+          </Button>
+        </div>
       </PublicBookingShell>
     );
   }
@@ -123,67 +117,56 @@ export default function PublicSuccessPage({
       title="Booked"
       subtitle={`${appt.date} • ${appt.startTime}–${appt.endTime}`}
       onBack={() => router.replace(`/b/${encodeURIComponent(normalizedSlug)}`)}
-      showGallery
+      showGallery={false}
     >
-      <Card className="rounded-3xl">
-        <CardHeader className="space-y-1">
-          <CardTitle>Booked</CardTitle>
+      <div className="space-y-4">
+        {error && (
+          <div className="text-sm text-red-600 dark:text-red-400">{error}</div>
+        )}
+
+        <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4 shadow-sm">
+          <div className="font-semibold text-gray-900 dark:text-white">
+            {appt.serviceName}
+          </div>
           <div className="text-sm text-gray-600 dark:text-gray-300">
-            {appt.date} • {appt.startTime}–{appt.endTime}
+            {appt.customer.fullName}
           </div>
-        </CardHeader>
-
-        <CardContent className="space-y-4">
-          {error && (
-            <div className="text-sm text-red-600 dark:text-red-400">
-              {error}
+          {appt.notes ? (
+            <div className="text-sm text-gray-600 dark:text-gray-300 mt-2">
+              {appt.notes}
             </div>
-          )}
+          ) : null}
+        </div>
 
-          <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4 shadow-sm">
-            <div className="font-semibold text-gray-900 dark:text-white">
-              {appt.serviceName}
-            </div>
-            <div className="text-sm text-gray-600 dark:text-gray-300">
-              {appt.customer.fullName}
-            </div>
-            {appt.notes ? (
-              <div className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-                {appt.notes}
-              </div>
-            ) : null}
-          </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            className="rounded-2xl"
+            onClick={() =>
+              window.open(
+                googleCalendarUrl({
+                  title: appt.serviceName,
+                  date: appt.date,
+                  startTime: appt.startTime,
+                  endTime: appt.endTime,
+                }),
+                "_blank"
+              )
+            }
+          >
+            Add to Google Calendar
+          </Button>
 
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              className="rounded-2xl"
-              onClick={() =>
-                window.open(
-                  googleCalendarUrl({
-                    title: appt.serviceName,
-                    date: appt.date,
-                    startTime: appt.startTime,
-                    endTime: appt.endTime,
-                  }),
-                  "_blank"
-                )
-              }
-            >
-              Add to Google Calendar
-            </Button>
-
-            <Button
-              variant="outline"
-              className="rounded-2xl"
-              onClick={cancel}
-              disabled={cancelling}
-            >
-              {cancelling ? "Cancelling…" : "Cancel booking"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          <Button
+            variant="outline"
+            className="rounded-2xl"
+            onClick={cancel}
+            disabled={cancelling}
+          >
+            {cancelling ? "Cancelling…" : "Cancel booking"}
+          </Button>
+        </div>
+      </div>
     </PublicBookingShell>
   );
 }
