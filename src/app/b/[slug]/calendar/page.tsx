@@ -40,7 +40,7 @@ export default function PublicCalendarPage({
   const searchParams = useSearchParams();
 
   const { slug } = React.use(params);
-  const normalizedSlug = String(slug ?? "").trim();
+  const raw = String(slug ?? "").trim();
 
   const serviceId = String(searchParams.get("serviceId") ?? "").trim();
 
@@ -49,13 +49,29 @@ export default function PublicCalendarPage({
   );
   const [month, setMonth] = React.useState<Date>(() => new Date());
 
-  const { data: business, loading } = usePublicBusiness(normalizedSlug);
+  const { data: business, loading, resolvedPublicId } = usePublicBusiness(raw);
+
+  React.useEffect(() => {
+    if (!raw) return;
+    if (/^\d{5}$/.test(raw)) return;
+    if (!resolvedPublicId) return;
+
+    const qs = new URLSearchParams();
+    if (serviceId) qs.set("serviceId", serviceId);
+    const qsString = qs.toString();
+    router.replace(
+      `/b/${encodeURIComponent(resolvedPublicId)}/calendar${
+        qsString ? `?${qsString}` : ""
+      }`
+    );
+  }, [raw, resolvedPublicId, router, serviceId]);
 
   React.useEffect(() => {
     if (!serviceId) {
-      router.replace(`/b/${encodeURIComponent(normalizedSlug)}`);
+      const id = /^\d{5}$/.test(raw) ? raw : resolvedPublicId;
+      router.replace(`/b/${encodeURIComponent(id || raw)}`);
     }
-  }, [router, serviceId, normalizedSlug]);
+  }, [router, serviceId, raw, resolvedPublicId]);
 
   React.useEffect(() => {
     if (!business || !serviceId) return;
@@ -75,7 +91,7 @@ export default function PublicCalendarPage({
 
         const dayRes = await fetch(
           `/api/public/business/${encodeURIComponent(
-            normalizedSlug
+            business.business.publicId
           )}/availability?date=${encodeURIComponent(
             dateStr
           )}&serviceId=${encodeURIComponent(serviceId)}`
@@ -97,7 +113,7 @@ export default function PublicCalendarPage({
     return () => {
       cancelled = true;
     };
-  }, [business, month, serviceId, normalizedSlug]);
+  }, [business, month, serviceId]);
 
   const tz = String(business?.availability?.timezone ?? "").trim() || "UTC";
 
@@ -106,7 +122,11 @@ export default function PublicCalendarPage({
       business={business}
       title="Pick a date"
       subtitle={business?.business?.name ? "Choose a date" : ""}
-      onBack={() => router.replace(`/b/${encodeURIComponent(normalizedSlug)}`)}
+      onBack={() =>
+        router.replace(
+          `/b/${encodeURIComponent(business?.business?.publicId || raw)}`
+        )
+      }
       showGallery={false}
     >
       {loading ? (
@@ -119,9 +139,7 @@ export default function PublicCalendarPage({
           <Button
             variant="outline"
             className="rounded-2xl"
-            onClick={() =>
-              router.replace(`/b/${encodeURIComponent(normalizedSlug)}`)
-            }
+            onClick={() => router.replace(`/b/${encodeURIComponent(raw)}`)}
           >
             Back
           </Button>
@@ -144,7 +162,7 @@ export default function PublicCalendarPage({
 
               router.push(
                 `/b/${encodeURIComponent(
-                  normalizedSlug
+                  business.business.publicId
                 )}/times?serviceId=${encodeURIComponent(
                   serviceId
                 )}&date=${encodeURIComponent(dateStr)}`
@@ -157,7 +175,9 @@ export default function PublicCalendarPage({
               variant="outline"
               className="rounded-2xl"
               onClick={() =>
-                router.replace(`/b/${encodeURIComponent(normalizedSlug)}`)
+                router.replace(
+                  `/b/${encodeURIComponent(business.business.publicId)}`
+                )
               }
             >
               Back

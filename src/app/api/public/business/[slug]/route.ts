@@ -2,18 +2,47 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 import { collections, ensureIndexes } from "@/server/collections";
+import { isValidBusinessPublicId } from "@/server/business-public-id";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   ctx: { params: Promise<{ slug: string }> }
 ) {
   try {
     await ensureIndexes();
 
     const { slug } = await ctx.params; // כן, await – בשביל הטייפ
-    const normalizedSlug = String(slug ?? "").trim();
+    const raw = String(slug ?? "").trim();
 
-    if (!normalizedSlug) {
+    if (!raw) {
+      return NextResponse.json(
+        { error: "Business not found" },
+        { status: 404 }
+      );
+    }
+
+    // Hard rule: public booking API is keyed by stable 5-digit publicId.
+    // If a legacy slug hits this endpoint, redirect to the publicId form.
+    if (!isValidBusinessPublicId(raw)) {
+      const c = await collections();
+      const legacy = await c.users.findOne(
+        {
+          "onboarding.business.slug": raw,
+          onboardingCompleted: true,
+        } as any,
+        { projection: { "onboarding.business.publicId": 1 } }
+      );
+
+      const publicId = String(
+        (legacy as any)?.onboarding?.business?.publicId ?? ""
+      ).trim();
+
+      if (isValidBusinessPublicId(publicId)) {
+        const url = new URL(req.url);
+        url.pathname = `/api/public/business/${publicId}`;
+        return NextResponse.redirect(url, 308);
+      }
+
       return NextResponse.json(
         { error: "Business not found" },
         { status: 404 }
@@ -23,7 +52,7 @@ export async function GET(
     const c = await collections();
 
     const user = await c.users.findOne({
-      "onboarding.business.slug": normalizedSlug,
+      "onboarding.business.publicId": raw,
       onboardingCompleted: true,
     } as any);
 
@@ -94,7 +123,7 @@ export async function GET(
     return NextResponse.json({
       ok: true,
       business: {
-        slug: normalizedSlug,
+        publicId: raw,
         name: String(business.name ?? "").trim(),
         phone: String(business.phone ?? "").trim(),
         address: String(business.address ?? "").trim(),

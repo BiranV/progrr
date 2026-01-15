@@ -17,9 +17,16 @@ export default function PublicBusinessPage({
   const router = useRouter();
 
   const { slug } = React.use(params);
-  const normalizedSlug = String(slug ?? "").trim();
+  const raw = String(slug ?? "").trim();
 
-  const { data, loading, error } = usePublicBusiness(normalizedSlug);
+  const { data, loading, error, resolvedPublicId } = usePublicBusiness(raw);
+
+  React.useEffect(() => {
+    if (!raw) return;
+    if (/^\d{5}$/.test(raw)) return;
+    if (!resolvedPublicId) return;
+    router.replace(`/b/${encodeURIComponent(resolvedPublicId)}`);
+  }, [raw, resolvedPublicId, router]);
 
   return (
     <PublicBookingShell
@@ -51,7 +58,7 @@ export default function PublicBusinessPage({
               onClick={() =>
                 router.push(
                   `/b/${encodeURIComponent(
-                    normalizedSlug
+                    data.business.publicId
                   )}/calendar?serviceId=${encodeURIComponent(s.id)}`
                 )
               }

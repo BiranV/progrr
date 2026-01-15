@@ -34,9 +34,17 @@ export default function PublicSuccessPage({
   const router = useRouter();
 
   const { slug } = React.use(params);
-  const normalizedSlug = String(slug ?? "").trim();
+  const raw = String(slug ?? "").trim();
+  const isPublicId = /^\d{5}$/.test(raw);
 
-  const { data: business } = usePublicBusiness(normalizedSlug);
+  const { data: business, resolvedPublicId } = usePublicBusiness(raw);
+
+  React.useEffect(() => {
+    if (!raw) return;
+    if (isPublicId) return;
+    if (!resolvedPublicId) return;
+    router.replace(`/b/${encodeURIComponent(resolvedPublicId)}/success`);
+  }, [isPublicId, raw, resolvedPublicId, router]);
 
   const [result, setResult] = React.useState<any>(null);
   const [cancelling, setCancelling] = React.useState(false);
@@ -61,9 +69,7 @@ export default function PublicSuccessPage({
         business={business}
         title="Booking"
         subtitle="No booking found"
-        onBack={() =>
-          router.replace(`/b/${encodeURIComponent(normalizedSlug)}`)
-        }
+        onBack={() => router.replace(`/b/${encodeURIComponent(raw)}`)}
         showGallery={false}
       >
         <div className="space-y-4">
@@ -72,9 +78,7 @@ export default function PublicSuccessPage({
           </div>
           <Button
             className="rounded-2xl"
-            onClick={() =>
-              router.replace(`/b/${encodeURIComponent(normalizedSlug)}`)
-            }
+            onClick={() => router.replace(`/b/${encodeURIComponent(raw)}`)}
           >
             Start over
           </Button>
@@ -103,7 +107,7 @@ export default function PublicSuccessPage({
         throw new Error(json?.error || `Request failed (${res.status})`);
 
       sessionStorage.removeItem(RESULT_KEY);
-      router.replace(`/b/${encodeURIComponent(normalizedSlug)}`);
+      router.replace(`/b/${encodeURIComponent(raw)}`);
     } catch (e: any) {
       setError(e?.message || "Failed");
     } finally {
@@ -116,7 +120,7 @@ export default function PublicSuccessPage({
       business={business}
       title="Booked"
       subtitle={`${appt.date} • ${appt.startTime}–${appt.endTime}`}
-      onBack={() => router.replace(`/b/${encodeURIComponent(normalizedSlug)}`)}
+      onBack={() => router.replace(`/b/${encodeURIComponent(raw)}`)}
       showGallery={false}
     >
       <div className="space-y-4">

@@ -9,7 +9,7 @@ import PublicBookingShell from "../_components/PublicBookingShell";
 import { usePublicBusiness } from "../_components/usePublicBusiness";
 
 type BookingDraft = {
-  businessSlug: string;
+  businessPublicId: string;
   serviceId: string;
   date: string;
   startTime: string;
@@ -30,11 +30,12 @@ export default function PublicVerifyPage({
   const searchParams = useSearchParams();
 
   const { slug } = React.use(params);
-  const normalizedSlug = String(slug ?? "").trim();
+  const raw = String(slug ?? "").trim();
+  const isPublicId = /^\d{5}$/.test(raw);
 
   const phone = String(searchParams.get("phone") ?? "").trim();
 
-  const { data: business } = usePublicBusiness(normalizedSlug);
+  const { data: business, resolvedPublicId } = usePublicBusiness(raw);
 
   const [code, setCode] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
@@ -44,24 +45,54 @@ export default function PublicVerifyPage({
     try {
       const raw = sessionStorage.getItem(DRAFT_KEY);
       if (!raw) return null;
-      return JSON.parse(raw) as BookingDraft;
+      const parsed = JSON.parse(raw) as any;
+      const businessPublicId = String(
+        parsed?.businessPublicId ?? parsed?.businessSlug ?? ""
+      ).trim();
+      return {
+        businessPublicId,
+        serviceId: String(parsed?.serviceId ?? "").trim(),
+        date: String(parsed?.date ?? "").trim(),
+        startTime: String(parsed?.startTime ?? "").trim(),
+        customerFullName: String(parsed?.customerFullName ?? "").trim(),
+        customerPhone: String(parsed?.customerPhone ?? "").trim(),
+        notes:
+          typeof parsed?.notes === "string" ? parsed.notes.trim() : undefined,
+      };
     } catch {
       return null;
     }
   };
 
   React.useEffect(() => {
+    if (!raw) return;
+    if (isPublicId) return;
+    if (!resolvedPublicId) return;
+
+    const qs = new URLSearchParams();
+    if (phone) qs.set("phone", phone);
+    const qsString = qs.toString();
+    router.replace(
+      `/b/${encodeURIComponent(resolvedPublicId)}/verify${
+        qsString ? `?${qsString}` : ""
+      }`
+    );
+  }, [isPublicId, phone, raw, resolvedPublicId, router]);
+
+  React.useEffect(() => {
     const draft = loadDraft();
     if (!draft) {
-      router.replace(`/b/${encodeURIComponent(normalizedSlug)}`);
+      router.replace(`/b/${encodeURIComponent(raw)}`);
+      return;
+    }
+
+    if (!isPublicId) {
       return;
     }
 
     if (!phone) {
       router.replace(
-        `/b/${encodeURIComponent(
-          normalizedSlug
-        )}/details?serviceId=${encodeURIComponent(
+        `/b/${encodeURIComponent(raw)}/details?serviceId=${encodeURIComponent(
           draft.serviceId
         )}&date=${encodeURIComponent(draft.date)}&time=${encodeURIComponent(
           draft.startTime
@@ -69,7 +100,7 @@ export default function PublicVerifyPage({
       );
       return;
     }
-  }, [phone, router, normalizedSlug]);
+  }, [isPublicId, phone, raw, router]);
 
   const verifyAndConfirm = async () => {
     setSubmitting(true);
@@ -78,6 +109,8 @@ export default function PublicVerifyPage({
     try {
       const draft = loadDraft();
       if (!draft) throw new Error("Missing booking details");
+
+      if (!/^\d{5}$/.test(raw)) throw new Error("Business not found");
 
       const verifyRes = await fetch("/api/public/booking/verify-otp", {
         method: "POST",
@@ -99,7 +132,11 @@ export default function PublicVerifyPage({
       const confirmRes = await fetch("/api/public/booking/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...draft, bookingSessionId }),
+        body: JSON.stringify({
+          ...draft,
+          businessPublicId: raw,
+          bookingSessionId,
+        }),
       });
 
       const confirmJson = await confirmRes.json().catch(() => null);
@@ -111,7 +148,7 @@ export default function PublicVerifyPage({
       sessionStorage.setItem(RESULT_KEY, JSON.stringify(confirmJson));
       sessionStorage.removeItem(DRAFT_KEY);
 
-      router.replace(`/b/${encodeURIComponent(normalizedSlug)}/success`);
+      router.replace(`/b/${encodeURIComponent(raw)}/success`);
     } catch (e: any) {
       setError(e?.message || "Failed");
     } finally {

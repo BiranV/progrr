@@ -3,6 +3,10 @@ import { ObjectId } from "mongodb";
 
 import { requireAppUser } from "@/server/auth";
 import { collections } from "@/server/collections";
+import {
+  ensureBusinessPublicIdForUser,
+  isValidBusinessPublicId,
+} from "@/server/business-public-id";
 import { BUSINESS_TYPES } from "@/lib/onboardingPresets";
 
 const ALLOWED_BUSINESS_TYPES = new Set(BUSINESS_TYPES.map((t) => t.key));
@@ -269,6 +273,24 @@ export async function GET() {
     const user = await c.users.findOne({ _id: new ObjectId(appUser.id) });
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Ensure stable business publicId exists (generated once, immutable).
+    try {
+      const current = String(
+        (user as any)?.onboarding?.business?.publicId ?? ""
+      ).trim();
+      if (!isValidBusinessPublicId(current)) {
+        const allocated = await ensureBusinessPublicIdForUser(
+          new ObjectId(appUser.id)
+        );
+        (user as any).onboarding = (user as any).onboarding ?? {};
+        (user as any).onboarding.business =
+          (user as any).onboarding.business ?? {};
+        (user as any).onboarding.business.publicId = allocated;
+      }
+    } catch {
+      // Don't block onboarding GET if allocation fails; UI will retry.
     }
 
     // Lazy migration: convert legacy availability day {start,end} into {ranges:[{start,end}]}.

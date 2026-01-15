@@ -25,35 +25,59 @@ export default function PublicTimesPage({
   const searchParams = useSearchParams();
 
   const { slug } = React.use(params);
-  const normalizedSlug = String(slug ?? "").trim();
+  const raw = String(slug ?? "").trim();
+  const isPublicId = /^\d{5}$/.test(raw);
 
   const serviceId = String(searchParams.get("serviceId") ?? "").trim();
   const date = String(searchParams.get("date") ?? "").trim();
 
-  const { data: business } = usePublicBusiness(normalizedSlug);
+  const { data: business, resolvedPublicId } = usePublicBusiness(raw);
+
+  React.useEffect(() => {
+    if (!raw) return;
+    if (isPublicId) return;
+    if (!resolvedPublicId) return;
+
+    const qs = new URLSearchParams();
+    if (serviceId) qs.set("serviceId", serviceId);
+    if (date) qs.set("date", date);
+    const qsString = qs.toString();
+    router.replace(
+      `/b/${encodeURIComponent(resolvedPublicId)}/times${
+        qsString ? `?${qsString}` : ""
+      }`
+    );
+  }, [date, isPublicId, raw, resolvedPublicId, router, serviceId]);
 
   const [data, setData] = React.useState<SlotsResponse | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (!normalizedSlug) {
+    if (!raw) {
       setData(null);
       setError("Business not found");
       setLoading(false);
       return;
     }
 
+    if (!isPublicId) {
+      // Wait for redirect to stable publicId.
+      setData(null);
+      setLoading(true);
+      return;
+    }
+
     if (!serviceId) {
-      router.replace(`/b/${encodeURIComponent(normalizedSlug)}`);
+      router.replace(`/b/${encodeURIComponent(raw)}`);
       return;
     }
 
     if (!date) {
       router.replace(
-        `/b/${encodeURIComponent(
-          normalizedSlug
-        )}/calendar?serviceId=${encodeURIComponent(serviceId)}`
+        `/b/${encodeURIComponent(raw)}/calendar?serviceId=${encodeURIComponent(
+          serviceId
+        )}`
       );
       return;
     }
@@ -66,7 +90,7 @@ export default function PublicTimesPage({
       try {
         const res = await fetch(
           `/api/public/business/${encodeURIComponent(
-            normalizedSlug
+            raw
           )}/availability?date=${encodeURIComponent(
             date
           )}&serviceId=${encodeURIComponent(serviceId)}`
@@ -89,7 +113,7 @@ export default function PublicTimesPage({
     return () => {
       cancelled = true;
     };
-  }, [date, router, serviceId, normalizedSlug]);
+  }, [date, isPublicId, raw, router, serviceId]);
 
   return (
     <PublicBookingShell
@@ -99,7 +123,7 @@ export default function PublicTimesPage({
       onBack={() =>
         router.replace(
           `/b/${encodeURIComponent(
-            normalizedSlug
+            raw
           )}/calendar?serviceId=${encodeURIComponent(serviceId)}`
         )
       }
@@ -118,7 +142,7 @@ export default function PublicTimesPage({
             onClick={() =>
               router.replace(
                 `/b/${encodeURIComponent(
-                  normalizedSlug
+                  raw
                 )}/calendar?serviceId=${encodeURIComponent(serviceId)}`
               )
             }
@@ -142,7 +166,7 @@ export default function PublicTimesPage({
               onClick={() =>
                 router.push(
                   `/b/${encodeURIComponent(
-                    normalizedSlug
+                    raw
                   )}/details?serviceId=${encodeURIComponent(
                     serviceId
                   )}&date=${encodeURIComponent(date)}&time=${encodeURIComponent(
@@ -173,7 +197,7 @@ export default function PublicTimesPage({
               onClick={() =>
                 router.replace(
                   `/b/${encodeURIComponent(
-                    normalizedSlug
+                    raw
                   )}/calendar?serviceId=${encodeURIComponent(serviceId)}`
                 )
               }

@@ -1,6 +1,6 @@
 export type PublicBusiness = {
   business: {
-    slug: string;
+    publicId: string;
     name: string;
     phone: string;
     address: string;

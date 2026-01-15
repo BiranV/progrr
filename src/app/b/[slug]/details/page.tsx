@@ -11,7 +11,7 @@ import PublicBookingShell from "../_components/PublicBookingShell";
 import { usePublicBusiness } from "../_components/usePublicBusiness";
 
 type BookingDraft = {
-  businessSlug: string;
+  businessPublicId: string;
   serviceId: string;
   date: string;
   startTime: string;
@@ -31,13 +31,31 @@ export default function PublicDetailsPage({
   const searchParams = useSearchParams();
 
   const { slug } = React.use(params);
-  const normalizedSlug = String(slug ?? "").trim();
+  const raw = String(slug ?? "").trim();
+  const isPublicId = /^\d{5}$/.test(raw);
 
   const serviceId = String(searchParams.get("serviceId") ?? "").trim();
   const date = String(searchParams.get("date") ?? "").trim();
   const time = String(searchParams.get("time") ?? "").trim();
 
-  const { data: business } = usePublicBusiness(normalizedSlug);
+  const { data: business, resolvedPublicId } = usePublicBusiness(raw);
+
+  React.useEffect(() => {
+    if (!raw) return;
+    if (isPublicId) return;
+    if (!resolvedPublicId) return;
+
+    const qs = new URLSearchParams();
+    if (serviceId) qs.set("serviceId", serviceId);
+    if (date) qs.set("date", date);
+    if (time) qs.set("time", time);
+    const qsString = qs.toString();
+    router.replace(
+      `/b/${encodeURIComponent(resolvedPublicId)}/details${
+        qsString ? `?${qsString}` : ""
+      }`
+    );
+  }, [date, isPublicId, raw, resolvedPublicId, router, serviceId, time]);
 
   const [fullName, setFullName] = React.useState("");
   const [phone, setPhone] = React.useState("");
@@ -47,36 +65,38 @@ export default function PublicDetailsPage({
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (!normalizedSlug) {
+    if (!raw) {
       router.replace("/");
       return;
     }
 
+    if (!isPublicId) {
+      return;
+    }
+
     if (!serviceId) {
-      router.replace(`/b/${encodeURIComponent(normalizedSlug)}`);
+      router.replace(`/b/${encodeURIComponent(raw)}`);
       return;
     }
 
     if (!date) {
       router.replace(
-        `/b/${encodeURIComponent(
-          normalizedSlug
-        )}/calendar?serviceId=${encodeURIComponent(serviceId)}`
+        `/b/${encodeURIComponent(raw)}/calendar?serviceId=${encodeURIComponent(
+          serviceId
+        )}`
       );
       return;
     }
 
     if (!time) {
       router.replace(
-        `/b/${encodeURIComponent(
-          normalizedSlug
-        )}/times?serviceId=${encodeURIComponent(
+        `/b/${encodeURIComponent(raw)}/times?serviceId=${encodeURIComponent(
           serviceId
         )}&date=${encodeURIComponent(date)}`
       );
       return;
     }
-  }, [date, router, serviceId, normalizedSlug, time]);
+  }, [date, isPublicId, raw, router, serviceId, time]);
 
   const submit = async () => {
     setSubmitting(true);
@@ -84,7 +104,7 @@ export default function PublicDetailsPage({
 
     try {
       const draft: BookingDraft = {
-        businessSlug: normalizedSlug,
+        businessPublicId: raw,
         serviceId,
         date,
         startTime: time,
@@ -109,9 +129,9 @@ export default function PublicDetailsPage({
         throw new Error(json?.error || `Request failed (${res.status})`);
 
       router.push(
-        `/b/${encodeURIComponent(
-          normalizedSlug
-        )}/verify?phone=${encodeURIComponent(draft.customerPhone)}`
+        `/b/${encodeURIComponent(raw)}/verify?phone=${encodeURIComponent(
+          draft.customerPhone
+        )}`
       );
     } catch (e: any) {
       setError(e?.message || "Failed");
@@ -127,9 +147,7 @@ export default function PublicDetailsPage({
       subtitle={date && time ? `${date} • ${time}` : "Tell us who you are"}
       onBack={() =>
         router.replace(
-          `/b/${encodeURIComponent(
-            normalizedSlug
-          )}/times?serviceId=${encodeURIComponent(
+          `/b/${encodeURIComponent(raw)}/times?serviceId=${encodeURIComponent(
             serviceId
           )}&date=${encodeURIComponent(date)}`
         )
@@ -179,7 +197,7 @@ export default function PublicDetailsPage({
             onClick={() =>
               router.replace(
                 `/b/${encodeURIComponent(
-                  normalizedSlug
+                  raw
                 )}/times?serviceId=${encodeURIComponent(
                   serviceId
                 )}&date=${encodeURIComponent(date)}`
