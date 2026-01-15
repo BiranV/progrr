@@ -13,7 +13,7 @@ export type Business = {
 export type UpdateBusinessPayload = {
   name: string;
   phone: string;
-  address?: string;
+  address: string;
   description?: string;
   currency?: string;
 };
@@ -51,8 +51,8 @@ export function useBusiness() {
     queryFn: () => apiFetch<Business>("/api/business"),
     staleTime: 2 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
+    refetchOnMount: true,
+    refetchOnReconnect: true,
   });
 }
 
@@ -60,7 +60,7 @@ export async function updateBusiness(payload: UpdateBusinessPayload) {
   const body = {
     name: payload.name,
     phone: payload.phone,
-    address: payload.address ?? "",
+    address: payload.address,
     description: payload.description ?? "",
     ...(payload.currency ? { currency: payload.currency } : {}),
   };

@@ -25,7 +25,15 @@ function digitsOnly(value: string) {
 }
 
 export default function BusinessDetailsPage() {
-  const { data: business, isPending, dataUpdatedAt, refetch } = useBusiness();
+  const {
+    data: business,
+    isPending,
+    isFetching,
+    isError,
+    error,
+    dataUpdatedAt,
+    refetch,
+  } = useBusiness();
   const queryClient = useQueryClient();
 
   const initialRef = React.useRef<BusinessDetailsForm | null>(null);
@@ -119,6 +127,10 @@ export default function BusinessDetailsPage() {
       nextErrors.phone = "Phone number must have at least 9 digits.";
     }
 
+    if (!next.address.trim()) {
+      nextErrors.address = "Address cannot be empty.";
+    }
+
     return nextErrors;
   }, []);
 
@@ -178,8 +190,30 @@ export default function BusinessDetailsPage() {
 
   const showFullPageSpinner = isPending && !business && !initialRef.current;
 
+  const showErrorState =
+    !business && !initialRef.current && isError && !isPending && !isFetching;
+
   return showFullPageSpinner ? (
     <CenteredSpinner fullPage />
+  ) : showErrorState ? (
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          Business details
+        </h1>
+        <p className="text-sm text-gray-600 dark:text-gray-300">
+          Failed to load your business details.
+        </p>
+      </div>
+
+      <div className="text-sm text-red-600 dark:text-red-400">
+        {String((error as any)?.message ?? "Request failed")}
+      </div>
+
+      <Button type="button" onClick={() => refetch()}>
+        Retry
+      </Button>
+    </div>
   ) : (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -231,10 +265,16 @@ export default function BusinessDetailsPage() {
           <Input
             id="address"
             type="text"
-            placeholder="City, street (optional)"
+            required
+            placeholder="City, street"
             value={form.address}
             onChange={(e) => updateField("address", e.target.value)}
           />
+          {errors.address ? (
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {errors.address}
+            </p>
+          ) : null}
         </div>
 
         <div className="space-y-2">

@@ -3,19 +3,6 @@
 import React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
-import { CenteredSpinner } from "@/components/CenteredSpinner";
-import PublicBookingShell from "../_components/PublicBookingShell";
-import { usePublicBusiness } from "../_components/usePublicBusiness";
-
-type SlotsResponse = {
-  ok: boolean;
-  date: string;
-  timeZone: string;
-  service: { id: string; name: string; durationMinutes: number };
-  slots: Array<{ startTime: string; endTime: string }>;
-};
-
 export default function PublicTimesPage({
   params,
 }: {
@@ -26,187 +13,19 @@ export default function PublicTimesPage({
 
   const { slug } = React.use(params);
   const raw = String(slug ?? "").trim();
-  const isPublicId = /^\d{5}$/.test(raw);
-
-  const serviceId = String(searchParams.get("serviceId") ?? "").trim();
-  const date = String(searchParams.get("date") ?? "").trim();
-
-  const { data: business, resolvedPublicId } = usePublicBusiness(raw);
 
   React.useEffect(() => {
     if (!raw) return;
-    if (isPublicId) return;
-    if (!resolvedPublicId) return;
-
+    const serviceId = String(searchParams.get("serviceId") ?? "").trim();
+    const date = String(searchParams.get("date") ?? "").trim();
     const qs = new URLSearchParams();
     if (serviceId) qs.set("serviceId", serviceId);
     if (date) qs.set("date", date);
     const qsString = qs.toString();
     router.replace(
-      `/b/${encodeURIComponent(resolvedPublicId)}/times${
-        qsString ? `?${qsString}` : ""
-      }`
+      `/b/${encodeURIComponent(raw)}${qsString ? `?${qsString}` : ""}`
     );
-  }, [date, isPublicId, raw, resolvedPublicId, router, serviceId]);
+  }, [raw, router, searchParams]);
 
-  const [data, setData] = React.useState<SlotsResponse | null>(null);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (!raw) {
-      setData(null);
-      setError("Business not found");
-      setLoading(false);
-      return;
-    }
-
-    if (!isPublicId) {
-      // Wait for redirect to stable publicId.
-      setData(null);
-      setLoading(true);
-      return;
-    }
-
-    if (!serviceId) {
-      router.replace(`/b/${encodeURIComponent(raw)}`);
-      return;
-    }
-
-    if (!date) {
-      router.replace(
-        `/b/${encodeURIComponent(raw)}/calendar?serviceId=${encodeURIComponent(
-          serviceId
-        )}`
-      );
-      return;
-    }
-
-    let cancelled = false;
-
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(
-          `/api/public/business/${encodeURIComponent(
-            raw
-          )}/availability?date=${encodeURIComponent(
-            date
-          )}&serviceId=${encodeURIComponent(serviceId)}`
-        );
-
-        const json = await res.json().catch(() => null);
-        if (!res.ok)
-          throw new Error(json?.error || `Request failed (${res.status})`);
-
-        if (cancelled) return;
-        setData(json as SlotsResponse);
-      } catch (e: any) {
-        if (cancelled) return;
-        setError(e?.message || "Failed to load slots");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [date, isPublicId, raw, router, serviceId]);
-
-  return (
-    <PublicBookingShell
-      business={business}
-      title="Pick a time"
-      subtitle={date ? `For ${date}` : "Choose a time"}
-      onBack={() =>
-        router.replace(
-          `/b/${encodeURIComponent(
-            raw
-          )}/calendar?serviceId=${encodeURIComponent(serviceId)}`
-        )
-      }
-      showGallery={false}
-    >
-      {loading ? (
-        <CenteredSpinner fullPage />
-      ) : error || !data ? (
-        <div className="space-y-4">
-          <div className="text-sm text-red-600 dark:text-red-400">
-            {error || "No slots"}
-          </div>
-          <Button
-            variant="outline"
-            className="rounded-2xl"
-            onClick={() =>
-              router.replace(
-                `/b/${encodeURIComponent(
-                  raw
-                )}/calendar?serviceId=${encodeURIComponent(serviceId)}`
-              )
-            }
-          >
-            Back
-          </Button>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {data.slots.map((s) => (
-            <button
-              key={s.startTime}
-              className={
-                "w-full rounded-2xl border border-gray-200 dark:border-gray-800 " +
-                "bg-white/70 dark:bg-gray-950/20 p-4 text-left shadow-sm " +
-                "transition cursor-pointer " +
-                "hover:bg-white hover:shadow-md hover:-translate-y-[1px] " +
-                "dark:hover:bg-gray-900/30 " +
-                "active:translate-y-0 active:shadow-sm"
-              }
-              onClick={() =>
-                router.push(
-                  `/b/${encodeURIComponent(
-                    raw
-                  )}/details?serviceId=${encodeURIComponent(
-                    serviceId
-                  )}&date=${encodeURIComponent(date)}&time=${encodeURIComponent(
-                    s.startTime
-                  )}`
-                )
-              }
-            >
-              <div className="font-semibold text-gray-900 dark:text-white">
-                {s.startTime}
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-300">
-                Ends {s.endTime}
-              </div>
-            </button>
-          ))}
-
-          {!data.slots.length && (
-            <div className="text-sm text-gray-600 dark:text-gray-300">
-              No times available.
-            </div>
-          )}
-
-          <div className="pt-2">
-            <Button
-              variant="outline"
-              className="rounded-2xl"
-              onClick={() =>
-                router.replace(
-                  `/b/${encodeURIComponent(
-                    raw
-                  )}/calendar?serviceId=${encodeURIComponent(serviceId)}`
-                )
-              }
-            >
-              Back
-            </Button>
-          </div>
-        </div>
-      )}
-    </PublicBookingShell>
-  );
+  return null;
 }

@@ -174,6 +174,13 @@ export async function PATCH(req: Request) {
       );
     }
 
+    if (!address.trim()) {
+      return NextResponse.json(
+        { error: "Address cannot be empty" },
+        { status: 400 }
+      );
+    }
+
     const result = await c.users.updateOne(
       { _id: new ObjectId(appUser.id) },
       {
