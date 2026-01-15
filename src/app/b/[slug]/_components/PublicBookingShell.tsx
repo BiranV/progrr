@@ -31,6 +31,13 @@ export default function PublicBookingShell({
     ? (business?.branding?.gallery || []).filter(Boolean).slice(0, 10)
     : [];
 
+  const galleryRef = React.useRef<HTMLDivElement | null>(null);
+  const scrollGallery = (dir: -1 | 1) => {
+    const el = galleryRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * 220, behavior: "smooth" });
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-black pb-safe">
       <div className="relative w-full z-0 h-[140px] bg-gradient-to-br from-neutral-950 via-zinc-900 to-zinc-800 shrink-0 overflow-hidden">
@@ -98,26 +105,82 @@ export default function PublicBookingShell({
 
           {showGallery && gallery.length > 0 ? (
             <div className="mb-5">
-              <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory">
-                {gallery.map((src, idx) => (
-                  <div
-                    key={`${src}-${idx}`}
-                    className={cn(
-                      "snap-start shrink-0 rounded-2xl overflow-hidden",
-                      "shadow-sm border border-gray-200/70 dark:border-gray-800",
-                      "bg-gray-100 dark:bg-gray-800"
-                    )}
-                    style={{ width: 140, height: 96 }}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={src}
-                      alt={`Gallery image ${idx + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                ))}
+              <div className="relative">
+                <div
+                  ref={galleryRef}
+                  className={cn(
+                    "flex gap-3 overflow-x-auto pb-2 -mx-2 px-2",
+                    "snap-x snap-mandatory scroll-smooth",
+                    "no-scrollbar"
+                  )}
+                >
+                  {gallery.map((src, idx) => (
+                    <div
+                      key={`${src}-${idx}`}
+                      className={cn(
+                        "snap-start shrink-0 rounded-2xl overflow-hidden",
+                        "shadow-sm border border-gray-200/70 dark:border-gray-800",
+                        "bg-gray-100 dark:bg-gray-800"
+                      )}
+                      style={{ width: 190, height: 115 }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={src}
+                        alt={`Gallery image ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                        draggable={false}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {gallery.length > 1 ? (
+                  <>
+                    <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-gray-50 dark:from-black to-transparent" />
+                    <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-gray-50 dark:from-black to-transparent" />
+                    <button
+                      type="button"
+                      aria-label="Scroll gallery left"
+                      onClick={() => scrollGallery(-1)}
+                      className={cn(
+                        "absolute left-0 top-1/2 -translate-y-1/2",
+                        "h-9 w-9 rounded-full",
+                        "bg-white/80 dark:bg-zinc-900/70",
+                        "border border-gray-200/70 dark:border-gray-800",
+                        "shadow-sm backdrop-blur",
+                        "grid place-items-center",
+                        "hover:bg-white dark:hover:bg-zinc-900",
+                        "transition"
+                      )}
+                    >
+                      <span className="text-lg leading-none text-gray-700 dark:text-gray-200">
+                        ‹
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Scroll gallery right"
+                      onClick={() => scrollGallery(1)}
+                      className={cn(
+                        "absolute right-0 top-1/2 -translate-y-1/2",
+                        "h-9 w-9 rounded-full",
+                        "bg-white/80 dark:bg-zinc-900/70",
+                        "border border-gray-200/70 dark:border-gray-800",
+                        "shadow-sm backdrop-blur",
+                        "grid place-items-center",
+                        "hover:bg-white dark:hover:bg-zinc-900",
+                        "transition"
+                      )}
+                    >
+                      <span className="text-lg leading-none text-gray-700 dark:text-gray-200">
+                        ›
+                      </span>
+                    </button>
+                  </>
+                ) : null}
               </div>
+
               <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 Photos from {business?.business?.name || "this business"}
               </div>
