@@ -46,6 +46,17 @@ type BookingResult = {
   cancelToken: string;
 };
 
+type ActiveAppointmentConflict = {
+  bookingSessionId: string;
+  existingAppointment?: {
+    id?: string;
+    date?: string;
+    startTime?: string;
+    endTime?: string;
+    serviceName?: string;
+  };
+};
+
 function weekdayFromDateString(dateStr: string): number {
   // Weekday for a civil date is timezone-independent.
   const d = new Date(`${dateStr}T12:00:00Z`);
@@ -147,6 +158,8 @@ export default function PublicBookingFlow({
   const [slotsError, setSlotsError] = React.useState<string | null>(null);
 
   const [result, setResult] = React.useState<BookingResult | null>(null);
+  const [activeConflict, setActiveConflict] =
+    React.useState<ActiveAppointmentConflict | null>(null);
   // Restore success screen on refresh if the user is still on this business.
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -236,10 +249,15 @@ export default function PublicBookingFlow({
     setStep("service");
   }, []);
 
+  const didInitFromUrlRef = React.useRef(false);
+
   // Initialize from URL (compat with older deep links) exactly once.
   React.useEffect(() => {
     if (!publicId) return;
     if (!data) return;
+    if (didInitFromUrlRef.current) return;
+
+    didInitFromUrlRef.current = true;
 
     const sp = new URLSearchParams(window.location.search);
     const nextServiceId = String(sp.get("serviceId") ?? "").trim();
@@ -270,7 +288,15 @@ export default function PublicBookingFlow({
       setStep("date");
       return;
     }
-  }, [publicId, data]);
+  }, [
+    customerEmail,
+    customerPhone,
+    data,
+    date,
+    publicId,
+    serviceId,
+    startTime,
+  ]);
 
   const tz = String(data?.availability?.timezone ?? "").trim() || "UTC";
 
@@ -431,7 +457,7 @@ export default function PublicBookingFlow({
         : "Booked";
     }
     return "";
-  }, [customerEmail, data, date, result, selectedService, startTime, step]);
+  }, [customerEmail, data, date, result, startTime, step]);
 
   const shellSubtitleRight = React.useMemo<React.ReactNode>(() => {
     if (!data) return null;
@@ -521,10 +547,30 @@ export default function PublicBookingFlow({
     });
 
     const confirmJson = await confirmRes.json().catch(() => null);
-    if (!confirmRes.ok)
+    if (!confirmRes.ok) {
+      if (
+        confirmRes.status === 409 &&
+        String(confirmJson?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS"
+      ) {
+        setActiveConflict({
+          bookingSessionId,
+          existingAppointment: confirmJson?.existingAppointment,
+        });
+
+        const err: any = new Error(
+          confirmJson?.error ||
+            "You already have an active upcoming appointment. Please cancel it first."
+        );
+        err.code = "ACTIVE_APPOINTMENT_EXISTS";
+        throw err;
+      }
+
       throw new Error(
         confirmJson?.error || `Request failed (${confirmRes.status})`
       );
+    }
+
+    setActiveConflict(null);
 
     try {
       sessionStorage.setItem(RESULT_KEY, JSON.stringify(confirmJson));
@@ -534,6 +580,31 @@ export default function PublicBookingFlow({
     }
 
     return confirmJson as BookingResult;
+  };
+
+  const cancelExistingAppointment = async () => {
+    const bookingSessionId = String(
+      activeConflict?.bookingSessionId ?? ""
+    ).trim();
+    const appointmentId = String(
+      activeConflict?.existingAppointment?.id ?? ""
+    ).trim();
+    if (!bookingSessionId) throw new Error("Verification required");
+    if (!appointmentId) throw new Error("Appointment not found");
+
+    const res = await fetch("/api/public/booking/cancel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        bookingSessionId,
+        appointmentId,
+        customerEmail: customerEmail.trim(),
+      }),
+    });
+
+    const json = await res.json().catch(() => null);
+    if (!res.ok)
+      throw new Error(json?.error || `Request failed (${res.status})`);
   };
 
   const cancelBooking = async () => {
@@ -815,6 +886,54 @@ export default function PublicBookingFlow({
             </div>
           ) : null}
 
+          {activeConflict ? (
+            <div className="rounded-2xl border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/70 dark:bg-amber-950/20 p-4">
+              <div className="font-semibold text-amber-900 dark:text-amber-200">
+                You already have an upcoming appointment
+              </div>
+              <div className="text-sm text-amber-800/90 dark:text-amber-200/80 mt-1">
+                Please cancel it first to book a new one.
+              </div>
+              {activeConflict.existingAppointment?.date ||
+              activeConflict.existingAppointment?.startTime ? (
+                <div className="text-sm text-amber-900/90 dark:text-amber-200/90 mt-2">
+                  {activeConflict.existingAppointment?.serviceName
+                    ? `${activeConflict.existingAppointment.serviceName} • `
+                    : ""}
+                  {activeConflict.existingAppointment?.date || ""}
+                  {activeConflict.existingAppointment?.startTime
+                    ? ` • ${activeConflict.existingAppointment.startTime}`
+                    : ""}
+                </div>
+              ) : null}
+
+              <div className="mt-3">
+                <Button
+                  variant="outline"
+                  className="rounded-2xl w-full"
+                  disabled={submitting}
+                  onClick={async () => {
+                    setSubmitting(true);
+                    setFormError(null);
+                    try {
+                      await cancelExistingAppointment();
+                      setActiveConflict(null);
+                      const r = await confirmBooking();
+                      setResult(r);
+                      setStep("success");
+                    } catch (e: any) {
+                      setFormError(e?.message || "Failed");
+                    } finally {
+                      setSubmitting(false);
+                    }
+                  }}
+                >
+                  {submitting ? "Cancelling…" : "Cancel existing appointment"}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
           <div className="flex justify-center">
             <OtpInput
               id="booking-otp"
@@ -856,6 +975,7 @@ export default function PublicBookingFlow({
                   setResult(r);
                   setStep("success");
                 } catch (e: any) {
+                  // The backend enforces ACTIVE_APPOINTMENT_EXISTS; show conflict UI.
                   setFormError(e?.message || "Failed");
                 } finally {
                   setSubmitting(false);

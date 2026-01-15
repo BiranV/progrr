@@ -10,6 +10,7 @@ import {
 } from "@/server/booking/slots";
 import { verifyBookingVerifyToken, signBookingCancelToken } from "@/server/jwt";
 import { isValidBusinessPublicId } from "@/server/business-public-id";
+import { formatDateInTimeZone } from "@/lib/public-booking";
 
 function normalizeEmail(input: unknown): string {
   return String(input ?? "")
@@ -28,6 +29,32 @@ function isValidDateString(s: string): boolean {
 
 function isValidTimeString(s: string): boolean {
   return /^\d{2}:\d{2}$/.test(s);
+}
+
+function formatTimeInTimeZone(date: Date, timeZone: string): string {
+  const tz = String(timeZone || "UTC").trim() || "UTC";
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: tz,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(date);
+  } catch {
+    parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "UTC",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(date);
+  }
+
+  const get = (type: string) => parts.find((p) => p.type === type)?.value;
+  const h = get("hour");
+  const m = get("minute");
+  if (!h || !m) return "";
+  return `${h}:${m}`;
 }
 
 export async function POST(req: Request) {
@@ -153,6 +180,54 @@ export async function POST(req: Request) {
     }
     if (!Number.isFinite(price) || price < 0) {
       return NextResponse.json({ error: "Invalid price" }, { status: 400 });
+    }
+
+    // Enforce: only one active future appointment per customer (server-side only).
+    const timeZone =
+      String((onboarding as any)?.availability?.timezone ?? "").trim() || "UTC";
+    const todayStr = formatDateInTimeZone(new Date(), timeZone);
+    const nowTimeStr = formatTimeInTimeZone(new Date(), timeZone);
+
+    const existing = await c.appointments.findOne(
+      {
+        businessUserId: user._id as ObjectId,
+        status: "BOOKED",
+        $and: [
+          {
+            $or: [
+              { "customer.email": customerEmail },
+              { "customer.phone": customerPhone },
+            ],
+          },
+          {
+            $or: [
+              { date: { $gt: todayStr } },
+              { date: todayStr, startTime: { $gt: nowTimeStr } },
+            ],
+          },
+        ],
+      } as any,
+      {
+        sort: { date: 1, startTime: 1 },
+      }
+    );
+
+    if (existing) {
+      return NextResponse.json(
+        {
+          error:
+            "You already have an active upcoming appointment. Please cancel it first.",
+          code: "ACTIVE_APPOINTMENT_EXISTS",
+          existingAppointment: {
+            id: (existing as any)?._id?.toHexString?.() ?? undefined,
+            date: (existing as any)?.date,
+            startTime: (existing as any)?.startTime,
+            endTime: (existing as any)?.endTime,
+            serviceName: (existing as any)?.serviceName,
+          },
+        },
+        { status: 409 }
+      );
     }
 
     const booked = await c.appointments

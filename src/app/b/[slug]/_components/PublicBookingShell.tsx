@@ -253,14 +253,14 @@ export default function PublicBookingShell({
 
                 {gallery.length > 1 ? (
                   <>
-                    <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-gray-50 dark:from-black to-transparent" />
-                    <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-gray-50 dark:from-black to-transparent" />
+                    <div className="pointer-events-none absolute inset-y-0 left-2 w-10 bg-gradient-to-r from-gray-50 dark:from-black to-transparent" />
+                    <div className="pointer-events-none absolute inset-y-0 right-2 w-10 bg-gradient-to-l from-gray-50 dark:from-black to-transparent" />
                     <button
                       type="button"
                       aria-label="Scroll gallery left"
                       onClick={() => scrollGallery(-1)}
                       className={cn(
-                        "absolute left-0 top-1/2 -translate-y-1/2",
+                        "absolute left-2 top-1/2 -translate-y-1/2",
                         "h-9 w-9 rounded-full",
                         "bg-white/80 dark:bg-zinc-900/70",
                         "border border-gray-200/70 dark:border-gray-800",
@@ -280,7 +280,7 @@ export default function PublicBookingShell({
                       aria-label="Scroll gallery right"
                       onClick={() => scrollGallery(1)}
                       className={cn(
-                        "absolute right-0 top-1/2 -translate-y-1/2",
+                        "absolute right-2 top-1/2 -translate-y-1/2",
                         "h-9 w-9 rounded-full",
                         "bg-white/80 dark:bg-zinc-900/70",
                         "border border-gray-200/70 dark:border-gray-800",
