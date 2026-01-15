@@ -23,6 +23,18 @@ export default function PublicBookingShell({
   showGallery?: boolean;
   children: React.ReactNode;
 }) {
+  const [isRtl, setIsRtl] = React.useState(false);
+
+  React.useEffect(() => {
+    const el = document?.documentElement;
+    if (!el) return;
+
+    const dirAttr = String(el.getAttribute("dir") ?? "").toLowerCase();
+    const computedDir =
+      typeof window !== "undefined" ? getComputedStyle(el).direction : "ltr";
+    setIsRtl(dirAttr === "rtl" || computedDir === "rtl");
+  }, []);
+
   const logoUrl = String(business?.branding?.logoUrl ?? "").trim();
   const bannerUrl = String(
     business?.branding?.bannerUrl ?? business?.branding?.banner?.url ?? ""
@@ -51,20 +63,6 @@ export default function PublicBookingShell({
         ) : null}
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/15 to-transparent" />
         <div className="absolute inset-0 opacity-20 mix-blend-overlay" />
-
-        {onBack ? (
-          <div className="absolute left-4 top-4 z-20">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={onBack}
-              className="rounded-full text-white hover:bg-white/10"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </div>
-        ) : null}
       </div>
 
       <div className="flex-1 -mt-16 bg-gray-50 dark:bg-zinc-900 rounded-t-[40px] relative z-10 flex flex-col items-center shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
@@ -98,13 +96,33 @@ export default function PublicBookingShell({
             <div className="w-10" />
           </div>
 
-          <div className="text-center space-y-1 mt-4 mb-5">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
-              {business?.business?.name || title}
-            </h1>
-            <p className="text-sm text-gray-500 dark:text-gray-300 font-medium">
-              {subtitle || title}
-            </p>
+          <div className="space-y-1 mt-4 mb-5">
+            <div className="flex items-center gap-2">
+              {onBack ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={onBack}
+                  className="rounded-xl text-gray-900 hover:bg-gray-100 dark:text-white dark:hover:bg-white/10"
+                  aria-label="Back"
+                >
+                  <ArrowLeft
+                    className={"h-5 w-5" + (isRtl ? " rotate-180" : "")}
+                  />
+                </Button>
+              ) : null}
+
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
+                {business?.business?.name || title}
+              </h1>
+            </div>
+
+            {subtitle ? (
+              <p className="text-sm text-gray-500 dark:text-gray-300 font-medium">
+                {subtitle}
+              </p>
+            ) : null}
           </div>
 
           {showGallery && gallery.length > 0 ? (
