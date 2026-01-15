@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import ImageCropperModal, {
@@ -15,7 +15,67 @@ type BrandingState = {
   logoUrl?: string;
   logo?: { url: string; publicId?: string };
   banner?: { url: string; publicId?: string };
+  gallery?: Array<
+    string | { url: string; publicId?: string; width?: number; height?: number }
+  >;
 };
+
+type GalleryItem = {
+  url: string;
+  publicId?: string;
+  width?: number;
+  height?: number;
+  bytes?: number;
+  format?: string;
+};
+
+function normalizeGalleryFromApi(v: any): GalleryItem[] {
+  if (!Array.isArray(v)) return [];
+  return v
+    .map((x: any) => {
+      if (typeof x === "string") {
+        const url = String(x ?? "").trim();
+        if (!url) return null;
+        return { url, publicId: "" } satisfies GalleryItem;
+      }
+      const url = String(x?.url ?? "").trim();
+      if (!url) return null;
+      return {
+        url,
+        publicId: String(x?.publicId ?? x?.public_id ?? "").trim(),
+        width: typeof x?.width === "number" ? x.width : undefined,
+        height: typeof x?.height === "number" ? x.height : undefined,
+        bytes: typeof x?.bytes === "number" ? x.bytes : undefined,
+        format: typeof x?.format === "string" ? x.format : undefined,
+      } satisfies GalleryItem;
+    })
+    .filter(Boolean)
+    .slice(0, 10) as GalleryItem[];
+}
+
+function normalizeGalleryFromState(v: any): GalleryItem[] {
+  if (!Array.isArray(v)) return [];
+  return v
+    .map((x: any) => {
+      if (typeof x === "string") {
+        const url = String(x ?? "").trim();
+        if (!url) return null;
+        return { url, publicId: "" } satisfies GalleryItem;
+      }
+      const url = String(x?.url ?? "").trim();
+      if (!url) return null;
+      return {
+        url,
+        publicId: String(x?.publicId ?? x?.public_id ?? "").trim(),
+        width: typeof x?.width === "number" ? x.width : undefined,
+        height: typeof x?.height === "number" ? x.height : undefined,
+        bytes: typeof x?.bytes === "number" ? x.bytes : undefined,
+        format: typeof x?.format === "string" ? x.format : undefined,
+      } satisfies GalleryItem;
+    })
+    .filter(Boolean)
+    .slice(0, 10) as GalleryItem[];
+}
 
 function pickLogoUrl(branding: BrandingState | null | undefined) {
   const fromObj = String(branding?.logo?.url ?? "").trim();
@@ -29,11 +89,20 @@ export default function BrandingSettingsPage() {
 
   const [uploadingLogo, setUploadingLogo] = React.useState(false);
   const [uploadingBanner, setUploadingBanner] = React.useState(false);
+  const [uploadingGallery, setUploadingGallery] = React.useState(false);
+  const [galleryPendingPreviews, setGalleryPendingPreviews] = React.useState<
+    string[]
+  >([]);
+  const [galleryError, setGalleryError] = React.useState<string | null>(null);
+  const [replacingIndex, setReplacingIndex] = React.useState<number | null>(
+    null
+  );
 
   const [branding, setBranding] = React.useState<BrandingState>({});
 
   const logoInputId = React.useId();
   const bannerInputId = React.useId();
+  const galleryAddInputId = React.useId();
 
   const [cropOpen, setCropOpen] = React.useState(false);
   const [cropMode, setCropMode] = React.useState<ImageCropperMode>("logo");
@@ -45,8 +114,15 @@ export default function BrandingSettingsPage() {
       logoUrl: b.logoUrl,
       logo: b.logo,
       banner: b.banner,
+      gallery: Array.isArray((b as any)?.gallery) ? (b as any).gallery : [],
     });
   }, [user]);
+
+  React.useEffect(() => {
+    return () => {
+      galleryPendingPreviews.forEach((u) => URL.revokeObjectURL(u));
+    };
+  }, [galleryPendingPreviews]);
 
   const syncUserBranding = React.useCallback(
     (next: Partial<BrandingState>) => {
@@ -63,6 +139,32 @@ export default function BrandingSettingsPage() {
           },
         },
       });
+    },
+    [updateUser, user]
+  );
+
+  const patchOnboardingBranding = React.useCallback(
+    async (next: Partial<BrandingState>) => {
+      const res = await fetch("/api/onboarding", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ branding: next }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok)
+        throw new Error(json?.error || `Request failed (${res.status})`);
+
+      const onboarding = json?.onboarding;
+      if (onboarding && typeof onboarding === "object") {
+        updateUser({
+          onboarding: {
+            ...((user as any)?.onboarding ?? {}),
+            ...onboarding,
+          },
+        });
+      }
+      return json;
     },
     [updateUser, user]
   );
@@ -158,6 +260,179 @@ export default function BrandingSettingsPage() {
 
   const logoUrl = pickLogoUrl(branding);
   const bannerUrl = String(branding?.banner?.url ?? "").trim();
+
+  const uploadGalleryFiles = async (files: File[] | null) => {
+    if (!files || files.length === 0) return;
+
+    setUploadingGallery(true);
+    setGalleryError(null);
+    let localPreviews: string[] = [];
+    let clearPreviewsDelayMs = 0;
+    try {
+      const current = normalizeGalleryFromState(branding.gallery).length;
+      const remaining = Math.max(0, 10 - current);
+      if (remaining <= 0) throw new Error("Gallery limit reached (max 10)");
+
+      const selected = files.slice(0, remaining);
+
+      const allowed = new Set(["image/png", "image/jpeg", "image/webp"]);
+      const maxBytes = 5 * 1024 * 1024;
+      const valid: File[] = [];
+      const skipped: string[] = [];
+
+      for (const f of selected) {
+        const t = String(f.type || "").toLowerCase();
+        if (t && !allowed.has(t)) {
+          skipped.push(`${f.name || "image"} (unsupported format)`);
+          continue;
+        }
+        if (f.size > maxBytes) {
+          skipped.push(`${f.name || "image"} (too large)`);
+          continue;
+        }
+        valid.push(f);
+      }
+
+      if (!valid.length) {
+        throw new Error(
+          "Please upload JPG, PNG, or WEBP images (max 5MB each)"
+        );
+      }
+      if (skipped.length) {
+        toast.error(
+          `Some files were skipped: ${skipped.slice(0, 3).join(", ")}${
+            skipped.length > 3 ? "…" : ""
+          }`
+        );
+      }
+
+      localPreviews = valid.map((f) => URL.createObjectURL(f));
+      setGalleryPendingPreviews((prev) => [...prev, ...localPreviews]);
+
+      const fd = new FormData();
+      valid.forEach((f) => fd.append("images", f));
+
+      const res = await fetch("/api/branding/gallery", {
+        method: "POST",
+        body: fd,
+        credentials: "include",
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok)
+        throw new Error(json?.error || `Request failed (${res.status})`);
+
+      const gallery = normalizeGalleryFromApi(json?.gallery);
+      syncUserBranding({ gallery });
+      toast.success("Gallery updated");
+
+      clearPreviewsDelayMs = 0;
+    } catch (e: any) {
+      clearPreviewsDelayMs = 2500;
+      const msg = e?.message || "Failed to upload images";
+      setGalleryError(msg);
+      toast.error(msg);
+      throw e;
+    } finally {
+      if (localPreviews.length) {
+        const clear = () => {
+          setGalleryPendingPreviews((prev) =>
+            prev.filter((u) => !localPreviews.includes(u))
+          );
+          localPreviews.forEach((u) => URL.revokeObjectURL(u));
+        };
+
+        if (clearPreviewsDelayMs > 0) {
+          window.setTimeout(clear, clearPreviewsDelayMs);
+        } else {
+          clear();
+        }
+      }
+      setUploadingGallery(false);
+    }
+  };
+
+  const removeGalleryImage = async (item: {
+    url: string;
+    publicId?: string;
+  }) => {
+    setUploadingGallery(true);
+    setGalleryError(null);
+    try {
+      const res = await fetch("/api/branding/gallery", {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: String(item?.url ?? "").trim(),
+          publicId: String(item?.publicId ?? "").trim() || undefined,
+        }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok)
+        throw new Error(json?.error || `Request failed (${res.status})`);
+
+      const gallery = normalizeGalleryFromApi(json?.gallery);
+      syncUserBranding({ gallery });
+      toast.success("Image removed");
+    } catch (e: any) {
+      const msg = e?.message || "Failed to remove image";
+      setGalleryError(msg);
+      toast.error(msg);
+      throw e;
+    } finally {
+      setUploadingGallery(false);
+    }
+  };
+
+  const replaceGalleryImage = async (index: number, file: File) => {
+    setReplacingIndex(index);
+    setGalleryError(null);
+    try {
+      const before = normalizeGalleryFromState(branding.gallery);
+      const target = before[index];
+      if (!target) throw new Error("Image not found");
+
+      // Upload new (server appends)
+      const fd = new FormData();
+      fd.append("images", file);
+      const upRes = await fetch("/api/branding/gallery", {
+        method: "POST",
+        body: fd,
+        credentials: "include",
+      });
+      const upJson = await upRes.json().catch(() => null);
+      if (!upRes.ok)
+        throw new Error(upJson?.error || `Request failed (${upRes.status})`);
+
+      const added = normalizeGalleryFromApi(upJson?.added);
+      const first = added?.[0];
+      if (!first?.url) throw new Error("Upload failed");
+
+      // Remove old
+      await removeGalleryImage({ url: target.url, publicId: target.publicId });
+
+      // Persist order to keep replaced image at same index
+      const reordered = [...before];
+      reordered[index] = first;
+
+      const patchJson = await patchOnboardingBranding({ gallery: reordered });
+      const normalizedFromServer = normalizeGalleryFromApi(
+        patchJson?.onboarding?.branding?.gallery
+      );
+      syncUserBranding({
+        gallery: normalizedFromServer.length ? normalizedFromServer : reordered,
+      });
+
+      toast.success("Image replaced");
+    } catch (e: any) {
+      const msg = e?.message || "Failed to replace image";
+      setGalleryError(msg);
+      toast.error(msg);
+      throw e;
+    } finally {
+      setReplacingIndex(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -331,6 +606,156 @@ export default function BrandingSettingsPage() {
             ) : null}
           </div>
         </div>
+      </div>
+
+      <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="font-semibold text-gray-900 dark:text-white">
+              Business gallery
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-300">
+              Up to 10 images of your space, work, products, or services.
+            </div>
+          </div>
+          <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 shrink-0">
+            {normalizeGalleryFromState(branding.gallery).length +
+              galleryPendingPreviews.length}
+            /10
+          </div>
+        </div>
+
+        <input
+          id={galleryAddInputId}
+          type="file"
+          multiple
+          accept="image/png,image/jpeg,image/webp"
+          className="hidden"
+          disabled={uploadingGallery}
+          onChange={(e) => {
+            const picked = Array.from(e.target.files ?? []);
+            e.target.value = "";
+            uploadGalleryFiles(picked).catch(() => null);
+          }}
+        />
+
+        <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {galleryPendingPreviews.map((url, idx) => (
+            <div
+              key={`pending-${url}-${idx}`}
+              className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={url}
+                alt="Uploading"
+                className="h-full w-full object-cover opacity-70"
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="rounded-full bg-black/50 text-white p-2 backdrop-blur-sm">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {normalizeGalleryFromState(branding.gallery).map((item, idx) => {
+            const url = String(item?.url ?? "").trim();
+            if (!url) return null;
+            const publicId = String(item?.publicId ?? "").trim();
+            return (
+              <div
+                key={`${url}-${idx}`}
+                className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm"
+              >
+                <input
+                  id={`${galleryAddInputId}-replace-${idx}`}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  disabled={uploadingGallery || replacingIndex === idx}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!file) return;
+                    replaceGalleryImage(idx, file).catch(() => null);
+                  }}
+                />
+
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={url}
+                  alt={`Gallery image ${idx + 1}`}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+
+                <div className="absolute inset-x-0 top-0 p-1.5 flex justify-end gap-1">
+                  <label
+                    htmlFor={`${galleryAddInputId}-replace-${idx}`}
+                    className={
+                      "rounded-lg bg-black/45 text-white text-[11px] px-2 py-1 backdrop-blur-sm hover:bg-black/55 transition " +
+                      (uploadingGallery || replacingIndex === idx
+                        ? "opacity-60 pointer-events-none"
+                        : "cursor-pointer")
+                    }
+                  >
+                    {replacingIndex === idx ? "…" : "Replace"}
+                  </label>
+
+                  <button
+                    type="button"
+                    disabled={uploadingGallery}
+                    onClick={() =>
+                      removeGalleryImage({ url, publicId }).catch(() => null)
+                    }
+                    className="rounded-lg bg-black/45 text-white p-1.5 backdrop-blur-sm hover:bg-black/55 transition disabled:opacity-60"
+                    aria-label="Remove image"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+
+          {(() => {
+            const count =
+              normalizeGalleryFromState(branding.gallery).length +
+              galleryPendingPreviews.length;
+            if (count >= 10) return null;
+            return (
+              <label
+                htmlFor={galleryAddInputId}
+                className={
+                  "aspect-square rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-950/10 flex items-center justify-center text-center p-2 hover:border-gray-300 dark:hover:border-gray-600 transition " +
+                  (uploadingGallery
+                    ? "opacity-60 pointer-events-none"
+                    : "cursor-pointer")
+                }
+              >
+                <div className="flex flex-col items-center gap-1">
+                  {uploadingGallery ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-gray-500 dark:text-gray-300" />
+                  ) : null}
+                  <div className="text-xs text-gray-600 dark:text-gray-300">
+                    Add images
+                  </div>
+                </div>
+              </label>
+            );
+          })()}
+        </div>
+
+        <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+          These photos appear on your public booking page.
+        </div>
+
+        {galleryError ? (
+          <div className="mt-2 text-xs text-rose-600 dark:text-rose-400">
+            {galleryError}
+          </div>
+        ) : null}
       </div>
 
       <ImageCropperModal
