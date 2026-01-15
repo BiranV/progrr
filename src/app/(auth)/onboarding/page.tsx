@@ -1358,7 +1358,7 @@ export default function OnboardingPage() {
 
             <div className="space-y-2">
               <Label>Select one *</Label>
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap justify-center gap-3">
                 {BUSINESS_TYPE_OPTIONS.map((opt) => {
                   const selected = (data.businessTypes || []).includes(opt.key);
                   return (

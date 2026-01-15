@@ -998,16 +998,34 @@ export default function PublicBookingFlow({
             ) : null}
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {identified ? (
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-3">
               <Button
-                variant="ghost"
+                variant="outline"
+                className="rounded-2xl"
+                onClick={() =>
+                  window.open(
+                    googleCalendarUrl({
+                      title: result.appointment.serviceName,
+                      date: result.appointment.date,
+                      startTime: result.appointment.startTime,
+                      endTime: result.appointment.endTime,
+                    }),
+                    "_blank"
+                  )
+                }
+              >
+                Add to Google Calendar
+              </Button>
+
+              <Button
+                variant="outline"
                 className="rounded-2xl"
                 onClick={async () => {
                   setCancelling(true);
                   setCancelError(null);
                   try {
-                    await disconnectCustomer();
+                    await cancelBooking();
                     resetFlow();
                   } catch (e: any) {
                     setCancelError(e?.message || "Failed");
@@ -1017,47 +1035,33 @@ export default function PublicBookingFlow({
                 }}
                 disabled={cancelling}
               >
-                {cancelling ? "Disconnecting…" : "Not you? Disconnect"}
+                {cancelling ? "Cancelling…" : "Cancel booking"}
               </Button>
+            </div>
+
+            {identified ? (
+              <div className="flex justify-center">
+                <Button
+                  variant="ghost"
+                  className="rounded-2xl"
+                  onClick={async () => {
+                    setCancelling(true);
+                    setCancelError(null);
+                    try {
+                      await disconnectCustomer();
+                      resetFlow();
+                    } catch (e: any) {
+                      setCancelError(e?.message || "Failed");
+                    } finally {
+                      setCancelling(false);
+                    }
+                  }}
+                  disabled={cancelling}
+                >
+                  {cancelling ? "Disconnecting…" : "Not you? Disconnect"}
+                </Button>
+              </div>
             ) : null}
-
-            <Button
-              variant="outline"
-              className="rounded-2xl"
-              onClick={() =>
-                window.open(
-                  googleCalendarUrl({
-                    title: result.appointment.serviceName,
-                    date: result.appointment.date,
-                    startTime: result.appointment.startTime,
-                    endTime: result.appointment.endTime,
-                  }),
-                  "_blank"
-                )
-              }
-            >
-              Add to Google Calendar
-            </Button>
-
-            <Button
-              variant="outline"
-              className="rounded-2xl"
-              onClick={async () => {
-                setCancelling(true);
-                setCancelError(null);
-                try {
-                  await cancelBooking();
-                  resetFlow();
-                } catch (e: any) {
-                  setCancelError(e?.message || "Failed");
-                } finally {
-                  setCancelling(false);
-                }
-              }}
-              disabled={cancelling}
-            >
-              {cancelling ? "Cancelling…" : "Cancel booking"}
-            </Button>
           </div>
         </div>
       ) : null}

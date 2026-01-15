@@ -286,7 +286,6 @@ export async function POST(req: Request) {
             $setOnInsert: {
               businessUserId: user._id as ObjectId,
               createdAt: new Date(),
-              appointmentsCount: 0,
             },
             $set: {
               fullName: customerFullName,
@@ -344,10 +343,7 @@ export async function POST(req: Request) {
 
       await c.customers.updateOne(
         { _id: customerDocId },
-        {
-          $inc: { appointmentsCount: 1 },
-          $set: { lastAppointmentAt: new Date() },
-        }
+        { $set: { lastAppointmentAt: new Date() } }
       );
 
       // Consume OTP only when an appointment is successfully created.

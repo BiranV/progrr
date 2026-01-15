@@ -71,7 +71,7 @@ export type AppointmentDoc = {
     email?: string;
   };
   notes?: string;
-  status: "BOOKED" | "CANCELLED";
+  status: "BOOKED" | "CANCELED" | "CANCELLED";
   createdAt: Date;
   cancelledAt?: Date;
 };
@@ -83,7 +83,8 @@ export type CustomerDoc = {
   phone: string;
   email?: string;
   createdAt: Date;
-  appointmentsCount: number;
+  // Legacy fields (no longer used for counts; counts are computed from appointments).
+  appointmentsCount?: number;
   lastAppointmentAt?: Date;
 };
 
@@ -168,6 +169,14 @@ export async function ensureIndexes() {
     startTime: 1,
   });
 
+  await c.appointments.createIndex({
+    businessUserId: 1,
+    customerId: 1,
+    status: 1,
+    date: 1,
+    startTime: 1,
+  });
+
   await c.customers.createIndex(
     { businessUserId: 1, phone: 1 },
     { unique: true }
@@ -177,7 +186,7 @@ export async function ensureIndexes() {
     { unique: true, sparse: true }
   );
   await c.customers.createIndex(
-    { businessUserId: 1, appointmentsCount: 1, lastAppointmentAt: -1 },
+    { businessUserId: 1, createdAt: -1 },
     { name: "customers_admin_list" }
   );
 

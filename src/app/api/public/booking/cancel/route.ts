@@ -55,13 +55,13 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
-      if (appt.status === "CANCELLED") {
+      if (appt.status === "CANCELLED" || appt.status === "CANCELED") {
         return NextResponse.json({ ok: true, alreadyCancelled: true });
       }
 
       await c.appointments.updateOne(
         { _id: apptId },
-        { $set: { status: "CANCELLED", cancelledAt: new Date() } }
+        { $set: { status: "CANCELED", cancelledAt: new Date() } }
       );
 
       return NextResponse.json({ ok: true });
@@ -82,13 +82,13 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
-      if (appt.status === "CANCELLED") {
+      if (appt.status === "CANCELLED" || appt.status === "CANCELED") {
         return NextResponse.json({ ok: true, alreadyCancelled: true });
       }
 
       await c.appointments.updateOne(
         { _id: apptId },
-        { $set: { status: "CANCELLED", cancelledAt: new Date() } }
+        { $set: { status: "CANCELED", cancelledAt: new Date() } }
       );
 
       return NextResponse.json({ ok: true });
@@ -129,13 +129,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (appt.status === "CANCELLED") {
+    if (appt.status === "CANCELLED" || appt.status === "CANCELED") {
       return NextResponse.json({ ok: true, alreadyCancelled: true });
     }
 
     await c.appointments.updateOne(
       { _id: apptId },
-      { $set: { status: "CANCELLED", cancelledAt: new Date() } }
+      { $set: { status: "CANCELED", cancelledAt: new Date() } }
     );
 
     return NextResponse.json({ ok: true });

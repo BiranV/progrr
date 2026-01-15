@@ -1,7 +1,10 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { Users } from "lucide-react";
+import { CenteredSpinner } from "@/components/CenteredSpinner";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 
 type Customer = {
@@ -9,7 +12,7 @@ type Customer = {
   fullName: string;
   phone: string;
   email?: string;
-  appointmentsCount: number;
+  activeBookingsCount: number;
   lastAppointmentAt?: string;
 };
 
@@ -61,13 +64,7 @@ export default function CustomersPage() {
       ) : null}
 
       {loading ? (
-        <Card>
-          <CardContent className="p-6">
-            <div className="min-h-[30vh] flex items-center justify-center text-sm text-muted-foreground">
-              Loading customers…
-            </div>
-          </CardContent>
-        </Card>
+        <CenteredSpinner fullPage />
       ) : customers.length === 0 ? (
         <Card>
           <CardContent className="p-6">
@@ -85,25 +82,34 @@ export default function CustomersPage() {
       ) : (
         <div className="space-y-3">
           {customers.map((c) => (
-            <Card key={c._id}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="font-semibold text-gray-900 dark:text-white truncate">
-                      {c.fullName || "(No name)"}
+            <Link key={c._id} href={`/customers/${encodeURIComponent(c._id)}`}>
+              <Card className="hover:bg-muted/40 transition-colors">
+                <CardContent className="px-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-gray-900 dark:text-white truncate">
+                        {c.fullName || "(No name)"}
+                      </div>
+                      <div className="text-xs text-gray-600 dark:text-gray-300 truncate">
+                        {c.phone}
+                        {c.email ? ` • ${c.email}` : ""}
+                      </div>
                     </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-300 truncate">
-                      {c.phone}
-                      {c.email ? ` • ${c.email}` : ""}
-                    </div>
+                    <Badge
+                      variant={"secondary"}
+                      className={
+                        "shrink-0 rounded-full px-2 py-0.5 text-xs " +
+                        (c.activeBookingsCount > 0
+                          ? "bg-emerald-600 text-white"
+                          : "")
+                      }
+                    >
+                      {c.activeBookingsCount} active
+                    </Badge>
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-300 shrink-0">
-                    {c.appointmentsCount} booking
-                    {c.appointmentsCount === 1 ? "" : "s"}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
       )}
