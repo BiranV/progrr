@@ -8,7 +8,7 @@ export type AuthClaims = {
 
 export type BookingVerifyClaims = {
   purpose: "booking_verify";
-  phone: string;
+  email: string;
   iat?: number;
 };
 
@@ -73,11 +73,11 @@ export async function verifyAuthToken(token: string): Promise<AuthClaims> {
   };
 }
 
-export async function signBookingVerifyToken(args: { phone: string }) {
+export async function signBookingVerifyToken(args: { email: string }) {
   const key = getSecretKey();
   return await new SignJWT({
     purpose: "booking_verify",
-    phone: args.phone,
+    email: args.email,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -91,12 +91,16 @@ export async function verifyBookingVerifyToken(
   const key = getSecretKey();
   const { payload } = await jwtVerify(token, key);
   const purpose = (payload as any)?.purpose;
-  const phone = (payload as any)?.phone;
-  if (purpose !== "booking_verify" || typeof phone !== "string" || !phone.trim()) {
+  const email = (payload as any)?.email;
+  if (
+    purpose !== "booking_verify" ||
+    typeof email !== "string" ||
+    !email.trim()
+  ) {
     throw Object.assign(new Error("Invalid token"), { status: 401 });
   }
   const iat = typeof payload.iat === "number" ? payload.iat : undefined;
-  return { purpose: "booking_verify", phone: String(phone).trim(), iat };
+  return { purpose: "booking_verify", email: String(email).trim(), iat };
 }
 
 export async function signBookingCancelToken(args: {

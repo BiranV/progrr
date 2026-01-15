@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 import AuthBanner, { type AuthBannerState } from "./AuthBanner";
-import OtpInput from "./OtpInput";
+import OtpInput from "@/components/OtpInput";
 
 const isValidEmail = (email: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);

@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 import { CenteredSpinner } from "@/components/CenteredSpinner";
+import OtpInput from "@/components/OtpInput";
 import PublicBookingShell from "./PublicBookingShell";
 import { usePublicBusiness } from "./usePublicBusiness";
 import { formatDateInTimeZone, formatPrice } from "@/lib/public-booking";
@@ -38,7 +39,7 @@ type BookingResult = {
     date: string;
     startTime: string;
     endTime: string;
-    customer: { fullName: string; phone: string };
+    customer: { fullName: string; phone: string; email?: string };
     notes?: string;
     status: string;
   };
@@ -132,6 +133,7 @@ export default function PublicBookingFlow({
   const [startTime, setStartTime] = React.useState<string>("");
 
   const [customerFullName, setCustomerFullName] = React.useState<string>("");
+  const [customerEmail, setCustomerEmail] = React.useState<string>("");
   const [customerPhone, setCustomerPhone] = React.useState<string>("");
   const [notes, setNotes] = React.useState<string>("");
 
@@ -182,6 +184,8 @@ export default function PublicBookingFlow({
       if (!startTime) setStartTime(String(parsed?.startTime ?? "").trim());
       if (!customerFullName)
         setCustomerFullName(String(parsed?.customerFullName ?? "").trim());
+      if (!customerEmail)
+        setCustomerEmail(String(parsed?.customerEmail ?? "").trim());
       if (!customerPhone)
         setCustomerPhone(String(parsed?.customerPhone ?? "").trim());
       if (!notes)
@@ -191,6 +195,7 @@ export default function PublicBookingFlow({
     }
   }, [
     customerFullName,
+    customerEmail,
     customerPhone,
     date,
     notes,
@@ -201,6 +206,36 @@ export default function PublicBookingFlow({
   const [cancelError, setCancelError] = React.useState<string | null>(null);
   const [cancelling, setCancelling] = React.useState(false);
 
+  const resetFlow = React.useCallback(() => {
+    setResult(null);
+    setCancelError(null);
+    setCancelling(false);
+    setSubmitting(false);
+    setFormError(null);
+    setOtpCode("");
+    setCustomerFullName("");
+    setCustomerEmail("");
+    setCustomerPhone("");
+    setNotes("");
+    setStartTime("");
+    setDate("");
+    setServiceId("");
+    setSlots(null);
+    setSlotsError(null);
+    setSlotsLoading(false);
+    slotsCacheRef.current.clear();
+    setMonth(new Date());
+
+    try {
+      sessionStorage.removeItem(RESULT_KEY);
+      sessionStorage.removeItem(DRAFT_KEY);
+    } catch {
+      // ignore
+    }
+
+    setStep("service");
+  }, []);
+
   // Initialize from URL (compat with older deep links) exactly once.
   React.useEffect(() => {
     if (!publicId) return;
@@ -210,14 +245,16 @@ export default function PublicBookingFlow({
     const nextServiceId = String(sp.get("serviceId") ?? "").trim();
     const nextDate = String(sp.get("date") ?? "").trim();
     const nextTime = String(sp.get("time") ?? "").trim();
+    const nextEmail = String(sp.get("email") ?? "").trim();
     const nextPhone = String(sp.get("phone") ?? "").trim();
 
     if (nextServiceId && !serviceId) setServiceId(nextServiceId);
     if (nextDate && !date) setDate(nextDate);
     if (nextTime && !startTime) setStartTime(nextTime);
+    if (nextEmail && !customerEmail) setCustomerEmail(nextEmail);
     if (nextPhone && !customerPhone) setCustomerPhone(nextPhone);
 
-    if (nextPhone && nextServiceId && nextDate && nextTime) {
+    if (nextEmail && nextServiceId && nextDate && nextTime) {
       setStep("verify");
       return;
     }
@@ -372,24 +409,9 @@ export default function PublicBookingFlow({
         setOtpCode("");
         setStep("details");
       };
-    if (step === "success")
-      return () => {
-        setResult(null);
-        setCancelError(null);
-        setCancelling(false);
-        setSubmitting(false);
-        setFormError(null);
-        setOtpCode("");
-        setCustomerFullName("");
-        setCustomerPhone("");
-        setNotes("");
-        setStartTime("");
-        setDate("");
-        setServiceId("");
-        setStep("service");
-      };
+    if (step === "success") return () => resetFlow();
     return undefined;
-  }, [step]);
+  }, [resetFlow, step]);
 
   const shellSubtitle = React.useMemo(() => {
     if (!data) return "";
@@ -399,9 +421,9 @@ export default function PublicBookingFlow({
     if (step === "details")
       return date && startTime ? `${date} • ${startTime}` : "Your details";
     if (step === "verify")
-      return customerPhone
-        ? `We sent a code to ${customerPhone}`
-        : "Verify phone";
+      return customerEmail
+        ? `We sent a code to ${customerEmail}`
+        : "Verify email";
     if (step === "success") {
       const appt = result?.appointment;
       return appt
@@ -409,7 +431,7 @@ export default function PublicBookingFlow({
         : "Booked";
     }
     return "";
-  }, [customerPhone, data, date, result, selectedService, startTime, step]);
+  }, [customerEmail, data, date, result, selectedService, startTime, step]);
 
   const shellSubtitleRight = React.useMemo<React.ReactNode>(() => {
     if (!data) return null;
@@ -424,6 +446,7 @@ export default function PublicBookingFlow({
 
   const requestOtp = async () => {
     if (!customerFullName.trim()) throw new Error("Full Name is required");
+    if (!customerEmail.trim()) throw new Error("Email is required");
     if (!customerPhone.trim()) throw new Error("Phone is required");
     if (!publicId) throw new Error("Business not found");
     if (!serviceId || !date || !startTime)
@@ -438,6 +461,7 @@ export default function PublicBookingFlow({
           date,
           startTime,
           customerFullName: customerFullName.trim(),
+          customerEmail: customerEmail.trim(),
           customerPhone: customerPhone.trim(),
           notes: notes.trim() || undefined,
         })
@@ -449,7 +473,7 @@ export default function PublicBookingFlow({
     const res = await fetch("/api/public/booking/request-otp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone: customerPhone.trim() }),
+      body: JSON.stringify({ email: customerEmail.trim() }),
     });
 
     const json = await res.json().catch(() => null);
@@ -466,7 +490,7 @@ export default function PublicBookingFlow({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        phone: customerPhone.trim(),
+        email: customerEmail.trim(),
         code: otpCode.trim(),
       }),
     });
@@ -489,6 +513,7 @@ export default function PublicBookingFlow({
         date,
         startTime,
         customerFullName: customerFullName.trim(),
+        customerEmail: customerEmail.trim(),
         customerPhone: customerPhone.trim(),
         notes: notes.trim() || undefined,
         bookingSessionId,
@@ -729,6 +754,17 @@ export default function PublicBookingFlow({
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              className="rounded-2xl"
+              value={customerEmail}
+              onChange={(e) => setCustomerEmail(e.target.value)}
+              placeholder="name@example.com"
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="phone">Phone</Label>
             <Input
               id="phone"
@@ -765,7 +801,7 @@ export default function PublicBookingFlow({
             disabled={submitting}
             className="rounded-2xl w-full"
           >
-            {submitting ? "Sending code…" : "Verify phone"}
+            {submitting ? "Sending code…" : "Verify email"}
           </Button>
         </div>
       ) : null}
@@ -779,12 +815,16 @@ export default function PublicBookingFlow({
             </div>
           ) : null}
 
-          <Input
-            className="rounded-2xl"
-            value={otpCode}
-            onChange={(e) => setOtpCode(e.target.value)}
-            placeholder="Enter 6-digit code"
-          />
+          <div className="flex justify-center">
+            <OtpInput
+              id="booking-otp"
+              name="code"
+              length={6}
+              value={otpCode}
+              onChange={setOtpCode}
+              disabled={submitting}
+            />
+          </div>
 
           <div className="flex gap-2">
             <Button
@@ -821,7 +861,7 @@ export default function PublicBookingFlow({
                   setSubmitting(false);
                 }
               }}
-              disabled={submitting || otpCode.trim().length < 4}
+              disabled={submitting || otpCode.replace(/\D/g, "").length < 6}
             >
               {submitting ? "Confirming…" : "Confirm booking"}
             </Button>
@@ -879,8 +919,7 @@ export default function PublicBookingFlow({
                 setCancelError(null);
                 try {
                   await cancelBooking();
-                  setResult(null);
-                  setStep("service");
+                  resetFlow();
                 } catch (e: any) {
                   setCancelError(e?.message || "Failed");
                 } finally {

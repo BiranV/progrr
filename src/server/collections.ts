@@ -66,6 +66,7 @@ export type AppointmentDoc = {
   customer: {
     fullName: string;
     phone: string;
+    email?: string;
   };
   notes?: string;
   status: "BOOKED" | "CANCELLED";
@@ -77,7 +78,7 @@ export type CustomerOtpPurpose = "booking_verify";
 
 export type CustomerOtpDoc = {
   _id?: ObjectId;
-  key: string; // normalized phone
+  key: string; // normalized email
   purpose: CustomerOtpPurpose;
   codeHash: string;
   expiresAt: Date;

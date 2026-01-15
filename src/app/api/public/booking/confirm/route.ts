@@ -11,6 +11,17 @@ import {
 import { verifyBookingVerifyToken, signBookingCancelToken } from "@/server/jwt";
 import { isValidBusinessPublicId } from "@/server/business-public-id";
 
+function normalizeEmail(input: unknown): string {
+  return String(input ?? "")
+    .replace(/[\s\u200B\u200C\u200D\uFEFF]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 function isValidDateString(s: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(s);
 }
@@ -31,6 +42,7 @@ export async function POST(req: Request) {
     const startTime = String(body?.startTime ?? "").trim();
 
     const customerFullName = String(body?.customerFullName ?? "").trim();
+    const customerEmail = normalizeEmail(body?.customerEmail);
     const customerPhone = normalizePhone(body?.customerPhone);
     const notes = typeof body?.notes === "string" ? body.notes.trim() : "";
 
@@ -38,7 +50,7 @@ export async function POST(req: Request) {
 
     if (!bookingSessionId) {
       return NextResponse.json(
-        { error: "Phone verification required" },
+        { error: "Email verification required" },
         { status: 401 }
       );
     }
@@ -75,6 +87,15 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+    if (!customerEmail) {
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
+    if (!isValidEmail(customerEmail)) {
+      return NextResponse.json(
+        { error: "Please enter a valid email address" },
+        { status: 400 }
+      );
+    }
     if (!customerPhone) {
       return NextResponse.json({ error: "Phone is required" }, { status: 400 });
     }
@@ -85,9 +106,9 @@ export async function POST(req: Request) {
       );
     }
 
-    if (normalizePhone(claims.phone) !== customerPhone) {
+    if (normalizeEmail(claims.email) !== customerEmail) {
       return NextResponse.json(
-        { error: "Phone verification mismatch" },
+        { error: "Email verification mismatch" },
         { status: 401 }
       );
     }
@@ -180,6 +201,7 @@ export async function POST(req: Request) {
         customer: {
           fullName: customerFullName,
           phone: customerPhone,
+          email: customerEmail,
         },
         ...(notes ? { notes } : {}),
         status: "BOOKED",
@@ -207,6 +229,7 @@ export async function POST(req: Request) {
           customer: {
             fullName: customerFullName,
             phone: customerPhone,
+            email: customerEmail,
           },
           notes: notes || undefined,
           status: "BOOKED",
