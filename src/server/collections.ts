@@ -19,6 +19,7 @@ export type UserDoc = {
       name?: string;
       phone?: string;
       address?: string;
+      publicId?: string;
       slug?: string;
       description?: string;
       currency?: string;
@@ -85,9 +86,7 @@ export type CustomerOtpDoc = {
   sentAt?: Date;
 };
 
-export type OtpPurpose =
-  | "login"
-  | "signup";
+export type OtpPurpose = "login" | "signup";
 
 export type OtpDoc = {
   _id?: ObjectId;
@@ -125,6 +124,10 @@ export async function ensureIndexes() {
   await c.users.createIndex({ email: 1 }, { unique: true });
   await c.users.createIndex(
     { "onboarding.business.slug": 1 },
+    { unique: true, sparse: true }
+  );
+  await c.users.createIndex(
+    { "onboarding.business.publicId": 1 },
     { unique: true, sparse: true }
   );
 

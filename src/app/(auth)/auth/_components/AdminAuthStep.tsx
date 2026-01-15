@@ -104,7 +104,7 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
       setInfo("Code sent to email");
       setView("login-verify");
     } catch (err: any) {
-      setLoginError(err.message || "Something went wrong");
+      setGlobalError(err?.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -134,11 +134,13 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
         typeof data?.redirectTo === "string"
           ? data.redirectTo
           : data?.onboardingCompleted
-            ? "/dashboard"
-            : "/onboarding";
+          ? "/dashboard"
+          : "/onboarding";
       router.replace(dest);
     } catch (err: any) {
-      setLoginCodeError(err.message || "Invalid code");
+      // Keep the field highlighted, but also show global banner like onboarding.
+      setLoginCodeError(err?.message || "Invalid code");
+      setGlobalError(err?.message || "Invalid code");
       setLoading(false);
     }
   };
@@ -173,7 +175,7 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
       setInfo("Code sent to email");
       setView("signup-verify");
     } catch (err: any) {
-      setSignupEmailError(err.message || "Sign up failed");
+      setGlobalError(err?.message || "Sign up failed");
     } finally {
       setLoading(false);
     }
@@ -207,11 +209,12 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
         typeof data?.redirectTo === "string"
           ? data.redirectTo
           : data?.onboardingCompleted
-            ? "/dashboard"
-            : "/onboarding";
+          ? "/dashboard"
+          : "/onboarding";
       router.replace(dest);
     } catch (err: any) {
-      setSignupCodeError(err.message || "Verification failed");
+      setSignupCodeError(err?.message || "Verification failed");
+      setGlobalError(err?.message || "Verification failed");
       setLoading(false);
     }
   };
@@ -228,8 +231,8 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
   const bannerState: AuthBannerState = globalError
     ? { type: "error", text: globalError }
     : info
-      ? { type: "message", text: info }
-      : null;
+    ? { type: "message", text: info }
+    : null;
 
   // For inputs
   const inputErrorClass = "border-red-300/50 ring-1 ring-red-300/20";
@@ -323,8 +326,9 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
                     <Input
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
-                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${loginError ? inputErrorClass : "border-white/20"
-                        }`}
+                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${
+                        loginError ? inputErrorClass : "border-white/20"
+                      }`}
                       placeholder="name@company.com"
                       autoFocus
                     />
@@ -348,8 +352,9 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
                       onChange={setLoginCode}
                       length={6}
                       disabled={loading}
-                      inputClassName={`bg-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent ${loginCodeError ? inputErrorClass : "border-white/20"
-                        }`}
+                      inputClassName={`bg-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent ${
+                        loginCodeError ? inputErrorClass : "border-white/20"
+                      }`}
                     />
                     <InlineError message={loginCodeError} />
                     <p className="text-xs text-white/60 ml-1 pt-1">
@@ -404,8 +409,9 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
                     <Input
                       value={signupName}
                       onChange={(e) => setSignupName(e.target.value)}
-                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${signupNameError ? inputErrorClass : "border-white/20"
-                        }`}
+                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${
+                        signupNameError ? inputErrorClass : "border-white/20"
+                      }`}
                       placeholder="Jane Doe"
                       autoFocus
                     />
@@ -416,8 +422,9 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
                     <Input
                       value={signupEmail}
                       onChange={(e) => setSignupEmail(e.target.value)}
-                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${signupEmailError ? inputErrorClass : "border-white/20"
-                        }`}
+                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${
+                        signupEmailError ? inputErrorClass : "border-white/20"
+                      }`}
                       placeholder="name@company.com"
                     />
                     <InlineError message={signupEmailError} />
@@ -440,8 +447,9 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
                       onChange={setSignupCode}
                       length={6}
                       disabled={loading}
-                      inputClassName={`bg-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent ${signupCodeError ? inputErrorClass : "border-white/20"
-                        }`}
+                      inputClassName={`bg-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent ${
+                        signupCodeError ? inputErrorClass : "border-white/20"
+                      }`}
                     />
                     <InlineError message={signupCodeError} />
                     <p className="text-xs text-white/60 ml-1 pt-1">

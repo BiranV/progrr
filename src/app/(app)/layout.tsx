@@ -1,9 +1,9 @@
 import AppLayout from "@/components/layout/AppLayout";
 
 export default function AppGroupLayout({
-    children,
+  children,
 }: Readonly<{
-    children: React.ReactNode;
+  children: React.ReactNode;
 }>) {
-    return <AppLayout>{children}</AppLayout>;
+  return <AppLayout>{children}</AppLayout>;
 }
