@@ -127,6 +127,8 @@ export async function GET(
         name: String(business.name ?? "").trim(),
         phone: String(business.phone ?? "").trim(),
         address: String(business.address ?? "").trim(),
+        instagram: String(business.instagram ?? "").trim(),
+        whatsapp: String(business.whatsapp ?? "").trim(),
       },
       branding: {
         // New shape (Cloudinary)

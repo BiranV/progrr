@@ -7,6 +7,8 @@ export type Business = {
   address: string;
   slug?: string;
   description: string;
+  instagram?: string;
+  whatsapp?: string;
   currency?: string;
 };
 
@@ -15,6 +17,8 @@ export type UpdateBusinessPayload = {
   phone: string;
   address: string;
   description?: string;
+  instagram?: string;
+  whatsapp?: string;
   currency?: string;
 };
 
@@ -62,6 +66,8 @@ export async function updateBusiness(payload: UpdateBusinessPayload) {
     phone: payload.phone,
     address: payload.address,
     description: payload.description ?? "",
+    instagram: payload.instagram ?? "",
+    whatsapp: payload.whatsapp ?? "",
     ...(payload.currency ? { currency: payload.currency } : {}),
   };
 

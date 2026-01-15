@@ -4,6 +4,8 @@ export type PublicBusiness = {
     name: string;
     phone: string;
     address: string;
+    instagram?: string;
+    whatsapp?: string;
   };
   branding?: {
     // New shape (Cloudinary-backed)

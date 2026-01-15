@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -268,6 +267,9 @@ export default function PublicBookingFlow({
       const dateStr = formatDateInTimeZone(d, tz);
       if (!dateStr) return false;
 
+      const todayStr = formatDateInTimeZone(new Date(), tz);
+      if (todayStr && dateStr < todayStr) return false;
+
       const weekday = weekdayFromDateString(dateStr);
       const conf = availabilityByDay.get(weekday);
       if (!conf) return false;
@@ -276,6 +278,17 @@ export default function PublicBookingFlow({
       return true;
     },
     [availabilityByDay, data, serviceId, tz]
+  );
+
+  const isPastDate = React.useCallback(
+    (d: Date) => {
+      const dateStr = formatDateInTimeZone(d, tz);
+      if (!dateStr) return true;
+      const todayStr = formatDateInTimeZone(new Date(), tz);
+      if (!todayStr) return false;
+      return dateStr < todayStr;
+    },
+    [tz]
   );
 
   const selectedService = React.useMemo(() => {
@@ -380,10 +393,9 @@ export default function PublicBookingFlow({
 
   const shellSubtitle = React.useMemo(() => {
     if (!data) return "";
-    if (step === "service") return data.business.address || "Choose a service";
-    if (step === "date")
-      return selectedService ? `For ${selectedService.name}` : "Choose a date";
-    if (step === "time") return date ? `For ${date}` : "Choose a time";
+    if (step === "service") return "Select service";
+    if (step === "date") return "Pick a date";
+    if (step === "time") return "Choose a time";
     if (step === "details")
       return date && startTime ? `${date} • ${startTime}` : "Your details";
     if (step === "verify")
@@ -398,6 +410,15 @@ export default function PublicBookingFlow({
     }
     return "";
   }, [customerPhone, data, date, result, selectedService, startTime, step]);
+
+  const shellSubtitleRight = React.useMemo<React.ReactNode>(() => {
+    if (!data) return null;
+    if (!selectedService) return null;
+    if (step === "date") return `${selectedService.name}`;
+    if (step === "time")
+      return `${selectedService.name}${date ? ` • ${date}` : ""}`;
+    return null;
+  }, [data, date, selectedService, step]);
 
   const showGallery = step === "service";
 
@@ -540,6 +561,7 @@ export default function PublicBookingFlow({
       business={data}
       title="Booking"
       subtitle={shellSubtitle}
+      subtitleRight={shellSubtitleRight}
       onBack={onBack}
       showGallery={showGallery}
     >
@@ -592,102 +614,98 @@ export default function PublicBookingFlow({
       {/* Date selection */}
       {step === "date" ? (
         <div className="space-y-4">
-          <Calendar
-            mode="single"
-            month={month}
-            onMonthChange={setMonth}
-            weekStartsOn={weekStartsOn}
-            className="p-0 w-full"
-            classNames={{
-              months: "flex flex-col space-y-0",
-              month: "space-y-3",
-              caption: "flex items-center justify-between px-1",
-              caption_label:
-                "text-sm font-semibold text-gray-900 dark:text-white",
-              nav: "flex items-center gap-1",
-              nav_button:
-                "h-8 w-8 rounded-xl border border-gray-200 dark:border-gray-800 bg-transparent p-0 opacity-90 hover:opacity-100",
-              nav_button_previous: "relative left-0",
-              nav_button_next: "relative right-0",
-              table: "w-full border-collapse",
-              head_row: "grid grid-cols-7",
-              head_cell:
-                "w-full text-center text-[0.75rem] font-medium text-gray-500 dark:text-gray-400",
-              row: "grid grid-cols-7 mt-2",
-              cell: "p-0 w-full grid place-items-center",
-              day: "h-10 w-10 rounded-xl text-sm font-medium transition cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800",
-              day_today:
-                "border border-primary/40 text-gray-900 dark:text-white hover:bg-transparent",
-              day_selected:
-                "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
-              day_disabled:
-                "text-gray-400 dark:text-gray-600 opacity-50 cursor-not-allowed hover:bg-transparent",
-              day_outside: "text-gray-300 dark:text-gray-700 opacity-40",
-            }}
-            disabled={(d) => !isDateEnabled(d)}
-            onSelect={(d) => {
-              if (!d) return;
-              if (!isDateEnabled(d)) return;
-              const dateStr = formatDateInTimeZone(d, tz);
-              if (!dateStr) return;
-              setDate(dateStr);
-              setStep("time");
-            }}
-          />
+          <div className="flex justify-center">
+            <div className="w-full max-w-[400px]">
+              <Calendar
+                mode="single"
+                showOutsideDays
+                month={month}
+                onMonthChange={setMonth}
+                weekStartsOn={weekStartsOn}
+                className="w-full rounded-2xl border border-gray-200/70 bg-white/80 p-2 shadow-sm backdrop-blur dark:border-gray-800/70 dark:bg-gray-950/30"
+                modifiers={{
+                  past: (d) => isPastDate(d),
+                  unavailable: (d) => !isPastDate(d) && !isDateEnabled(d),
+                }}
+                modifiersClassNames={{
+                  past: "text-gray-300 dark:text-gray-700 font-normal opacity-25",
+                  unavailable:
+                    "text-gray-400 dark:text-gray-600 font-normal opacity-55",
+                }}
+                disabled={(d) => isPastDate(d) || !isDateEnabled(d)}
+                selected={date ? new Date(`${date}T12:00:00Z`) : undefined}
+                onSelect={(d) => {
+                  if (!d) return;
+                  if (isPastDate(d)) return;
+                  if (!isDateEnabled(d)) return;
+                  const dateStr = formatDateInTimeZone(d, tz);
+                  if (!dateStr) return;
+                  setDate(dateStr);
+                  setStartTime("");
+                  setFormError(null);
+                  setStep("time");
+                }}
+              />
+            </div>
+          </div>
         </div>
       ) : null}
 
       {/* Time selection */}
       {step === "time" ? (
-        <div className="space-y-3">
-          {slotsLoading ? (
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading times…
-            </div>
-          ) : slotsError ? (
-            <div className="text-sm text-red-600 dark:text-red-400">
-              {slotsError}
-            </div>
-          ) : slots ? (
-            <>
-              {slots.slots.map((s) => (
-                <button
-                  key={s.startTime}
-                  className={
-                    "w-full rounded-2xl border border-gray-200 dark:border-gray-800 " +
-                    "bg-white/70 dark:bg-gray-950/20 p-4 text-left shadow-sm " +
-                    "transition cursor-pointer " +
-                    "hover:bg-white hover:shadow-md hover:-translate-y-[1px] " +
-                    "dark:hover:bg-gray-900/30 " +
-                    "active:translate-y-0 active:shadow-sm"
-                  }
-                  onClick={() => {
-                    setStartTime(s.startTime);
-                    setFormError(null);
-                    setStep("details");
-                  }}
-                >
-                  <div className="font-semibold text-gray-900 dark:text-white">
-                    {s.startTime}
+        <div className="space-y-4">
+          <div className="space-y-3">
+            {slotsLoading ? (
+              <CenteredSpinner className="min-h-[40vh] items-center" />
+            ) : slotsError ? (
+              <div className="text-sm text-red-600 dark:text-red-400">
+                {slotsError}
+              </div>
+            ) : slots ? (
+              <>
+                {slots.slots.length ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    {slots.slots.map((s) => (
+                      <button
+                        key={s.startTime}
+                        className={
+                          "w-full h-16 rounded-2xl border border-gray-200 dark:border-gray-800 " +
+                          "bg-white/70 dark:bg-gray-950/20 shadow-sm " +
+                          "transition cursor-pointer " +
+                          "hover:bg-white hover:shadow-md hover:-translate-y-[1px] " +
+                          "dark:hover:bg-gray-900/30 " +
+                          "active:translate-y-0 active:shadow-sm " +
+                          "flex flex-col items-center justify-center text-center"
+                        }
+                        onClick={() => {
+                          setStartTime(s.startTime);
+                          setFormError(null);
+                          setStep("details");
+                        }}
+                      >
+                        <div className="font-semibold text-gray-900 dark:text-white leading-none">
+                          {s.startTime}
+                        </div>
+                        <div className="text-[11px] text-gray-600 dark:text-gray-300 leading-none mt-1">
+                          {s.endTime}
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-300">
-                    Ends {s.endTime}
-                  </div>
-                </button>
-              ))}
+                ) : null}
 
-              {!slots.slots.length ? (
-                <div className="text-sm text-gray-600 dark:text-gray-300">
-                  No times available.
-                </div>
-              ) : null}
-            </>
-          ) : (
-            <div className="text-sm text-gray-600 dark:text-gray-300">
-              Select a date to see times.
-            </div>
-          )}
+                {!slots.slots.length ? (
+                  <div className="text-sm text-gray-600 dark:text-gray-300">
+                    No times available.
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <div className="text-sm text-gray-600 dark:text-gray-300">
+                Select a date to see times.
+              </div>
+            )}
+          </div>
         </div>
       ) : null}
 

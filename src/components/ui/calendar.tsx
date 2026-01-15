@@ -20,40 +20,51 @@ function Calendar({
       showOutsideDays={showOutsideDays}
       className={cn("p-3", className)}
       classNames={{
-        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-        month: "space-y-4",
-        caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "text-sm font-medium",
-        nav: "space-x-1 flex items-center",
+        months: "flex flex-col",
+        month: "space-y-3",
+
+        // Header: month label left, arrows right (SaaS booking style)
+        caption:
+          "flex items-center justify-between px-1 pb-3 border-b border-border/60",
+        caption_label: "text-2xl font-semibold tracking-tight",
+        nav: "flex items-center gap-2",
         nav_button: cn(
           buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
+          "h-10 w-10 rounded-lg border-0 bg-primary text-primary-foreground p-0 shadow-sm opacity-95 hover:opacity-100 hover:bg-primary/90"
         ),
-        nav_button_previous: "absolute left-1",
-        nav_button_next: "absolute right-1",
-        table: "w-full border-collapse space-y-1",
-        head_row: "flex",
+        nav_button_previous: "static",
+        nav_button_next: "static",
+
+        // 7 equal columns (repeat(7, minmax(0, 1fr)))
+        table: "w-full border-collapse",
+        head_row: "grid grid-cols-7 gap-1 pt-3",
         head_cell:
-          "text-muted-foreground rounded-md w-8 font-normal text-[0.8rem]",
-        row: "flex w-full mt-2",
-        cell: cn(
-          "relative p-0 text-center text-sm focus-within:relative focus-within:z-20 [&:has([aria-selected])]:bg-accent [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected].day-range-end)]:rounded-r-md",
-          props.mode === "range"
-            ? "[&:has(>.day-range-end)]:rounded-r-md [&:has(>.day-range-start)]:rounded-l-md first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md"
-            : "[&:has([aria-selected])]:rounded-md"
-        ),
+          "h-9 w-full grid place-items-center text-xl font-semibold text-foreground/90",
+        row: "grid grid-cols-7 gap-1",
+        cell: "h-11 w-full p-0 flex items-center justify-center",
+
+        // 44x44 tap target; square cell like the reference UI
         day: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-8 w-8 cursor-pointer p-0 font-normal aria-selected:opacity-100 disabled:cursor-not-allowed"
+          [
+            "h-11 w-11 p-0",
+            "rounded-lg",
+            "text-base font-medium leading-none",
+            "aria-selected:opacity-100",
+            "hover:bg-accent hover:text-accent-foreground",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2",
+            "focus-visible:ring-offset-background",
+            "disabled:cursor-not-allowed disabled:opacity-100 disabled:hover:bg-transparent",
+          ].join(" ")
         ),
         day_range_start: "day-range-start",
         day_range_end: "day-range-end",
         day_selected:
           "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-        day_today: "bg-accent text-accent-foreground",
+        day_today: "ring-1 ring-primary/35",
         day_outside:
-          "day-outside text-muted-foreground aria-selected:bg-accent/50 aria-selected:text-muted-foreground",
-        day_disabled: "text-muted-foreground opacity-50",
+          "day-outside text-muted-foreground/70 opacity-45 aria-selected:bg-accent/50 aria-selected:text-muted-foreground",
+        day_disabled: "text-muted-foreground opacity-35",
         day_range_middle:
           "aria-selected:bg-accent aria-selected:text-accent-foreground",
         day_hidden: "invisible",

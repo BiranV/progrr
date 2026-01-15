@@ -18,6 +18,8 @@ type BusinessDetailsForm = {
   phone: string;
   address: string;
   description: string;
+  instagram: string;
+  whatsapp: string;
 };
 
 function digitsOnly(value: string) {
@@ -42,6 +44,8 @@ export default function BusinessDetailsPage() {
     phone: "",
     address: "",
     description: "",
+    instagram: "",
+    whatsapp: "",
   });
   const [errors, setErrors] = React.useState<
     Partial<Record<keyof BusinessDetailsForm, string>>
@@ -65,6 +69,8 @@ export default function BusinessDetailsPage() {
       phone: String(business.phone ?? ""),
       address: String(business.address ?? ""),
       description: String(business.description ?? ""),
+      instagram: String((business as any).instagram ?? ""),
+      whatsapp: String((business as any).whatsapp ?? ""),
     };
 
     setForm((currentForm) => {
@@ -80,7 +86,9 @@ export default function BusinessDetailsPage() {
         currentForm.name !== initialData.name ||
         currentForm.phone !== initialData.phone ||
         currentForm.address !== initialData.address ||
-        currentForm.description !== initialData.description;
+        currentForm.description !== initialData.description ||
+        currentForm.instagram !== initialData.instagram ||
+        currentForm.whatsapp !== initialData.whatsapp;
 
       if (!isDirtyNow && !isSaving) {
         initialRef.current = next;
@@ -114,7 +122,9 @@ export default function BusinessDetailsPage() {
     (form.name !== initialData.name ||
       form.phone !== initialData.phone ||
       form.address !== initialData.address ||
-      form.description !== initialData.description);
+      form.description !== initialData.description ||
+      form.instagram !== initialData.instagram ||
+      form.whatsapp !== initialData.whatsapp);
 
   const validate = React.useCallback((next: BusinessDetailsForm) => {
     const nextErrors: Partial<Record<keyof BusinessDetailsForm, string>> = {};
@@ -151,6 +161,8 @@ export default function BusinessDetailsPage() {
         phone: form.phone,
         address: form.address,
         description: form.description,
+        instagram: form.instagram,
+        whatsapp: form.whatsapp,
       }));
       toast.success("Changes saved");
     } catch (err: any) {
@@ -261,6 +273,20 @@ export default function BusinessDetailsPage() {
         </div>
 
         <div className="space-y-2">
+          <Label htmlFor="whatsapp">WhatsApp number</Label>
+          <Input
+            id="whatsapp"
+            type="tel"
+            placeholder="+972501234567 (include country code)"
+            value={form.whatsapp}
+            onChange={(e) => updateField("whatsapp", e.target.value)}
+          />
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Used for the WhatsApp quick action on the public booking page.
+          </p>
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor="address">Address</Label>
           <Input
             id="address"
@@ -275,6 +301,20 @@ export default function BusinessDetailsPage() {
               {errors.address}
             </p>
           ) : null}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="instagram">Instagram</Label>
+          <Input
+            id="instagram"
+            type="text"
+            placeholder="@yourbusiness or https://instagram.com/yourbusiness"
+            value={form.instagram}
+            onChange={(e) => updateField("instagram", e.target.value)}
+          />
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Shown on your public booking page.
+          </p>
         </div>
 
         <div className="space-y-2">

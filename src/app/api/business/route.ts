@@ -18,6 +18,25 @@ function digitsOnly(value: string) {
   return value.replace(/\D/g, "");
 }
 
+function normalizeInstagram(v: unknown): string | undefined {
+  const raw = asString(v, 200);
+  if (!raw) return undefined;
+  // Accept full URL or handle.
+  if (/^https?:\/\//i.test(raw)) return raw;
+  const handle = raw.replace(/^@/, "").trim();
+  if (!handle) return undefined;
+  return `https://instagram.com/${encodeURIComponent(handle)}`;
+}
+
+function normalizeWhatsApp(v: unknown): string | undefined {
+  const raw = asString(v, 40);
+  if (!raw) return undefined;
+  // Prefer E.164-like digits for wa.me; keep '+' out of digits.
+  const digits = digitsOnly(raw);
+  if (digits.length < 9) return undefined;
+  return digits;
+}
+
 const ALLOWED_CURRENCY_CODES = new Set([
   "ILS",
   "NIS",
@@ -69,6 +88,8 @@ export async function GET() {
     const address = asString((business as any).address, 200);
     const slug = asString((business as any).slug, 120);
     const description = asString((business as any).description, 250);
+    const instagram = normalizeInstagram((business as any).instagram);
+    const whatsapp = normalizeWhatsApp((business as any).whatsapp);
     const currency =
       normalizeCurrencyCode((business as any).currency) ??
       normalizeCurrencyCode((user as any)?.onboarding?.currency) ??
@@ -89,6 +110,8 @@ export async function GET() {
       // slug is kept for internal/admin usage, but MUST NOT be used for public booking links.
       slug: slug ?? "",
       description: description ?? "",
+      instagram: instagram ?? "",
+      whatsapp: whatsapp ?? "",
       currency,
     });
   } catch (error: any) {
@@ -151,6 +174,20 @@ export async function PATCH(req: Request) {
         ? asString((body as any)?.description, 250) ?? ""
         : currentDescription) ?? "";
 
+    const currentInstagram =
+      normalizeInstagram((business as any).instagram) ?? "";
+    const currentWhatsApp = normalizeWhatsApp((business as any).whatsapp) ?? "";
+
+    const instagram =
+      (Object.prototype.hasOwnProperty.call(body as any, "instagram")
+        ? normalizeInstagram((body as any)?.instagram) ?? ""
+        : currentInstagram) ?? "";
+
+    const whatsapp =
+      (Object.prototype.hasOwnProperty.call(body as any, "whatsapp")
+        ? normalizeWhatsApp((body as any)?.whatsapp) ?? ""
+        : currentWhatsApp) ?? "";
+
     const requestedCurrency = normalizeCurrencyCode((body as any)?.currency);
     if (
       Object.prototype.hasOwnProperty.call(body as any, "currency") &&
@@ -189,6 +226,8 @@ export async function PATCH(req: Request) {
           "onboarding.business.phone": phone,
           "onboarding.business.address": address,
           "onboarding.business.description": description,
+          "onboarding.business.instagram": instagram,
+          "onboarding.business.whatsapp": whatsapp,
           "onboarding.business.currency": currency,
           "onboarding.updatedAt": new Date(),
         },
