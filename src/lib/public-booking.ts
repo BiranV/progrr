@@ -8,10 +8,12 @@ export type PublicBusiness = {
   branding?: {
     // New shape (Cloudinary-backed)
     logo?: { url: string; publicId: string };
+    banner?: { url: string; publicId: string };
     galleryItems?: Array<{ url: string; publicId?: string }>;
 
     // Legacy shape (string urls)
     logoUrl?: string;
+    bannerUrl?: string;
     gallery?: string[];
   };
   services: Array<{

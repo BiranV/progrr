@@ -39,7 +39,11 @@ export async function GET(
     const branding = onboarding.branding ?? {};
 
     const currencySymbol = (code: string): string => {
-      switch (String(code || "").trim().toUpperCase()) {
+      switch (
+        String(code || "")
+          .trim()
+          .toUpperCase()
+      ) {
         case "ILS":
         case "NIS":
           return "₪";
@@ -68,10 +72,18 @@ export async function GET(
         id: String((s as any)?.id ?? "").trim(),
         name: String((s as any)?.name ?? "").trim(),
         durationMinutes: Number((s as any)?.durationMinutes),
-        price: Number.isFinite(Number((s as any)?.price)) ? Number((s as any)?.price) : 0,
+        price: Number.isFinite(Number((s as any)?.price))
+          ? Number((s as any)?.price)
+          : 0,
         description: String((s as any)?.description ?? "").trim(),
       }))
-      .filter((s) => s.id && s.name && Number.isFinite(s.durationMinutes) && s.durationMinutes > 0);
+      .filter(
+        (s) =>
+          s.id &&
+          s.name &&
+          Number.isFinite(s.durationMinutes) &&
+          s.durationMinutes > 0
+      );
 
     const currencyCode =
       String(business.currency ?? "").trim() ||
@@ -90,6 +102,7 @@ export async function GET(
       branding: {
         // New shape (Cloudinary)
         logo: branding.logo ?? undefined,
+        banner: branding.banner ?? undefined,
         galleryItems: Array.isArray(branding.gallery)
           ? branding.gallery.slice(0, 10)
           : [],
@@ -100,15 +113,20 @@ export async function GET(
             String(branding.logo?.url ?? "").trim() ||
             undefined) ??
           undefined,
+        bannerUrl:
+          (String(branding.bannerUrl ?? "").trim() ||
+            String(branding.banner?.url ?? "").trim() ||
+            undefined) ??
+          undefined,
         gallery: Array.isArray(branding.gallery)
           ? branding.gallery
-            .map((x: any) =>
-              typeof x === "string"
-                ? String(x ?? "").trim()
-                : String(x?.url ?? "").trim()
-            )
-            .filter(Boolean)
-            .slice(0, 10)
+              .map((x: any) =>
+                typeof x === "string"
+                  ? String(x ?? "").trim()
+                  : String(x?.url ?? "").trim()
+              )
+              .filter(Boolean)
+              .slice(0, 10)
           : [],
       },
       services,
@@ -118,9 +136,9 @@ export async function GET(
         symbol: currencySymbol(currencyCode),
         ...(currencyCode === "OTHER"
           ? {
-            name: String(customCurrency?.name ?? "").trim(),
-            symbol: String(customCurrency?.symbol ?? "").trim(),
-          }
+              name: String(customCurrency?.name ?? "").trim(),
+              symbol: String(customCurrency?.symbol ?? "").trim(),
+            }
           : {}),
       },
     });

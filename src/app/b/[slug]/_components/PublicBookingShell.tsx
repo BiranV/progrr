@@ -24,13 +24,25 @@ export default function PublicBookingShell({
   children: React.ReactNode;
 }) {
   const logoUrl = String(business?.branding?.logoUrl ?? "").trim();
+  const bannerUrl = String(
+    business?.branding?.bannerUrl ?? business?.branding?.banner?.url ?? ""
+  ).trim();
   const gallery = Array.isArray(business?.branding?.gallery)
     ? (business?.branding?.gallery || []).filter(Boolean).slice(0, 10)
     : [];
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-black pb-safe">
-      <div className="relative w-full z-0 h-[140px] bg-gradient-to-br from-neutral-950 via-zinc-900 to-zinc-800 shrink-0">
+      <div className="relative w-full z-0 h-[140px] bg-gradient-to-br from-neutral-950 via-zinc-900 to-zinc-800 shrink-0 overflow-hidden">
+        {bannerUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={bannerUrl}
+            alt="Business banner"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        ) : null}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/15 to-transparent" />
         <div className="absolute inset-0 opacity-20 mix-blend-overlay" />
       </div>
 

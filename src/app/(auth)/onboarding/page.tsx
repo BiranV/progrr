@@ -31,6 +31,14 @@ type OnboardingData = {
       bytes?: number;
       format?: string;
     };
+    banner?: {
+      url: string;
+      publicId: string;
+      width?: number;
+      height?: number;
+      bytes?: number;
+      format?: string;
+    };
     gallery?: Array<{
       url: string;
       publicId?: string;
@@ -239,6 +247,7 @@ export default function OnboardingPage() {
   const isDev = process.env.NODE_ENV !== "production";
 
   const logoInputId = React.useId();
+  const bannerInputId = React.useId();
   const galleryAddInputId = React.useId();
 
   const [loading, setLoading] = useState(true);
@@ -250,6 +259,7 @@ export default function OnboardingPage() {
   const totalSteps = 6;
 
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
   const [replacingIndex, setReplacingIndex] = useState<number | null>(null);
   const [galleryPendingPreviews, setGalleryPendingPreviews] = useState<
@@ -279,7 +289,7 @@ export default function OnboardingPage() {
   const [data, setData] = useState<OnboardingData>({
     businessTypes: [],
     business: { name: "", phone: "", address: "" },
-    branding: { logo: undefined, gallery: [] },
+    branding: { logo: undefined, banner: undefined, gallery: [] },
     currency: "NIS",
     services: [
       {
@@ -603,6 +613,29 @@ export default function OnboardingPage() {
                 }
               : undefined;
 
+            const bannerFromObj = branding.banner?.url
+              ? {
+                  url: String(branding.banner.url).trim(),
+                  publicId: String(branding.banner.publicId ?? "").trim(),
+                  width:
+                    typeof branding.banner.width === "number"
+                      ? branding.banner.width
+                      : undefined,
+                  height:
+                    typeof branding.banner.height === "number"
+                      ? branding.banner.height
+                      : undefined,
+                  bytes:
+                    typeof branding.banner.bytes === "number"
+                      ? branding.banner.bytes
+                      : undefined,
+                  format:
+                    typeof branding.banner.format === "string"
+                      ? branding.banner.format
+                      : undefined,
+                }
+              : undefined;
+
             const legacyLogoUrl = String(branding.logoUrl ?? "").trim();
 
             const galleryIn = Array.isArray(branding.gallery)
@@ -641,6 +674,7 @@ export default function OnboardingPage() {
             return {
               ...branding,
               logo,
+              banner: bannerFromObj,
               gallery,
             };
           };
@@ -801,6 +835,75 @@ export default function OnboardingPage() {
       }));
     } finally {
       setUploadingLogo(false);
+    }
+  };
+
+  const uploadBanner = async (file: File) => {
+    setUploadingBanner(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+
+      const res = await fetch("/api/branding/banner", {
+        method: "POST",
+        body: fd,
+        credentials: "include",
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok)
+        throw new Error(json?.error || `Request failed (${res.status})`);
+
+      const url = String(json?.banner?.url ?? json?.url ?? "").trim();
+      const publicId = String(json?.banner?.publicId ?? "").trim();
+      const width =
+        typeof json?.banner?.width === "number" ? json.banner.width : undefined;
+      const height =
+        typeof json?.banner?.height === "number"
+          ? json.banner.height
+          : undefined;
+      const bytes =
+        typeof json?.banner?.bytes === "number" ? json.banner.bytes : undefined;
+      const format =
+        typeof json?.banner?.format === "string"
+          ? json.banner.format
+          : undefined;
+
+      setData((d) => ({
+        ...d,
+        branding: {
+          ...(d.branding || {}),
+          banner: url
+            ? { url, publicId, width, height, bytes, format }
+            : undefined,
+        },
+      }));
+    } finally {
+      setUploadingBanner(false);
+    }
+  };
+
+  const removeBanner = async () => {
+    setUploadingBanner(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/branding/banner", {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok)
+        throw new Error(json?.error || `Request failed (${res.status})`);
+
+      setData((d) => ({
+        ...d,
+        branding: {
+          ...(d.branding || {}),
+          banner: undefined,
+        },
+      }));
+    } finally {
+      setUploadingBanner(false);
     }
   };
 
@@ -1459,6 +1562,96 @@ export default function OnboardingPage() {
                       onClick={() =>
                         removeLogo().catch((err) =>
                           setError(err?.message || "Failed to remove logo")
+                        )
+                      }
+                    >
+                      Remove
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-semibold text-gray-900 dark:text-white">
+                    Business banner
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-300">
+                    This image appears at the top of your app and booking page.
+                  </div>
+                </div>
+              </div>
+
+              <input
+                id={bannerInputId}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                disabled={uploadingBanner || saving}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!file) return;
+                  uploadBanner(file).catch((err) =>
+                    setError(err?.message || "Failed to upload banner")
+                  );
+                }}
+              />
+
+              <div className="mt-4 space-y-3">
+                <div className="relative w-full h-[140px] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 bg-gradient-to-br from-neutral-950 via-zinc-900 to-zinc-800">
+                  {data.branding?.banner?.url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={String(data.branding.banner.url).trim()}
+                      alt="Business banner"
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  ) : null}
+                  <div className="absolute inset-0 opacity-20 mix-blend-overlay" />
+
+                  {!data.branding?.banner?.url ? (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-xs font-medium text-white/80">
+                        No banner
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    asChild
+                    type="button"
+                    variant="outline"
+                    disabled={uploadingBanner || saving}
+                    className="rounded-xl"
+                  >
+                    <label htmlFor={bannerInputId} className="cursor-pointer">
+                      <span className="inline-flex items-center gap-2">
+                        {uploadingBanner ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : null}
+                        <span>
+                          {data.branding?.banner?.url
+                            ? "Replace banner"
+                            : "Upload banner"}
+                        </span>
+                      </span>
+                    </label>
+                  </Button>
+
+                  {data.branding?.banner?.url ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={uploadingBanner || saving}
+                      className="rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                      onClick={() =>
+                        removeBanner().catch((err) =>
+                          setError(err?.message || "Failed to remove banner")
                         )
                       }
                     >

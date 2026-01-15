@@ -55,6 +55,18 @@ function normalizeBrandingLogo(v: unknown) {
   return { url, publicId, width, height, bytes, format };
 }
 
+function normalizeBrandingBanner(v: unknown) {
+  if (!v || typeof v !== "object") return undefined;
+  const url = asHttpUrl((v as any).url, 500);
+  const publicId = asString((v as any).publicId ?? (v as any).public_id, 300);
+  if (!url || !publicId) return undefined;
+  const width = asNumber((v as any).width);
+  const height = asNumber((v as any).height);
+  const bytes = asNumber((v as any).bytes);
+  const format = asString((v as any).format, 40);
+  return { url, publicId, width, height, bytes, format };
+}
+
 function normalizeBrandingGallery(v: unknown) {
   if (!Array.isArray(v)) return undefined;
   const out: any[] = [];
@@ -356,6 +368,7 @@ export async function PATCH(req: Request) {
     const brandingLogoUrlRaw = (body as any)?.branding?.logoUrl;
     const brandingGalleryRaw = (body as any)?.branding?.gallery;
     const brandingLogoRaw = (body as any)?.branding?.logo;
+    const brandingBannerRaw = (body as any)?.branding?.banner;
 
     const set: any = {};
     const unset: any = {};
@@ -465,6 +478,13 @@ export async function PATCH(req: Request) {
       const logo = normalizeBrandingLogo(brandingLogoRaw);
       if (logo) {
         set["onboarding.branding.logo"] = logo;
+      }
+    }
+
+    if (brandingBannerRaw !== undefined) {
+      const banner = normalizeBrandingBanner(brandingBannerRaw);
+      if (banner) {
+        set["onboarding.branding.banner"] = banner;
       }
     }
 
