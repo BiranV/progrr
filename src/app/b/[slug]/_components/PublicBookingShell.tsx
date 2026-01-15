@@ -51,23 +51,27 @@ export default function PublicBookingShell({
         ) : null}
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/15 to-transparent" />
         <div className="absolute inset-0 opacity-20 mix-blend-overlay" />
+
+        {onBack ? (
+          <div className="absolute left-4 top-4 z-20">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={onBack}
+              className="rounded-full text-white hover:bg-white/10"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       <div className="flex-1 -mt-16 bg-gray-50 dark:bg-zinc-900 rounded-t-[40px] relative z-10 flex flex-col items-center shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
         <div className="w-full max-w-md px-6">
           <div className="-mt-10 flex items-center justify-between">
             <div className="w-10">
-              {onBack ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  onClick={onBack}
-                  className="rounded-full text-white hover:bg-white/10"
-                >
-                  <ArrowLeft className="h-5 w-5" />
-                </Button>
-              ) : null}
+              {/* Back button is rendered in the top header for consistent placement */}
             </div>
 
             <div className="p-1.5 rounded-full bg-transparent">
@@ -150,6 +154,7 @@ export default function PublicBookingShell({
                         "border border-gray-200/70 dark:border-gray-800",
                         "shadow-sm backdrop-blur",
                         "grid place-items-center",
+                        "cursor-pointer",
                         "hover:bg-white dark:hover:bg-zinc-900",
                         "transition"
                       )}
@@ -169,6 +174,7 @@ export default function PublicBookingShell({
                         "border border-gray-200/70 dark:border-gray-800",
                         "shadow-sm backdrop-blur",
                         "grid place-items-center",
+                        "cursor-pointer",
                         "hover:bg-white dark:hover:bg-zinc-900",
                         "transition"
                       )}

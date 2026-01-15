@@ -17,6 +17,9 @@ import { Switch as UISwitch } from "@/components/ui/switch";
 import AuthBanner from "../auth/_components/AuthBanner";
 import { useAuth } from "@/context/AuthContext";
 import { BUSINESS_TYPES, SERVICE_PRESETS } from "@/lib/onboardingPresets";
+import ImageCropperModal, {
+  type ImageCropperMode,
+} from "@/components/ImageCropper";
 
 type OnboardingData = {
   businessTypes?: string[];
@@ -261,6 +264,10 @@ export default function OnboardingPage() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
+
+  const [cropOpen, setCropOpen] = useState(false);
+  const [cropMode, setCropMode] = useState<ImageCropperMode>("logo");
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const [replacingIndex, setReplacingIndex] = useState<number | null>(null);
   const [galleryPendingPreviews, setGalleryPendingPreviews] = useState<
     string[]
@@ -1507,9 +1514,9 @@ export default function OnboardingPage() {
                   const file = e.target.files?.[0];
                   e.target.value = "";
                   if (!file) return;
-                  uploadLogo(file).catch((err) =>
-                    setError(err?.message || "Failed to upload logo")
-                  );
+                  setCropMode("logo");
+                  setCropFile(file);
+                  setCropOpen(true);
                 }}
               />
 
@@ -1594,9 +1601,9 @@ export default function OnboardingPage() {
                   const file = e.target.files?.[0];
                   e.target.value = "";
                   if (!file) return;
-                  uploadBanner(file).catch((err) =>
-                    setError(err?.message || "Failed to upload banner")
-                  );
+                  setCropMode("banner");
+                  setCropFile(file);
+                  setCropOpen(true);
                 }}
               />
 
@@ -2503,6 +2510,30 @@ export default function OnboardingPage() {
           )}
         </div>
       </div>
+
+      <ImageCropperModal
+        open={cropOpen}
+        mode={cropMode}
+        file={cropFile}
+        onCancel={() => {
+          setCropOpen(false);
+          setCropFile(null);
+        }}
+        onConfirm={async (cropped) => {
+          try {
+            if (cropMode === "logo") {
+              await uploadLogo(cropped);
+            } else {
+              await uploadBanner(cropped);
+            }
+            setCropOpen(false);
+            setCropFile(null);
+          } catch (err: any) {
+            setError(err?.message || "Failed to upload image");
+            throw err;
+          }
+        }}
+      />
     </div>
   );
 
