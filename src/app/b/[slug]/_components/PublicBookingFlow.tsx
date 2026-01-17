@@ -742,7 +742,7 @@ export default function PublicBookingFlow({
               type="button"
               size="sm"
               variant="default"
-              className="shrink-0 rounded-xl h-7 px-3 text-sm gap-2"
+              className="shrink-0 rounded-xl h-7 px-3 text-sm gap-2 border border-transparent"
               disabled={loggingOut}
               onClick={async () => {
                 setLoggingOut(true);
@@ -763,12 +763,18 @@ export default function PublicBookingFlow({
           </div>
         ) : null}
 
-        <div className="flex w-full items-center justify-between gap-2">
+        <div
+          className={
+            connected
+              ? "flex w-full items-center justify-between gap-2"
+              : "flex w-full items-center justify-end gap-2"
+          }
+        >
           <Button
             type="button"
             size="sm"
             variant={connected ? "outline" : "default"}
-            className="rounded-xl h-7 px-3 text-sm gap-2"
+            className="shrink-0 rounded-xl h-7 px-3 text-sm gap-2"
             disabled={loggingOut}
             onClick={() => {
               if (connected) {
@@ -802,7 +808,7 @@ export default function PublicBookingFlow({
               type="button"
               size="sm"
               variant="outline"
-              className="shrink-0 rounded-xl h-7 px-3 text-sm"
+              className="shrink-0 rounded-xl h-7 px-3 text-sm gap-2"
               disabled={loggingOut}
               onClick={openProfileEditor}
             >
