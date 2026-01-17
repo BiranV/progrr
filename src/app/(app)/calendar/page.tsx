@@ -6,7 +6,7 @@ import { Arabic } from "flatpickr/dist/l10n/ar";
 import { Hebrew } from "flatpickr/dist/l10n/he";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronsUpDown, MoreVertical } from "lucide-react";
+import { ChevronsUpDown, Loader2, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 
 import { CenteredSpinner } from "@/components/CenteredSpinner";
@@ -104,6 +104,8 @@ export default function CalendarPage() {
         () => appointmentsQuery.data ?? [],
         [appointmentsQuery.data]
     );
+
+    const [refreshing, setRefreshing] = React.useState(false);
 
     const [cancelId, setCancelId] = React.useState<string | null>(null);
     const [cancelling, setCancelling] = React.useState(false);
@@ -656,14 +658,26 @@ export default function CalendarPage() {
                     <Button
                         variant="outline"
                         size="sm"
-                        className="rounded-xl"
-                        onClick={() => {
+                        className="rounded-xl gap-2"
+                        onClick={async () => {
                             setError(null);
-                            appointmentsQuery.refetch();
+                            setRefreshing(true);
+                            try {
+                                await appointmentsQuery.refetch();
+                            } finally {
+                                setRefreshing(false);
+                            }
                         }}
-                        disabled={loading}
+                        disabled={loading || refreshing}
                     >
-                        Refresh
+                        <span className="relative inline-flex items-center justify-center">
+                            <span className={refreshing ? "invisible" : ""}>Refresh</span>
+                            {refreshing ? (
+                                <span className="absolute inset-0 inline-flex items-center justify-center">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                </span>
+                            ) : null}
+                        </span>
                     </Button>
                 </div>
             </div>

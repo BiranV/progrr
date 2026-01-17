@@ -1412,6 +1412,7 @@ export default function PublicBookingFlow({
 
                       <Button
                         variant="outline"
+                        size="sm"
                         className="rounded-xl shrink-0"
                         disabled={cancellingMyAppointmentId === a.id}
                         onClick={async () => {
@@ -1765,6 +1766,7 @@ export default function PublicBookingFlow({
                         </div>
                         <Button
                           variant="outline"
+                          size="sm"
                           className="rounded-2xl w-full mt-2"
                           disabled={submitting || cancellingConflictId === apptId}
                           onClick={async () => {
@@ -1990,6 +1992,7 @@ export default function PublicBookingFlow({
                         </div>
                         <Button
                           variant="outline"
+                          size="sm"
                           className="rounded-2xl w-full mt-2"
                           disabled={submitting || cancellingConflictId === apptId}
                           onClick={async () => {
@@ -2151,6 +2154,7 @@ export default function PublicBookingFlow({
 
                     <Button
                       variant="outline"
+                      size="sm"
                       className="rounded-2xl w-full mt-2"
                       disabled={cancellingSameDayId === a.id || cancelling}
                       onClick={async () => {
