@@ -112,7 +112,7 @@ function isOpenNowFromAvailability(args: {
         if (!Number.isFinite(startMin) || !Number.isFinite(endMin)) continue;
         // Treat end time as inclusive (e.g. 09:00–16:00 is still open at 16:00,
         // and becomes closed at 16:01).
-        if (startMin <= nowMin && nowMin < endMin) return true;
+        if (startMin <= nowMin && nowMin <= endMin) return true;
     }
 
     return false;
@@ -136,7 +136,12 @@ export async function GET() {
             "UTC";
 
         const now = new Date();
-        const todayStr = formatDateInTimeZone(now, timeZone);
+        let todayStr: string;
+        try {
+            todayStr = formatDateInTimeZone(now, timeZone);
+        } catch {
+            todayStr = formatDateInTimeZone(now, "UTC");
+        }
         const nowTimeStr = formatTimeInTimeZone(now, timeZone);
 
         const onboarding = (owner as any)?.onboarding ?? {};

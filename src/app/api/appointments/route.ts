@@ -3,6 +3,31 @@ import { ObjectId } from "mongodb";
 
 import { requireAppUser } from "@/server/auth";
 import { collections, ensureIndexes } from "@/server/collections";
+import { formatDateInTimeZone } from "@/lib/public-booking";
+
+function formatTimeInTimeZone(date: Date, timeZone: string): string {
+    // 24-hour, zero-padded HH:mm so string comparisons work.
+    const tz = String(timeZone || "UTC").trim() || "UTC";
+    let parts: Intl.DateTimeFormatPart[];
+    try {
+        parts = new Intl.DateTimeFormat("en-GB", {
+            timeZone: tz,
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+        }).formatToParts(date);
+    } catch {
+        parts = new Intl.DateTimeFormat("en-GB", {
+            timeZone: "UTC",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+        }).formatToParts(date);
+    }
+    const hour = parts.find((p) => p.type === "hour")?.value ?? "00";
+    const minute = parts.find((p) => p.type === "minute")?.value ?? "00";
+    return `${hour}:${minute}`;
+}
 
 function isYmd(v: string): boolean {
     return /^\d{4}-\d{2}-\d{2}$/.test(String(v || "").trim());
@@ -31,6 +56,47 @@ export async function GET(req: Request) {
 
         const c = await collections();
         const businessUserId = new ObjectId(user.id);
+
+        // Convert passed appointments to COMPLETED so the UI + revenue logic stays consistent.
+        // We do this lazily on reads to avoid needing a background job.
+        const owner = await c.users.findOne(
+            { _id: businessUserId } as any,
+            { projection: { "onboarding.availability.timezone": 1 } }
+        );
+        const timeZone = String(
+            (owner as any)?.onboarding?.availability?.timezone || "UTC"
+        );
+        const now = new Date();
+        let todayStr: string;
+        let nowTimeStr: string;
+        try {
+            todayStr = formatDateInTimeZone(now, timeZone);
+            nowTimeStr = formatTimeInTimeZone(now, timeZone);
+        } catch {
+            todayStr = formatDateInTimeZone(now, "UTC");
+            nowTimeStr = formatTimeInTimeZone(now, "UTC");
+        }
+
+        if (date < todayStr) {
+            await c.appointments.updateMany(
+                {
+                    businessUserId,
+                    status: "BOOKED",
+                    date,
+                } as any,
+                { $set: { status: "COMPLETED" } }
+            );
+        } else if (date === todayStr) {
+            await c.appointments.updateMany(
+                {
+                    businessUserId,
+                    status: "BOOKED",
+                    date,
+                    endTime: { $lte: nowTimeStr },
+                } as any,
+                { $set: { status: "COMPLETED" } }
+            );
+        }
 
         const appts = await c.appointments
             .find(

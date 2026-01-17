@@ -404,6 +404,8 @@ export default function CalendarPage() {
                                     className={
                                         String(a.status) === "BOOKED"
                                             ? "bg-emerald-600 text-white"
+                                            : String(a.status) === "COMPLETED"
+                                                ? "bg-blue-600 text-white"
                                             : isCanceledStatus(a.status)
                                                 ? "bg-gray-500 text-white dark:bg-gray-700"
                                                 : "bg-gray-600 text-white"
