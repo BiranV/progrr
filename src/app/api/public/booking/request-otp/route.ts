@@ -6,6 +6,8 @@ import { sendEmail } from "@/server/email";
 import { getDb } from "@/server/mongo";
 import { checkRateLimit } from "@/server/rate-limit";
 import { buildOtpEmail } from "@/server/emails/auth";
+import { isValidBusinessPublicId } from "@/server/business-public-id";
+import { ObjectId } from "mongodb";
 
 function normalizeEmail(input: unknown): string {
   return String(input ?? "")
@@ -23,6 +25,7 @@ export async function POST(req: Request) {
     await ensureIndexes();
 
     const body = await req.json().catch(() => ({}));
+    const businessPublicId = String(body?.businessPublicId ?? "").trim();
     const email = normalizeEmail(body?.email);
 
     if (!email) {
@@ -31,6 +34,19 @@ export async function POST(req: Request) {
     if (!isValidEmail(email)) {
       return NextResponse.json(
         { error: "Please enter a valid email address" },
+        { status: 400 }
+      );
+    }
+
+    if (!businessPublicId) {
+      return NextResponse.json(
+        { error: "businessPublicId is required" },
+        { status: 400 }
+      );
+    }
+    if (!isValidBusinessPublicId(businessPublicId)) {
+      return NextResponse.json(
+        { error: "Invalid businessPublicId" },
         { status: 400 }
       );
     }
@@ -46,6 +62,35 @@ export async function POST(req: Request) {
       perIp: { windowMs: 60_000, limit: 20 },
       perEmail: { windowMs: 60_000, limit: 5 },
     });
+
+    const user = await c.users.findOne({
+      "onboarding.business.publicId": businessPublicId,
+      onboardingCompleted: true,
+    } as any);
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "Business not found" },
+        { status: 404 }
+      );
+    }
+
+    // Business-scoped customer block: do NOT send OTP if blocked for this business.
+    const blocked = await c.customers.findOne({
+      businessUserId: user._id as ObjectId,
+      email,
+      status: "BLOCKED",
+    } as any);
+
+    if (blocked) {
+      return NextResponse.json(
+        {
+          error: "You cannot book with this business.",
+          code: "CUSTOMER_BLOCKED_FOR_THIS_BUSINESS",
+        },
+        { status: 403 }
+      );
+    }
 
     const purpose = "booking_verify" as const;
 

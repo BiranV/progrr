@@ -31,6 +31,7 @@
     "class-variance-authority": "^0.7.1",
     "cloudinary": "^2.8.0",
     "clsx": "^2.1.1",
+    "countries-and-timezones": "^3.8.0",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.23.26",
     "jose": "^6.1.3",

@@ -82,6 +82,8 @@ export type CustomerDoc = {
   fullName: string;
   phone: string;
   email?: string;
+  status?: "ACTIVE" | "BLOCKED";
+  isHidden?: boolean;
   createdAt: Date;
   // Legacy fields (no longer used for counts; counts are computed from appointments).
   appointmentsCount?: number;

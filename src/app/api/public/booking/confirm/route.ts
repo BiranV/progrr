@@ -197,6 +197,25 @@ export async function POST(req: Request) {
     const businessUserId = (user._id as ObjectId).toHexString();
     const customerId = customerIdFor({ businessUserId, email: customerEmail });
 
+    // Business-scoped customer block: do not allow booking for this business.
+    const existingCustomerForBusiness = await c.customers.findOne(
+      {
+        businessUserId: user._id as ObjectId,
+        $or: [{ phone: customerPhone }, { email: customerEmail }],
+      } as any,
+      { projection: { status: 1 } }
+    );
+
+    if (String((existingCustomerForBusiness as any)?.status ?? "").toUpperCase() === "BLOCKED") {
+      return NextResponse.json(
+        {
+          error: "You cannot book with this business.",
+          code: "CUSTOMER_BLOCKED_FOR_THIS_BUSINESS",
+        },
+        { status: 403 }
+      );
+    }
+
     const existing = await c.appointments.findOne(
       {
         businessUserId: user._id as ObjectId,
@@ -286,11 +305,13 @@ export async function POST(req: Request) {
             $setOnInsert: {
               businessUserId: user._id as ObjectId,
               createdAt: new Date(),
+              status: "ACTIVE",
             },
             $set: {
               fullName: customerFullName,
               phone: customerPhone,
               email: customerEmail,
+              isHidden: false,
             },
           },
           { upsert: true, returnDocument: "after" }

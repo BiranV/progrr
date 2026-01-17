@@ -47,11 +47,13 @@ export async function GET() {
     const nowTimeStr = formatTimeInTimeZone(new Date(), timeZone);
 
     const customers = await c.customers
-      .find({ businessUserId } as any, {
+      .find({ businessUserId, isHidden: { $ne: true } } as any, {
         projection: {
           fullName: 1,
           phone: 1,
           email: 1,
+          status: 1,
+          isHidden: 1,
           lastAppointmentAt: 1,
           createdAt: 1,
         },
@@ -90,6 +92,7 @@ export async function GET() {
         fullName: String(cust?.fullName ?? ""),
         phone: String(cust?.phone ?? ""),
         email: String(cust?.email ?? "") || undefined,
+        status: String(cust?.status ?? "ACTIVE"),
         activeBookingsCount: countByCustomerId.get(id) ?? 0,
         lastAppointmentAt: cust?.lastAppointmentAt,
         createdAt: cust?.createdAt,

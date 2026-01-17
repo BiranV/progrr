@@ -1429,7 +1429,7 @@ export default function OnboardingPage() {
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Name *</Label>
+                <Label>Business name *</Label>
                 <Input
                   className={fieldErrors.businessName ? inputErrorClass : ""}
                   value={data.business?.name || ""}
@@ -1444,7 +1444,7 @@ export default function OnboardingPage() {
                 <InlineError message={fieldErrors.businessName} />
               </div>
               <div className="space-y-2">
-                <Label>Phone *</Label>
+                <Label>Business phone *</Label>
                 <PhoneInput
                   value={data.business?.phone || ""}
                   onChange={(v) =>
@@ -1464,7 +1464,7 @@ export default function OnboardingPage() {
                 <InlineError message={fieldErrors.businessPhone} />
               </div>
               <div className="space-y-2">
-                <Label>Address *</Label>
+                <Label>Business address *</Label>
                 <Input
                   className={fieldErrors.businessAddress ? inputErrorClass : ""}
                   value={data.business?.address || ""}
@@ -1897,8 +1897,8 @@ export default function OnboardingPage() {
                           type="number"
                           min={5}
                           className={`px-2 text-center ${fieldErrors[`serviceDuration_${s.id}`]
-                              ? inputErrorClass
-                              : ""
+                            ? inputErrorClass
+                            : ""
                             }`}
                           value={s.durationMinutes}
                           onChange={(e) => {
@@ -1923,8 +1923,8 @@ export default function OnboardingPage() {
                       <div className="w-[70px] shrink-0">
                         <Input
                           className={`px-2 text-center ${fieldErrors[`servicePrice_${s.id}`]
-                              ? inputErrorClass
-                              : ""
+                            ? inputErrorClass
+                            : ""
                             }`}
                           type="number"
                           min={0}

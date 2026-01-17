@@ -121,10 +121,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid code" }, { status: 401 });
     }
 
-    // Identity verified: issue a short-lived booking session token.
-    // IMPORTANT: Do NOT consume/invalidate the OTP here.
-    const bookingSessionId = await signBookingVerifyToken({ email });
-
     // After successful OTP verification, check business rule: one active future appointment.
     // If blocked, return ACTIVE_APPOINTMENT_EXISTS without touching OTP.
     const user = await c.users.findOne({
@@ -138,6 +134,27 @@ export async function POST(req: Request) {
         { status: 404 }
       );
     }
+
+    // Business-scoped customer block: prevent booking for this business.
+    const blocked = await c.customers.findOne({
+      businessUserId: user._id as ObjectId,
+      email,
+      status: "BLOCKED",
+    } as any);
+
+    if (blocked) {
+      return NextResponse.json(
+        {
+          error: "You cannot book with this business.",
+          code: "CUSTOMER_BLOCKED_FOR_THIS_BUSINESS",
+        },
+        { status: 403 }
+      );
+    }
+
+    // Identity verified: issue a short-lived booking session token.
+    // IMPORTANT: Do NOT consume/invalidate the OTP here.
+    const bookingSessionId = await signBookingVerifyToken({ email });
 
     const onboarding = (user as any).onboarding ?? {};
     const timeZone =

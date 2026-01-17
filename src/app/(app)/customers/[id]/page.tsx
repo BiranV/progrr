@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import SettingsBackHeader from "@/components/settings/SettingsBackHeader";
+import { toast } from "sonner";
 
 type Booking = {
   id: string;
@@ -21,7 +22,14 @@ type Booking = {
 
 type CustomerDetailsResponse = {
   ok: true;
-  customer: { id: string; fullName: string; phone: string; email?: string };
+  customer: {
+    id: string;
+    fullName: string;
+    phone: string;
+    email?: string;
+    status?: "ACTIVE" | "BLOCKED";
+    isHidden?: boolean;
+  };
   activeBookingsCount: number;
   bookings: Booking[];
 };
@@ -104,6 +112,47 @@ export default function CustomerDetailsPage() {
     }
   };
 
+  const updateCustomer = async (action: "block" | "unblock" | "hide") => {
+    setError(null);
+    try {
+      if (action === "hide") {
+        const ok = window.confirm(
+          "Remove this customer from your list? (They can reappear if they book again.)"
+        );
+        if (!ok) return;
+      }
+
+      const res = await fetch(`/api/customers/${encodeURIComponent(id)}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action }),
+        }
+      );
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(json?.error || `Request failed (${res.status})`);
+      }
+
+      toast.success(
+        action === "block"
+          ? "Customer blocked"
+          : action === "unblock"
+            ? "Customer unblocked"
+            : "Customer removed"
+      );
+
+      if (action === "hide") {
+        window.location.href = "/customers";
+        return;
+      }
+
+      await load();
+    } catch (e: any) {
+      setError(e?.message || "Failed");
+    }
+  };
+
   if (loading) {
     return <CenteredSpinner fullPage />;
   }
@@ -145,10 +194,47 @@ export default function CustomerDetailsPage() {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
           {data.customer.fullName || "Customer"}
         </h1>
-        <div className="text-sm text-gray-600 dark:text-gray-300">
-          {data.customer.phone}
-          {data.customer.email ? ` • ${data.customer.email}` : ""}
-          {` • Active bookings: ${data.activeBookingsCount}`}
+        <div className="text-sm text-gray-600 dark:text-gray-300 leading-tight space-y-0.5">
+          <div className="truncate">{data.customer.phone}</div>
+          {data.customer.email ? (
+            <div className="truncate">{data.customer.email}</div>
+          ) : null}
+          <div>{`Active bookings: ${data.activeBookingsCount}`}</div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge
+            className={
+              String(data.customer.status ?? "ACTIVE") === "BLOCKED"
+                ? "bg-rose-600"
+                : "bg-emerald-600"
+            }
+          >
+            {String(data.customer.status ?? "ACTIVE")}
+          </Badge>
+          {String(data.customer.status ?? "ACTIVE") === "BLOCKED" ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => updateCustomer("unblock")}
+            >
+              Unblock
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => updateCustomer("block")}
+            >
+              Block
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => updateCustomer("hide")}
+          >
+            Remove from list
+          </Button>
         </div>
       </div>
 

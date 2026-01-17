@@ -458,7 +458,10 @@ export default function PublicBookingFlow({
     const res = await fetch("/api/public/booking/request-otp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: customerEmail.trim() }),
+      body: JSON.stringify({
+        businessPublicId: publicId,
+        email: customerEmail.trim(),
+      }),
     });
 
     const json = await res.json().catch(() => null);

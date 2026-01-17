@@ -147,9 +147,79 @@ export async function GET(
         fullName: String((customer as any)?.fullName ?? ""),
         phone: String((customer as any)?.phone ?? ""),
         email: String((customer as any)?.email ?? "") || undefined,
+        status: String((customer as any)?.status ?? "ACTIVE"),
+        isHidden: Boolean((customer as any)?.isHidden ?? false),
       },
       activeBookingsCount,
       bookings: history,
+    });
+  } catch (error: any) {
+    const status = typeof error?.status === "number" ? error.status : 500;
+    return NextResponse.json(
+      { error: error?.message || "Internal Server Error" },
+      { status }
+    );
+  }
+}
+
+export async function PATCH(
+  req: Request,
+  ctx: { params: Promise<{ id: string }> }
+) {
+  try {
+    const user = await requireAppUser();
+    await ensureIndexes();
+
+    const { id } = await ctx.params;
+    if (!ObjectId.isValid(id)) {
+      return NextResponse.json(
+        { error: "Invalid customer id" },
+        { status: 400 }
+      );
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const action = String((body as any)?.action ?? "").trim();
+
+    const c = await collections();
+    const businessUserId = new ObjectId(user.id);
+    const _id = new ObjectId(id);
+
+    const customer = await c.customers.findOne({ _id, businessUserId } as any);
+    if (!customer) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const update: any = { $set: {} as any };
+
+    if (action === "block") {
+      update.$set.status = "BLOCKED";
+    } else if (action === "unblock") {
+      update.$set.status = "ACTIVE";
+    } else if (action === "hide") {
+      update.$set.isHidden = true;
+    } else if (action === "unhide") {
+      update.$set.isHidden = false;
+    } else {
+      return NextResponse.json(
+        { error: "Invalid action" },
+        { status: 400 }
+      );
+    }
+
+    const result = await c.customers.findOneAndUpdate(
+      { _id, businessUserId } as any,
+      update,
+      { returnDocument: "after" }
+    );
+
+    return NextResponse.json({
+      ok: true,
+      customer: {
+        id,
+        status: String((result as any)?.status ?? "ACTIVE"),
+        isHidden: Boolean((result as any)?.isHidden ?? false),
+      },
     });
   } catch (error: any) {
     const status = typeof error?.status === "number" ? error.status : 500;

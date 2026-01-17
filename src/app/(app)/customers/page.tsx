@@ -1,25 +1,48 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Users } from "lucide-react";
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DataTable,
+  type DataTableSortConfig,
+  type DataTableColumn,
+} from "@/components/ui/table/DataTable";
 
 type Customer = {
   _id: string;
   fullName: string;
   phone: string;
   email?: string;
+  status?: "ACTIVE" | "BLOCKED";
   activeBookingsCount: number;
   lastAppointmentAt?: string;
 };
 
 export default function CustomersPage() {
+  const router = useRouter();
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [customers, setCustomers] = React.useState<Customer[]>([]);
+
+  const [query, setQuery] = React.useState("");
+  const [page, setPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(5);
+  const [sortConfig, setSortConfig] = React.useState<DataTableSortConfig>({
+    key: "client",
+    direction: "asc",
+  });
 
   React.useEffect(() => {
     let cancelled = false;
@@ -46,6 +69,103 @@ export default function CustomersPage() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [query, pageSize]);
+
+  const filtered = React.useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return customers;
+    return customers.filter((c) => {
+      const fullName = String(c.fullName ?? "").toLowerCase();
+      const phone = String(c.phone ?? "").toLowerCase();
+      const email = String(c.email ?? "").toLowerCase();
+      return fullName.includes(q) || phone.includes(q) || email.includes(q);
+    });
+  }, [customers, query]);
+
+  const sorted = React.useMemo(() => {
+    const rows = [...filtered];
+    const dir = sortConfig?.direction === "desc" ? -1 : 1;
+    const key = sortConfig?.key ?? "client";
+
+    rows.sort((a, b) => {
+      if (key === "status") {
+        const av = String(a.status ?? "ACTIVE");
+        const bv = String(b.status ?? "ACTIVE");
+        return av.localeCompare(bv) * dir;
+      }
+
+      const an = String(a.fullName ?? "").trim();
+      const bn = String(b.fullName ?? "").trim();
+      return an.localeCompare(bn) * dir;
+    });
+
+    return rows;
+  }, [filtered, sortConfig]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const paged = React.useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return sorted.slice(start, start + pageSize);
+  }, [sorted, safePage, pageSize]);
+
+  React.useEffect(() => {
+    if (page !== safePage) setPage(safePage);
+  }, [page, safePage]);
+
+  const columns = React.useMemo(() => {
+    const cols: Array<DataTableColumn<Customer>> = [
+      {
+        key: "client",
+        header: "Client",
+        sortable: true,
+        renderCell: (c) => (
+          <div className="min-w-0">
+            <div className="font-semibold text-gray-900 dark:text-white truncate">
+              {c.fullName || "(No name)"}
+            </div>
+            <div className="text-xs text-gray-600 dark:text-gray-300 leading-tight">
+              <div className="truncate">{c.phone}</div>
+              {c.email ? <div className="truncate">{c.email}</div> : null}
+            </div>
+          </div>
+        ),
+      },
+      {
+        key: "status",
+        header: "Status",
+        sortable: true,
+        cellClassName: "w-[1%] whitespace-nowrap",
+        renderCell: (c) => (
+          <Badge
+            variant={"secondary"}
+            className={
+              "shrink-0 rounded-full px-2 py-0.5 text-xs " +
+              (String(c.status ?? "ACTIVE") === "BLOCKED"
+                ? "bg-rose-600 text-white"
+                : "bg-emerald-600 text-white")
+            }
+          >
+            {String(c.status ?? "ACTIVE")}
+          </Badge>
+        ),
+      },
+    ];
+    return cols;
+  }, []);
+
+  const onSort = React.useCallback((key: string) => {
+    setSortConfig((prev) => {
+      if (!prev || prev.key !== key) return { key, direction: "asc" };
+      return {
+        key,
+        direction: prev.direction === "asc" ? "desc" : "asc",
+      };
+    });
   }, []);
 
   return (
@@ -81,36 +201,50 @@ export default function CustomersPage() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {customers.map((c) => (
-            <Link key={c._id} href={`/customers/${encodeURIComponent(c._id)}`}>
-              <Card className="hover:bg-muted/40 transition-colors">
-                <CardContent className="px-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className="font-semibold text-gray-900 dark:text-white truncate">
-                        {c.fullName || "(No name)"}
-                      </div>
-                      <div className="text-xs text-gray-600 dark:text-gray-300 truncate">
-                        {c.phone}
-                        {c.email ? ` • ${c.email}` : ""}
-                      </div>
-                    </div>
-                    <Badge
-                      variant={"secondary"}
-                      className={
-                        "shrink-0 rounded-full px-2 py-0.5 text-xs " +
-                        (c.activeBookingsCount > 0
-                          ? "bg-emerald-600 text-white"
-                          : "")
-                      }
-                    >
-                      {c.activeBookingsCount} active
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="w-full sm:max-w-sm">
+              <Input
+                placeholder="Search clients"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-2 sm:justify-end">
+              <Select
+                value={String(pageSize)}
+                onValueChange={(v) => setPageSize(Number(v) || 5)}
+              >
+                <SelectTrigger size="sm" className="w-[104px]">
+                  <SelectValue placeholder="Rows" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5 rows</SelectItem>
+                  <SelectItem value="10">10 rows</SelectItem>
+                  <SelectItem value="25">25 rows</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DataTable
+            rows={paged}
+            columns={columns}
+            getRowId={(r) => r._id}
+            sortConfig={sortConfig}
+            onSort={onSort}
+            onRowClick={(row) =>
+              router.push(`/customers/${encodeURIComponent(row._id)}`)
+            }
+            pagination={{
+              page: safePage,
+              totalPages,
+              onPageChange: setPage,
+            }}
+            emptyMessage={
+              <div className="text-sm text-muted-foreground">No results.</div>
+            }
+          />
         </div>
       )}
     </div>

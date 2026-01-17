@@ -8,6 +8,7 @@ import PhoneInputBase, {
     isValidPhoneNumber,
     parsePhoneNumber,
 } from "react-phone-number-input";
+import { getTimezone } from "countries-and-timezones";
 import flags from "react-phone-number-input/flags";
 import labelsEn from "react-phone-number-input/locale/en";
 
@@ -27,6 +28,26 @@ export type PhoneInputDetails = {
 
 function detectDefaultCountry(fallback: Country = "IL"): Country {
     if (typeof navigator === "undefined") return fallback;
+
+    // Prefer time zone-based detection (more reliable than locale for many users).
+    try {
+        const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (timeZone) {
+            const tz = getTimezone(timeZone);
+            const tzCountries = Array.isArray((tz as any)?.countries)
+                ? ((tz as any).countries as string[])
+                : [];
+            if (tzCountries.length) {
+                const supported = new Set(getCountries());
+                for (const c of tzCountries) {
+                    const code = String(c || "").trim().toUpperCase();
+                    if (supported.has(code as Country)) return code as Country;
+                }
+            }
+        }
+    } catch {
+        // Ignore and fall back to locale.
+    }
 
     const locale =
         (Array.isArray((navigator as any).languages)
@@ -69,7 +90,7 @@ function CountrySelect({
     labels,
     disabled,
 }: CountrySelectProps) {
-    const safeLabels = labels ?? {};
+    const safeLabels = React.useMemo(() => labels ?? {}, [labels]);
     const [open, setOpen] = React.useState(false);
     const [q, setQ] = React.useState("");
     const [activeIndex, setActiveIndex] = React.useState(0);
@@ -300,6 +321,8 @@ export function PhoneInput({
     return (
         <PhoneInputBase
             international
+            addInternationalOption={false}
+            countryCallingCodeEditable={false}
             defaultCountry={detectedDefault}
             value={currentE164 as any}
             onChange={(v) => onChange(String(v ?? ""))}
