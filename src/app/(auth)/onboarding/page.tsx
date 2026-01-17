@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { TimePicker } from "@/components/ui/time-picker";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -293,6 +294,8 @@ export default function OnboardingPage() {
 
   const inputErrorClass = "border-rose-300 ring-1 ring-rose-300/20";
 
+  const [businessPhoneValid, setBusinessPhoneValid] = useState(true);
+
   const [data, setData] = useState<OnboardingData>({
     businessTypes: [],
     business: { name: "", phone: "", address: "" },
@@ -342,7 +345,7 @@ export default function OnboardingPage() {
           name,
           durationMinutes:
             typeof preset.durationMinutes === "number" &&
-            preset.durationMinutes > 0
+              preset.durationMinutes > 0
               ? preset.durationMinutes
               : 30,
           price: undefined,
@@ -438,10 +441,10 @@ export default function OnboardingPage() {
     return Array.from({ length: 7 }, (_, i) => i)
       .map((day) => byDay.get(day))
       .filter(Boolean) as Array<{
-      day: number;
-      enabled: boolean;
-      ranges: Array<{ id: string; start: string; end: string }>;
-    }>;
+        day: number;
+        enabled: boolean;
+        ranges: Array<{ id: string; start: string; end: string }>;
+      }>;
   }, [data.availability?.days]);
 
   const updateAvailabilityRangeTime = (
@@ -599,48 +602,48 @@ export default function OnboardingPage() {
             const branding = (b && typeof b === "object" ? b : {}) as any;
             const logoFromObj = branding.logo?.url
               ? {
-                  url: String(branding.logo.url).trim(),
-                  publicId: String(branding.logo.publicId ?? "").trim(),
-                  width:
-                    typeof branding.logo.width === "number"
-                      ? branding.logo.width
-                      : undefined,
-                  height:
-                    typeof branding.logo.height === "number"
-                      ? branding.logo.height
-                      : undefined,
-                  bytes:
-                    typeof branding.logo.bytes === "number"
-                      ? branding.logo.bytes
-                      : undefined,
-                  format:
-                    typeof branding.logo.format === "string"
-                      ? branding.logo.format
-                      : undefined,
-                }
+                url: String(branding.logo.url).trim(),
+                publicId: String(branding.logo.publicId ?? "").trim(),
+                width:
+                  typeof branding.logo.width === "number"
+                    ? branding.logo.width
+                    : undefined,
+                height:
+                  typeof branding.logo.height === "number"
+                    ? branding.logo.height
+                    : undefined,
+                bytes:
+                  typeof branding.logo.bytes === "number"
+                    ? branding.logo.bytes
+                    : undefined,
+                format:
+                  typeof branding.logo.format === "string"
+                    ? branding.logo.format
+                    : undefined,
+              }
               : undefined;
 
             const bannerFromObj = branding.banner?.url
               ? {
-                  url: String(branding.banner.url).trim(),
-                  publicId: String(branding.banner.publicId ?? "").trim(),
-                  width:
-                    typeof branding.banner.width === "number"
-                      ? branding.banner.width
-                      : undefined,
-                  height:
-                    typeof branding.banner.height === "number"
-                      ? branding.banner.height
-                      : undefined,
-                  bytes:
-                    typeof branding.banner.bytes === "number"
-                      ? branding.banner.bytes
-                      : undefined,
-                  format:
-                    typeof branding.banner.format === "string"
-                      ? branding.banner.format
-                      : undefined,
-                }
+                url: String(branding.banner.url).trim(),
+                publicId: String(branding.banner.publicId ?? "").trim(),
+                width:
+                  typeof branding.banner.width === "number"
+                    ? branding.banner.width
+                    : undefined,
+                height:
+                  typeof branding.banner.height === "number"
+                    ? branding.banner.height
+                    : undefined,
+                bytes:
+                  typeof branding.banner.bytes === "number"
+                    ? branding.banner.bytes
+                    : undefined,
+                format:
+                  typeof branding.banner.format === "string"
+                    ? branding.banner.format
+                    : undefined,
+              }
               : undefined;
 
             const legacyLogoUrl = String(branding.logoUrl ?? "").trim();
@@ -669,8 +672,8 @@ export default function OnboardingPage() {
               })
               .filter(Boolean)
               .slice(0, 10) as NonNullable<
-              OnboardingData["branding"]
-            >["gallery"];
+                OnboardingData["branding"]
+              >["gallery"];
 
             const logo =
               logoFromObj ||
@@ -696,10 +699,10 @@ export default function OnboardingPage() {
               ...(res.onboarding?.availability || {}),
               days:
                 res.onboarding?.availability?.days &&
-                res.onboarding.availability.days.length
+                  res.onboarding.availability.days.length
                   ? normalizeAvailabilityDaysForUi(
-                      res.onboarding.availability.days
-                    )
+                    res.onboarding.availability.days
+                  )
                   : prev.availability?.days,
             },
             services:
@@ -777,8 +780,8 @@ export default function OnboardingPage() {
           ...(res.onboarding?.availability || {}),
           days:
             res.onboarding?.availability?.days &&
-            Array.isArray(res.onboarding.availability.days) &&
-            res.onboarding.availability.days.length
+              Array.isArray(res.onboarding.availability.days) &&
+              res.onboarding.availability.days.length
               ? normalizeAvailabilityDaysForUi(res.onboarding.availability.days)
               : prev.availability?.days,
         },
@@ -954,8 +957,7 @@ export default function OnboardingPage() {
       }
       if (skipped.length) {
         setError(
-          `Some files were skipped: ${skipped.slice(0, 3).join(", ")}${
-            skipped.length > 3 ? "…" : ""
+          `Some files were skipped: ${skipped.slice(0, 3).join(", ")}${skipped.length > 3 ? "…" : ""
           }`
         );
       }
@@ -994,24 +996,24 @@ export default function OnboardingPage() {
 
       const gallery = Array.isArray(json?.gallery)
         ? json.gallery
-            .map((x: any) => {
-              if (typeof x === "string") {
-                const url = String(x ?? "").trim();
-                if (!url) return null;
-                return { url, publicId: "" };
-              }
-              const url = String(x?.url ?? "").trim();
+          .map((x: any) => {
+            if (typeof x === "string") {
+              const url = String(x ?? "").trim();
               if (!url) return null;
-              return {
-                url,
-                publicId: String(x?.publicId ?? x?.public_id ?? "").trim(),
-                width: typeof x?.width === "number" ? x.width : undefined,
-                height: typeof x?.height === "number" ? x.height : undefined,
-                bytes: typeof x?.bytes === "number" ? x.bytes : undefined,
-                format: typeof x?.format === "string" ? x.format : undefined,
-              };
-            })
-            .filter(Boolean)
+              return { url, publicId: "" };
+            }
+            const url = String(x?.url ?? "").trim();
+            if (!url) return null;
+            return {
+              url,
+              publicId: String(x?.publicId ?? x?.public_id ?? "").trim(),
+              width: typeof x?.width === "number" ? x.width : undefined,
+              height: typeof x?.height === "number" ? x.height : undefined,
+              bytes: typeof x?.bytes === "number" ? x.bytes : undefined,
+              format: typeof x?.format === "string" ? x.format : undefined,
+            };
+          })
+          .filter(Boolean)
         : [];
 
       setData((d) => ({
@@ -1069,24 +1071,24 @@ export default function OnboardingPage() {
 
       const gallery = Array.isArray(json?.gallery)
         ? json.gallery
-            .map((x: any) => {
-              if (typeof x === "string") {
-                const url = String(x ?? "").trim();
-                if (!url) return null;
-                return { url, publicId: "" };
-              }
-              const url = String(x?.url ?? "").trim();
+          .map((x: any) => {
+            if (typeof x === "string") {
+              const url = String(x ?? "").trim();
               if (!url) return null;
-              return {
-                url,
-                publicId: String(x?.publicId ?? x?.public_id ?? "").trim(),
-                width: typeof x?.width === "number" ? x.width : undefined,
-                height: typeof x?.height === "number" ? x.height : undefined,
-                bytes: typeof x?.bytes === "number" ? x.bytes : undefined,
-                format: typeof x?.format === "string" ? x.format : undefined,
-              };
-            })
-            .filter(Boolean)
+              return { url, publicId: "" };
+            }
+            const url = String(x?.url ?? "").trim();
+            if (!url) return null;
+            return {
+              url,
+              publicId: String(x?.publicId ?? x?.public_id ?? "").trim(),
+              width: typeof x?.width === "number" ? x.width : undefined,
+              height: typeof x?.height === "number" ? x.height : undefined,
+              bytes: typeof x?.bytes === "number" ? x.bytes : undefined,
+              format: typeof x?.format === "string" ? x.format : undefined,
+            };
+          })
+          .filter(Boolean)
         : [];
 
       setData((d) => ({
@@ -1167,6 +1169,8 @@ export default function OnboardingPage() {
           newErrors.businessName = "Business name is required";
         if (!data.business?.phone?.trim())
           newErrors.businessPhone = "Phone number is required";
+        if (data.business?.phone?.trim() && !businessPhoneValid)
+          newErrors.businessPhone = "Please enter a valid phone number";
         if (!data.business?.address?.trim())
           newErrors.businessAddress = "Address is required";
 
@@ -1209,9 +1213,9 @@ export default function OnboardingPage() {
           customCurrency:
             normalizeCurrency(data.currency) === OTHER_CURRENCY_CODE
               ? {
-                  name: String(data.customCurrency?.name ?? "").trim(),
-                  symbol: String(data.customCurrency?.symbol ?? "").trim(),
-                }
+                name: String(data.customCurrency?.name ?? "").trim(),
+                symbol: String(data.customCurrency?.symbol ?? "").trim(),
+              }
               : undefined,
         });
       }
@@ -1250,9 +1254,8 @@ export default function OnboardingPage() {
                 return `Please set valid hours for ${DAY_LABELS[d.day]}.`;
               }
               if (r.endMin <= r.startMin) {
-                return `End time must be after start time for ${
-                  DAY_LABELS[d.day]
-                }.`;
+                return `End time must be after start time for ${DAY_LABELS[d.day]
+                  }.`;
               }
             }
 
@@ -1442,19 +1445,21 @@ export default function OnboardingPage() {
               </div>
               <div className="space-y-2">
                 <Label>Phone *</Label>
-                <Input
-                  className={fieldErrors.businessPhone ? inputErrorClass : ""}
+                <PhoneInput
                   value={data.business?.phone || ""}
-                  onChange={(e) =>
+                  onChange={(v) =>
                     setData((d) => ({
                       ...d,
                       business: {
                         ...(d.business || {}),
-                        phone: e.target.value,
+                        phone: v,
                       },
                     }))
                   }
-                  placeholder="+1 (555) 123-4567"
+                  onValidityChange={setBusinessPhoneValid}
+                  inputClassName={fieldErrors.businessPhone ? inputErrorClass : ""}
+                  aria-invalid={Boolean(fieldErrors.businessPhone)}
+                  placeholder="Phone number"
                 />
                 <InlineError message={fieldErrors.businessPhone} />
               </div>
@@ -1767,8 +1772,8 @@ export default function OnboardingPage() {
                           className={
                             "rounded-lg bg-black/45 text-white text-[11px] px-2 py-1 backdrop-blur-sm hover:bg-black/55 transition " +
                             (uploadingGallery ||
-                            saving ||
-                            replacingIndex === idx
+                              saving ||
+                              replacingIndex === idx
                               ? "opacity-60 pointer-events-none"
                               : "cursor-pointer")
                           }
@@ -1891,11 +1896,10 @@ export default function OnboardingPage() {
                         <Input
                           type="number"
                           min={5}
-                          className={`px-2 text-center ${
-                            fieldErrors[`serviceDuration_${s.id}`]
+                          className={`px-2 text-center ${fieldErrors[`serviceDuration_${s.id}`]
                               ? inputErrorClass
                               : ""
-                          }`}
+                            }`}
                           value={s.durationMinutes}
                           onChange={(e) => {
                             setServicesAutoGenerated(false);
@@ -1904,11 +1908,11 @@ export default function OnboardingPage() {
                               services: (d.services || []).map((x) =>
                                 x.id === s.id
                                   ? {
-                                      ...x,
-                                      durationMinutes: Number(
-                                        e.target.value || 0
-                                      ),
-                                    }
+                                    ...x,
+                                    durationMinutes: Number(
+                                      e.target.value || 0
+                                    ),
+                                  }
                                   : x
                               ),
                             }));
@@ -1918,11 +1922,10 @@ export default function OnboardingPage() {
 
                       <div className="w-[70px] shrink-0">
                         <Input
-                          className={`px-2 text-center ${
-                            fieldErrors[`servicePrice_${s.id}`]
+                          className={`px-2 text-center ${fieldErrors[`servicePrice_${s.id}`]
                               ? inputErrorClass
                               : ""
-                          }`}
+                            }`}
                           type="number"
                           min={0}
                           value={typeof s.price === "number" ? s.price : ""}
@@ -1933,12 +1936,12 @@ export default function OnboardingPage() {
                               services: (d.services || []).map((x) =>
                                 x.id === s.id
                                   ? {
-                                      ...x,
-                                      price:
-                                        e.target.value === ""
-                                          ? undefined
-                                          : Number(e.target.value),
-                                    }
+                                    ...x,
+                                    price:
+                                      e.target.value === ""
+                                        ? undefined
+                                        : Number(e.target.value),
+                                  }
                                   : x
                               ),
                             }));
@@ -1972,12 +1975,12 @@ export default function OnboardingPage() {
                     {(fieldErrors[`serviceName_${s.id}`] ||
                       fieldErrors[`serviceDuration_${s.id}`] ||
                       fieldErrors[`servicePrice_${s.id}`]) && (
-                      <div className="text-xs text-rose-500 mt-1 px-1">
-                        {fieldErrors[`serviceName_${s.id}`] ||
-                          fieldErrors[`serviceDuration_${s.id}`] ||
-                          fieldErrors[`servicePrice_${s.id}`]}
-                      </div>
-                    )}
+                        <div className="text-xs text-rose-500 mt-1 px-1">
+                          {fieldErrors[`serviceName_${s.id}`] ||
+                            fieldErrors[`serviceDuration_${s.id}`] ||
+                            fieldErrors[`servicePrice_${s.id}`]}
+                        </div>
+                      )}
                   </div>
                 ))}
               </div>
@@ -2081,9 +2084,8 @@ export default function OnboardingPage() {
                               }
                               disabled={loading || saving || !d.enabled}
                               className="h-8 w-[78px] min-w-[78px] px-1.5 text-[13px] shrink-0"
-                              aria-label={`${DAY_LABELS[d.day]} ${
-                                idx === 0 ? "start" : "additional start"
-                              } time`}
+                              aria-label={`${DAY_LABELS[d.day]} ${idx === 0 ? "start" : "additional start"
+                                } time`}
                             />
                             <span className="text-gray-400 shrink-0">–</span>
                             <TimePicker
@@ -2098,9 +2100,8 @@ export default function OnboardingPage() {
                               }
                               disabled={loading || saving || !d.enabled}
                               className="h-8 w-[78px] min-w-[78px] px-1.5 text-[13px] shrink-0"
-                              aria-label={`${DAY_LABELS[d.day]} ${
-                                idx === 0 ? "end" : "additional end"
-                              } time`}
+                              aria-label={`${DAY_LABELS[d.day]} ${idx === 0 ? "end" : "additional end"
+                                } time`}
                             />
                           </div>
                         ))}
@@ -2119,9 +2120,8 @@ export default function OnboardingPage() {
                                 size="icon-sm"
                                 onClick={() => addAvailabilityRange(d.day)}
                                 disabled={loading || saving || !d.enabled}
-                                aria-label={`Add time range for ${
-                                  DAY_LABELS[d.day]
-                                }`}
+                                aria-label={`Add time range for ${DAY_LABELS[d.day]
+                                  }`}
                               >
                                 <Plus className="h-4 w-4 ms-4" />
                               </Button>
@@ -2139,9 +2139,8 @@ export default function OnboardingPage() {
                                   !d.enabled ||
                                   ranges.length <= 1
                                 }
-                                aria-label={`Delete time range for ${
-                                  DAY_LABELS[d.day]
-                                }`}
+                                aria-label={`Delete time range for ${DAY_LABELS[d.day]
+                                  }`}
                               >
                                 <Trash2 className="h-4 w-4 ms-4" />
                               </Button>
@@ -2177,12 +2176,12 @@ export default function OnboardingPage() {
                 <div className="text-sm text-gray-700 dark:text-gray-200">
                   {data.businessTypes && data.businessTypes.length > 0
                     ? data.businessTypes
-                        .map(
-                          (v) =>
-                            BUSINESS_TYPE_OPTIONS.find((o) => o.key === v)
-                              ?.title ?? v
-                        )
-                        .join(", ")
+                      .map(
+                        (v) =>
+                          BUSINESS_TYPE_OPTIONS.find((o) => o.key === v)
+                            ?.title ?? v
+                      )
+                      .join(", ")
                     : "—"}
                 </div>
               </div>
@@ -2343,16 +2342,16 @@ export default function OnboardingPage() {
                     const ordered = Array.from({ length: 7 }, (_, i) => i)
                       .map((day) => byDay.get(day))
                       .filter(Boolean) as Array<{
-                      day: number;
-                      enabled: boolean;
-                      ranges?: Array<{
-                        id?: string;
+                        day: number;
+                        enabled: boolean;
+                        ranges?: Array<{
+                          id?: string;
+                          start?: string;
+                          end?: string;
+                        }>;
                         start?: string;
                         end?: string;
                       }>;
-                      start?: string;
-                      end?: string;
-                    }>;
 
                     return ordered.map((d) => (
                       <div
@@ -2365,21 +2364,21 @@ export default function OnboardingPage() {
                         <div className="text-sm text-gray-700 dark:text-gray-200">
                           {d.enabled
                             ? (() => {
-                                const ranges = normalizeRangesForUi(
-                                  (d as any).ranges ?? {
-                                    start: (d as any).start,
-                                    end: (d as any).end,
-                                  }
-                                );
-                                return ranges
-                                  .map(
-                                    (r) =>
-                                      `${String(r.start || "—")} – ${String(
-                                        r.end || "—"
-                                      )}`
-                                  )
-                                  .join(", ");
-                              })()
+                              const ranges = normalizeRangesForUi(
+                                (d as any).ranges ?? {
+                                  start: (d as any).start,
+                                  end: (d as any).end,
+                                }
+                              );
+                              return ranges
+                                .map(
+                                  (r) =>
+                                    `${String(r.start || "—")} – ${String(
+                                      r.end || "—"
+                                    )}`
+                                )
+                                .join(", ");
+                            })()
                             : "Closed"}
                         </div>
                       </div>
@@ -2414,14 +2413,14 @@ export default function OnboardingPage() {
             {step === 0
               ? "Select Business Type"
               : step === 1
-              ? "Business Details"
-              : step === 2
-              ? "Setup Services"
-              : step === 3
-              ? "Set Opening hours"
-              : step === 4
-              ? "Business Branding"
-              : "Review & Finish"}
+                ? "Business Details"
+                : step === 2
+                  ? "Setup Services"
+                  : step === 3
+                    ? "Set Opening hours"
+                    : step === 4
+                      ? "Business Branding"
+                      : "Review & Finish"}
           </p>
 
           {/* Progress Bar */}

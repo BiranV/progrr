@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { PhoneInput } from "@/components/ui/phone-input";
 
 type BusinessDetailsForm = {
   name: string;
@@ -21,10 +22,6 @@ type BusinessDetailsForm = {
   instagram: string;
   whatsapp: string;
 };
-
-function digitsOnly(value: string) {
-  return value.replace(/\D/g, "");
-}
 
 export default function BusinessDetailsPage() {
   const {
@@ -50,6 +47,8 @@ export default function BusinessDetailsPage() {
   const [errors, setErrors] = React.useState<
     Partial<Record<keyof BusinessDetailsForm, string>>
   >({});
+  const [isPhoneValid, setIsPhoneValid] = React.useState(true);
+  const [isWhatsAppValid, setIsWhatsAppValid] = React.useState(true);
   const [isSaving, setIsSaving] = React.useState(false);
   const [copyStatus, setCopyStatus] = React.useState<"idle" | "copied">("idle");
   const copyTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
@@ -133,8 +132,14 @@ export default function BusinessDetailsPage() {
       nextErrors.name = "Business name cannot be empty.";
     }
 
-    if (digitsOnly(next.phone).length < 9) {
-      nextErrors.phone = "Phone number must have at least 9 digits.";
+    if (!next.phone.trim()) {
+      nextErrors.phone = "Phone number is required.";
+    } else if (!isPhoneValid) {
+      nextErrors.phone = "Please enter a valid phone number.";
+    }
+
+    if (next.whatsapp.trim() && !isWhatsAppValid) {
+      nextErrors.whatsapp = "WhatsApp number must be a valid mobile number.";
     }
 
     if (!next.address.trim()) {
@@ -142,7 +147,7 @@ export default function BusinessDetailsPage() {
     }
 
     return nextErrors;
-  }, []);
+  }, [isPhoneValid, isWhatsAppValid]);
 
   const onSave = async () => {
     const nextErrors = validate(form);
@@ -257,13 +262,13 @@ export default function BusinessDetailsPage() {
 
         <div className="space-y-2">
           <Label htmlFor="phone">Phone number</Label>
-          <Input
+          <PhoneInput
             id="phone"
-            type="tel"
             required
-            placeholder="0501234567"
             value={form.phone}
-            onChange={(e) => updateField("phone", e.target.value)}
+            onChange={(v) => updateField("phone", v)}
+            onValidityChange={setIsPhoneValid}
+            aria-invalid={Boolean(errors.phone)}
           />
           {errors.phone ? (
             <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -274,16 +279,22 @@ export default function BusinessDetailsPage() {
 
         <div className="space-y-2">
           <Label htmlFor="whatsapp">WhatsApp number</Label>
-          <Input
+          <PhoneInput
             id="whatsapp"
-            type="tel"
-            placeholder="+972501234567 (include country code)"
             value={form.whatsapp}
-            onChange={(e) => updateField("whatsapp", e.target.value)}
+            onChange={(v) => updateField("whatsapp", v)}
+            onValidityChange={setIsWhatsAppValid}
+            requireMobile
+            aria-invalid={Boolean(errors.whatsapp)}
           />
           <p className="text-xs text-gray-500 dark:text-gray-400">
             Used for the WhatsApp quick action on the public booking page.
           </p>
+          {errors.whatsapp ? (
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {errors.whatsapp}
+            </p>
+          ) : null}
         </div>
 
         <div className="space-y-2">

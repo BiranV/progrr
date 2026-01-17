@@ -7,15 +7,12 @@ import {
   ensureBusinessPublicIdForUser,
   isValidBusinessPublicId,
 } from "@/server/business-public-id";
+import { isMobilePhoneE164, normalizePhone } from "@/server/phone";
 
 function asString(v: unknown, maxLen = 250): string | undefined {
   const s = String(v ?? "").trim();
   if (!s) return undefined;
   return s.length > maxLen ? s.slice(0, maxLen) : s;
-}
-
-function digitsOnly(value: string) {
-  return value.replace(/\D/g, "");
 }
 
 function normalizeInstagram(v: unknown): string | undefined {
@@ -31,10 +28,11 @@ function normalizeInstagram(v: unknown): string | undefined {
 function normalizeWhatsApp(v: unknown): string | undefined {
   const raw = asString(v, 40);
   if (!raw) return undefined;
-  // Prefer E.164-like digits for wa.me; keep '+' out of digits.
-  const digits = digitsOnly(raw);
-  if (digits.length < 9) return undefined;
-  return digits;
+
+  const e164 = normalizePhone(raw);
+  if (!e164) return undefined;
+  if (!isMobilePhoneE164(e164)) return undefined;
+  return e164;
 }
 
 const ALLOWED_CURRENCY_CODES = new Set([
@@ -84,7 +82,7 @@ export async function GET() {
     }
 
     const name = asString((business as any).name, 120);
-    const phone = asString((business as any).phone, 40);
+    const phone = normalizePhone((business as any).phone) || asString((business as any).phone, 40);
     const address = asString((business as any).address, 200);
     const slug = asString((business as any).slug, 120);
     const description = asString((business as any).description, 250);
@@ -154,7 +152,8 @@ export async function PATCH(req: Request) {
     const body = await req.json().catch(() => ({}));
 
     const currentName = asString((business as any).name, 120);
-    const currentPhone = asString((business as any).phone, 40);
+    const currentPhone =
+      normalizePhone((business as any).phone) || asString((business as any).phone, 40);
     const currentAddress = asString((business as any).address, 200) ?? "";
     const currentDescription =
       asString((business as any).description, 250) ?? "";
@@ -164,7 +163,14 @@ export async function PATCH(req: Request) {
       "ILS";
 
     const name = asString((body as any)?.name, 120) ?? currentName;
-    const phone = asString((body as any)?.phone, 40) ?? currentPhone;
+    const requestedPhoneRaw =
+      Object.prototype.hasOwnProperty.call(body as any, "phone")
+        ? asString((body as any)?.phone, 40) ?? ""
+        : undefined;
+    const phone =
+      (requestedPhoneRaw !== undefined
+        ? normalizePhone(requestedPhoneRaw)
+        : normalizePhone(currentPhone)) || currentPhone;
     const address =
       (Object.prototype.hasOwnProperty.call(body as any, "address")
         ? asString((body as any)?.address, 200) ?? ""
@@ -183,9 +189,18 @@ export async function PATCH(req: Request) {
         ? normalizeInstagram((body as any)?.instagram) ?? ""
         : currentInstagram) ?? "";
 
+    const requestedWhatsAppRaw = Object.prototype.hasOwnProperty.call(
+      body as any,
+      "whatsapp"
+    )
+      ? asString((body as any)?.whatsapp, 40) ?? ""
+      : undefined;
+
     const whatsapp =
-      (Object.prototype.hasOwnProperty.call(body as any, "whatsapp")
-        ? normalizeWhatsApp((body as any)?.whatsapp) ?? ""
+      (requestedWhatsAppRaw !== undefined
+        ? requestedWhatsAppRaw
+          ? normalizeWhatsApp(requestedWhatsAppRaw) ?? "__INVALID__"
+          : ""
         : currentWhatsApp) ?? "";
 
     const requestedCurrency = normalizeCurrencyCode((body as any)?.currency);
@@ -204,9 +219,16 @@ export async function PATCH(req: Request) {
       );
     }
 
-    if (!phone || digitsOnly(phone).length < 9) {
+    if (!phone || !normalizePhone(phone)) {
       return NextResponse.json(
-        { error: "Phone number must have at least 9 digits" },
+        { error: "Please enter a valid phone number" },
+        { status: 400 }
+      );
+    }
+
+    if (whatsapp === "__INVALID__") {
+      return NextResponse.json(
+        { error: "WhatsApp number must be a valid mobile number" },
         { status: 400 }
       );
     }

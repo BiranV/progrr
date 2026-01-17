@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 
 import { collections, ensureIndexes } from "@/server/collections";
 import { isValidBusinessPublicId } from "@/server/business-public-id";
+import { normalizePhone } from "@/server/phone";
 
 export async function GET(
   req: NextRequest,
@@ -69,9 +70,9 @@ export async function GET(
 
     const currencySymbol = (code: string): string => {
       switch (
-        String(code || "")
-          .trim()
-          .toUpperCase()
+      String(code || "")
+        .trim()
+        .toUpperCase()
       ) {
         case "ILS":
         case "NIS":
@@ -125,10 +126,14 @@ export async function GET(
       business: {
         publicId: raw,
         name: String(business.name ?? "").trim(),
-        phone: String(business.phone ?? "").trim(),
+        phone:
+          normalizePhone((business as any)?.phone) ||
+          String(business.phone ?? "").trim(),
         address: String(business.address ?? "").trim(),
         instagram: String(business.instagram ?? "").trim(),
-        whatsapp: String(business.whatsapp ?? "").trim(),
+        whatsapp:
+          normalizePhone((business as any)?.whatsapp) ||
+          String(business.whatsapp ?? "").trim(),
       },
       branding: {
         // New shape (Cloudinary)
@@ -151,13 +156,13 @@ export async function GET(
           undefined,
         gallery: Array.isArray(branding.gallery)
           ? branding.gallery
-              .map((x: any) =>
-                typeof x === "string"
-                  ? String(x ?? "").trim()
-                  : String(x?.url ?? "").trim()
-              )
-              .filter(Boolean)
-              .slice(0, 10)
+            .map((x: any) =>
+              typeof x === "string"
+                ? String(x ?? "").trim()
+                : String(x?.url ?? "").trim()
+            )
+            .filter(Boolean)
+            .slice(0, 10)
           : [],
       },
       services,
@@ -167,9 +172,9 @@ export async function GET(
         symbol: currencySymbol(currencyCode),
         ...(currencyCode === "OTHER"
           ? {
-              name: String(customCurrency?.name ?? "").trim(),
-              symbol: String(customCurrency?.symbol ?? "").trim(),
-            }
+            name: String(customCurrency?.name ?? "").trim(),
+            symbol: String(customCurrency?.symbol ?? "").trim(),
+          }
           : {}),
       },
     });

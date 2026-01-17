@@ -7,6 +7,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { PhoneInput } from "@/components/ui/phone-input";
 
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 import OtpInput from "@/components/OtpInput";
@@ -143,6 +144,8 @@ export default function PublicBookingFlow({
   const [customerFullName, setCustomerFullName] = React.useState<string>("");
   const [customerEmail, setCustomerEmail] = React.useState<string>("");
   const [customerPhone, setCustomerPhone] = React.useState<string>("");
+  const [customerPhoneValid, setCustomerPhoneValid] = React.useState(true);
+  const [customerPhoneTouched, setCustomerPhoneTouched] = React.useState(false);
   const [notes, setNotes] = React.useState<string>("");
 
   const [otpCode, setOtpCode] = React.useState<string>("");
@@ -446,6 +449,8 @@ export default function PublicBookingFlow({
     if (!customerFullName.trim()) throw new Error("Full Name is required");
     if (!customerEmail.trim()) throw new Error("Email is required");
     if (!customerPhone.trim()) throw new Error("Phone is required");
+    if (!customerPhoneValid)
+      throw new Error("Please enter a valid phone number");
     if (!publicId) throw new Error("Business not found");
     if (!serviceId || !date || !startTime)
       throw new Error("Missing booking details");
@@ -490,7 +495,7 @@ export default function PublicBookingFlow({
       });
       const err: any = new Error(
         verifyJson?.error ||
-          "You already have an active upcoming appointment. Please cancel it first."
+        "You already have an active upcoming appointment. Please cancel it first."
       );
       err.code = "ACTIVE_APPOINTMENT_EXISTS";
       throw err;
@@ -544,7 +549,7 @@ export default function PublicBookingFlow({
 
         const err: any = new Error(
           confirmJson?.error ||
-            "You already have an active upcoming appointment. Please cancel it first."
+          "You already have an active upcoming appointment. Please cancel it first."
         );
         err.code = "ACTIVE_APPOINTMENT_EXISTS";
         throw err;
@@ -814,13 +819,22 @@ export default function PublicBookingFlow({
 
           <div className="space-y-2">
             <Label htmlFor="phone">Phone</Label>
-            <Input
+            <PhoneInput
               id="phone"
               className="rounded-2xl"
+              inputClassName="rounded-2xl"
               value={customerPhone}
-              onChange={(e) => setCustomerPhone(e.target.value)}
-              placeholder="+1 555 123 4567"
+              onChange={(v) => setCustomerPhone(v)}
+              onValidityChange={setCustomerPhoneValid}
+              onBlur={() => setCustomerPhoneTouched(true)}
+              aria-invalid={customerPhoneTouched && !customerPhoneValid}
+              placeholder="Phone number"
             />
+            {customerPhoneTouched && customerPhone.trim() && !customerPhoneValid ? (
+              <div className="text-xs text-red-600 dark:text-red-400">
+                Please enter a valid phone number.
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-2">
@@ -846,7 +860,13 @@ export default function PublicBookingFlow({
                 setSubmitting(false);
               }
             }}
-            disabled={submitting}
+            disabled={
+              submitting ||
+              !customerFullName.trim() ||
+              !customerEmail.trim() ||
+              !customerPhone.trim() ||
+              !customerPhoneValid
+            }
             className="rounded-2xl w-full"
           >
             {submitting ? "Sending code…" : "Verify email"}
@@ -872,7 +892,7 @@ export default function PublicBookingFlow({
                 Please cancel it first to book a new one.
               </div>
               {activeConflict.existingAppointment?.date ||
-              activeConflict.existingAppointment?.startTime ? (
+                activeConflict.existingAppointment?.startTime ? (
                 <div className="text-sm text-amber-900/90 dark:text-amber-200/90 mt-2">
                   {activeConflict.existingAppointment?.serviceName
                     ? `${activeConflict.existingAppointment.serviceName} • `

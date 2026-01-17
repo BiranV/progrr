@@ -10,6 +10,7 @@ import { toast } from "sonner";
 export default function DashboardPage() {
   const { data: business } = useBusiness();
   const [copyStatus, setCopyStatus] = React.useState<"idle" | "copied">("idle");
+  const copyTimeoutRef = React.useRef<number | null>(null);
 
   const bookingLink = React.useMemo(() => {
     const publicId = String((business as any)?.publicId ?? "").trim();
@@ -34,13 +35,35 @@ export default function DashboardPage() {
       }
 
       await navigator.clipboard.writeText(bookingLink);
-      setCopyStatus("copied");
-      toast.success("Copied");
-      window.setTimeout(() => setCopyStatus("idle"), 1200);
+      toast.success("Copied link");
     } catch {
       toast.error("Failed to share");
     }
   }, [bookingLink]);
+
+  const onCopy = React.useCallback(async () => {
+    if (!bookingLink) return;
+
+    try {
+      await navigator.clipboard.writeText(bookingLink);
+      toast.success("Copied");
+      setCopyStatus("copied");
+
+      if (copyTimeoutRef.current) window.clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = window.setTimeout(
+        () => setCopyStatus("idle"),
+        1200
+      );
+    } catch {
+      toast.error("Failed to copy");
+    }
+  }, [bookingLink]);
+
+  React.useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) window.clearTimeout(copyTimeoutRef.current);
+    };
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -103,9 +126,19 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           <Input readOnly value={bookingLink} placeholder="Loading…" />
-          <Button type="button" onClick={onShare} disabled={!bookingLink}>
-            {copyStatus === "copied" ? "Copied!" : "Share booking link"}
-          </Button>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCopy}
+              disabled={!bookingLink}
+            >
+              {copyStatus === "copied" ? "Copied!" : "Copy link"}
+            </Button>
+            <Button type="button" onClick={onShare} disabled={!bookingLink}>
+              Share
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
