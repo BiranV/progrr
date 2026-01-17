@@ -1304,6 +1304,7 @@ export default function PublicBookingFlow({
                   value={loginCode}
                   onChange={setLoginCode}
                   disabled={loginSubmitting}
+                  inputClassName="h-10 w-10 sm:h-11 sm:w-11 text-base sm:text-lg"
                 />
               </div>
               <div className="flex gap-2">

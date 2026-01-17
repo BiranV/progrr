@@ -684,9 +684,8 @@ export default function CalendarPage() {
 
             <div className="flex items-center justify-center">
                 <Button
-                    variant="default"
-                    size="sm"
-                    className="rounded-xl w-full sm:w-auto"
+                    type="button"
+                    className="w-full"
                     onClick={() => {
                         setError(null);
                         setCreateOpen(true);
@@ -897,7 +896,7 @@ export default function CalendarPage() {
                         <Button
                             type="button"
                             variant="outline"
-                            className="rounded-xl"
+                            className="rounded-2xl"
                             onClick={() => {
                                 setCreateOpen(false);
                                 resetCreateForm();
@@ -907,7 +906,7 @@ export default function CalendarPage() {
                         </Button>
                         <Button
                             type="button"
-                            className="rounded-xl"
+                            className="rounded-2xl"
                             onClick={createAppointment}
                             disabled={creating || !canCreateAppointment}
                         >
@@ -1207,6 +1206,7 @@ export default function CalendarPage() {
                         <Button
                             type="button"
                             variant="outline"
+                            className="rounded-2xl"
                             disabled={rescheduling || timesLoading}
                             onClick={() => setRescheduleId(null)}
                         >
@@ -1214,6 +1214,7 @@ export default function CalendarPage() {
                         </Button>
                         <Button
                             type="button"
+                            className="rounded-2xl"
                             disabled={
                                 rescheduling ||
                                 timesLoading ||

@@ -6,6 +6,7 @@ import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 import { Button } from "@/components/ui/button";
+import ConfirmModal from "@/components/ui/confirm-modal";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -69,6 +70,11 @@ export default function CustomerDetailsPage() {
   const [sending, setSending] = React.useState(false);
   const [subject, setSubject] = React.useState("");
   const [message, setMessage] = React.useState("");
+
+  const [confirmAction, setConfirmAction] = React.useState<"block" | null>(null);
+  const [updatingCustomer, setUpdatingCustomer] = React.useState<
+    "block" | "unblock" | null
+  >(null);
 
   const prevCustomerIdRef = React.useRef<string | null>(null);
 
@@ -141,15 +147,10 @@ export default function CustomerDetailsPage() {
     }
   };
 
-  const updateCustomer = async (action: "block" | "unblock" | "hide") => {
+  const updateCustomer = async (action: "block" | "unblock") => {
     setError(null);
     try {
-      if (action === "hide") {
-        const ok = window.confirm(
-          "Remove this customer from your list? (They can reappear if they book again.)"
-        );
-        if (!ok) return;
-      }
+      setUpdatingCustomer(action);
 
       const res = await fetch(`/api/customers/${encodeURIComponent(id)}`,
         {
@@ -166,19 +167,14 @@ export default function CustomerDetailsPage() {
       toast.success(
         action === "block"
           ? "Customer blocked"
-          : action === "unblock"
-            ? "Customer unblocked"
-            : "Customer removed"
+          : "Customer unblocked"
       );
-
-      if (action === "hide") {
-        window.location.href = "/customers";
-        return;
-      }
 
       await load();
     } catch (e: any) {
       setError(e?.message || "Failed");
+    } finally {
+      setUpdatingCustomer(null);
     }
   };
 
@@ -217,15 +213,53 @@ export default function CustomerDetailsPage() {
 
   return (
     <div className="space-y-6">
+      <ConfirmModal
+        open={confirmAction !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmAction(null);
+        }}
+        title={
+          confirmAction === "block" ? "Block customer?" : "Confirm"
+        }
+        description={
+          confirmAction === "block"
+            ? "This customer will be blocked from making new bookings."
+            : undefined
+        }
+        confirmText={
+          confirmAction === "block" ? "Block" : "Confirm"
+        }
+        confirmVariant="destructive"
+        loading={confirmAction ? updatingCustomer === confirmAction : false}
+        onConfirm={async () => {
+          if (!confirmAction) return;
+          const action = confirmAction;
+          await updateCustomer(action);
+        }}
+      />
+
       <div className="space-y-2">
         <SettingsBackHeader
           href="/customers"
           label="Customers"
           ariaLabel="Back to Customers"
         />
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          {data.customer.fullName || "Customer"}
-        </h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="min-w-0 text-2xl font-bold text-gray-900 dark:text-white truncate">
+            {data.customer.fullName || "Customer"}
+          </h1>
+
+          <Badge
+            className={
+              "shrink-0 text-white " +
+              (String(data.customer.status ?? "ACTIVE") === "BLOCKED"
+                ? "bg-rose-600"
+                : "bg-emerald-600")
+            }
+          >
+            {String(data.customer.status ?? "ACTIVE")}
+          </Badge>
+        </div>
         <div className="text-sm text-gray-600 dark:text-gray-300 leading-tight space-y-0.5">
           <div className="truncate">{data.customer.phone}</div>
           {data.customer.email ? (
@@ -233,21 +267,15 @@ export default function CustomerDetailsPage() {
           ) : null}
           <div>{`Active bookings: ${data.activeBookingsCount}`}</div>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge
-            className={
-              String(data.customer.status ?? "ACTIVE") === "BLOCKED"
-                ? "bg-rose-600"
-                : "bg-emerald-600"
-            }
-          >
-            {String(data.customer.status ?? "ACTIVE")}
-          </Badge>
+        <div className="flex flex-wrap items-center gap-2">
           {String(data.customer.status ?? "ACTIVE") === "BLOCKED" ? (
             <Button
               type="button"
               variant="outline"
+              size="sm"
+              className="rounded-xl"
               onClick={() => updateCustomer("unblock")}
+              disabled={updatingCustomer === "unblock"}
             >
               Unblock
             </Button>
@@ -255,18 +283,14 @@ export default function CustomerDetailsPage() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => updateCustomer("block")}
+              size="sm"
+              className="rounded-xl"
+              onClick={() => setConfirmAction("block")}
+              disabled={Boolean(updatingCustomer)}
             >
               Block
             </Button>
           )}
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => updateCustomer("hide")}
-          >
-            Remove from list
-          </Button>
         </div>
 
         {error ? (
@@ -290,6 +314,8 @@ export default function CustomerDetailsPage() {
         />
         <Button
           type="button"
+          size="sm"
+          className="rounded-xl"
           onClick={sendMessage}
           disabled={sending || !subject.trim() || !message.trim()}
         >

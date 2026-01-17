@@ -61,7 +61,7 @@ export default function OtpInput({
   );
 
   return (
-    <div className="flex gap-2">
+    <div className="flex w-full items-center justify-center gap-1.5 sm:gap-2">
       <input type="hidden" id={id} name={name} value={digits.join("")} />
 
       {digits.map((digit, index) => (
@@ -129,9 +129,8 @@ export default function OtpInput({
           ref={(el) => {
             inputsRef.current[index] = el;
           }}
-          className={`h-12 w-12 sm:h-14 sm:w-14 p-0 text-center text-lg sm:text-xl font-medium ${
-            inputClassName || ""
-          }`}
+          className={`h-12 w-12 sm:h-14 sm:w-14 p-0 text-center text-lg sm:text-xl font-medium ${inputClassName || ""
+            }`}
         />
       ))}
     </div>

@@ -312,6 +312,7 @@ export default function SettingsPage() {
             <Button
               type="button"
               variant="outline"
+              className="rounded-2xl"
               disabled={deletePending}
               onClick={() => setDeleteOpen(false)}
             >
@@ -320,6 +321,7 @@ export default function SettingsPage() {
             <Button
               type="button"
               variant="destructive"
+              className="rounded-2xl"
               disabled={deletePending}
               onClick={onDeleteAccount}
             >

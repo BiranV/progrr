@@ -59,6 +59,8 @@ export default function ConfirmModal({
           <Button
             type="button"
             variant="outline"
+            size="sm"
+            className="rounded-2xl"
             disabled={isBusy}
             onClick={() => onOpenChange(false)}
           >
@@ -67,6 +69,8 @@ export default function ConfirmModal({
           <Button
             type="button"
             variant={confirmVariant}
+            size="sm"
+            className="rounded-2xl"
             disabled={Boolean(confirmDisabled) || isBusy}
             onClick={async () => {
               try {
