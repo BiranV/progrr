@@ -3,6 +3,7 @@
 import React from "react";
 import { useParams } from "next/navigation";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,8 @@ function statusBadgeVariant(status: Booking["status"]) {
 export default function CustomerDetailsPage() {
   const params = useParams();
   const id = String((params as any)?.id ?? "");
+
+  const queryClient = useQueryClient();
 
   const [bookingsPage, setBookingsPage] = React.useState(1);
   const pageSize = 10;
@@ -174,6 +177,30 @@ export default function CustomerDetailsPage() {
           ? "Customer blocked"
           : "Customer unblocked"
       );
+
+      // Keep the customers list in sync when navigating back.
+      const nextStatus = action === "block" ? "BLOCKED" : "ACTIVE";
+      setData((prev) =>
+        prev
+          ? {
+            ...prev,
+            customer: {
+              ...prev.customer,
+              status: nextStatus as any,
+            },
+          }
+          : prev
+      );
+
+      queryClient.setQueryData(["customers"], (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((c: any) => {
+          const cid = String(c?._id ?? c?.id ?? "");
+          if (!cid || cid !== id) return c;
+          return { ...c, status: nextStatus };
+        });
+      });
+      queryClient.invalidateQueries({ queryKey: ["customers"] });
 
       await load();
     } catch (e: any) {
