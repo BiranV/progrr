@@ -134,8 +134,8 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
         typeof data?.redirectTo === "string"
           ? data.redirectTo
           : data?.onboardingCompleted
-          ? "/dashboard"
-          : "/onboarding";
+            ? "/dashboard"
+            : "/onboarding";
       router.replace(dest);
     } catch (err: any) {
       // Keep the field highlighted, but also show global banner like onboarding.
@@ -209,8 +209,8 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
         typeof data?.redirectTo === "string"
           ? data.redirectTo
           : data?.onboardingCompleted
-          ? "/dashboard"
-          : "/onboarding";
+            ? "/dashboard"
+            : "/onboarding";
       router.replace(dest);
     } catch (err: any) {
       setSignupCodeError(err?.message || "Verification failed");
@@ -231,8 +231,8 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
   const bannerState: AuthBannerState = globalError
     ? { type: "error", text: globalError }
     : info
-    ? { type: "message", text: info }
-    : null;
+      ? { type: "message", text: info }
+      : null;
 
   // For inputs
   const inputErrorClass = "border-red-300/50 ring-1 ring-red-300/20";
@@ -301,7 +301,7 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="text-white hover:bg-white/10 -ml-2"
+                  className="text-white hover:text-white hover:bg-white/10 -ml-2"
                   onClick={handleBack}
                 >
                   <ChevronLeft className="w-6 h-6" />
@@ -326,9 +326,8 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
                     <Input
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
-                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${
-                        loginError ? inputErrorClass : "border-white/20"
-                      }`}
+                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${loginError ? inputErrorClass : "border-white/20"
+                        }`}
                       placeholder="name@company.com"
                       autoFocus
                     />
@@ -352,9 +351,8 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
                       onChange={setLoginCode}
                       length={6}
                       disabled={loading}
-                      inputClassName={`bg-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent ${
-                        loginCodeError ? inputErrorClass : "border-white/20"
-                      }`}
+                      inputClassName={`bg-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent ${loginCodeError ? inputErrorClass : "border-white/20"
+                        }`}
                     />
                     <InlineError message={loginCodeError} />
                     <p className="text-xs text-white/60 ml-1 pt-1">
@@ -384,7 +382,7 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="text-white hover:bg-white/10 -ml-2"
+                  className="text-white hover:text-white hover:bg-white/10 -ml-2"
                   onClick={handleBack}
                 >
                   <ChevronLeft className="w-6 h-6" />
@@ -409,9 +407,8 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
                     <Input
                       value={signupName}
                       onChange={(e) => setSignupName(e.target.value)}
-                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${
-                        signupNameError ? inputErrorClass : "border-white/20"
-                      }`}
+                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${signupNameError ? inputErrorClass : "border-white/20"
+                        }`}
                       placeholder="Jane Doe"
                       autoFocus
                     />
@@ -422,9 +419,8 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
                     <Input
                       value={signupEmail}
                       onChange={(e) => setSignupEmail(e.target.value)}
-                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${
-                        signupEmailError ? inputErrorClass : "border-white/20"
-                      }`}
+                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${signupEmailError ? inputErrorClass : "border-white/20"
+                        }`}
                       placeholder="name@company.com"
                     />
                     <InlineError message={signupEmailError} />
@@ -447,9 +443,8 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
                       onChange={setSignupCode}
                       length={6}
                       disabled={loading}
-                      inputClassName={`bg-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent ${
-                        signupCodeError ? inputErrorClass : "border-white/20"
-                      }`}
+                      inputClassName={`bg-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent ${signupCodeError ? inputErrorClass : "border-white/20"
+                        }`}
                     />
                     <InlineError message={signupCodeError} />
                     <p className="text-xs text-white/60 ml-1 pt-1">
