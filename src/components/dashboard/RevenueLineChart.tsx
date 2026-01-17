@@ -13,26 +13,28 @@ import {
 
 type Point = { date: string; revenue: number; completedCount?: number };
 
-function formatDayLabel(ymd: string): string {
-    // YYYY-MM-DD -> MM/DD (small, readable)
+function formatDayLabel(ymd: string, mode: "md" | "day"): string {
+    // YYYY-MM-DD -> either MM/DD or D
     const m = /^\s*(\d{4})-(\d{2})-(\d{2})\s*$/.exec(String(ymd));
     if (!m) return String(ymd);
+    if (mode === "day") return String(Number(m[3]));
     return `${m[2]}/${m[3]}`;
 }
 
 export function RevenueLineChart(props: {
     points: Point[];
     currencySymbol?: string;
+    xAxisMode?: "md" | "day";
 }) {
-    const { points, currencySymbol } = props;
+    const { points, currencySymbol, xAxisMode = "md" } = props;
 
     const data = React.useMemo(
         () =>
             (Array.isArray(points) ? points : []).map((p) => ({
                 ...p,
-                label: formatDayLabel(p.date),
+                label: formatDayLabel(p.date, xAxisMode),
             })),
-        [points]
+        [points, xAxisMode]
     );
 
     return (
@@ -40,7 +42,14 @@ export function RevenueLineChart(props: {
             <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" opacity={0.25} />
-                    <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
+                    <XAxis
+                        dataKey="label"
+                        tickLine={false}
+                        axisLine={false}
+                        fontSize={12}
+                        interval="preserveStartEnd"
+                        minTickGap={12}
+                    />
                     <YAxis
                         tickLine={false}
                         axisLine={false}

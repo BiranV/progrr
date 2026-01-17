@@ -354,6 +354,7 @@ export default function DashboardPage() {
             <RevenueLineChart
               points={monthSeriesQuery.data?.points ?? []}
               currencySymbol={currencySymbol}
+              xAxisMode="day"
             />
 
             <div className="mt-2 text-xs text-muted-foreground">
