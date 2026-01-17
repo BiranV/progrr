@@ -3,7 +3,6 @@
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,6 +13,9 @@ import OtpInput from "@/components/OtpInput";
 import PublicBookingShell from "./PublicBookingShell";
 import { usePublicBusiness } from "./usePublicBusiness";
 import { formatDateInTimeZone, formatPrice } from "@/lib/public-booking";
+import Flatpickr from "react-flatpickr";
+import { Arabic } from "flatpickr/dist/l10n/ar";
+import { Hebrew } from "flatpickr/dist/l10n/he";
 
 type Step = "service" | "date" | "time" | "details" | "verify" | "success";
 
@@ -59,6 +61,17 @@ function weekdayFromDateString(dateStr: string): number {
   // Weekday for a civil date is timezone-independent.
   const d = new Date(`${dateStr}T12:00:00Z`);
   return d.getUTCDay();
+}
+
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+function ymdFromDateLocal(date: Date): string {
+  const y = date.getFullYear();
+  const m = pad2(date.getMonth() + 1);
+  const d = pad2(date.getDate());
+  return `${y}-${m}-${d}`;
 }
 
 function normalizeWindows(day: any): Array<{ start: string; end: string }> {
@@ -134,8 +147,6 @@ export default function PublicBookingFlow({
   }, [raw, resolvedPublicId]);
 
   const [step, setStep] = React.useState<Step>("service");
-
-  const [month, setMonth] = React.useState<Date>(() => new Date());
 
   const [serviceId, setServiceId] = React.useState<string>("");
   const [date, setDate] = React.useState<string>("");
@@ -219,7 +230,6 @@ export default function PublicBookingFlow({
     setSlotsError(null);
     setSlotsLoading(false);
     slotsCacheRef.current.clear();
-    setMonth(new Date());
 
     setStep("service");
   }, []);
@@ -275,10 +285,23 @@ export default function PublicBookingFlow({
 
   const tz = String(data?.availability?.timezone ?? "").trim() || "UTC";
 
-  const weekStartsOn = React.useMemo<0 | 1>(() => {
-    const v = Number((data as any)?.availability?.weekStartsOn);
-    return v === 1 ? 1 : 0;
-  }, [data]);
+  const businessTodayYmd = React.useMemo(() => {
+    return formatDateInTimeZone(new Date(), tz);
+  }, [tz]);
+
+  const dir = React.useMemo<"ltr" | "rtl">(() => {
+    if (typeof document === "undefined") return "ltr";
+    const v = String(document.documentElement.getAttribute("dir") || "ltr").toLowerCase();
+    return v === "rtl" ? "rtl" : "ltr";
+  }, []);
+
+  const fpLocale = React.useMemo(() => {
+    if (dir !== "rtl") return undefined;
+    if (typeof document === "undefined") return { ...Arabic, rtl: true };
+    const lang = String(document.documentElement.getAttribute("lang") || "").toLowerCase();
+    if (lang.startsWith("he")) return { ...Hebrew, rtl: true };
+    return { ...Arabic, rtl: true };
+  }, [dir]);
 
   const availabilityByDay = React.useMemo(() => {
     const days = Array.isArray((data as any)?.availability?.days)
@@ -298,15 +321,12 @@ export default function PublicBookingFlow({
     return map;
   }, [data]);
 
-  const isDateEnabled = React.useCallback(
-    (d: Date) => {
+  const isDateAvailableYmd = React.useCallback(
+    (ymd: string) => {
       if (!data) return false;
       if (!serviceId) return false;
-      const dateStr = formatDateInTimeZone(d, tz);
-      if (!dateStr) return false;
-
-      const todayStr = formatDateInTimeZone(new Date(), tz);
-      if (todayStr && dateStr < todayStr) return false;
+      const dateStr = String(ymd || "").trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
 
       const weekday = weekdayFromDateString(dateStr);
       const conf = availabilityByDay.get(weekday);
@@ -315,19 +335,36 @@ export default function PublicBookingFlow({
       if (!conf.windows || conf.windows.length === 0) return false;
       return true;
     },
-    [availabilityByDay, data, serviceId, tz]
+    [availabilityByDay, data, serviceId]
   );
 
-  const isPastDate = React.useCallback(
-    (d: Date) => {
-      const dateStr = formatDateInTimeZone(d, tz);
-      if (!dateStr) return true;
-      const todayStr = formatDateInTimeZone(new Date(), tz);
-      if (!todayStr) return false;
-      return dateStr < todayStr;
+  const isDisabledYmd = React.useCallback(
+    (ymd: string) => {
+      const dateStr = String(ymd || "").trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return true;
+      if (businessTodayYmd && dateStr < businessTodayYmd) return true;
+      return !isDateAvailableYmd(dateStr);
     },
-    [tz]
+    [businessTodayYmd, isDateAvailableYmd]
   );
+
+  const flatpickrOptions = React.useMemo(() => {
+    return {
+      mode: "single" as const,
+      dateFormat: "Y-m-d",
+      inline: true,
+      disableMobile: false,
+      monthSelectorType: "static" as const,
+      minDate: businessTodayYmd || undefined,
+      locale: fpLocale,
+      disable: [
+        (d: Date) => {
+          const ymd = ymdFromDateLocal(d);
+          return isDisabledYmd(ymd);
+        },
+      ],
+    };
+  }, [businessTodayYmd, fpLocale, isDisabledYmd]);
 
   const selectedService = React.useMemo(() => {
     if (!data?.services) return null;
@@ -696,36 +733,27 @@ export default function PublicBookingFlow({
       {step === "date" ? (
         <div className="space-y-4">
           <div className="flex justify-center">
-            <div className="w-full max-w-[400px]">
-              <Calendar
-                mode="single"
-                showOutsideDays
-                month={month}
-                onMonthChange={setMonth}
-                weekStartsOn={weekStartsOn}
-                className="w-full rounded-2xl border border-gray-200/70 bg-white/80 p-2 shadow-sm backdrop-blur dark:border-gray-800/70 dark:bg-gray-950/30"
-                modifiers={{
-                  past: (d) => isPastDate(d),
-                  unavailable: (d) => !isPastDate(d) && !isDateEnabled(d),
-                }}
-                modifiersClassNames={{
-                  past: "text-gray-300 dark:text-gray-700 font-normal opacity-25",
-                  unavailable:
-                    "text-gray-400 dark:text-gray-600 font-normal opacity-55",
-                }}
-                disabled={(d) => isPastDate(d) || !isDateEnabled(d)}
-                selected={date ? new Date(`${date}T12:00:00Z`) : undefined}
-                onSelect={(d) => {
-                  if (!d) return;
-                  if (isPastDate(d)) return;
-                  if (!isDateEnabled(d)) return;
-                  const dateStr = formatDateInTimeZone(d, tz);
-                  if (!dateStr) return;
-                  setDate(dateStr);
+            <div className="w-full">
+              <Flatpickr
+                options={flatpickrOptions as any}
+                value={date || undefined}
+                onChange={(_selectedDates: Date[], dateStr: string) => {
+                  const next = String(dateStr || "").trim();
+                  if (!next) return;
+                  if (isDisabledYmd(next)) return;
+                  setDate(next);
                   setStartTime("");
                   setFormError(null);
                   setStep("time");
                 }}
+                render={(_props: any, ref: any) => (
+                  <input
+                    ref={ref as any}
+                    type="text"
+                    aria-label="Select date"
+                    className="sr-only"
+                  />
+                )}
               />
             </div>
           </div>

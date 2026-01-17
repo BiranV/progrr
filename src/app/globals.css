@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "flatpickr/dist/flatpickr.min.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -135,10 +136,12 @@
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
 .dark input[type="date"]::-webkit-calendar-picker-indicator,
 .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator {
   filter: invert(1);
@@ -186,4 +189,64 @@ select:-webkit-autofill:focus {
 
 .dark ::-webkit-scrollbar-thumb:hover {
   background-color: var(--muted-foreground);
+}
+
+/* Flatpickr (public booking): keep default UI, light theming only */
+.flatpickr-calendar {
+  border-radius: var(--radius-2xl);
+}
+
+/* Flatpickr inline layout is fixed-width by default; make it stretch to container */
+.flatpickr-calendar.inline {
+  width: 100%;
+  max-width: 100%;
+}
+
+.flatpickr-innerContainer,
+.flatpickr-rContainer,
+.flatpickr-days,
+.dayContainer,
+.flatpickr-weekdays {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* When stretching to full width, also stretch day cells so they align with weekday headers */
+.flatpickr-calendar.inline .flatpickr-day {
+  max-width: none;
+  width: calc(100% / 7);
+  flex-basis: calc(100% / 7);
+}
+
+.flatpickr-day.flatpickr-disabled,
+.flatpickr-day.flatpickr-disabled:hover,
+.flatpickr-day.prevMonthDay,
+.flatpickr-day.nextMonthDay {
+  opacity: 0.45;
+}
+
+/* Selected day: smaller centered circle (single-date booking UX) */
+.flatpickr-day.selected,
+.flatpickr-day.selected:hover,
+.flatpickr-day.startRange,
+.flatpickr-day.endRange,
+.flatpickr-day.inRange {
+  position: relative;
+  background: transparent;
+  border-color: transparent;
+  color: var(--primary-foreground);
+}
+
+.flatpickr-day.selected::after,
+.flatpickr-day.startRange::after,
+.flatpickr-day.endRange::after {
+  content: "";
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 30px;
+  height: 30px;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  background: var(--primary);
+  z-index: -1;
 }
