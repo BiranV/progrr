@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { PublicBusiness } from "@/lib/public-booking";
 
@@ -34,6 +35,7 @@ export default function PublicBookingShell({
   children: React.ReactNode;
 }) {
   const [isRtl, setIsRtl] = React.useState(false);
+  const [previewSrc, setPreviewSrc] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const el = document?.documentElement;
@@ -125,6 +127,29 @@ export default function PublicBookingShell({
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-black pb-safe">
+      <Dialog
+        open={Boolean(previewSrc)}
+        onOpenChange={(open) => {
+          if (!open) setPreviewSrc(null);
+        }}
+      >
+        <DialogContent
+          className="p-0 overflow-hidden max-w-[95vw] sm:max-w-3xl"
+          // Don’t steal focus (nice for mobile + image viewing)
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          {previewSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={previewSrc}
+              alt="Gallery image"
+              className="w-full max-h-[80vh] object-contain bg-black"
+              draggable={false}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
       <div className="relative w-full z-0 h-[140px] bg-gradient-to-br from-neutral-950 via-zinc-900 to-zinc-800 shrink-0 overflow-hidden">
         {bannerUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -233,14 +258,18 @@ export default function PublicBookingShell({
                   )}
                 >
                   {gallery.map((src, idx) => (
-                    <div
+                    <button
+                      type="button"
                       key={`${src}-${idx}`}
                       className={cn(
                         "snap-start shrink-0 rounded-2xl overflow-hidden",
                         "shadow-sm border border-gray-200/70 dark:border-gray-800",
-                        "bg-gray-100 dark:bg-gray-800"
+                        "bg-gray-100 dark:bg-gray-800",
+                        "cursor-zoom-in"
                       )}
                       style={{ width: 190, height: 115 }}
+                      aria-label={`Open gallery image ${idx + 1}`}
+                      onClick={() => setPreviewSrc(src)}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -249,7 +278,7 @@ export default function PublicBookingShell({
                         className="w-full h-full object-cover"
                         draggable={false}
                       />
-                    </div>
+                    </button>
                   ))}
                 </div>
 

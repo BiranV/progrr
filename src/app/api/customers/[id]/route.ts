@@ -43,12 +43,18 @@ function isFutureBooking(args: {
 }
 
 export async function GET(
-  _req: Request,
+  req: Request,
   ctx: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAppUser();
     await ensureIndexes();
+
+    const url = new URL(req.url);
+    const pageRaw = String(url.searchParams.get("page") ?? "1").trim();
+    const pageSizeRaw = String(url.searchParams.get("pageSize") ?? "10").trim();
+    const page = Math.max(1, Number(pageRaw) || 1);
+    const pageSize = Math.min(50, Math.max(1, Number(pageSizeRaw) || 10));
 
     const { id } = await ctx.params;
     if (!ObjectId.isValid(id)) {
@@ -82,16 +88,34 @@ export async function GET(
       .trim()
       .toLowerCase();
 
+    const customerAppointmentsFilter = {
+      businessUserId,
+      $or: [
+        { customerId: customer._id },
+        ...(phone ? [{ "customer.phone": phone }] : []),
+        ...(email ? [{ "customer.email": email }] : []),
+      ],
+    } as any;
+
+    const [totalBookingsCount, activeBookingsCount] = await Promise.all([
+      c.appointments.countDocuments(customerAppointmentsFilter),
+      c.appointments.countDocuments({
+        ...customerAppointmentsFilter,
+        status: "BOOKED",
+        $or: [
+          { date: { $gt: todayStr } },
+          { date: todayStr, startTime: { $gt: nowTimeStr } },
+        ],
+      } as any),
+    ]);
+
+    const totalPages = Math.max(1, Math.ceil(totalBookingsCount / pageSize));
+    const safePage = Math.min(page, totalPages);
+    const skip = (safePage - 1) * pageSize;
+
     const appts = await c.appointments
       .find(
-        {
-          businessUserId,
-          $or: [
-            { customerId: customer._id },
-            ...(phone ? [{ "customer.phone": phone }] : []),
-            ...(email ? [{ "customer.email": email }] : []),
-          ],
-        } as any,
+        customerAppointmentsFilter,
         {
           projection: {
             serviceName: 1,
@@ -101,20 +125,24 @@ export async function GET(
             status: 1,
             createdAt: 1,
             cancelledAt: 1,
+            cancelledBy: 1,
           },
         }
       )
       .sort({ date: -1, startTime: -1, createdAt: -1 })
-      .limit(500)
+      .skip(skip)
+      .limit(pageSize)
       .toArray();
 
     const history = appts.map((a: any) => {
       const rawStatus = String(a?.status ?? "");
       const cancelled = rawStatus === "CANCELLED" || rawStatus === "CANCELED";
 
-      let status: "ACTIVE" | "CANCELED" | "COMPLETED";
+      let status: "BOOKED" | "CANCELED" | "COMPLETED";
       if (cancelled) {
         status = "CANCELED";
+      } else if (rawStatus === "COMPLETED") {
+        status = "COMPLETED";
       } else {
         status = isFutureBooking({
           date: String(a?.date ?? ""),
@@ -122,7 +150,7 @@ export async function GET(
           todayStr,
           nowTimeStr,
         })
-          ? "ACTIVE"
+          ? "BOOKED"
           : "COMPLETED";
       }
 
@@ -133,12 +161,10 @@ export async function GET(
         startTime: String(a?.startTime ?? ""),
         endTime: String(a?.endTime ?? ""),
         status,
+        cancelledBy:
+          typeof a?.cancelledBy === "string" ? String(a.cancelledBy) : undefined,
       };
     });
-
-    const activeBookingsCount = history.filter(
-      (h) => h.status === "ACTIVE"
-    ).length;
 
     return NextResponse.json({
       ok: true,
@@ -151,6 +177,12 @@ export async function GET(
         isHidden: Boolean((customer as any)?.isHidden ?? false),
       },
       activeBookingsCount,
+      bookingsPagination: {
+        page: safePage,
+        pageSize,
+        totalPages,
+        totalBookingsCount,
+      },
       bookings: history,
     });
   } catch (error: any) {
