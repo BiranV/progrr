@@ -6,7 +6,7 @@ import { Arabic } from "flatpickr/dist/l10n/ar";
 import { Hebrew } from "flatpickr/dist/l10n/he";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { MoreVertical } from "lucide-react";
+import { ChevronsUpDown, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 
 import { CenteredSpinner } from "@/components/CenteredSpinner";
@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import ConfirmModal from "@/components/ui/confirm-modal";
 import { Switch } from "@/components/ui/switch";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
     Dialog,
     DialogContent,
@@ -41,8 +42,11 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-function isValidEmail(email: string) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+function normalizeEmail(input: string): string {
+    return String(input ?? "")
+        .replace(/[\s\u200B\u200C\u200D\uFEFF]/g, "")
+        .trim()
+        .toLowerCase();
 }
 
 export default function CalendarPage() {
@@ -119,19 +123,11 @@ export default function CalendarPage() {
     const [createOpen, setCreateOpen] = React.useState(false);
     const [createServiceId, setCreateServiceId] = React.useState<string>("");
     const [createStartTime, setCreateStartTime] = React.useState<string>("");
-    const [createCustomerMode, setCreateCustomerMode] = React.useState<"existing" | "new">(
-        "existing"
-    );
     const [createExistingCustomerId, setCreateExistingCustomerId] = React.useState<string>("");
-    const [createCustomerFullName, setCreateCustomerFullName] = React.useState<string>("");
-    const [createCustomerPhone, setCreateCustomerPhone] = React.useState<string>("");
-    const [createCustomerEmail, setCreateCustomerEmail] = React.useState<string>("");
+    const [createCustomerSearch, setCreateCustomerSearch] = React.useState<string>("");
+    const [createCustomerPickerOpen, setCreateCustomerPickerOpen] = React.useState(false);
     const [createNotes, setCreateNotes] = React.useState<string>("");
     const [creating, setCreating] = React.useState(false);
-
-    const [createCustomerEmailError, setCreateCustomerEmailError] = React.useState<string | null>(null);
-
-    const inputErrorClass = "border-red-500 focus-visible:ring-red-500/20";
 
     type CustomerForPicker = {
         _id: string;
@@ -176,6 +172,33 @@ export default function CalendarPage() {
             }))
             .filter((c) => c._id && c.phone);
     }, [customersPickerQuery.data]);
+
+    const selectedCustomerForPicker = React.useMemo(() => {
+        if (!createExistingCustomerId) return null;
+        return customersForPicker.find((c) => c._id === createExistingCustomerId) ?? null;
+    }, [createExistingCustomerId, customersForPicker]);
+
+    const filteredCustomersForPicker = React.useMemo(() => {
+        const q = String(createCustomerSearch || "").trim().toLowerCase();
+        if (!q) return customersForPicker;
+        return customersForPicker.filter((c) => {
+            const hay = `${c.fullName} ${c.phone} ${c.email ?? ""}`.toLowerCase();
+            return hay.includes(q);
+        });
+    }, [createCustomerSearch, customersForPicker]);
+
+    const canCreateAppointment = React.useMemo(() => {
+        const serviceOk = Boolean(String(createServiceId || "").trim());
+        const startOk = Boolean(String(createStartTime || "").trim());
+        const c = selectedCustomerForPicker;
+        const customerOk =
+            c != null &&
+            c.status !== "BLOCKED" &&
+            Boolean(String(c.fullName || "").trim()) &&
+            Boolean(String(c.phone || "").trim()) &&
+            Boolean(String(c.email || "").trim());
+        return serviceOk && startOk && customerOk;
+    }, [createServiceId, createStartTime, selectedCustomerForPicker]);
 
     const dir = React.useMemo<"ltr" | "rtl">(() => {
         if (typeof document === "undefined") return "ltr";
@@ -296,80 +319,24 @@ export default function CalendarPage() {
     const resetCreateForm = React.useCallback(() => {
         setCreateServiceId("");
         setCreateStartTime("");
-        setCreateCustomerMode("existing");
         setCreateExistingCustomerId("");
-        setCreateCustomerFullName("");
-        setCreateCustomerPhone("");
-        setCreateCustomerEmail("");
+        setCreateCustomerSearch("");
+        setCreateCustomerPickerOpen(false);
         setCreateNotes("");
-        setCreateCustomerEmailError(null);
     }, []);
 
-    React.useEffect(() => {
-        if (createCustomerMode === "existing") {
-            if (createCustomerEmailError) setCreateCustomerEmailError(null);
-            return;
-        }
-        if (!createCustomerEmailError) return;
-        const v = createCustomerEmail.trim();
-        if (!v) setCreateCustomerEmailError("Customer email is required");
-        else if (!isValidEmail(v)) setCreateCustomerEmailError("Please enter a valid email address");
-        else setCreateCustomerEmailError(null);
-    }, [createCustomerEmail, createCustomerEmailError, createCustomerMode]);
-
-    React.useEffect(() => {
-        if (createCustomerMode !== "existing") return;
-        if (!createExistingCustomerId) {
-            setCreateCustomerFullName("");
-            setCreateCustomerPhone("");
-            setCreateCustomerEmail("");
-            return;
-        }
-        const c = customersForPicker.find((x) => x._id === createExistingCustomerId);
-        if (!c) return;
-        setCreateCustomerFullName(c.fullName);
-        setCreateCustomerPhone(c.phone);
-        setCreateCustomerEmail(c.email ?? "");
-    }, [createCustomerMode, createExistingCustomerId, customersForPicker]);
-
     const createAppointment = React.useCallback(async () => {
-        if (!createServiceId) {
-            toast.error("Please choose a service");
-            return;
-        }
-        if (!createStartTime) {
-            toast.error("Please choose an hour");
+        if (!canCreateAppointment) {
+            toast.error("Please fill all required fields");
             return;
         }
 
-        if (createCustomerMode === "existing" && !createExistingCustomerId) {
-            toast.error("Please select a customer");
-            return;
-        }
+        const selected = selectedCustomerForPicker;
+        if (!selected) return;
 
-        if (!createCustomerFullName.trim()) {
-            toast.error("Customer name is required");
-            return;
-        }
-        if (!createCustomerPhone.trim()) {
-            toast.error("Customer phone is required");
-            return;
-        }
-        const email = createCustomerEmail.trim();
-
-        // Email is required for public customer access + confirmations.
-        if (!email) {
-            if (createCustomerMode === "new") setCreateCustomerEmailError("Customer email is required");
-            toast.error("Customer email is required");
-            return;
-        }
-        if (!isValidEmail(email)) {
-            if (createCustomerMode === "new")
-                setCreateCustomerEmailError("Please enter a valid email address");
-            toast.error("Please enter a valid email address");
-            return;
-        }
-        if (createCustomerMode === "new") setCreateCustomerEmailError(null);
+        const customerFullName = selected.fullName.trim();
+        const customerPhone = selected.phone.trim();
+        const customerEmail = normalizeEmail(selected.email ?? "");
 
         setCreating(true);
         try {
@@ -380,9 +347,9 @@ export default function CalendarPage() {
                     date,
                     serviceId: createServiceId,
                     startTime: createStartTime,
-                    customerFullName: createCustomerFullName.trim(),
-                    customerPhone: createCustomerPhone.trim(),
-                    customerEmail: email,
+                    customerFullName,
+                    customerPhone,
+                    customerEmail,
                     notes: createNotes.trim(),
                 }),
             });
@@ -412,18 +379,16 @@ export default function CalendarPage() {
             setCreating(false);
         }
     }, [
-        createCustomerEmail,
-        createCustomerEmailError,
-        createCustomerMode,
-        createCustomerFullName,
-        createCustomerPhone,
+        canCreateAppointment,
         createExistingCustomerId,
+        customersForPicker,
         createNotes,
         createServiceId,
         createStartTime,
         date,
         queryClient,
         resetCreateForm,
+        selectedCustomerForPicker,
     ]);
 
     const parseTimeToMinutes = React.useCallback((hhmm: string): number => {
@@ -462,6 +427,63 @@ export default function CalendarPage() {
         return () => window.clearInterval(id);
     }, []);
 
+    const isIncomingAppointment = React.useCallback(
+        (appt: { date: string; endTime?: string }) => {
+            const apptDate = String(appt?.date ?? "").slice(0, 10);
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(apptDate)) return true;
+            if (apptDate > todayLocal) return true;
+            if (apptDate < todayLocal) return false;
+
+            const nowMin = parseTimeToMinutes(nowTimeLocal);
+            const endMin = parseTimeToMinutes(String(appt?.endTime ?? ""));
+            if (!Number.isFinite(nowMin) || !Number.isFinite(endMin)) return true;
+            return endMin > nowMin;
+        },
+        [nowTimeLocal, parseTimeToMinutes, todayLocal]
+    );
+
+    const cancelAppointmentById = React.useCallback(
+        async (appointmentId: string, notifyCustomer: boolean) => {
+            setCancelling(true);
+            try {
+                const res = await fetch(
+                    `/api/appointments/${encodeURIComponent(appointmentId)}/cancel`,
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ notifyCustomer }),
+                    }
+                );
+                const json = await res.json().catch(() => null);
+                if (!res.ok) {
+                    throw new Error(json?.error || `Request failed (${res.status})`);
+                }
+
+                queryClient.setQueryData(
+                    ["appointments", date],
+                    (prev: unknown): Appointment[] => {
+                        const list = Array.isArray(prev) ? (prev as Appointment[]) : [];
+                        return list.map((a) =>
+                            a.id === appointmentId
+                                ? { ...a, status: "CANCELED", cancelledBy: "BUSINESS" }
+                                : a
+                        );
+                    }
+                );
+
+                const emailSent = json?.email?.sent;
+                if (notifyCustomer && emailSent === false) {
+                    setError(
+                        String(json?.email?.error || "Canceled, but failed to email the customer")
+                    );
+                }
+            } finally {
+                setCancelling(false);
+            }
+        },
+        [date, queryClient]
+    );
+
     React.useEffect(() => {
         if (!appointmentsQuery.isError) return;
         const msg = (appointmentsQuery.error as any)?.message || "Failed to load appointments";
@@ -469,20 +491,38 @@ export default function CalendarPage() {
     }, [appointmentsQuery.isError, appointmentsQuery.error]);
 
     const visibleAppointments = React.useMemo(() => {
-        if (showAll) return appointments;
+        if (showAll) {
+            const list = [...appointments];
+            list.sort((a, b) => {
+                const ad = String((a as any)?.date ?? "");
+                const bd = String((b as any)?.date ?? "");
+                if (ad !== bd) return bd.localeCompare(ad);
+
+                const am = parseTimeToMinutes(String((a as any)?.startTime ?? ""));
+                const bm = parseTimeToMinutes(String((b as any)?.startTime ?? ""));
+                if (Number.isFinite(am) && Number.isFinite(bm)) return bm - am;
+
+                const at = String((a as any)?.startTime ?? "");
+                const bt = String((b as any)?.startTime ?? "");
+                return bt.localeCompare(at);
+            });
+            return list;
+        }
 
         // Default view: show only remaining meetings.
         // - Past date: none
-        // - Future date: all non-canceled
-        // - Today: non-canceled with endTime after now
-        const nonCanceled = appointments.filter((a) => !isCanceledStatus(a.status));
+        // - Future date: only BOOKED (exclude COMPLETED / NO SHOW)
+        // - Today: only BOOKED with endTime after now
+        const nonCanceledBooked = appointments
+            .filter((a) => !isCanceledStatus(a.status))
+            .filter((a) => String(a.status ?? "").toUpperCase() === "BOOKED");
         if (date < todayLocal) return [];
-        if (date > todayLocal) return nonCanceled;
+        if (date > todayLocal) return nonCanceledBooked;
 
         const nowMin = parseTimeToMinutes(nowTimeLocal);
-        if (!Number.isFinite(nowMin)) return nonCanceled;
+        if (!Number.isFinite(nowMin)) return nonCanceledBooked;
 
-        return nonCanceled.filter((a) => {
+        return nonCanceledBooked.filter((a) => {
             const endMin = parseTimeToMinutes(String(a.endTime ?? ""));
             if (!Number.isFinite(endMin)) return true;
             return endMin > nowMin;
@@ -628,7 +668,7 @@ export default function CalendarPage() {
                 </div>
             </div>
 
-            <div className="flex items-center justify-end">
+            <div className="flex items-center justify-center">
                 <Button
                     variant="default"
                     size="sm"
@@ -664,10 +704,12 @@ export default function CalendarPage() {
                     <div className="space-y-3">
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1 min-w-0">
-                                <div className="text-xs text-muted-foreground">Service</div>
+                                <div className="text-xs text-muted-foreground">Service *</div>
                                 <Select
                                     value={createServiceId}
-                                    onValueChange={(v) => setCreateServiceId(String(v || ""))}
+                                    onValueChange={(v) => {
+                                        setCreateServiceId(String(v || ""));
+                                    }}
                                 >
                                     <SelectTrigger className="rounded-xl w-full">
                                         <SelectValue placeholder="Select service" />
@@ -683,10 +725,12 @@ export default function CalendarPage() {
                             </div>
 
                             <div className="space-y-1 min-w-0">
-                                <div className="text-xs text-muted-foreground">Hour</div>
+                                <div className="text-xs text-muted-foreground">Hour *</div>
                                 <Select
                                     value={createStartTime}
-                                    onValueChange={(v) => setCreateStartTime(String(v || ""))}
+                                    onValueChange={(v) => {
+                                        setCreateStartTime(String(v || ""));
+                                    }}
                                     disabled={!createServiceId || availableCreateSlotsQuery.isPending}
                                 >
                                     <SelectTrigger className="rounded-xl w-full">
@@ -718,130 +762,111 @@ export default function CalendarPage() {
                                 ) : null}
                             </div>
 
-                            <div className="space-y-1 min-w-0">
-                                <div className="text-xs text-muted-foreground">Customer</div>
-                                <Select
-                                    value={createCustomerMode}
-                                    onValueChange={(v) => {
-                                        const next = String(v || "");
-                                        if (next !== "existing" && next !== "new") return;
-                                        setCreateCustomerMode(next);
-                                        setCreateExistingCustomerId("");
-                                        setCreateCustomerFullName("");
-                                        setCreateCustomerPhone("");
-                                        setCreateCustomerEmail("");
-                                        setCreateCustomerEmailError(null);
+                            <div className="space-y-1 min-w-0 col-span-2">
+                                <div className="text-xs text-muted-foreground">Customer *</div>
+                                <Popover
+                                    open={createCustomerPickerOpen}
+                                    onOpenChange={(next) => {
+                                        if (customersPickerQuery.isPending) return;
+                                        setCreateCustomerPickerOpen(next);
+                                        if (next) setCreateCustomerSearch("");
                                     }}
                                 >
-                                    <SelectTrigger className="rounded-xl w-full">
-                                        <SelectValue placeholder="Select mode" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="existing">Existing customer</SelectItem>
-                                        <SelectItem value="new">New customer</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div className="space-y-1 min-w-0">
-                                <div className="text-xs text-muted-foreground">Select customer</div>
-                                {createCustomerMode === "existing" ? (
-                                    <>
-                                        <Select
-                                            value={createExistingCustomerId}
-                                            onValueChange={(v) => {
-                                                setCreateExistingCustomerId(String(v || ""));
-                                            }}
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
                                             disabled={customersPickerQuery.isPending}
+                                            className="rounded-xl w-full justify-between"
                                         >
-                                            <SelectTrigger className="rounded-xl w-full">
-                                                <SelectValue
-                                                    placeholder={
-                                                        customersPickerQuery.isPending
-                                                            ? "Loading customers…"
-                                                            : customersForPicker.length
-                                                                ? "Choose customer"
-                                                                : "No customers yet"
-                                                    }
-                                                />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {customersForPicker.map((c) => (
-                                                    <SelectItem key={c._id} value={c._id}>
-                                                        {c.fullName || "(No name)"} • {c.phone}
-                                                        {c.email ? ` • ${c.email}` : ""}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        {customersPickerQuery.isError ? (
-                                            <div className="text-xs text-red-600 dark:text-red-400">
-                                                {(customersPickerQuery.error as any)?.message ||
-                                                    "Failed to load customers"}
-                                            </div>
-                                        ) : null}
-                                    </>
-                                ) : (
-                                    <Input
-                                        className="rounded-xl w-full"
-                                        disabled
-                                        placeholder="New customer"
-                                        value=""
-                                    />
-                                )}
+                                            <span className="truncate text-left">
+                                                {customersPickerQuery.isPending
+                                                    ? "Loading customers…"
+                                                    : selectedCustomerForPicker
+                                                        ? `${selectedCustomerForPicker.fullName || "(No name)"} • ${selectedCustomerForPicker.phone}${selectedCustomerForPicker.email ? ` • ${selectedCustomerForPicker.email}` : ""}`
+                                                        : customersForPicker.length
+                                                            ? "Choose customer"
+                                                            : "No customers yet"}
+                                            </span>
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent
+                                        align="start"
+                                        className="w-[var(--radix-popover-trigger-width)] p-2"
+                                    >
+                                        <Input
+                                            value={createCustomerSearch}
+                                            onChange={(e) => setCreateCustomerSearch(e.target.value)}
+                                            placeholder="Search by name, phone, or email…"
+                                            className="rounded-lg h-9"
+                                        />
+                                        <div className="mt-2 max-h-60 overflow-y-auto">
+                                            {filteredCustomersForPicker.length ? (
+                                                <div className="space-y-1">
+                                                    {filteredCustomersForPicker.map((c) => {
+                                                        const disabled =
+                                                            c.status === "BLOCKED" ||
+                                                            !c.fullName.trim() ||
+                                                            !c.phone.trim() ||
+                                                            !c.email;
+                                                        const isSelected = c._id === createExistingCustomerId;
+
+                                                        return (
+                                                            <button
+                                                                key={c._id}
+                                                                type="button"
+                                                                disabled={disabled}
+                                                                onClick={() => {
+                                                                    if (disabled) return;
+                                                                    setCreateExistingCustomerId(c._id);
+                                                                    setCreateCustomerPickerOpen(false);
+                                                                    setCreateCustomerSearch("");
+                                                                }}
+                                                                className={
+                                                                    "w-full rounded-md px-2 py-2 text-left text-sm transition-colors " +
+                                                                    (disabled
+                                                                        ? "opacity-50 cursor-not-allowed"
+                                                                        : "hover:bg-muted") +
+                                                                    (isSelected
+                                                                        ? " bg-muted"
+                                                                        : "")
+                                                                }
+                                                            >
+                                                                <div className="truncate">
+                                                                    {c.fullName || "(No name)"} • {c.phone}
+                                                                </div>
+                                                                <div className="truncate text-xs text-muted-foreground">
+                                                                    {c.email ? c.email : "(missing email)"}
+                                                                    {c.status === "BLOCKED"
+                                                                        ? " • BLOCKED"
+                                                                        : !c.fullName.trim() || !c.phone.trim() || !c.email
+                                                                            ? " • incomplete"
+                                                                            : ""}
+                                                                </div>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <div className="p-2 text-sm text-muted-foreground">
+                                                    No customer found.
+                                                </div>
+                                            )}
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
+                                <div className="text-xs text-muted-foreground">
+                                    Customers appear here after they book or verify themselves.
+                                </div>
+                                {customersPickerQuery.isError ? (
+                                    <div className="text-xs text-red-600 dark:text-red-400">
+                                        {(customersPickerQuery.error as any)?.message ||
+                                            "Failed to load customers"}
+                                    </div>
+                                ) : null}
                             </div>
                         </div>
-
-                        <div className="text-[12px] text-muted-foreground">
-                            To add a new customer, switch to “New customer”.
-                        </div>
-
-                        {createCustomerMode === "new" ? (
-                            <>
-                                <div className="space-y-1">
-                                    <div className="text-xs text-muted-foreground">Customer name</div>
-                                    <Input
-                                        className="rounded-xl"
-                                        value={createCustomerFullName}
-                                        onChange={(e) => setCreateCustomerFullName(e.target.value)}
-                                        placeholder="Full name"
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <div className="text-xs text-muted-foreground">Customer phone</div>
-                                    <Input
-                                        className="rounded-xl"
-                                        value={createCustomerPhone}
-                                        onChange={(e) => setCreateCustomerPhone(e.target.value)}
-                                        placeholder="Phone"
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <div className="text-xs text-muted-foreground">Customer email</div>
-                                    <Input
-                                        className={`rounded-xl ${createCustomerEmailError ? inputErrorClass : ""}`}
-                                        value={createCustomerEmail}
-                                        onChange={(e) => setCreateCustomerEmail(e.target.value)}
-                                        onBlur={() => {
-                                            const v = createCustomerEmail.trim();
-                                            if (!v)
-                                                setCreateCustomerEmailError("Customer email is required");
-                                            else if (!isValidEmail(v))
-                                                setCreateCustomerEmailError(
-                                                    "Please enter a valid email address"
-                                                );
-                                            else setCreateCustomerEmailError(null);
-                                        }}
-                                        placeholder="name@company.com"
-                                    />
-                                    {createCustomerEmailError ? (
-                                        <p className="text-[13px] text-red-600 dark:text-red-400 ml-1">
-                                            {createCustomerEmailError}
-                                        </p>
-                                    ) : null}
-                                </div>
-                            </>
-                        ) : null}
 
                         <div className="space-y-1">
                             <div className="text-xs text-muted-foreground">Notes (optional)</div>
@@ -870,7 +895,7 @@ export default function CalendarPage() {
                             type="button"
                             className="rounded-xl"
                             onClick={createAppointment}
-                            disabled={creating || (createCustomerMode === "new" && !!createCustomerEmailError)}
+                            disabled={creating || !canCreateAppointment}
                         >
                             {creating ? "Saving…" : "Save"}
                         </Button>
@@ -931,7 +956,7 @@ export default function CalendarPage() {
                                     ) : null}
 
                                     {String(a.status) === "BOOKED" ? (
-                                        <div className="flex flex-wrap gap-2 mt-2">
+                                        <div className="flex items-center justify-between gap-2 mt-2">
                                             <Button
                                                 type="button"
                                                 size="sm"
@@ -944,9 +969,16 @@ export default function CalendarPage() {
                                             <Button
                                                 type="button"
                                                 size="sm"
-                                                variant="outline"
-                                                className="rounded-xl border-gray-300 text-gray-800 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-800"
-                                                onClick={() => setCancelId(a.id)}
+                                                variant="ghost"
+                                                className="rounded-xl ml-auto text-gray-900 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-800"
+                                                onClick={() => {
+                                                    const incoming = isIncomingAppointment({
+                                                        date: a.date,
+                                                        endTime: a.endTime,
+                                                    });
+                                                    if (incoming) setCancelId(a.id);
+                                                    else cancelAppointmentById(a.id, false);
+                                                }}
                                             >
                                                 Cancel
                                             </Button>
@@ -954,59 +986,130 @@ export default function CalendarPage() {
                                     ) : null}
                                 </div>
 
-                                <Badge
-                                    className={
-                                        String(a.status) === "BOOKED"
-                                            ? "bg-emerald-600 text-white"
-                                            : String(a.status) === "COMPLETED"
-                                                ? "bg-blue-600 text-white"
-                                                : isNoShowStatus(a.status)
-                                                    ? "bg-amber-600 text-white"
-                                                    : isCanceledStatus(a.status)
-                                                        ? "bg-gray-500 text-white dark:bg-gray-700"
-                                                        : "bg-gray-600 text-white"
-                                    }
-                                >
-                                    {statusLabel(a.status)}
-                                </Badge>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <Badge
+                                        className={
+                                            String(a.status) === "BOOKED"
+                                                ? "bg-emerald-600 text-white"
+                                                : String(a.status) === "COMPLETED"
+                                                    ? "bg-blue-600 text-white"
+                                                    : isNoShowStatus(a.status)
+                                                        ? "bg-red-600 text-white"
+                                                        : isCanceledStatus(a.status)
+                                                            ? "bg-gray-500 text-white dark:bg-gray-700"
+                                                            : "bg-gray-600 text-white"
+                                        }
+                                    >
+                                        {statusLabel(a.status)}
+                                    </Badge>
 
-                                {!isCanceledStatus(a.status) ? (
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button
-                                                type="button"
-                                                size="icon"
-                                                variant="ghost"
-                                                className="h-8 w-8 rounded-xl"
-                                                disabled={statusUpdatingId === a.id}
-                                                aria-label="Change status"
-                                                title="Change status"
-                                            >
-                                                <MoreVertical className="h-4 w-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem
-                                                onClick={() => updateStatus(a.id, "BOOKED")}
-                                                disabled={statusUpdatingId === a.id}
-                                            >
-                                                Set as BOOKED
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                onClick={() => updateStatus(a.id, "COMPLETED")}
-                                                disabled={statusUpdatingId === a.id}
-                                            >
-                                                Set as COMPLETED
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                onClick={() => updateStatus(a.id, "NO_SHOW")}
-                                                disabled={statusUpdatingId === a.id}
-                                            >
-                                                Set as NO SHOW
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                ) : null}
+                                    {showAll || !isCanceledStatus(a.status) ? (
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button
+                                                    type="button"
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-8 w-8 rounded-xl"
+                                                    disabled={statusUpdatingId === a.id}
+                                                    aria-label="Change status"
+                                                    title="Change status"
+                                                >
+                                                    <MoreVertical className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                {(() => {
+                                                    const current = isCanceledStatus(a.status)
+                                                        ? "CANCELED"
+                                                        : isNoShowStatus(a.status)
+                                                            ? "NO_SHOW"
+                                                            : String(a.status ?? "").toUpperCase();
+
+                                                    const apptDate = String(a.date ?? "").slice(0, 10);
+                                                    const isValidApptDate = /^\d{4}-\d{2}-\d{2}$/.test(apptDate);
+                                                    const isPastDateOnly = isValidApptDate && apptDate < todayLocal;
+                                                    const isEarlierToday =
+                                                        isValidApptDate &&
+                                                        apptDate === todayLocal &&
+                                                        Number.isFinite(parseTimeToMinutes(a.startTime)) &&
+                                                        Number.isFinite(parseTimeToMinutes(nowTimeLocal)) &&
+                                                        parseTimeToMinutes(a.startTime) <
+                                                        parseTimeToMinutes(nowTimeLocal);
+                                                    const isPastAppointment = isPastDateOnly || isEarlierToday;
+                                                    const isIncoming = isIncomingAppointment({
+                                                        date: String((a as any)?.date ?? ""),
+                                                        endTime: String((a as any)?.endTime ?? ""),
+                                                    });
+
+                                                    const allowedTargets: Array<
+                                                        "BOOKED" | "COMPLETED" | "NO_SHOW" | "CANCELED"
+                                                    > =
+                                                        current === "COMPLETED"
+                                                            ? ["CANCELED", "NO_SHOW"]
+                                                            : current === "CANCELED"
+                                                                ? ["COMPLETED", "NO_SHOW"]
+                                                                : current === "NO_SHOW"
+                                                                    ? ["COMPLETED", "CANCELED"]
+                                                                    : current === "BOOKED"
+                                                                        ? ["COMPLETED", "NO_SHOW", "CANCELED"]
+                                                                        : ["COMPLETED", "NO_SHOW", "CANCELED"];
+
+                                                    return (
+                                                        <>
+                                                            {allowedTargets.includes("BOOKED") && !isPastAppointment ? (
+                                                                <DropdownMenuItem
+                                                                    onClick={() => updateStatus(a.id, "BOOKED")}
+                                                                    disabled={statusUpdatingId === a.id}
+                                                                >
+                                                                    Set as BOOKED
+                                                                </DropdownMenuItem>
+                                                            ) : null}
+
+                                                            {allowedTargets.includes("COMPLETED") ? (
+                                                                <DropdownMenuItem
+                                                                    onClick={() => updateStatus(a.id, "COMPLETED")}
+                                                                    disabled={statusUpdatingId === a.id}
+                                                                >
+                                                                    Set as COMPLETED
+                                                                </DropdownMenuItem>
+                                                            ) : null}
+
+                                                            {allowedTargets.includes("NO_SHOW") ? (
+                                                                <DropdownMenuItem
+                                                                    onClick={() => updateStatus(a.id, "NO_SHOW")}
+                                                                    disabled={statusUpdatingId === a.id}
+                                                                >
+                                                                    Set as NO SHOW
+                                                                </DropdownMenuItem>
+                                                            ) : null}
+
+                                                            {allowedTargets.includes("CANCELED") &&
+                                                                !(isIncoming && current === "BOOKED") ? (
+                                                                <DropdownMenuItem
+                                                                    onClick={() => {
+                                                                        const incoming = isIncomingAppointment({
+                                                                            date: a.date,
+                                                                            endTime: a.endTime,
+                                                                        });
+                                                                        if (incoming && current === "BOOKED") {
+                                                                            setCancelId(a.id);
+                                                                        } else {
+                                                                            cancelAppointmentById(a.id, false);
+                                                                        }
+                                                                    }}
+                                                                    disabled={statusUpdatingId === a.id}
+                                                                >
+                                                                    Set as CANCELED
+                                                                </DropdownMenuItem>
+                                                            ) : null}
+                                                        </>
+                                                    );
+                                                })()}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    ) : null}
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -1025,41 +1128,8 @@ export default function CalendarPage() {
                 loading={cancelling}
                 onConfirm={async () => {
                     if (!cancelId) return;
-                    setCancelling(true);
-                    try {
-                        const res = await fetch(
-                            `/api/appointments/${encodeURIComponent(cancelId)}/cancel`,
-                            { method: "POST" }
-                        );
-                        const json = await res.json().catch(() => null);
-                        if (!res.ok) {
-                            throw new Error(
-                                json?.error || `Request failed (${res.status})`
-                            );
-                        }
-                        queryClient.setQueryData(
-                            ["appointments", date],
-                            (prev: unknown): Appointment[] => {
-                                const list = Array.isArray(prev) ? (prev as Appointment[]) : [];
-                                return list.map((a) =>
-                                    a.id === cancelId
-                                        ? { ...a, status: "CANCELED", cancelledBy: "BUSINESS" }
-                                        : a
-                                );
-                            }
-                        );
-
-                        const emailSent = json?.email?.sent;
-                        if (emailSent === false) {
-                            setError(
-                                String(json?.email?.error || "Canceled, but failed to email the customer")
-                            );
-                        }
-
-                        setCancelId(null);
-                    } finally {
-                        setCancelling(false);
-                    }
+                    await cancelAppointmentById(cancelId, true);
+                    setCancelId(null);
                 }}
             />
 

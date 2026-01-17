@@ -22,6 +22,8 @@ import {
   CUSTOMER_ACCESS_COOKIE_NAME,
   customerAccessCookieOptions,
 } from "@/server/customer-access";
+import { sendEmail } from "@/server/email";
+import { buildAppointmentBookedEmail } from "@/server/emails/booking";
 
 function normalizeEmail(input: unknown): string {
   return String(input ?? "")
@@ -476,6 +478,29 @@ export async function POST(req: Request) {
       } as any);
 
       const appointmentId = insert.insertedId.toHexString();
+
+      // Send confirmation email (best-effort).
+      const canEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail);
+      if (canEmail) {
+        try {
+          const content = buildAppointmentBookedEmail({
+            businessName: String((onboarding as any)?.business?.name ?? "").trim(),
+            serviceName: String(service?.name ?? "").trim(),
+            date,
+            startTime,
+            endTime,
+          });
+
+          await sendEmail({
+            to: customerEmail,
+            subject: content.subject,
+            text: content.text,
+            html: content.html,
+          });
+        } catch {
+          // Ignore email failures.
+        }
+      }
 
       await c.customers.updateOne(
         { _id: customerDocId },

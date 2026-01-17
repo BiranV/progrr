@@ -101,3 +101,45 @@ export function buildAppointmentCanceledEmail(args: {
         html,
     };
 }
+
+export function buildAppointmentBookedEmail(args: {
+    businessName?: string;
+    serviceName?: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+}): EmailContent {
+    const businessName = String(args.businessName || "").trim() || "Progrr";
+    const serviceName = String(args.serviceName || "").trim();
+
+    const subject = serviceName
+        ? `${businessName}: ${serviceName} booked`
+        : `${businessName}: Appointment booked`;
+
+    const textLines = [
+        "Your appointment is confirmed.",
+        "",
+        serviceName ? `Service: ${serviceName}` : "",
+        `When: ${args.date} ${args.startTime}–${args.endTime}`,
+        "",
+        `— ${businessName}`,
+    ].filter(Boolean);
+
+    const html = `
+  <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.55;color:#111827;">
+    <div style="font-size:18px;font-weight:700;margin:0 0 10px 0;">Appointment booked</div>
+    <div style="font-size:14px;margin:0 0 14px 0;">Your appointment is confirmed.</div>
+
+    ${serviceName ? `<div style="font-size:14px;margin:0 0 10px 0;"><strong>Service:</strong> ${escapeHtml(serviceName)}</div>` : ""}
+
+    <div style="font-size:14px;margin:0 0 14px 0;"><strong>When:</strong> ${escapeHtml(args.date)} ${escapeHtml(args.startTime)}–${escapeHtml(args.endTime)}</div>
+
+    <div style="font-size:13px;color:#6b7280;">— ${escapeHtml(businessName)}</div>
+  </div>`;
+
+    return {
+        subject,
+        text: textLines.join("\n"),
+        html,
+    };
+}

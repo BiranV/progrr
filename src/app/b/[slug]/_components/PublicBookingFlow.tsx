@@ -61,6 +61,10 @@ type BookingResult = {
   cancelToken: string;
 };
 
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 type ActiveAppointmentConflict = {
   code: "ACTIVE_APPOINTMENT_EXISTS" | "SAME_SERVICE_SAME_DAY_EXISTS";
   bookingSessionId: string;
@@ -771,6 +775,25 @@ export default function PublicBookingFlow({
     );
   }, [connected, customerEmail, data, date, disconnectCustomer, loggingOut, resetFlow, result?.appointment?.date]);
 
+  const selectedSlot = React.useMemo(() => {
+    const list = Array.isArray((slots as any)?.slots) ? ((slots as any).slots as any[]) : [];
+    const st = String(startTime || "").trim();
+    if (!st) return null;
+    const hit = list.find((s) => String((s as any)?.startTime ?? "").trim() === st);
+    if (!hit) return null;
+    return {
+      startTime: String((hit as any)?.startTime ?? "").trim(),
+      endTime: String((hit as any)?.endTime ?? "").trim(),
+    };
+  }, [slots, startTime]);
+
+  const canSkipCustomerDetailsForm =
+    connected &&
+    customerFullName.trim() &&
+    customerEmail.trim() &&
+    customerPhone.trim() &&
+    customerPhoneValid;
+
   const showGallery = step === "service";
 
   const onBack = React.useCallback(() => {
@@ -836,6 +859,7 @@ export default function PublicBookingFlow({
     if (!publicId) throw new Error("Business not found");
     const email = loginEmail.trim();
     if (!email) throw new Error("Email is required");
+    if (!isValidEmail(email)) throw new Error("Please enter a valid email address");
 
     const res = await fetch("/api/public/booking/request-otp", {
       method: "POST",
@@ -1125,7 +1149,7 @@ export default function PublicBookingFlow({
 
               <Button
                 className="rounded-2xl w-full"
-                disabled={loginSubmitting}
+                disabled={loginSubmitting || !isValidEmail(loginEmail.trim())}
                 onClick={async () => {
                   setLoginSubmitting(true);
                   setLoginError(null);
@@ -1518,56 +1542,90 @@ export default function PublicBookingFlow({
             </div>
           ) : null}
 
-          <div className="space-y-2">
-            <Label htmlFor="fullName">Full Name</Label>
-            <Input
-              id="fullName"
-              className="rounded-2xl"
-              value={customerFullName}
-              onChange={(e) => setCustomerFullName(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              className="rounded-2xl"
-              value={customerEmail}
-              onChange={(e) => setCustomerEmail(e.target.value)}
-              placeholder="name@example.com"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="phone">Phone</Label>
-            <PhoneInput
-              id="phone"
-              className="rounded-2xl"
-              inputClassName="rounded-2xl"
-              value={customerPhone}
-              onChange={(v) => setCustomerPhone(v)}
-              onValidityChange={setCustomerPhoneValid}
-              onBlur={() => setCustomerPhoneTouched(true)}
-              aria-invalid={customerPhoneTouched && !customerPhoneValid}
-              placeholder="Phone number"
-            />
-            {customerPhoneTouched && customerPhone.trim() && !customerPhoneValid ? (
-              <div className="text-xs text-red-600 dark:text-red-400">
-                Please enter a valid phone number.
+          {canSkipCustomerDetailsForm ? (
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/10 p-4">
+              <div className="font-semibold text-gray-900 dark:text-white">
+                Confirm booking
               </div>
-            ) : null}
-          </div>
+              <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                {selectedService?.name ? selectedService.name : "Appointment"}
+              </div>
+              <div className="text-sm text-gray-700 dark:text-gray-200 mt-1">
+                {date}
+                {startTime ? ` • ${startTime}` : ""}
+                {selectedSlot?.endTime ? `–${selectedSlot.endTime}` : ""}
+              </div>
+              {selectedService ? (
+                <div className="text-sm text-muted-foreground mt-1">
+                  {selectedService.durationMinutes} min • {formatPrice({ price: selectedService.price, currency: data.currency })}
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-950/10 p-4">
+              <div className="font-semibold text-amber-900 dark:text-amber-200">
+                Please complete your details
+              </div>
+              <div className="text-sm text-amber-800/90 dark:text-amber-200/80 mt-1">
+                We need your name, email, and phone number to book.
+              </div>
+            </div>
+          )}
 
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes (optional)</Label>
-            <Textarea
-              id="notes"
-              className="rounded-2xl"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
+          {!canSkipCustomerDetailsForm ? (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Full Name *</Label>
+                <Input
+                  id="fullName"
+                  className="rounded-2xl"
+                  value={customerFullName}
+                  onChange={(e) => setCustomerFullName(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">Email *</Label>
+                <Input
+                  id="email"
+                  className="rounded-2xl"
+                  value={customerEmail}
+                  onChange={(e) => setCustomerEmail(e.target.value)}
+                  placeholder="name@example.com"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone *</Label>
+                <PhoneInput
+                  id="phone"
+                  className="rounded-2xl"
+                  inputClassName="rounded-2xl"
+                  value={customerPhone}
+                  onChange={(v) => setCustomerPhone(v)}
+                  onValidityChange={setCustomerPhoneValid}
+                  onBlur={() => setCustomerPhoneTouched(true)}
+                  aria-invalid={customerPhoneTouched && !customerPhoneValid}
+                  placeholder="Phone number"
+                />
+                {customerPhoneTouched && customerPhone.trim() && !customerPhoneValid ? (
+                  <div className="text-xs text-red-600 dark:text-red-400">
+                    Please enter a valid phone number.
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notes (optional)</Label>
+                <Textarea
+                  id="notes"
+                  className="rounded-2xl"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
+            </>
+          ) : null}
 
           <Button
             onClick={async () => {

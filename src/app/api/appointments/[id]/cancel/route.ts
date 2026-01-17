@@ -7,12 +7,15 @@ import { sendEmail } from "@/server/email";
 import { buildAppointmentCanceledEmail } from "@/server/emails/booking";
 
 export async function POST(
-  _req: Request,
+  req: Request,
   ctx: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await requireAppUser();
     await ensureIndexes();
+
+    const body = await req.json().catch(() => null);
+    const notifyCustomer = (body as any)?.notifyCustomer !== false;
 
     const { id } = await ctx.params;
     if (!ObjectId.isValid(id)) {
@@ -38,13 +41,6 @@ export async function POST(
       return NextResponse.json({ ok: true, alreadyCanceled: true });
     }
 
-    if (appt.status === "COMPLETED") {
-      return NextResponse.json(
-        { error: "Cannot cancel a completed appointment" },
-        { status: 400 }
-      );
-    }
-
     await c.appointments.updateOne(
       { _id: apptId },
       { $set: { status: "CANCELED", cancelledAt: new Date(), cancelledBy: "BUSINESS" } }
@@ -61,7 +57,7 @@ export async function POST(
     let emailSent: boolean | undefined = undefined;
     let emailError: string | undefined = undefined;
 
-    if (canEmail) {
+    if (notifyCustomer && canEmail) {
       try {
         const content = buildAppointmentCanceledEmail({
           businessName,

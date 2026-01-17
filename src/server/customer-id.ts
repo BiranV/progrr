@@ -4,6 +4,11 @@ export function customerIdFor(args: {
   businessUserId: string;
   email: string;
 }): string {
-  const input = `${args.businessUserId}:${args.email}`;
+  const normalizedEmail = String(args.email ?? "")
+    .replace(/[\s\u200B\u200C\u200D\uFEFF]/g, "")
+    .trim()
+    .toLowerCase();
+
+  const input = `${args.businessUserId}:${normalizedEmail}`;
   return crypto.createHash("sha256").update(input).digest("hex");
 }
