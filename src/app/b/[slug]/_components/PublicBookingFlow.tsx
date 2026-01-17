@@ -705,14 +705,14 @@ export default function PublicBookingFlow({
     const dateForMy = date || result?.appointment?.date || todayStr;
 
     return (
-      <div className="flex flex-col items-end gap-1">
+      <div className="flex w-full flex-col items-stretch gap-1">
         {connected && customerEmail.trim() ? (
           <div className="text-xs text-muted-foreground text-right">
             Logged in as {customerEmail.trim()}
           </div>
         ) : null}
 
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex w-full items-center justify-between gap-2">
           <Button
             type="button"
             size="sm"
@@ -1137,7 +1137,13 @@ export default function PublicBookingFlow({
           {loginStep === "email" ? (
             <div className="space-y-3">
               <div className="space-y-2">
-                <Label htmlFor="loginEmail">Email</Label>
+                <Label htmlFor="loginEmail">
+                  Email
+                  <span aria-hidden="true" className="text-red-600">
+                    {" "}*
+                  </span>
+                  <span className="sr-only"> (required)</span>
+                </Label>
                 <Input
                   id="loginEmail"
                   className="rounded-2xl"
