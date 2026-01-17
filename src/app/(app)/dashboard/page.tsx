@@ -9,6 +9,8 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import React from "react";
 import { toast } from "sonner";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { RevenueLineChart } from "@/components/dashboard/RevenueLineChart";
 
 type DashboardSummary = {
   ok: true;
@@ -28,6 +30,17 @@ type DashboardSummary = {
     label: string;
     timeZone: string;
   };
+};
+
+type RevenueSeriesResponse = {
+  ok: true;
+  period: "week" | "month";
+  offset: number;
+  from: string;
+  to: string;
+  timeZone: string;
+  totalRevenue: number;
+  points: Array<{ date: string; revenue: number; completedCount: number }>;
 };
 
 export default function DashboardPage() {
@@ -131,6 +144,45 @@ export default function DashboardPage() {
   const isOpenNow = summary?.businessStatus?.isOpenNow;
   const revenueToday = summary?.revenueToday ?? 0;
   const currencySymbol = String(summary?.currency?.symbol ?? "").trim();
+
+  const [weekOffset, setWeekOffset] = React.useState(0);
+  const [monthOffset, setMonthOffset] = React.useState(0);
+
+  const weekSeriesQuery = useQuery({
+    queryKey: ["dashboardRevenueSeries", "week", weekOffset],
+    staleTime: 30 * 1000,
+    queryFn: async (): Promise<RevenueSeriesResponse> => {
+      const res = await fetch(
+        `/api/dashboard/revenue-series?period=week&offset=${encodeURIComponent(
+          String(weekOffset)
+        )}`,
+        { method: "GET", headers: { Accept: "application/json" } }
+      );
+      const json = (await res.json().catch(() => null)) as any;
+      if (!res.ok || !json || json.ok !== true) {
+        throw new Error(json?.error || "Failed to load revenue series");
+      }
+      return json as RevenueSeriesResponse;
+    },
+  });
+
+  const monthSeriesQuery = useQuery({
+    queryKey: ["dashboardRevenueSeries", "month", monthOffset],
+    staleTime: 30 * 1000,
+    queryFn: async (): Promise<RevenueSeriesResponse> => {
+      const res = await fetch(
+        `/api/dashboard/revenue-series?period=month&offset=${encodeURIComponent(
+          String(monthOffset)
+        )}`,
+        { method: "GET", headers: { Accept: "application/json" } }
+      );
+      const json = (await res.json().catch(() => null)) as any;
+      if (!res.ok || !json || json.ok !== true) {
+        throw new Error(json?.error || "Failed to load revenue series");
+      }
+      return json as RevenueSeriesResponse;
+    },
+  });
 
   const todayHref = summary?.todayStr
     ? `/calendar?date=${encodeURIComponent(summary.todayStr)}`
@@ -241,7 +293,120 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* 3) Empty state note */}
+      {/* 3) Revenue graphs */}
+      <div className="grid gap-3 md:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-base">Revenue (last 7 days)</CardTitle>
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 rounded-xl"
+                  onClick={() => setWeekOffset((v) => v - 1)}
+                  disabled={weekSeriesQuery.isFetching}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 rounded-xl"
+                  onClick={() => setWeekOffset((v) => v + 1)}
+                  disabled={weekSeriesQuery.isFetching || weekOffset >= 0}
+                  title={weekOffset >= 0 ? "Cannot go to the future" : "Next"}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {weekSeriesQuery.data
+                ? `${weekSeriesQuery.data.from} → ${weekSeriesQuery.data.to}`
+                : ""}
+            </div>
+          </CardHeader>
+          <CardContent className="pt-2">
+            {weekSeriesQuery.isError ? (
+              <div className="text-sm text-red-600 dark:text-red-400">
+                {(weekSeriesQuery.error as any)?.message || "Failed to load"}
+              </div>
+            ) : null}
+
+            <RevenueLineChart
+              points={weekSeriesQuery.data?.points ?? []}
+              currencySymbol={currencySymbol}
+            />
+
+            <div className="mt-2 text-xs text-muted-foreground">
+              Total: {currencySymbol || ""}
+              {(weekSeriesQuery.data?.totalRevenue ?? 0).toLocaleString(undefined, {
+                maximumFractionDigits: 2,
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-base">Revenue (monthly)</CardTitle>
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 rounded-xl"
+                  onClick={() => setMonthOffset((v) => v - 1)}
+                  disabled={monthSeriesQuery.isFetching}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 rounded-xl"
+                  onClick={() => setMonthOffset((v) => v + 1)}
+                  disabled={monthSeriesQuery.isFetching || monthOffset >= 0}
+                  title={monthOffset >= 0 ? "Cannot go to the future" : "Next"}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {monthSeriesQuery.data
+                ? `${monthSeriesQuery.data.from} → ${monthSeriesQuery.data.to}`
+                : ""}
+            </div>
+          </CardHeader>
+          <CardContent className="pt-2">
+            {monthSeriesQuery.isError ? (
+              <div className="text-sm text-red-600 dark:text-red-400">
+                {(monthSeriesQuery.error as any)?.message || "Failed to load"}
+              </div>
+            ) : null}
+
+            <RevenueLineChart
+              points={monthSeriesQuery.data?.points ?? []}
+              currencySymbol={currencySymbol}
+            />
+
+            <div className="mt-2 text-xs text-muted-foreground">
+              Total: {currencySymbol || ""}
+              {(monthSeriesQuery.data?.totalRevenue ?? 0).toLocaleString(undefined, {
+                maximumFractionDigits: 2,
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 4) Empty state note */}
       <div className="rounded-xl border bg-card text-card-foreground p-4">
         <div className="text-sm text-muted-foreground">
           Your calendar and customers will appear here once you start receiving
