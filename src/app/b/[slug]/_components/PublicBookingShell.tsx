@@ -19,6 +19,7 @@ export default function PublicBookingShell({
   title,
   subtitle,
   subtitleRight,
+  headerRight,
   onBack,
   children,
   showGallery = true,
@@ -27,6 +28,7 @@ export default function PublicBookingShell({
   title: string;
   subtitle?: string;
   subtitleRight?: React.ReactNode;
+  headerRight?: React.ReactNode;
   onBack?: () => void;
   showGallery?: boolean;
   children: React.ReactNode;
@@ -72,8 +74,8 @@ export default function PublicBookingShell({
 
   const wazeHref = businessAddress
     ? `https://waze.com/ul?q=${encodeURIComponent(
-        businessAddress
-      )}&navigate=yes`
+      businessAddress
+    )}&navigate=yes`
     : "";
 
   const telHref = businessPhone ? `tel:${businessPhone}` : "";
@@ -301,11 +303,23 @@ export default function PublicBookingShell({
             </div>
           ) : null}
 
+          {headerRight ? (
+            <div
+              className={cn(
+                "flex justify-end",
+                showGallery && gallery.length > 0 ? "mt-5" : "mt-3",
+                subtitle || subtitleRight ? "mb-2" : "mb-3"
+              )}
+            >
+              {headerRight}
+            </div>
+          ) : null}
+
           {subtitle || subtitleRight ? (
             <div
               className={cn(
                 "flex items-center gap-3",
-                showGallery && gallery.length > 0 ? "mt-5" : "mt-3",
+                headerRight ? "mt-0" : showGallery && gallery.length > 0 ? "mt-5" : "mt-3",
                 "mb-3",
                 "justify-between"
               )}

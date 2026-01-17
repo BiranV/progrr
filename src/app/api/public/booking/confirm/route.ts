@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { ObjectId } from "mongodb";
 
 import { collections, ensureIndexes } from "@/server/collections";
@@ -8,8 +9,12 @@ import {
   parseTimeToMinutes,
   minutesToTime,
 } from "@/server/booking/slots";
-import { verifyBookingVerifyToken, signBookingCancelToken } from "@/server/jwt";
-import { signCustomerAccessToken } from "@/server/jwt";
+import {
+  verifyBookingVerifyToken,
+  signBookingCancelToken,
+  signCustomerAccessToken,
+  verifyCustomerAccessToken,
+} from "@/server/jwt";
 import { isValidBusinessPublicId } from "@/server/business-public-id";
 import { formatDateInTimeZone } from "@/lib/public-booking";
 import { customerIdFor } from "@/server/customer-id";
@@ -81,14 +86,32 @@ export async function POST(req: Request) {
 
     const bookingSessionId = String(body?.bookingSessionId ?? "").trim();
 
-    if (!bookingSessionId) {
+    const verifiedEmail = bookingSessionId
+      ? normalizeEmail((await verifyBookingVerifyToken(bookingSessionId)).email)
+      : null;
+
+    const cookieStore = await cookies();
+    const accessCookie = cookieStore.get(CUSTOMER_ACCESS_COOKIE_NAME)?.value;
+    const customerAccessClaims = accessCookie
+      ? await (async () => {
+        try {
+          const parsed = await verifyCustomerAccessToken(accessCookie);
+          return {
+            customerId: String(parsed.customerId ?? "").trim(),
+            businessUserId: String(parsed.businessUserId ?? "").trim(),
+          };
+        } catch {
+          return null;
+        }
+      })()
+      : null;
+
+    if (!verifiedEmail && !customerAccessClaims) {
       return NextResponse.json(
         { error: "Email verification required" },
         { status: 401 }
       );
     }
-
-    const claims = await verifyBookingVerifyToken(bookingSessionId);
 
     if (!businessPublicId) {
       return NextResponse.json(
@@ -139,7 +162,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (normalizeEmail(claims.email) !== customerEmail) {
+    if (verifiedEmail && verifiedEmail !== customerEmail) {
       return NextResponse.json(
         { error: "Email verification mismatch" },
         { status: 401 }
@@ -157,6 +180,15 @@ export async function POST(req: Request) {
         { error: "Business not found" },
         { status: 404 }
       );
+    }
+
+    const businessUserId = (user._id as ObjectId).toHexString();
+    if (
+      customerAccessClaims &&
+      customerAccessClaims.businessUserId &&
+      customerAccessClaims.businessUserId !== businessUserId
+    ) {
+      return NextResponse.json({ error: "Invalid session" }, { status: 401 });
     }
 
     const isOwnerBooking = normalizeEmail((user as any)?.email) === customerEmail;
@@ -202,8 +234,9 @@ export async function POST(req: Request) {
     const todayStr = formatDateInTimeZone(new Date(), timeZone);
     const nowTimeStr = formatTimeInTimeZone(new Date(), timeZone);
 
-    const businessUserId = (user._id as ObjectId).toHexString();
-    const customerId = customerIdFor({ businessUserId, email: customerEmail });
+    const customerId = customerAccessClaims?.customerId
+      ? customerAccessClaims.customerId
+      : customerIdFor({ businessUserId, email: customerEmail });
 
     // Business-scoped customer block: do not allow booking for this business.
     const existingCustomerForBusiness = isOwnerBooking
@@ -235,7 +268,7 @@ export async function POST(req: Request) {
         {
           businessUserId: user._id as ObjectId,
           status: "BOOKED",
-          "customer.email": customerEmail,
+          "customer.id": customerId,
           date,
           serviceId,
         } as any,
@@ -248,7 +281,7 @@ export async function POST(req: Request) {
             {
               businessUserId: user._id as ObjectId,
               status: "BOOKED",
-              "customer.email": customerEmail,
+              "customer.id": customerId,
               date,
             } as any,
             { projection: { date: 1, startTime: 1, endTime: 1, serviceName: 1 } }
@@ -283,12 +316,12 @@ export async function POST(req: Request) {
     }
 
     if (!isOwnerBooking && limitCustomerToOneUpcomingAppointment) {
-      // Conflict check MUST use verified identity only (email), never cookies/session.
+      // Conflict check is computed only after identity is verified (OTP or access cookie).
       const existing = await c.appointments.findOne(
         {
           businessUserId: user._id as ObjectId,
           status: "BOOKED",
-          "customer.email": customerEmail,
+          "customer.id": customerId,
           $or: [
             { date: { $gt: todayStr } },
             { date: todayStr, endTime: { $gt: nowTimeStr } },
@@ -303,7 +336,7 @@ export async function POST(req: Request) {
             {
               businessUserId: user._id as ObjectId,
               status: "BOOKED",
-              "customer.email": customerEmail,
+              "customer.id": customerId,
               $or: [
                 { date: { $gt: todayStr } },
                 { date: todayStr, endTime: { $gt: nowTimeStr } },
@@ -451,10 +484,12 @@ export async function POST(req: Request) {
 
       // Consume OTP only when an appointment is successfully created.
       // This avoids forcing a resend if appointment creation is blocked by business rules.
-      await c.customerOtps.deleteOne({
-        key: customerEmail,
-        purpose: "booking_verify",
-      });
+      if (bookingSessionId) {
+        await c.customerOtps.deleteOne({
+          key: customerEmail,
+          purpose: "booking_verify",
+        });
+      }
 
       const cancelToken = await signBookingCancelToken({
         appointmentId,
@@ -475,7 +510,7 @@ export async function POST(req: Request) {
             {
               businessUserId: user._id as ObjectId,
               status: "BOOKED",
-              "customer.email": customerEmail,
+              "customer.id": customerId,
               date,
             } as any,
             {

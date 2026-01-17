@@ -167,6 +167,11 @@ export async function GET(
       },
       services,
       availability: onboarding.availability ?? {},
+      bookingRules: {
+        limitCustomerToOneUpcomingAppointment: Boolean(
+          (business as any)?.limitCustomerToOneUpcomingAppointment
+        ),
+      },
       currency: {
         code: currencyCode,
         symbol: currencySymbol(currencyCode),

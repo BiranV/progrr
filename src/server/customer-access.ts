@@ -8,7 +8,7 @@ export function customerAccessCookieOptions() {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax" as const,
-    path: "/b",
+    path: "/",
     maxAge: CUSTOMER_ACCESS_MAX_AGE_SECONDS,
   };
 }
@@ -18,7 +18,7 @@ export function clearCustomerAccessCookieOptions() {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax" as const,
-    path: "/b",
+    path: "/",
     maxAge: 0,
   };
 }

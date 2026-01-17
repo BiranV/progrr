@@ -3,6 +3,13 @@
 import * as React from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +23,7 @@ import { formatDateInTimeZone, formatPrice } from "@/lib/public-booking";
 import Flatpickr from "react-flatpickr";
 import { Arabic } from "flatpickr/dist/l10n/ar";
 import { Hebrew } from "flatpickr/dist/l10n/he";
+import { CalendarDays, LogIn, LogOut } from "lucide-react";
 
 type Step = "service" | "date" | "time" | "details" | "verify" | "success";
 
@@ -71,6 +79,27 @@ type ActiveAppointmentConflict = {
     serviceName?: string;
   }>;
 };
+
+type MyAppointmentsItem = {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  serviceName: string;
+  status: string;
+  cancelledBy?: any;
+};
+
+type BookingMeResponse =
+  | { ok: true; loggedIn: false }
+  | {
+    ok: true;
+    loggedIn: true;
+    date: string;
+    scope?: "day" | "future";
+    customer?: { email?: string; fullName?: string; phone?: string };
+    appointments: MyAppointmentsItem[];
+  };
 
 function weekdayFromDateString(dateStr: string): number {
   // Weekday for a civil date is timezone-independent.
@@ -188,12 +217,21 @@ export default function PublicBookingFlow({
   const [activeConflict, setActiveConflict] =
     React.useState<ActiveAppointmentConflict | null>(null);
   const [identified, setIdentified] = React.useState(false);
+  const [connected, setConnected] = React.useState(false);
+
+  const limitCustomerToOneUpcomingAppointment = Boolean(
+    (data as any)?.bookingRules?.limitCustomerToOneUpcomingAppointment
+  );
 
   // Cookie-based customer identification (server-side): load active appointment if present.
   React.useEffect(() => {
     if (!publicId) return;
     if (!data) return;
     if (result) return;
+    // When the business enforces a strict 1-upcoming-appointment rule, do not
+    // auto-navigate the customer to their existing appointment screen.
+    // Only show that conflict when they attempt to book.
+    if (limitCustomerToOneUpcomingAppointment) return;
 
     let cancelled = false;
     (async () => {
@@ -220,7 +258,53 @@ export default function PublicBookingFlow({
     return () => {
       cancelled = true;
     };
-  }, [data, publicId, result]);
+  }, [data, limitCustomerToOneUpcomingAppointment, publicId, result]);
+
+  // Cookie-based customer identification (server-side): detect connected customer even
+  // when there is no "active appointment" banner (e.g. multi-appointments allowed).
+  React.useEffect(() => {
+    if (!publicId) return;
+    if (!data) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const tz = String(data?.availability?.timezone ?? "").trim() || "UTC";
+        const todayStr = formatDateInTimeZone(new Date(), tz);
+        const res = await fetch(
+          `/api/public/booking/me?businessPublicId=${encodeURIComponent(
+            publicId
+          )}&date=${encodeURIComponent(todayStr)}`
+        );
+        const json = (await res.json().catch(() => null)) as BookingMeResponse | null;
+        if (cancelled) return;
+        if (!res.ok || !json?.ok) return;
+
+        if ((json as any)?.loggedIn) {
+          setConnected(true);
+          const cust = (json as any)?.customer ?? {};
+          if (!customerEmail.trim() && typeof cust?.email === "string") {
+            setCustomerEmail(String(cust.email));
+          }
+          if (!customerFullName.trim() && typeof cust?.fullName === "string") {
+            setCustomerFullName(String(cust.fullName));
+          }
+          if (!customerPhone.trim() && typeof cust?.phone === "string") {
+            setCustomerPhone(String(cust.phone));
+          }
+        }
+      } catch {
+        // ignore
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // Intentionally exclude customer fields from deps: we only want to prefill once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, publicId]);
+
   const [cancelError, setCancelError] = React.useState<string | null>(null);
   const [cancelling, setCancelling] = React.useState(false);
   const [cancellingConflictId, setCancellingConflictId] = React.useState<
@@ -229,6 +313,26 @@ export default function PublicBookingFlow({
   const [cancellingSameDayId, setCancellingSameDayId] = React.useState<
     string | null
   >(null);
+
+  const [loginOpen, setLoginOpen] = React.useState(false);
+  const [loginStep, setLoginStep] = React.useState<"email" | "code">("email");
+  const [loginEmail, setLoginEmail] = React.useState("");
+  const [loginCode, setLoginCode] = React.useState("");
+  const [loginSubmitting, setLoginSubmitting] = React.useState(false);
+  const [loginError, setLoginError] = React.useState<string | null>(null);
+
+  const [myAppointmentsOpen, setMyAppointmentsOpen] = React.useState(false);
+  const [myAppointmentsDate, setMyAppointmentsDate] = React.useState<string>("");
+  const [myAppointmentsScope, setMyAppointmentsScope] = React.useState<
+    "day" | "future"
+  >("future");
+  const [myAppointments, setMyAppointments] = React.useState<MyAppointmentsItem[]>([]);
+  const [myAppointmentsLoading, setMyAppointmentsLoading] = React.useState(false);
+  const [myAppointmentsError, setMyAppointmentsError] = React.useState<string | null>(null);
+  const [cancellingMyAppointmentId, setCancellingMyAppointmentId] = React.useState<
+    string | null
+  >(null);
+  const [loggingOut, setLoggingOut] = React.useState(false);
 
   const resetFlow = React.useCallback(() => {
     setResult(null);
@@ -256,13 +360,107 @@ export default function PublicBookingFlow({
     setStep("service");
   }, []);
 
+  const resetBookingOnly = React.useCallback(() => {
+    setResult(null);
+    setIdentified(false);
+    setActiveConflict(null);
+    setCancelError(null);
+    setCancelling(false);
+    setCancellingConflictId(null);
+    setCancellingSameDayId(null);
+    setSubmitting(false);
+    setFormError(null);
+    setOtpCode("");
+    setBookingSessionId("");
+    setNotes("");
+    setStartTime("");
+    setDate("");
+    setServiceId("");
+    setSlots(null);
+    setSlotsError(null);
+    setSlotsLoading(false);
+    slotsCacheRef.current.clear();
+    setStep("service");
+  }, []);
+
+  React.useEffect(() => {
+    if (!myAppointmentsOpen) return;
+    if (!publicId) return;
+    if (!data) return;
+
+    const tz = String(data?.availability?.timezone ?? "").trim() || "UTC";
+    const todayStr = formatDateInTimeZone(new Date(), tz);
+    const target = myAppointmentsDate || date || result?.appointment?.date || todayStr;
+
+    let cancelled = false;
+    (async () => {
+      setMyAppointmentsLoading(true);
+      setMyAppointmentsError(null);
+      try {
+        const res = await fetch(
+          myAppointmentsScope === "future"
+            ? `/api/public/booking/me?businessPublicId=${encodeURIComponent(
+              publicId
+            )}&scope=future`
+            : `/api/public/booking/me?businessPublicId=${encodeURIComponent(
+              publicId
+            )}&date=${encodeURIComponent(target)}`
+        );
+        const json = (await res.json().catch(() => null)) as BookingMeResponse | null;
+        if (!res.ok) {
+          throw new Error((json as any)?.error || `Request failed (${res.status})`);
+        }
+        if (!json?.ok) throw new Error("Failed");
+        if (!(json as any).loggedIn) {
+          setConnected(false);
+          throw new Error("Please log in again");
+        }
+
+        const cust = (json as any)?.customer ?? {};
+        if (!customerEmail.trim() && typeof cust?.email === "string") {
+          setCustomerEmail(String(cust.email));
+        }
+        if (!customerFullName.trim() && typeof cust?.fullName === "string") {
+          setCustomerFullName(String(cust.fullName));
+        }
+        if (!customerPhone.trim() && typeof cust?.phone === "string") {
+          setCustomerPhone(String(cust.phone));
+        }
+
+        setMyAppointmentsDate((json as any)?.date || target);
+        setMyAppointments(
+          Array.isArray((json as any)?.appointments) ? (json as any).appointments : []
+        );
+      } catch (e: any) {
+        if (cancelled) return;
+        setMyAppointmentsError(e?.message || "Failed");
+      } finally {
+        if (!cancelled) setMyAppointmentsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    customerEmail,
+    customerFullName,
+    customerPhone,
+    data,
+    date,
+    myAppointmentsDate,
+    myAppointmentsOpen,
+    myAppointmentsScope,
+    publicId,
+    result?.appointment?.date,
+  ]);
+
   const didInitFromUrlRef = React.useRef(false);
 
   // Initialize from URL (compat with older deep links) exactly once.
   React.useEffect(() => {
     if (!publicId) return;
     if (!data) return;
-    if (didInitFromUrlRef.current) return;
 
     didInitFromUrlRef.current = true;
 
@@ -348,7 +546,6 @@ export default function PublicBookingFlow({
       if (!data) return false;
       if (!serviceId) return false;
       const dateStr = String(ymd || "").trim();
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
 
       const weekday = weekdayFromDateString(dateStr);
       const conf = availabilityByDay.get(weekday);
@@ -414,6 +611,7 @@ export default function PublicBookingFlow({
       setSlots(null);
       setSlotsError(null);
       setSlotsLoading(true);
+
       try {
         const res = await fetch(
           `/api/public/business/${encodeURIComponent(
@@ -425,8 +623,9 @@ export default function PublicBookingFlow({
         );
 
         const json = await res.json().catch(() => null);
-        if (!res.ok)
+        if (!res.ok) {
           throw new Error(json?.error || `Request failed (${res.status})`);
+        }
 
         if (!alive) return;
         const parsed = json as SlotsResponse;
@@ -435,9 +634,10 @@ export default function PublicBookingFlow({
       } catch (e: any) {
         if (!alive) return;
         if (e?.name === "AbortError") return;
-        setSlotsError(e?.message || "Failed to load times");
+        setSlotsError(e?.message || "Failed to load availability");
       } finally {
-        if (alive) setSlotsLoading(false);
+        if (!alive) return;
+        setSlotsLoading(false);
       }
     })();
 
@@ -447,31 +647,12 @@ export default function PublicBookingFlow({
     };
   }, [date, publicId, serviceId, step]);
 
-  const onBack = React.useMemo<(() => void) | undefined>(() => {
-    if (step === "service") return undefined;
-    if (step === "date")
-      return () => {
-        setDate("");
-        setStartTime("");
-        setStep("service");
-      };
-    if (step === "time")
-      return () => {
-        setStartTime("");
-        setStep("date");
-      };
-    if (step === "details")
-      return () => {
-        setStep("time");
-      };
-    if (step === "verify")
-      return () => {
-        setOtpCode("");
-        setStep("details");
-      };
-    if (step === "success") return () => resetFlow();
-    return undefined;
-  }, [resetFlow, step]);
+  React.useEffect(() => {
+    if (step !== "verify") return;
+    if (!connected) return;
+    setOtpCode("");
+    setStep("details");
+  }, [connected, step]);
 
   const shellSubtitle = React.useMemo(() => {
     if (!data) return "";
@@ -495,14 +676,137 @@ export default function PublicBookingFlow({
 
   const shellSubtitleRight = React.useMemo<React.ReactNode>(() => {
     if (!data) return null;
-    if (!selectedService) return null;
-    if (step === "date") return `${selectedService.name}`;
-    if (step === "time")
-      return `${selectedService.name}${date ? ` • ${date}` : ""}`;
-    return null;
-  }, [data, date, selectedService, step]);
+
+    const tz = String(data?.availability?.timezone ?? "").trim() || "UTC";
+    const todayStr = formatDateInTimeZone(new Date(), tz);
+    const dateForMy = date || result?.appointment?.date || todayStr;
+
+    const rightText = (() => {
+      if (!selectedService) return "";
+      if (step === "date") return `${selectedService.name}`;
+      if (step === "time") return `${selectedService.name}${date ? ` • ${date}` : ""}`;
+      return "";
+    })();
+
+    return rightText ? (
+      <span className="text-sm text-muted-foreground">{rightText}</span>
+    ) : null;
+  }, [connected, customerEmail, data, date, result, selectedService, step]);
+
+  const shellHeaderRight = React.useMemo<React.ReactNode>(() => {
+    if (!data) return null;
+
+    const tz = String(data?.availability?.timezone ?? "").trim() || "UTC";
+    const todayStr = formatDateInTimeZone(new Date(), tz);
+    const dateForMy = date || result?.appointment?.date || todayStr;
+
+    return (
+      <div className="flex flex-col items-end gap-1">
+        {connected && customerEmail.trim() ? (
+          <div className="text-xs text-muted-foreground text-right">
+            Logged in as {customerEmail.trim()}
+          </div>
+        ) : null}
+
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant={connected ? "outline" : "default"}
+            className="rounded-xl h-7 px-3 text-sm gap-2"
+            disabled={loggingOut}
+            onClick={() => {
+              if (connected) {
+                setMyAppointmentsScope("future");
+                setMyAppointmentsDate(dateForMy);
+                setMyAppointmentsOpen(true);
+              } else {
+                setLoginEmail(customerEmail.trim());
+                setLoginStep("email");
+                setLoginCode("");
+                setLoginError(null);
+                setLoginOpen(true);
+              }
+            }}
+          >
+            {connected ? (
+              <>
+                <CalendarDays className="h-4 w-4" />
+                <span>My appointments</span>
+              </>
+            ) : (
+              <>
+                <LogIn className="h-4 w-4" />
+                <span>Log in</span>
+              </>
+            )}
+          </Button>
+
+          {connected ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="rounded-xl h-7 px-3 text-sm gap-2"
+              disabled={loggingOut}
+              onClick={async () => {
+                setLoggingOut(true);
+                try {
+                  await disconnectCustomer();
+                  setConnected(false);
+                  setMyAppointmentsOpen(false);
+                  setMyAppointments([]);
+                  resetFlow();
+                } finally {
+                  setLoggingOut(false);
+                }
+              }}
+            >
+              <LogOut className="h-4 w-4" />
+              <span>{loggingOut ? "Logging out…" : "Logout"}</span>
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    );
+  }, [connected, customerEmail, data, date, disconnectCustomer, loggingOut, resetFlow, result?.appointment?.date]);
 
   const showGallery = step === "service";
+
+  const onBack = React.useCallback(() => {
+    if (step === "time") {
+      setStartTime("");
+      setStep("date");
+      return;
+    }
+
+    if (step === "details") {
+      setStep("time");
+      return;
+    }
+
+    if (step === "verify") {
+      setStep("details");
+      return;
+    }
+
+    if (step === "date") {
+      setDate("");
+      setStartTime("");
+      setStep("service");
+      return;
+    }
+
+    if (step === "success") {
+      if (connected) resetBookingOnly();
+      else resetFlow();
+      return;
+    }
+
+    if (typeof window !== "undefined") {
+      window.history.back();
+    }
+  }, [connected, resetBookingOnly, resetFlow, step]);
 
   const requestOtp = async () => {
     if (!customerFullName.trim()) throw new Error("Full Name is required");
@@ -526,6 +830,46 @@ export default function PublicBookingFlow({
     const json = await res.json().catch(() => null);
     if (!res.ok)
       throw new Error(json?.error || `Request failed (${res.status})`);
+  };
+
+  const requestLoginOtp = async () => {
+    if (!publicId) throw new Error("Business not found");
+    const email = loginEmail.trim();
+    if (!email) throw new Error("Email is required");
+
+    const res = await fetch("/api/public/booking/request-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ businessPublicId: publicId, email }),
+    });
+
+    const json = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
+  };
+
+  const verifyLoginOtp = async () => {
+    if (!publicId) throw new Error("Business not found");
+    const email = loginEmail.trim();
+    const code = loginCode.trim();
+    if (!email) throw new Error("Email is required");
+    if (!code) throw new Error("Code is required");
+
+    const res = await fetch("/api/public/booking/login/verify-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ businessPublicId: publicId, email, code }),
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
+
+    setConnected(true);
+    setCustomerEmail(email);
+    if (!customerFullName.trim() && typeof json?.customer?.fullName === "string") {
+      setCustomerFullName(String(json.customer.fullName));
+    }
+    if (!customerPhone.trim() && typeof json?.customer?.phone === "string") {
+      setCustomerPhone(String(json.customer.phone));
+    }
   };
 
   const verifyBookingSession = async (): Promise<string> => {
@@ -580,11 +924,13 @@ export default function PublicBookingFlow({
     return sessionId;
   };
 
-  const confirmBookingWithSession = async (sessionId: string) => {
+  const confirmBooking = async (sessionId?: string) => {
     if (!publicId) throw new Error("Business not found");
     if (!serviceId || !date || !startTime)
       throw new Error("Missing booking details");
-    if (!sessionId) throw new Error("Email verification required");
+
+    const sid = String(sessionId ?? "").trim();
+    if (!sid && !connected) throw new Error("Email verification required");
 
     const confirmRes = await fetch("/api/public/booking/confirm", {
       method: "POST",
@@ -598,7 +944,7 @@ export default function PublicBookingFlow({
         customerEmail: customerEmail.trim(),
         customerPhone: customerPhone.trim(),
         notes: notes.trim() || undefined,
-        bookingSessionId: sessionId,
+        ...(sid ? { bookingSessionId: sid } : {}),
       }),
     });
 
@@ -614,7 +960,7 @@ export default function PublicBookingFlow({
             String(confirmJson?.code ?? "") === "SAME_SERVICE_SAME_DAY_EXISTS"
               ? "SAME_SERVICE_SAME_DAY_EXISTS"
               : "ACTIVE_APPOINTMENT_EXISTS",
-          bookingSessionId: sessionId,
+          bookingSessionId: sid,
           existingAppointment: confirmJson?.existingAppointment,
           existingAppointments: Array.isArray(confirmJson?.existingAppointments)
             ? confirmJson.existingAppointments
@@ -644,25 +990,28 @@ export default function PublicBookingFlow({
     return confirmJson as BookingResult;
   };
 
-  const disconnectCustomer = async () => {
+  async function disconnectCustomer() {
     await fetch("/api/public/booking/disconnect", { method: "POST" });
-  };
+  }
 
   const cancelExistingAppointment = async (appointmentIdRaw: string) => {
     const sessionId = String(
       bookingSessionId || activeConflict?.bookingSessionId || ""
     ).trim();
     const appointmentId = String(appointmentIdRaw ?? "").trim();
-    if (!sessionId) throw new Error("Verification required");
     if (!appointmentId) throw new Error("Appointment not found");
 
     const res = await fetch("/api/public/booking/cancel", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        bookingSessionId: sessionId,
-        appointmentId,
-        customerEmail: customerEmail.trim(),
+        ...(sessionId
+          ? {
+            bookingSessionId: sessionId,
+            appointmentId,
+            customerEmail: customerEmail.trim(),
+          }
+          : { appointmentId }),
       }),
     });
 
@@ -731,9 +1080,218 @@ export default function PublicBookingFlow({
       title="Booking"
       subtitle={shellSubtitle}
       subtitleRight={shellSubtitleRight}
+      headerRight={shellHeaderRight}
       onBack={onBack}
       showGallery={showGallery}
     >
+      <Dialog
+        open={loginOpen}
+        onOpenChange={(open) => {
+          setLoginOpen(open);
+          if (!open) {
+            setLoginError(null);
+            setLoginSubmitting(false);
+            setLoginCode("");
+            setLoginStep("email");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Log in</DialogTitle>
+            <DialogDescription>
+              Verify your email once to book and manage appointments faster.
+            </DialogDescription>
+          </DialogHeader>
+
+          {loginError ? (
+            <div className="text-sm text-red-600 dark:text-red-400">
+              {loginError}
+            </div>
+          ) : null}
+
+          {loginStep === "email" ? (
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="loginEmail">Email</Label>
+                <Input
+                  id="loginEmail"
+                  className="rounded-2xl"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  placeholder="name@example.com"
+                />
+              </div>
+
+              <Button
+                className="rounded-2xl w-full"
+                disabled={loginSubmitting}
+                onClick={async () => {
+                  setLoginSubmitting(true);
+                  setLoginError(null);
+                  try {
+                    await requestLoginOtp();
+                    setLoginStep("code");
+                  } catch (e: any) {
+                    setLoginError(e?.message || "Failed");
+                  } finally {
+                    setLoginSubmitting(false);
+                  }
+                }}
+              >
+                {loginSubmitting ? "Sending code…" : "Send code"}
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="text-sm text-gray-600 dark:text-gray-300">
+                We sent a code to {loginEmail}.
+              </div>
+              <div className="flex justify-center">
+                <OtpInput
+                  id="login-otp"
+                  name="code"
+                  length={6}
+                  value={loginCode}
+                  onChange={setLoginCode}
+                  disabled={loginSubmitting}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-2xl"
+                  onClick={() => {
+                    setLoginStep("email");
+                    setLoginCode("");
+                    setLoginError(null);
+                  }}
+                  disabled={loginSubmitting}
+                >
+                  Back
+                </Button>
+                <Button
+                  className="rounded-2xl flex-1"
+                  disabled={
+                    loginSubmitting ||
+                    loginCode.replace(/\D/g, "").length < 6
+                  }
+                  onClick={async () => {
+                    setLoginSubmitting(true);
+                    setLoginError(null);
+                    try {
+                      await verifyLoginOtp();
+                      setLoginOpen(false);
+                    } catch (e: any) {
+                      setLoginError(e?.message || "Failed");
+                    } finally {
+                      setLoginSubmitting(false);
+                    }
+                  }}
+                >
+                  {loginSubmitting ? "Verifying…" : "Verify"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={myAppointmentsOpen}
+        onOpenChange={(open) => {
+          setMyAppointmentsOpen(open);
+          if (!open) {
+            setMyAppointmentsError(null);
+            setMyAppointmentsLoading(false);
+            setCancellingMyAppointmentId(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>
+              {myAppointmentsScope === "future"
+                ? "Your upcoming appointments"
+                : "My appointments"}
+            </DialogTitle>
+            <DialogDescription>
+              {myAppointmentsScope === "future"
+                ? "Only upcoming booked appointments"
+                : myAppointmentsDate
+                  ? `For ${myAppointmentsDate}`
+                  : ""}
+            </DialogDescription>
+          </DialogHeader>
+
+          {myAppointmentsError ? (
+            <div className="text-sm text-red-600 dark:text-red-400">
+              {myAppointmentsError}
+            </div>
+          ) : null}
+
+          {myAppointmentsLoading ? (
+            <CenteredSpinner className="min-h-[120px] items-center" />
+          ) : myAppointments.filter(
+            (a) => String(a.status || "").toUpperCase() === "BOOKED"
+          ).length === 0 ? (
+            <div className="text-sm text-muted-foreground">
+              {myAppointmentsScope === "future"
+                ? "No upcoming appointments."
+                : "No appointments for this day."}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {myAppointments
+                .filter((a) => String(a.status || "").toUpperCase() === "BOOKED")
+                .map((a) => (
+                  <div
+                    key={a.id}
+                    className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/10 p-3"
+                  >
+                    {a.date ? (
+                      <div className="text-xs text-muted-foreground">
+                        {a.date}
+                      </div>
+                    ) : null}
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">
+                      {a.startTime}–{a.endTime}
+                    </div>
+                    <div className="text-sm text-gray-700 dark:text-gray-200">
+                      {a.serviceName}
+                    </div>
+
+                    <div className="text-xs text-muted-foreground mt-1">Booked</div>
+
+                    <Button
+                      variant="outline"
+                      className="rounded-2xl w-full mt-2"
+                      disabled={cancellingMyAppointmentId === a.id}
+                      onClick={async () => {
+                        setCancellingMyAppointmentId(a.id);
+                        setMyAppointmentsError(null);
+                        try {
+                          await cancelSameDayAppointment(a.id);
+                          setMyAppointments((prev) => prev.filter((x) => x.id !== a.id));
+                        } catch (e: any) {
+                          setMyAppointmentsError(e?.message || "Failed");
+                        } finally {
+                          setCancellingMyAppointmentId(null);
+                        }
+                      }}
+                    >
+                      {cancellingMyAppointmentId === a.id
+                        ? "Cancelling…"
+                        : "Cancel this appointment"}
+                    </Button>
+                  </div>
+                ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Service selection */}
       {step === "service" ? (
         <div className="space-y-3">
@@ -878,6 +1436,88 @@ export default function PublicBookingFlow({
             </div>
           ) : null}
 
+          {activeConflict ? (
+            <div className="rounded-2xl border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/70 dark:bg-amber-950/20 p-4">
+              <div className="font-semibold text-amber-900 dark:text-amber-200">
+                {activeConflict.code === "SAME_SERVICE_SAME_DAY_EXISTS"
+                  ? "You already booked this service on this day"
+                  : "You already have an upcoming appointment"}
+              </div>
+              <div className="text-sm text-amber-800/90 dark:text-amber-200/80 mt-1">
+                {activeConflict.code === "SAME_SERVICE_SAME_DAY_EXISTS"
+                  ? "Please cancel it first to book the same service again."
+                  : "Please cancel it first to book a new one."}
+              </div>
+
+              <div className="mt-2 space-y-2">
+                {(Array.isArray(activeConflict.existingAppointments)
+                  ? activeConflict.existingAppointments
+                  : activeConflict.existingAppointment
+                    ? [activeConflict.existingAppointment]
+                    : []
+                )
+                  .filter((x: any) => String(x?.id ?? "").trim())
+                  .map((appt: any) => {
+                    const apptId = String(appt?.id ?? "").trim();
+                    const label = `${appt?.serviceName ? `${appt.serviceName} • ` : ""}${appt?.date || ""
+                      }${appt?.startTime ? ` • ${appt.startTime}` : ""}`;
+
+                    return (
+                      <div
+                        key={apptId}
+                        className="rounded-xl border border-amber-200/70 dark:border-amber-900/40 bg-white/60 dark:bg-black/10 p-3"
+                      >
+                        <div className="text-sm text-amber-900/90 dark:text-amber-200/90">
+                          {label}
+                        </div>
+                        <Button
+                          variant="outline"
+                          className="rounded-2xl w-full mt-2"
+                          disabled={submitting || cancellingConflictId === apptId}
+                          onClick={async () => {
+                            setFormError(null);
+                            setCancellingConflictId(apptId);
+                            try {
+                              await cancelExistingAppointment(apptId);
+                              setActiveConflict((prev) => {
+                                if (!prev) return prev;
+                                const list = Array.isArray(prev.existingAppointments)
+                                  ? prev.existingAppointments
+                                  : [];
+                                const nextList = list.filter(
+                                  (x: any) => String(x?.id ?? "").trim() !== apptId
+                                );
+
+                                // If we only had a single fallback appointment, clear conflict after cancel.
+                                if (list.length === 0) return null;
+                                if (nextList.length === 0) return null;
+                                return { ...prev, existingAppointments: nextList };
+                              });
+                            } catch (e: any) {
+                              if (
+                                String(e?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS" ||
+                                String(e?.code ?? "") ===
+                                "SAME_SERVICE_SAME_DAY_EXISTS"
+                              ) {
+                                return;
+                              }
+                              setFormError(e?.message || "Failed");
+                            } finally {
+                              setCancellingConflictId(null);
+                            }
+                          }}
+                        >
+                          {cancellingConflictId === apptId
+                            ? "Cancelling…"
+                            : "Cancel this appointment"}
+                        </Button>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          ) : null}
+
           <div className="space-y-2">
             <Label htmlFor="fullName">Full Name</Label>
             <Input
@@ -934,9 +1574,25 @@ export default function PublicBookingFlow({
               setSubmitting(true);
               setFormError(null);
               try {
+                if (connected) {
+                  const r = await confirmBooking();
+                  setResult(r);
+                  setStep("success");
+                  setIdentified(true);
+                  setConnected(true);
+                  return;
+                }
+
                 await requestOtp();
                 setStep("verify");
               } catch (e: any) {
+                if (
+                  String(e?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS" ||
+                  String(e?.code ?? "") === "SAME_SERVICE_SAME_DAY_EXISTS"
+                ) {
+                  // Business rule conflict: show conflict panel only.
+                  return;
+                }
                 setFormError(e?.message || "Failed");
               } finally {
                 setSubmitting(false);
@@ -951,7 +1607,13 @@ export default function PublicBookingFlow({
             }
             className="rounded-2xl w-full"
           >
-            {submitting ? "Sending code…" : "Verify email"}
+            {submitting
+              ? connected
+                ? "Confirming…"
+                : "Sending code…"
+              : connected
+                ? "Confirm booking"
+                : "Verify email"}
           </Button>
         </div>
       ) : null}
@@ -1084,10 +1746,11 @@ export default function PublicBookingFlow({
                 setFormError(null);
                 try {
                   const sessionId = await verifyBookingSession();
-                  const r = await confirmBookingWithSession(sessionId);
+                  const r = await confirmBooking(sessionId);
                   setResult(r);
                   setStep("success");
                   setIdentified(true);
+                  setConnected(true);
                 } catch (e: any) {
                   if (
                     String(e?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS" ||
@@ -1199,6 +1862,12 @@ export default function PublicBookingFlow({
 
           <div className="space-y-2">
             <div className="flex flex-wrap gap-3">
+              {!limitCustomerToOneUpcomingAppointment ? (
+                <Button className="rounded-2xl" onClick={() => resetBookingOnly()}>
+                  Book another appointment
+                </Button>
+              ) : null}
+
               <Button
                 variant="outline"
                 className="rounded-2xl"
@@ -1248,6 +1917,7 @@ export default function PublicBookingFlow({
                     setCancelError(null);
                     try {
                       await disconnectCustomer();
+                      setConnected(false);
                       resetFlow();
                     } catch (e: any) {
                       setCancelError(e?.message || "Failed");

@@ -7,6 +7,9 @@ export type PublicBusiness = {
     instagram?: string;
     whatsapp?: string;
   };
+  bookingRules?: {
+    limitCustomerToOneUpcomingAppointment?: boolean;
+  };
   branding?: {
     // New shape (Cloudinary-backed)
     logo?: { url: string; publicId: string };
