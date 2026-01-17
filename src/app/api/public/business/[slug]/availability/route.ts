@@ -4,9 +4,36 @@ import { ObjectId } from "mongodb";
 import { collections, ensureIndexes } from "@/server/collections";
 import { computeAvailableSlots } from "@/server/booking/slots";
 import { isValidBusinessPublicId } from "@/server/business-public-id";
+import { formatDateInTimeZone } from "@/lib/public-booking";
 
 function isValidDateString(s: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(s);
+}
+
+function formatTimeInTimeZone(date: Date, timeZone: string): string {
+  const tz = String(timeZone || "UTC").trim() || "UTC";
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: tz,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(date);
+  } catch {
+    parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "UTC",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(date);
+  }
+
+  const get = (type: string) => parts.find((p) => p.type === type)?.value;
+  const h = get("hour");
+  const m = get("minute");
+  if (!h || !m) return "";
+  return `${h}:${m}`;
 }
 
 export async function GET(
@@ -121,6 +148,23 @@ export async function GET(
     const timeZone =
       String(onboarding?.availability?.timezone ?? "").trim() || "UTC";
 
+    let filteredSlots = slots;
+    try {
+      const now = new Date();
+      const todayStr = formatDateInTimeZone(now, timeZone);
+      const nowTimeStr = formatTimeInTimeZone(now, timeZone);
+
+      if (date < todayStr) {
+        filteredSlots = [];
+      } else if (date === todayStr && nowTimeStr) {
+        filteredSlots = slots.filter(
+          (s: any) => String(s?.startTime ?? "") >= nowTimeStr
+        );
+      }
+    } catch {
+      // If timezone formatting fails, fall back to returning the computed slots.
+    }
+
     return NextResponse.json({
       ok: true,
       date,
@@ -130,7 +174,7 @@ export async function GET(
         name: String(service.name ?? "").trim(),
         durationMinutes,
       },
-      slots,
+      slots: filteredSlots,
     });
   } catch (error: any) {
     const status = typeof error?.status === "number" ? error.status : 500;
