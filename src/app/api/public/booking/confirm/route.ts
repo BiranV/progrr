@@ -216,29 +216,18 @@ export async function POST(req: Request) {
       );
     }
 
+    // Conflict check MUST use verified identity only (email), never cookies/session.
     const existing = await c.appointments.findOne(
       {
         businessUserId: user._id as ObjectId,
         status: "BOOKED",
-        $and: [
-          {
-            $or: [
-              { "customer.id": customerId },
-              { "customer.email": customerEmail },
-              { "customer.phone": customerPhone },
-            ],
-          },
-          {
-            $or: [
-              { date: { $gt: todayStr } },
-              { date: todayStr, startTime: { $gt: nowTimeStr } },
-            ],
-          },
+        "customer.email": customerEmail,
+        $or: [
+          { date: { $gt: todayStr } },
+          { date: todayStr, endTime: { $gt: nowTimeStr } },
         ],
       } as any,
-      {
-        sort: { date: 1, startTime: 1 },
-      }
+      { sort: { date: 1, startTime: 1 } }
     );
 
     if (existing) {

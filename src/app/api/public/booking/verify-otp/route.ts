@@ -8,7 +8,6 @@ import { checkRateLimit } from "@/server/rate-limit";
 import { isValidBusinessPublicId } from "@/server/business-public-id";
 import { formatDateInTimeZone } from "@/lib/public-booking";
 import { ObjectId } from "mongodb";
-import { customerIdFor } from "@/server/customer-id";
 
 function normalizeEmail(input: unknown): string {
   return String(input ?? "")
@@ -121,8 +120,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid code" }, { status: 401 });
     }
 
-    // After successful OTP verification, check business rule: one active future appointment.
-    // If blocked, return ACTIVE_APPOINTMENT_EXISTS without touching OTP.
+    // After successful OTP verification, check business rules (block list + active appointment conflict).
     const user = await c.users.findOne({
       "onboarding.business.publicId": businessPublicId,
       onboardingCompleted: true,
@@ -163,23 +161,15 @@ export async function POST(req: Request) {
     const todayStr = formatDateInTimeZone(new Date(), timeZone);
     const nowTimeStr = formatTimeInTimeZone(new Date(), timeZone);
 
-    const businessUserId = (user._id as ObjectId).toHexString();
-    const customerId = customerIdFor({ businessUserId, email });
-
+    // Conflict check MUST use verified identity only (email), never cookies/session.
     const existing = await c.appointments.findOne(
       {
         businessUserId: user._id as ObjectId,
         status: "BOOKED",
-        $and: [
-          {
-            $or: [{ "customer.id": customerId }, { "customer.email": email }],
-          },
-          {
-            $or: [
-              { date: { $gt: todayStr } },
-              { date: todayStr, startTime: { $gt: nowTimeStr } },
-            ],
-          },
+        "customer.email": email,
+        $or: [
+          { date: { $gt: todayStr } },
+          { date: todayStr, endTime: { $gt: nowTimeStr } },
         ],
       } as any,
       { sort: { date: 1, startTime: 1 } }
