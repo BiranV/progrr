@@ -1,12 +1,44 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Calendar, LayoutDashboard, Settings, Users } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+
+import { ONBOARDING_QUERY_KEY } from "@/hooks/useOnboardingSettings";
 import { cn } from "@/lib/utils";
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const queryClient = useQueryClient();
+
+  const refreshForHref = React.useCallback(
+    (href: string) => {
+      // Mark relevant cached data as stale so the destination page refetches.
+      if (href.startsWith("/dashboard")) {
+        queryClient.invalidateQueries({ queryKey: ["dashboardSummary"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboardRevenueSeries"] });
+        return;
+      }
+
+      if (href.startsWith("/calendar")) {
+        queryClient.invalidateQueries({ queryKey: ["appointments"] });
+        return;
+      }
+
+      if (href.startsWith("/customers")) {
+        queryClient.invalidateQueries({ queryKey: ["customers"] });
+        return;
+      }
+
+      if (href.startsWith("/settings")) {
+        queryClient.invalidateQueries({ queryKey: ["business"] });
+        queryClient.invalidateQueries({ queryKey: ONBOARDING_QUERY_KEY });
+      }
+    },
+    [queryClient]
+  );
 
   const navItems = [
     { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
@@ -27,6 +59,7 @@ export default function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={() => refreshForHref(item.href)}
               className={cn(
                 "flex flex-1 flex-col items-center justify-center space-y-1 h-full py-2 tap-highlight-transparent",
                 isActive

@@ -34,16 +34,13 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const ONBOARDING_QUERY_KEY = ["onboarding"] as const;
 
-// Settings-focused onboarding cache. Uses React Query (already in the app) and
-// avoids refetching on every navigation; pages can optionally trigger a background
-// refresh based on dataUpdatedAt.
 export function useOnboardingSettings() {
     return useQuery({
         queryKey: ONBOARDING_QUERY_KEY,
         queryFn: () => apiFetch<OnboardingResponse>("/api/onboarding"),
         staleTime: 2 * 60 * 1000,
         gcTime: 30 * 60 * 1000,
-        refetchOnMount: false,
-        refetchOnReconnect: false,
+        refetchOnMount: true,
+        refetchOnReconnect: true,
     });
 }
