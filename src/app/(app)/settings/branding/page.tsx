@@ -300,8 +300,7 @@ export default function BrandingSettingsPage() {
       }
       if (skipped.length) {
         toast.error(
-          `Some files were skipped: ${skipped.slice(0, 3).join(", ")}${
-            skipped.length > 3 ? "…" : ""
+          `Some files were skipped: ${skipped.slice(0, 3).join(", ")}${skipped.length > 3 ? "…" : ""
           }`
         );
       }
@@ -638,7 +637,6 @@ export default function BrandingSettingsPage() {
             uploadGalleryFiles(picked).catch(() => null);
           }}
         />
-
         <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
           {galleryPendingPreviews.map((url, idx) => (
             <div

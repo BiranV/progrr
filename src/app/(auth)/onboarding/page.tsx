@@ -1717,7 +1717,6 @@ export default function OnboardingPage() {
                   );
                 }}
               />
-
               <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {galleryPendingPreviews.map((url, idx) => (
                   <div

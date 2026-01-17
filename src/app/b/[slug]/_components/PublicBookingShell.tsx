@@ -4,6 +4,8 @@ import * as React from "react";
 import Image from "next/image";
 import {
   ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
   Instagram,
   MessageCircle,
   Navigation,
@@ -54,6 +56,57 @@ export default function PublicBookingShell({
   const gallery = Array.isArray(business?.branding?.gallery)
     ? (business?.branding?.gallery || []).filter(Boolean).slice(0, 10)
     : [];
+
+  const galleryMaxVisible = 6;
+  const galleryPaged = gallery.length > galleryMaxVisible;
+
+  const galleryPages = React.useMemo(() => {
+    if (!galleryPaged) return [gallery];
+    const pages: string[][] = [];
+    for (let i = 0; i < gallery.length; i += galleryMaxVisible) {
+      pages.push(gallery.slice(i, i + galleryMaxVisible));
+    }
+    return pages;
+  }, [gallery, galleryPaged]);
+
+  const galleryScrollerRef = React.useRef<HTMLDivElement | null>(null);
+  const [galleryPage, setGalleryPage] = React.useState(0);
+
+  React.useEffect(() => {
+    setGalleryPage(0);
+    if (galleryPaged && galleryScrollerRef.current) {
+      galleryScrollerRef.current.scrollTo({ left: 0, behavior: "auto" });
+    }
+  }, [galleryPaged, galleryPages.length]);
+
+  const scrollGalleryToPage = React.useCallback((nextPage: number) => {
+    const el = galleryScrollerRef.current;
+    if (!el) return;
+    const clamped = Math.max(0, Math.min(nextPage, galleryPages.length - 1));
+    const pageWidth = el.clientWidth || 1;
+    el.scrollTo({ left: clamped * pageWidth, behavior: "smooth" });
+  }, [galleryPages.length]);
+
+  React.useEffect(() => {
+    const el = galleryScrollerRef.current;
+    if (!galleryPaged || !el) return;
+
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const pageWidth = el.clientWidth || 1;
+        const next = Math.round(el.scrollLeft / pageWidth);
+        setGalleryPage((p) => (p === next ? p : next));
+      });
+    };
+
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      el.removeEventListener("scroll", onScroll);
+    };
+  }, [galleryPaged]);
 
   const businessName = String(business?.business?.name ?? title).trim();
   const businessPhone = String(business?.business?.phone ?? "").trim();
@@ -241,56 +294,186 @@ export default function PublicBookingShell({
 
           {showGallery && gallery.length > 0 ? (
             <div className="mb-5">
-              <div
-                className={cn(
-                  "grid grid-cols-3 gap-2",
-                  "auto-rows-[84px] sm:auto-rows-[92px]"
-                )}
-              >
-                {gallery.map((src, idx) => {
-                  const isHero = idx === 0 && gallery.length >= 3;
-                  return (
-                    <button
-                      type="button"
-                      key={`${src}-${idx}`}
-                      aria-label={`Open gallery image ${idx + 1}`}
-                      onClick={() => setPreviewSrc(src)}
-                      className={cn(
-                        "group relative overflow-hidden",
-                        "rounded-2xl",
-                        "border border-gray-200/70 dark:border-gray-800",
-                        "bg-gray-100 dark:bg-gray-800",
-                        "shadow-sm",
-                        "transition",
-                        "hover:shadow-md",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30 dark:focus-visible:ring-white/30",
-                        "cursor-zoom-in",
-                        isHero ? "col-span-2 row-span-2" : "col-span-1 row-span-1"
-                      )}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={src}
-                        alt={`Gallery image ${idx + 1}`}
+              {!galleryPaged ? (
+                <div
+                  className={cn(
+                    "grid grid-cols-3 gap-2",
+                    "auto-rows-[84px] sm:auto-rows-[92px]"
+                  )}
+                >
+                  {gallery.map((src, idx) => {
+                    const isHero = idx === 0 && gallery.length >= 3;
+                    return (
+                      <button
+                        type="button"
+                        key={`${src}-${idx}`}
+                        aria-label={`Open gallery image ${idx + 1}`}
+                        onClick={() => setPreviewSrc(src)}
                         className={cn(
-                          "h-full w-full object-cover",
-                          "transition duration-300",
-                          "group-hover:scale-[1.03]"
+                          "group relative overflow-hidden",
+                          "rounded-2xl",
+                          "border border-gray-200/70 dark:border-gray-800",
+                          "bg-gray-100 dark:bg-gray-800",
+                          "shadow-sm",
+                          "transition",
+                          "hover:shadow-md",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30 dark:focus-visible:ring-white/30",
+                          "cursor-zoom-in",
+                          isHero
+                            ? "col-span-2 row-span-2"
+                            : "col-span-1 row-span-1"
                         )}
-                        draggable={false}
-                      />
-                      <div
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={src}
+                          alt={`Gallery image ${idx + 1}`}
+                          className={cn(
+                            "h-full w-full object-cover",
+                            "transition duration-300",
+                            "group-hover:scale-[1.03]"
+                          )}
+                          draggable={false}
+                        />
+                        <div
+                          className={cn(
+                            "pointer-events-none absolute inset-0",
+                            "bg-gradient-to-t from-black/25 via-black/0 to-black/0",
+                            "opacity-0 group-hover:opacity-100",
+                            "transition-opacity"
+                          )}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="relative">
+                  <div
+                    ref={galleryScrollerRef}
+                    dir="ltr"
+                    className={cn(
+                      "flex overflow-x-auto scroll-smooth",
+                      "snap-x snap-mandatory",
+                      "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                    )}
+                  >
+                    {galleryPages.map((page, pageIdx) => (
+                      <div key={pageIdx} className="shrink-0 w-full snap-start">
+                        <div
+                          className={cn(
+                            "grid grid-cols-3 gap-2",
+                            "auto-rows-[84px] sm:auto-rows-[92px]"
+                          )}
+                        >
+                          {page.map((src, idx) => (
+                            <button
+                              type="button"
+                              key={`${src}-${pageIdx}-${idx}`}
+                              aria-label={`Open gallery image ${pageIdx * galleryMaxVisible + idx + 1}`}
+                              onClick={() => setPreviewSrc(src)}
+                              className={cn(
+                                "group relative overflow-hidden",
+                                "rounded-2xl",
+                                "border border-gray-200/70 dark:border-gray-800",
+                                "bg-gray-100 dark:bg-gray-800",
+                                "shadow-sm",
+                                "transition",
+                                "hover:shadow-md",
+                                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30 dark:focus-visible:ring-white/30",
+                                "cursor-zoom-in"
+                              )}
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={src}
+                                alt={`Gallery image ${pageIdx * galleryMaxVisible + idx + 1}`}
+                                className={cn(
+                                  "h-full w-full object-cover",
+                                  "transition duration-300",
+                                  "group-hover:scale-[1.03]"
+                                )}
+                                draggable={false}
+                              />
+                              <div
+                                className={cn(
+                                  "pointer-events-none absolute inset-0",
+                                  "bg-gradient-to-t from-black/25 via-black/0 to-black/0",
+                                  "opacity-0 group-hover:opacity-100",
+                                  "transition-opacity"
+                                )}
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pointer-events-none absolute inset-y-0 left-0 right-0 flex items-center justify-between">
+                    <div className="pointer-events-auto">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => scrollGalleryToPage(galleryPage - 1)}
+                        disabled={galleryPage <= 0}
                         className={cn(
-                          "pointer-events-none absolute inset-0",
-                          "bg-gradient-to-t from-black/25 via-black/0 to-black/0",
-                          "opacity-0 group-hover:opacity-100",
-                          "transition-opacity"
+                          "rounded-2xl",
+                          "h-10 w-10",
+                          "bg-white/70 dark:bg-black/40",
+                          "backdrop-blur",
+                          "border border-gray-200/70 dark:border-gray-800",
+                          "shadow-sm",
+                          "ml-1"
+                        )}
+                        aria-label="Previous gallery images"
+                      >
+                        <ChevronLeft className="h-5 w-5" />
+                      </Button>
+                    </div>
+
+                    <div className="pointer-events-auto">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => scrollGalleryToPage(galleryPage + 1)}
+                        disabled={galleryPage >= galleryPages.length - 1}
+                        className={cn(
+                          "rounded-2xl",
+                          "h-10 w-10",
+                          "bg-white/70 dark:bg-black/40",
+                          "backdrop-blur",
+                          "border border-gray-200/70 dark:border-gray-800",
+                          "shadow-sm",
+                          "mr-1"
+                        )}
+                        aria-label="Next gallery images"
+                      >
+                        <ChevronRight className="h-5 w-5" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="mt-2 flex items-center justify-center gap-1.5">
+                    {galleryPages.map((_, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => scrollGalleryToPage(i)}
+                        aria-label={`Go to gallery page ${i + 1}`}
+                        className={cn(
+                          "h-1.5 rounded-full transition",
+                          i === galleryPage
+                            ? "w-6 bg-gray-900/60 dark:bg-white/60"
+                            : "w-2 bg-gray-900/20 dark:bg-white/20"
                         )}
                       />
-                    </button>
-                  );
-                })}
-              </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : null}
 
