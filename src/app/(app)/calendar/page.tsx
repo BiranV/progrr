@@ -12,6 +12,8 @@ import { toast } from "sonner";
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import ConfirmModal from "@/components/ui/confirm-modal";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -30,6 +32,8 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 
+import { useAuth } from "@/context/AuthContext";
+
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -37,9 +41,14 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+function isValidEmail(email: string) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 export default function CalendarPage() {
     const searchParams = useSearchParams();
     const queryClient = useQueryClient();
+    const { user } = useAuth();
 
     const [date, setDate] = React.useState<string>(() => {
         const d = new Date();
@@ -106,6 +115,67 @@ export default function CalendarPage() {
     const [rescheduling, setRescheduling] = React.useState(false);
 
     const [statusUpdatingId, setStatusUpdatingId] = React.useState<string | null>(null);
+
+    const [createOpen, setCreateOpen] = React.useState(false);
+    const [createServiceId, setCreateServiceId] = React.useState<string>("");
+    const [createStartTime, setCreateStartTime] = React.useState<string>("");
+    const [createCustomerMode, setCreateCustomerMode] = React.useState<"existing" | "new">(
+        "existing"
+    );
+    const [createExistingCustomerId, setCreateExistingCustomerId] = React.useState<string>("");
+    const [createCustomerFullName, setCreateCustomerFullName] = React.useState<string>("");
+    const [createCustomerPhone, setCreateCustomerPhone] = React.useState<string>("");
+    const [createCustomerEmail, setCreateCustomerEmail] = React.useState<string>("");
+    const [createNotes, setCreateNotes] = React.useState<string>("");
+    const [creating, setCreating] = React.useState(false);
+
+    const [createCustomerEmailError, setCreateCustomerEmailError] = React.useState<string | null>(null);
+
+    const inputErrorClass = "border-red-500 focus-visible:ring-red-500/20";
+
+    type CustomerForPicker = {
+        _id: string;
+        fullName: string;
+        phone: string;
+        email?: string;
+        status?: "ACTIVE" | "BLOCKED";
+    };
+
+    const customersPickerQuery = useQuery({
+        queryKey: ["customers"],
+        enabled: createOpen,
+        staleTime: 2 * 60 * 1000,
+        queryFn: async (): Promise<CustomerForPicker[]> => {
+            const res = await fetch("/api/customers", {
+                method: "GET",
+                headers: { Accept: "application/json" },
+            });
+            const json = await res.json().catch(() => null);
+            if (!res.ok) {
+                throw new Error(json?.error || `Request failed (${res.status})`);
+            }
+            return Array.isArray(json?.customers) ? (json.customers as CustomerForPicker[]) : [];
+        },
+    });
+
+    const customersForPicker = React.useMemo(() => {
+        const rows = customersPickerQuery.data ?? [];
+        return rows
+            .map((c) => ({
+                _id: String((c as any)?._id ?? ""),
+                fullName: String((c as any)?.fullName ?? ""),
+                phone: String((c as any)?.phone ?? ""),
+                email:
+                    typeof (c as any)?.email === "string" && String((c as any).email).trim()
+                        ? String((c as any).email).trim()
+                        : undefined,
+                status:
+                    String((c as any)?.status ?? "ACTIVE").toUpperCase() === "BLOCKED"
+                        ? "BLOCKED"
+                        : "ACTIVE",
+            }))
+            .filter((c) => c._id && c.phone);
+    }, [customersPickerQuery.data]);
 
     const dir = React.useMemo<"ltr" | "rtl">(() => {
         if (typeof document === "undefined") return "ltr";
@@ -180,6 +250,181 @@ export default function CalendarPage() {
         },
         [date, queryClient]
     );
+
+    const services = React.useMemo(() => {
+        const raw = Array.isArray((user as any)?.onboarding?.services)
+            ? (((user as any).onboarding.services) as any[])
+            : [];
+        return raw
+            .map((s) => ({
+                id: String(s?.id ?? "").trim(),
+                name: String(s?.name ?? "").trim(),
+                durationMinutes: Number(s?.durationMinutes) || 0,
+                isActive: s?.isActive !== false,
+            }))
+            .filter((s) => s.id && s.name && s.durationMinutes > 0 && s.isActive);
+    }, [user]);
+
+    const availableCreateSlotsQuery = useQuery({
+        queryKey: ["adminCreateSlots", date, createServiceId],
+        enabled: createOpen && !!createServiceId,
+        staleTime: 0,
+        queryFn: async (): Promise<Array<{ startTime: string; endTime: string }>> => {
+            const res = await fetch(
+                `/api/appointments/available-times?date=${encodeURIComponent(date)}&serviceId=${encodeURIComponent(
+                    createServiceId
+                )}`,
+                { method: "GET", headers: { Accept: "application/json" } }
+            );
+            const json = await res.json().catch(() => null);
+            if (!res.ok) {
+                throw new Error(json?.error || `Request failed (${res.status})`);
+            }
+            return Array.isArray(json?.slots) ? (json.slots as any[]) : [];
+        },
+    });
+
+    const createSlots = React.useMemo(
+        () => availableCreateSlotsQuery.data ?? [],
+        [availableCreateSlotsQuery.data]
+    );
+
+    React.useEffect(() => {
+        setCreateStartTime("");
+    }, [createServiceId, date]);
+
+    const resetCreateForm = React.useCallback(() => {
+        setCreateServiceId("");
+        setCreateStartTime("");
+        setCreateCustomerMode("existing");
+        setCreateExistingCustomerId("");
+        setCreateCustomerFullName("");
+        setCreateCustomerPhone("");
+        setCreateCustomerEmail("");
+        setCreateNotes("");
+        setCreateCustomerEmailError(null);
+    }, []);
+
+    React.useEffect(() => {
+        if (createCustomerMode === "existing") {
+            if (createCustomerEmailError) setCreateCustomerEmailError(null);
+            return;
+        }
+        if (!createCustomerEmailError) return;
+        const v = createCustomerEmail.trim();
+        if (!v) setCreateCustomerEmailError("Customer email is required");
+        else if (!isValidEmail(v)) setCreateCustomerEmailError("Please enter a valid email address");
+        else setCreateCustomerEmailError(null);
+    }, [createCustomerEmail, createCustomerEmailError, createCustomerMode]);
+
+    React.useEffect(() => {
+        if (createCustomerMode !== "existing") return;
+        if (!createExistingCustomerId) {
+            setCreateCustomerFullName("");
+            setCreateCustomerPhone("");
+            setCreateCustomerEmail("");
+            return;
+        }
+        const c = customersForPicker.find((x) => x._id === createExistingCustomerId);
+        if (!c) return;
+        setCreateCustomerFullName(c.fullName);
+        setCreateCustomerPhone(c.phone);
+        setCreateCustomerEmail(c.email ?? "");
+    }, [createCustomerMode, createExistingCustomerId, customersForPicker]);
+
+    const createAppointment = React.useCallback(async () => {
+        if (!createServiceId) {
+            toast.error("Please choose a service");
+            return;
+        }
+        if (!createStartTime) {
+            toast.error("Please choose an hour");
+            return;
+        }
+
+        if (createCustomerMode === "existing" && !createExistingCustomerId) {
+            toast.error("Please select a customer");
+            return;
+        }
+
+        if (!createCustomerFullName.trim()) {
+            toast.error("Customer name is required");
+            return;
+        }
+        if (!createCustomerPhone.trim()) {
+            toast.error("Customer phone is required");
+            return;
+        }
+        const email = createCustomerEmail.trim();
+
+        // Email is required for public customer access + confirmations.
+        if (!email) {
+            if (createCustomerMode === "new") setCreateCustomerEmailError("Customer email is required");
+            toast.error("Customer email is required");
+            return;
+        }
+        if (!isValidEmail(email)) {
+            if (createCustomerMode === "new")
+                setCreateCustomerEmailError("Please enter a valid email address");
+            toast.error("Please enter a valid email address");
+            return;
+        }
+        if (createCustomerMode === "new") setCreateCustomerEmailError(null);
+
+        setCreating(true);
+        try {
+            const res = await fetch("/api/appointments/create", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    date,
+                    serviceId: createServiceId,
+                    startTime: createStartTime,
+                    customerFullName: createCustomerFullName.trim(),
+                    customerPhone: createCustomerPhone.trim(),
+                    customerEmail: email,
+                    notes: createNotes.trim(),
+                }),
+            });
+
+            const json = await res.json().catch(() => null);
+            if (!res.ok) {
+                throw new Error(json?.error || `Request failed (${res.status})`);
+            }
+
+            toast.success("Appointment created");
+
+            if (json?.email?.sent === false) {
+                toast.error(String(json?.email?.error || "Failed to send email"));
+            }
+
+            setCreateOpen(false);
+            resetCreateForm();
+
+            await queryClient.invalidateQueries({ queryKey: ["appointments", date] });
+            await queryClient.invalidateQueries({ queryKey: ["customers"] });
+            await queryClient.invalidateQueries({ queryKey: ["dashboardSummary"] });
+            await queryClient.invalidateQueries({ queryKey: ["dashboardRevenueSeries"] });
+        } catch (e: any) {
+            const msg = String(e?.message || "Failed");
+            toast.error(msg);
+        } finally {
+            setCreating(false);
+        }
+    }, [
+        createCustomerEmail,
+        createCustomerEmailError,
+        createCustomerMode,
+        createCustomerFullName,
+        createCustomerPhone,
+        createExistingCustomerId,
+        createNotes,
+        createServiceId,
+        createStartTime,
+        date,
+        queryClient,
+        resetCreateForm,
+    ]);
 
     const parseTimeToMinutes = React.useCallback((hhmm: string): number => {
         const m = /^\s*(\d{1,2}):(\d{2})\s*$/.exec(String(hhmm ?? ""));
@@ -351,22 +596,23 @@ export default function CalendarPage() {
                 />
             </div>
 
-            <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-semibold text-gray-900 dark:text-white">
+            <div className="grid grid-cols-3 items-center gap-3">
+                <div className="min-w-0 text-sm font-semibold text-gray-900 dark:text-white truncate">
                     {date}
                 </div>
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                        <Switch
-                            checked={showAll}
-                            onCheckedChange={setShowAll}
-                            aria-label="Show all appointments"
-                        />
-                        <span className="text-xs text-gray-600 dark:text-gray-300 select-none">
-                            Show all
-                        </span>
-                    </div>
 
+                <div className="flex items-center justify-self-center gap-2">
+                    <Switch
+                        checked={showAll}
+                        onCheckedChange={setShowAll}
+                        aria-label="Show all appointments"
+                    />
+                    <span className="text-xs text-gray-600 dark:text-gray-300 select-none">
+                        Show all
+                    </span>
+                </div>
+
+                <div className="justify-self-end">
                     <Button
                         variant="outline"
                         size="sm"
@@ -382,9 +628,255 @@ export default function CalendarPage() {
                 </div>
             </div>
 
+            <div className="flex items-center justify-end">
+                <Button
+                    variant="default"
+                    size="sm"
+                    className="rounded-xl w-full sm:w-auto"
+                    onClick={() => {
+                        setError(null);
+                        setCreateOpen(true);
+                    }}
+                >
+                    New appointment
+                </Button>
+            </div>
+
             {error ? (
                 <div className="text-sm text-red-600 dark:text-red-400">{error}</div>
             ) : null}
+
+            <Dialog
+                open={createOpen}
+                onOpenChange={(open) => {
+                    setCreateOpen(open);
+                    if (!open) resetCreateForm();
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>New appointment</DialogTitle>
+                        <DialogDescription>
+                            Choose a service, pick an available hour, and enter customer details.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1 min-w-0">
+                                <div className="text-xs text-muted-foreground">Service</div>
+                                <Select
+                                    value={createServiceId}
+                                    onValueChange={(v) => setCreateServiceId(String(v || ""))}
+                                >
+                                    <SelectTrigger className="rounded-xl w-full">
+                                        <SelectValue placeholder="Select service" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {services.map((s) => (
+                                            <SelectItem key={s.id} value={s.id}>
+                                                {s.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-1 min-w-0">
+                                <div className="text-xs text-muted-foreground">Hour</div>
+                                <Select
+                                    value={createStartTime}
+                                    onValueChange={(v) => setCreateStartTime(String(v || ""))}
+                                    disabled={!createServiceId || availableCreateSlotsQuery.isPending}
+                                >
+                                    <SelectTrigger className="rounded-xl w-full">
+                                        <SelectValue
+                                            placeholder={
+                                                !createServiceId
+                                                    ? "Select hour"
+                                                    : availableCreateSlotsQuery.isPending
+                                                        ? "Loading hours…"
+                                                        : createSlots.length
+                                                            ? "Select hour"
+                                                            : "No available hours"
+                                            }
+                                        />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {createSlots.map((s) => (
+                                            <SelectItem key={s.startTime} value={s.startTime}>
+                                                {s.startTime}–{s.endTime}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {availableCreateSlotsQuery.isError ? (
+                                    <div className="text-xs text-red-600 dark:text-red-400">
+                                        {(availableCreateSlotsQuery.error as any)?.message ||
+                                            "Failed to load available hours"}
+                                    </div>
+                                ) : null}
+                            </div>
+
+                            <div className="space-y-1 min-w-0">
+                                <div className="text-xs text-muted-foreground">Customer</div>
+                                <Select
+                                    value={createCustomerMode}
+                                    onValueChange={(v) => {
+                                        const next = String(v || "");
+                                        if (next !== "existing" && next !== "new") return;
+                                        setCreateCustomerMode(next);
+                                        setCreateExistingCustomerId("");
+                                        setCreateCustomerFullName("");
+                                        setCreateCustomerPhone("");
+                                        setCreateCustomerEmail("");
+                                        setCreateCustomerEmailError(null);
+                                    }}
+                                >
+                                    <SelectTrigger className="rounded-xl w-full">
+                                        <SelectValue placeholder="Select mode" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="existing">Existing customer</SelectItem>
+                                        <SelectItem value="new">New customer</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-1 min-w-0">
+                                <div className="text-xs text-muted-foreground">Select customer</div>
+                                {createCustomerMode === "existing" ? (
+                                    <>
+                                        <Select
+                                            value={createExistingCustomerId}
+                                            onValueChange={(v) => {
+                                                setCreateExistingCustomerId(String(v || ""));
+                                            }}
+                                            disabled={customersPickerQuery.isPending}
+                                        >
+                                            <SelectTrigger className="rounded-xl w-full">
+                                                <SelectValue
+                                                    placeholder={
+                                                        customersPickerQuery.isPending
+                                                            ? "Loading customers…"
+                                                            : customersForPicker.length
+                                                                ? "Choose customer"
+                                                                : "No customers yet"
+                                                    }
+                                                />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {customersForPicker.map((c) => (
+                                                    <SelectItem key={c._id} value={c._id}>
+                                                        {c.fullName || "(No name)"} • {c.phone}
+                                                        {c.email ? ` • ${c.email}` : ""}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        {customersPickerQuery.isError ? (
+                                            <div className="text-xs text-red-600 dark:text-red-400">
+                                                {(customersPickerQuery.error as any)?.message ||
+                                                    "Failed to load customers"}
+                                            </div>
+                                        ) : null}
+                                    </>
+                                ) : (
+                                    <Input
+                                        className="rounded-xl w-full"
+                                        disabled
+                                        placeholder="New customer"
+                                        value=""
+                                    />
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="text-[12px] text-muted-foreground">
+                            To add a new customer, switch to “New customer”.
+                        </div>
+
+                        {createCustomerMode === "new" ? (
+                            <>
+                                <div className="space-y-1">
+                                    <div className="text-xs text-muted-foreground">Customer name</div>
+                                    <Input
+                                        className="rounded-xl"
+                                        value={createCustomerFullName}
+                                        onChange={(e) => setCreateCustomerFullName(e.target.value)}
+                                        placeholder="Full name"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <div className="text-xs text-muted-foreground">Customer phone</div>
+                                    <Input
+                                        className="rounded-xl"
+                                        value={createCustomerPhone}
+                                        onChange={(e) => setCreateCustomerPhone(e.target.value)}
+                                        placeholder="Phone"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <div className="text-xs text-muted-foreground">Customer email</div>
+                                    <Input
+                                        className={`rounded-xl ${createCustomerEmailError ? inputErrorClass : ""}`}
+                                        value={createCustomerEmail}
+                                        onChange={(e) => setCreateCustomerEmail(e.target.value)}
+                                        onBlur={() => {
+                                            const v = createCustomerEmail.trim();
+                                            if (!v)
+                                                setCreateCustomerEmailError("Customer email is required");
+                                            else if (!isValidEmail(v))
+                                                setCreateCustomerEmailError(
+                                                    "Please enter a valid email address"
+                                                );
+                                            else setCreateCustomerEmailError(null);
+                                        }}
+                                        placeholder="name@company.com"
+                                    />
+                                    {createCustomerEmailError ? (
+                                        <p className="text-[13px] text-red-600 dark:text-red-400 ml-1">
+                                            {createCustomerEmailError}
+                                        </p>
+                                    ) : null}
+                                </div>
+                            </>
+                        ) : null}
+
+                        <div className="space-y-1">
+                            <div className="text-xs text-muted-foreground">Notes (optional)</div>
+                            <Textarea
+                                className="rounded-xl"
+                                value={createNotes}
+                                onChange={(e) => setCreateNotes(e.target.value)}
+                                placeholder="Notes"
+                            />
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="rounded-xl"
+                            onClick={() => {
+                                setCreateOpen(false);
+                                resetCreateForm();
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            className="rounded-xl"
+                            onClick={createAppointment}
+                            disabled={creating || (createCustomerMode === "new" && !!createCustomerEmailError)}
+                        >
+                            {creating ? "Saving…" : "Save"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {loading ? (
                 <CenteredSpinner className="min-h-[20vh] items-center" />
@@ -468,11 +960,11 @@ export default function CalendarPage() {
                                             ? "bg-emerald-600 text-white"
                                             : String(a.status) === "COMPLETED"
                                                 ? "bg-blue-600 text-white"
-                                            : isNoShowStatus(a.status)
-                                                ? "bg-amber-600 text-white"
-                                            : isCanceledStatus(a.status)
-                                                ? "bg-gray-500 text-white dark:bg-gray-700"
-                                                : "bg-gray-600 text-white"
+                                                : isNoShowStatus(a.status)
+                                                    ? "bg-amber-600 text-white"
+                                                    : isCanceledStatus(a.status)
+                                                        ? "bg-gray-500 text-white dark:bg-gray-700"
+                                                        : "bg-gray-600 text-white"
                                     }
                                 >
                                     {statusLabel(a.status)}
@@ -657,6 +1149,6 @@ export default function CalendarPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div>
+        </div >
     );
 }
