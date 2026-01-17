@@ -197,8 +197,8 @@ export default function CustomersPage() {
         </Card>
       ) : (
         <div className="space-y-3">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="w-full sm:max-w-sm">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 min-w-0">
               <Input
                 placeholder="Search clients"
                 value={query}
@@ -206,7 +206,7 @@ export default function CustomersPage() {
               />
             </div>
 
-            <div className="flex items-center justify-between gap-2 sm:justify-end">
+            <div className="shrink-0">
               <Select
                 value={String(pageSize)}
                 onValueChange={(v) => setPageSize(Number(v) || 5)}

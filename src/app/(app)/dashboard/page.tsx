@@ -140,7 +140,6 @@ export default function DashboardPage() {
   const summaryLoading = summaryQuery.isPending;
 
   const upcomingCount = summary?.upcomingAppointmentsCount ?? 0;
-  const customersCount = summary?.totalCustomersCount ?? 0;
   const isOpenNow = summary?.businessStatus?.isOpenNow;
   const revenueToday = summary?.revenueToday ?? 0;
   const currencySymbol = String(summary?.currency?.symbol ?? "").trim();
@@ -252,49 +251,10 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
-
-        <Link
-          href="/customers"
-          className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl"
-        >
-          <Card className="cursor-pointer transition-colors hover:bg-muted/30">
-            <CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">Total customers</div>
-              <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-                {summaryLoading ? "—" : customersCount}
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
-
-        {/* Intentionally no 4th card; status is shown at the top. */}
       </div>
 
-      {/* 2) Public booking link */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Public booking link</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Input readOnly value={bookingLink} placeholder="Loading…" />
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onCopy}
-              disabled={!bookingLink}
-            >
-              {copyStatus === "copied" ? "Copied!" : "Copy link"}
-            </Button>
-            <Button type="button" onClick={onShare} disabled={!bookingLink}>
-              Share
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* 3) Revenue graphs */}
-      <div className="grid gap-3 md:grid-cols-2">
+      {/* 2) Revenue graphs */}
+      <div className="space-y-3">
         <Card>
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between gap-2">
@@ -406,13 +366,28 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* 4) Empty state note */}
-      <div className="rounded-xl border bg-card text-card-foreground p-4">
-        <div className="text-sm text-muted-foreground">
-          Your calendar and customers will appear here once you start receiving
-          bookings.
-        </div>
-      </div>
+      {/* 3) Public booking link */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Public booking link</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Input readOnly value={bookingLink} placeholder="Loading…" />
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCopy}
+              disabled={!bookingLink}
+            >
+              {copyStatus === "copied" ? "Copied!" : "Copy link"}
+            </Button>
+            <Button type="button" onClick={onShare} disabled={!bookingLink}>
+              Share
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
