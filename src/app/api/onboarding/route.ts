@@ -362,6 +362,20 @@ export async function PATCH(req: Request) {
     const appUser = await requireAppUser();
     const body = await req.json().catch(() => ({}));
 
+    const isValidTimeZone = (tz: string): boolean => {
+      const candidate = String(tz ?? "").trim();
+      if (!candidate) return false;
+      try {
+        // Throws RangeError for unknown IANA time zones.
+        new Intl.DateTimeFormat("en-US", { timeZone: candidate }).format(
+          new Date()
+        );
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
     const currencyRaw = asString((body as any)?.currency, 8);
     const currency = currencyRaw ? currencyRaw.toUpperCase() : undefined;
 
@@ -407,6 +421,16 @@ export async function PATCH(req: Request) {
 
     const set: any = {};
     const unset: any = {};
+
+    if (timezone !== undefined) {
+      const tz = String(timezone ?? "").trim();
+      if (tz && !isValidTimeZone(tz)) {
+        return NextResponse.json(
+          { error: "Invalid time zone" },
+          { status: 400 }
+        );
+      }
+    }
 
     if (currency !== undefined) {
       if (!ALLOWED_CURRENCIES.has(currency)) {

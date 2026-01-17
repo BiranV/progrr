@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useBusiness } from "@/hooks/useBusiness";
@@ -128,7 +129,7 @@ export default function DashboardPage() {
   const todayCount = summary?.todayAppointmentsCount ?? 0;
   const upcomingCount = summary?.upcomingAppointmentsCount ?? 0;
   const customersCount = summary?.totalCustomersCount ?? 0;
-  const statusLabel = summary?.businessStatus?.label ?? "—";
+  const isOpenNow = summary?.businessStatus?.isOpenNow;
 
   const todayHref = summary?.todayStr
     ? `/calendar?date=${encodeURIComponent(summary.todayStr)}`
@@ -195,8 +196,23 @@ export default function DashboardPage() {
           <Card className="cursor-pointer transition-colors hover:bg-muted/30">
             <CardContent className="p-4">
               <div className="text-xs text-muted-foreground">Business status</div>
-              <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-                {summaryLoading ? "—" : statusLabel}
+              <div className="mt-1 flex items-center justify-between gap-2">
+                {summaryLoading ? (
+                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                    —
+                  </div>
+                ) : typeof isOpenNow === "boolean" ? (
+                  <Badge
+                    variant="outline"
+                    className={
+                      isOpenNow
+                        ? "border-emerald-200 bg-emerald-500/10 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-500/15 dark:text-emerald-200"
+                        : "border-red-200 bg-red-500/10 text-red-700 dark:border-red-900/50 dark:bg-red-500/15 dark:text-red-200"
+                    }
+                  >
+                    {isOpenNow ? "Open" : "Closed"}
+                  </Badge>
+                ) : null}
               </div>
             </CardContent>
           </Card>

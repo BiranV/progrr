@@ -6,6 +6,14 @@ import { Loader2, Plus, Trash2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { TimePicker } from "@/components/ui/time-picker";
 import { Switch } from "@/components/ui/switch";
 import { CenteredSpinner } from "@/components/CenteredSpinner";
@@ -172,6 +180,29 @@ export default function OpeningHoursPage() {
     const [bookingRules, setBookingRules] = React.useState<BookingRulesState>({
         limitCustomerToOneUpcomingAppointment: false,
     });
+
+    const browserTimeZone = React.useMemo(() => {
+        try {
+            return String(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC").trim() || "UTC";
+        } catch {
+            return "UTC";
+        }
+    }, []);
+
+    const supportedTimeZones = React.useMemo(() => {
+        try {
+            const fn = (Intl as any)?.supportedValuesOf;
+            if (typeof fn === "function") {
+                const values = fn("timeZone") as unknown;
+                if (Array.isArray(values)) {
+                    return values.map((v) => String(v)).filter(Boolean);
+                }
+            }
+        } catch {
+            // ignore
+        }
+        return [] as string[];
+    }, []);
 
     React.useEffect(() => {
         if (isError) {
@@ -425,6 +456,61 @@ export default function OpeningHoursPage() {
             </div>
 
             <div className="space-y-5">
+                <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4">
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                            <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                                Time zone
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                Used to evaluate your opening hours and show “Open/Closed”.
+                            </div>
+                            {availability.timezone === "UTC" && browserTimeZone !== "UTC" ? (
+                                <div className="text-xs text-amber-600 dark:text-amber-300 mt-1">
+                                    Tip: your browser time zone is {browserTimeZone}.
+                                </div>
+                            ) : null}
+                        </div>
+
+                        {supportedTimeZones.length ? (
+                            <Select
+                                value={availability.timezone}
+                                onValueChange={(v) =>
+                                    setAvailability((prev) => ({
+                                        ...prev,
+                                        timezone: String(v || "UTC").trim() || "UTC",
+                                    }))
+                                }
+                                disabled={isSaving || (isPending && !initialRef.current)}
+                            >
+                                <SelectTrigger size="sm" className="w-[240px]">
+                                    <SelectValue placeholder="Select time zone" />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-80">
+                                    {supportedTimeZones.map((tz) => (
+                                        <SelectItem key={tz} value={tz}>
+                                            {tz}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        ) : (
+                            <Input
+                                value={availability.timezone}
+                                onChange={(e) =>
+                                    setAvailability((prev) => ({
+                                        ...prev,
+                                        timezone: String(e.target.value || "").trim() || "UTC",
+                                    }))
+                                }
+                                disabled={isSaving || (isPending && !initialRef.current)}
+                                className="h-9 w-[240px]"
+                                placeholder={browserTimeZone}
+                            />
+                        )}
+                    </div>
+                </div>
+
                 <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4">
                     <div className="flex items-center justify-between gap-4">
                         <div className="min-w-0">
