@@ -47,6 +47,7 @@ type BookingResult = {
 };
 
 type ActiveAppointmentConflict = {
+  code: "ACTIVE_APPOINTMENT_EXISTS" | "SAME_SERVICE_SAME_DAY_EXISTS";
   bookingSessionId: string;
   existingAppointment?: {
     id?: string;
@@ -530,6 +531,7 @@ export default function PublicBookingFlow({
       const sessionId = String(verifyJson?.bookingSessionId ?? "").trim();
       if (sessionId) setBookingSessionId(sessionId);
       setActiveConflict({
+        code: "ACTIVE_APPOINTMENT_EXISTS",
         bookingSessionId: sessionId,
         existingAppointment: verifyJson?.existingAppointment,
       });
@@ -580,18 +582,28 @@ export default function PublicBookingFlow({
     if (!confirmRes.ok) {
       if (
         confirmRes.status === 409 &&
-        String(confirmJson?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS"
+        (String(confirmJson?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS" ||
+          String(confirmJson?.code ?? "") === "SAME_SERVICE_SAME_DAY_EXISTS")
       ) {
         setActiveConflict({
+          code:
+            String(confirmJson?.code ?? "") === "SAME_SERVICE_SAME_DAY_EXISTS"
+              ? "SAME_SERVICE_SAME_DAY_EXISTS"
+              : "ACTIVE_APPOINTMENT_EXISTS",
           bookingSessionId: sessionId,
           existingAppointment: confirmJson?.existingAppointment,
         });
 
         const err: any = new Error(
           confirmJson?.error ||
-          "You already have an active upcoming appointment. Please cancel it first."
+          (String(confirmJson?.code ?? "") === "SAME_SERVICE_SAME_DAY_EXISTS"
+            ? "You already booked this service on this day."
+            : "You already have an active upcoming appointment. Please cancel it first.")
         );
-        err.code = "ACTIVE_APPOINTMENT_EXISTS";
+        err.code =
+          String(confirmJson?.code ?? "") === "SAME_SERVICE_SAME_DAY_EXISTS"
+            ? "SAME_SERVICE_SAME_DAY_EXISTS"
+            : "ACTIVE_APPOINTMENT_EXISTS";
         throw err;
       }
 
@@ -917,10 +929,14 @@ export default function PublicBookingFlow({
           {activeConflict ? (
             <div className="rounded-2xl border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/70 dark:bg-amber-950/20 p-4">
               <div className="font-semibold text-amber-900 dark:text-amber-200">
-                You already have an upcoming appointment
+                {activeConflict.code === "SAME_SERVICE_SAME_DAY_EXISTS"
+                  ? "You already booked this service on this day"
+                  : "You already have an upcoming appointment"}
               </div>
               <div className="text-sm text-amber-800/90 dark:text-amber-200/80 mt-1">
-                Please cancel it first to book a new one.
+                {activeConflict.code === "SAME_SERVICE_SAME_DAY_EXISTS"
+                  ? "Please cancel it first to book the same service again."
+                  : "Please cancel it first to book a new one."}
               </div>
               {activeConflict.existingAppointment?.date ||
                 activeConflict.existingAppointment?.startTime ? (

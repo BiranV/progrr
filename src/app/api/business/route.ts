@@ -35,6 +35,16 @@ function normalizeWhatsApp(v: unknown): string | undefined {
   return e164;
 }
 
+function asBoolean(v: unknown): boolean | undefined {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "string") {
+    const s = v.trim().toLowerCase();
+    if (s === "true") return true;
+    if (s === "false") return false;
+  }
+  return undefined;
+}
+
 const ALLOWED_CURRENCY_CODES = new Set([
   "ILS",
   "NIS",
@@ -93,6 +103,10 @@ export async function GET() {
       normalizeCurrencyCode((user as any)?.onboarding?.currency) ??
       "ILS";
 
+    const limitCustomerToOneUpcomingAppointment = Boolean(
+      (business as any).limitCustomerToOneUpcomingAppointment
+    );
+
     if (!name || !phone || !publicId) {
       return NextResponse.json(
         { error: "Business not found" },
@@ -111,6 +125,7 @@ export async function GET() {
       instagram: instagram ?? "",
       whatsapp: whatsapp ?? "",
       currency,
+      limitCustomerToOneUpcomingAppointment,
     });
   } catch (error: any) {
     const status = typeof error?.status === "number" ? error.status : 500;
@@ -212,6 +227,18 @@ export async function PATCH(req: Request) {
     }
     const currency = requestedCurrency ?? currentCurrency;
 
+    const currentLimitCustomerToOneUpcomingAppointment = Boolean(
+      (business as any).limitCustomerToOneUpcomingAppointment
+    );
+    const requestedLimitCustomerToOneUpcomingAppointment =
+      Object.prototype.hasOwnProperty.call(
+        body as any,
+        "limitCustomerToOneUpcomingAppointment"
+      )
+        ? asBoolean((body as any).limitCustomerToOneUpcomingAppointment) ??
+        currentLimitCustomerToOneUpcomingAppointment
+        : currentLimitCustomerToOneUpcomingAppointment;
+
     if (!name) {
       return NextResponse.json(
         { error: "Business name cannot be empty" },
@@ -251,6 +278,8 @@ export async function PATCH(req: Request) {
           "onboarding.business.instagram": instagram,
           "onboarding.business.whatsapp": whatsapp,
           "onboarding.business.currency": currency,
+          "onboarding.business.limitCustomerToOneUpcomingAppointment":
+            requestedLimitCustomerToOneUpcomingAppointment,
           "onboarding.updatedAt": new Date(),
         },
       }

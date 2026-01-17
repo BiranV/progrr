@@ -198,8 +198,8 @@ export default function SettingsPage() {
             />
             <SettingsLinkRow
               href="/settings/opening-hours"
-              title="Opening hours"
-              description="Set your working days and hours"
+              title="Booking & hours"
+              description="Opening hours and booking rules"
             />
             <SettingsLinkRow
               href="/settings/services"

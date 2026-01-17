@@ -10,6 +10,7 @@ export type Business = {
   instagram?: string;
   whatsapp?: string;
   currency?: string;
+  limitCustomerToOneUpcomingAppointment?: boolean;
 };
 
 export type UpdateBusinessPayload = {
@@ -20,6 +21,7 @@ export type UpdateBusinessPayload = {
   instagram?: string;
   whatsapp?: string;
   currency?: string;
+  limitCustomerToOneUpcomingAppointment?: boolean;
 };
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -69,6 +71,12 @@ export async function updateBusiness(payload: UpdateBusinessPayload) {
     instagram: payload.instagram ?? "",
     whatsapp: payload.whatsapp ?? "",
     ...(payload.currency ? { currency: payload.currency } : {}),
+    ...(typeof payload.limitCustomerToOneUpcomingAppointment === "boolean"
+      ? {
+        limitCustomerToOneUpcomingAppointment:
+          payload.limitCustomerToOneUpcomingAppointment,
+      }
+      : {}),
   };
 
   await apiFetch<{ success: true }>("/api/business", {

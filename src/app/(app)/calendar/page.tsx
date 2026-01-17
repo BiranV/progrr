@@ -9,6 +9,7 @@ import { CenteredSpinner } from "@/components/CenteredSpinner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import ConfirmModal from "@/components/ui/confirm-modal";
+import { Switch } from "@/components/ui/switch";
 import {
     Dialog,
     DialogContent,
@@ -36,6 +37,7 @@ export default function CalendarPage() {
 
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
+    const [showCanceled, setShowCanceled] = React.useState(false);
     const [appointments, setAppointments] = React.useState<
         Array<{
             id: string;
@@ -80,6 +82,11 @@ export default function CalendarPage() {
         return { ...Arabic, rtl: true };
     }, [dir]);
 
+    const isCanceledStatus = React.useCallback((status: unknown) => {
+        const s = String(status ?? "").toUpperCase();
+        return s === "CANCELED" || s === "CANCELLED";
+    }, []);
+
     const load = React.useCallback(async () => {
         setLoading(true);
         setError(null);
@@ -100,6 +107,12 @@ export default function CalendarPage() {
             setLoading(false);
         }
     }, [date]);
+
+    const visibleAppointments = React.useMemo(() => {
+        return showCanceled
+            ? appointments
+            : appointments.filter((a) => !isCanceledStatus(a.status));
+    }, [appointments, isCanceledStatus, showCanceled]);
 
     const openReschedule = React.useCallback(
         async (appt: { id: string; startTime: string; endTime: string; serviceName: string }) => {
@@ -216,15 +229,28 @@ export default function CalendarPage() {
                 <div className="text-sm font-semibold text-gray-900 dark:text-white">
                     {date}
                 </div>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="rounded-xl"
-                    onClick={load}
-                    disabled={loading}
-                >
-                    Refresh
-                </Button>
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                        <Switch
+                            checked={showCanceled}
+                            onCheckedChange={setShowCanceled}
+                            aria-label="Show canceled appointments"
+                        />
+                        <span className="text-xs text-gray-600 dark:text-gray-300 select-none">
+                            Show canceled
+                        </span>
+                    </div>
+
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-xl"
+                        onClick={load}
+                        disabled={loading}
+                    >
+                        Refresh
+                    </Button>
+                </div>
             </div>
 
             {error ? (
@@ -233,13 +259,13 @@ export default function CalendarPage() {
 
             {loading ? (
                 <CenteredSpinner className="min-h-[20vh] items-center" />
-            ) : appointments.length === 0 ? (
+            ) : visibleAppointments.length === 0 ? (
                 <div className="text-sm text-muted-foreground">
                     No appointments for this day.
                 </div>
             ) : (
                 <div className="space-y-2">
-                    {appointments.map((a) => (
+                    {visibleAppointments.map((a) => (
                         <div
                             key={a.id}
                             className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-3 shadow-sm"
@@ -291,8 +317,10 @@ export default function CalendarPage() {
                                 <Badge
                                     className={
                                         String(a.status) === "BOOKED"
-                                            ? "bg-emerald-600"
-                                            : "bg-gray-600"
+                                            ? "bg-emerald-600 text-white"
+                                            : isCanceledStatus(a.status)
+                                                ? "bg-gray-500 text-white dark:bg-gray-700"
+                                                : "bg-gray-600 text-white"
                                     }
                                 >
                                     {String(a.status)}
@@ -327,8 +355,22 @@ export default function CalendarPage() {
                                 json?.error || `Request failed (${res.status})`
                             );
                         }
+
+                        setAppointments((prev) => {
+                            const next = prev.map((a) =>
+                                a.id === cancelId ? { ...a, status: "CANCELED" } : a
+                            );
+                            return showCanceled ? next : next.filter((a) => a.id !== cancelId);
+                        });
+
+                        const emailSent = json?.email?.sent;
+                        if (emailSent === false) {
+                            setError(
+                                String(json?.email?.error || "Canceled, but failed to email the customer")
+                            );
+                        }
+
                         setCancelId(null);
-                        await load();
                     } finally {
                         setCancelling(false);
                     }

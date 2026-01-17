@@ -29,6 +29,10 @@ type AvailabilityState = {
     days: AvailabilityDay[];
 };
 
+type BookingRulesState = {
+    limitCustomerToOneUpcomingAppointment: boolean;
+};
+
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function defaultDays(): AvailabilityDay[] {
@@ -160,9 +164,13 @@ export default function OpeningHoursPage() {
     } = useOnboardingSettings();
 
     const initialRef = React.useRef<AvailabilityState | null>(null);
+    const initialBookingRulesRef = React.useRef<BookingRulesState | null>(null);
     const [availability, setAvailability] = React.useState<AvailabilityState>({
         timezone: "UTC",
         days: defaultDays(),
+    });
+    const [bookingRules, setBookingRules] = React.useState<BookingRulesState>({
+        limitCustomerToOneUpcomingAppointment: false,
     });
 
     React.useEffect(() => {
@@ -172,25 +180,36 @@ export default function OpeningHoursPage() {
     }, [isError, error]);
 
     const isDirty = React.useMemo(() => {
-        if (!initialRef.current) return false;
+        if (!initialRef.current || !initialBookingRulesRef.current) return false;
         return (
             stableStringifyAvailability(availability) !==
-            stableStringifyAvailability(initialRef.current)
+            stableStringifyAvailability(initialRef.current) ||
+            bookingRules.limitCustomerToOneUpcomingAppointment !==
+            initialBookingRulesRef.current.limitCustomerToOneUpcomingAppointment
         );
-    }, [availability]);
+    }, [availability, bookingRules]);
 
     React.useEffect(() => {
         if (!onboardingRes) return;
 
         const av = (onboardingRes as any)?.onboarding?.availability ?? {};
+        const business = (onboardingRes as any)?.onboarding?.business ?? {};
         const timezone = String((av as any)?.timezone ?? "").trim() || "UTC";
         const days = normalizeDays((av as any)?.days);
         const next: AvailabilityState = { timezone, days };
+
+        const nextBookingRules: BookingRulesState = {
+            limitCustomerToOneUpcomingAppointment: Boolean(
+                (business as any)?.limitCustomerToOneUpcomingAppointment
+            ),
+        };
 
         // First hydrate, and background refresh only when user isn't editing.
         if (!initialRef.current || (!isDirty && !isSaving)) {
             initialRef.current = next;
             setAvailability(next);
+            initialBookingRulesRef.current = nextBookingRules;
+            setBookingRules(nextBookingRules);
         }
     }, [onboardingRes, isDirty, isSaving]);
 
@@ -244,7 +263,7 @@ export default function OpeningHoursPage() {
     }, [availability.days]);
 
     const onSave = async () => {
-        if (!initialRef.current) return;
+        if (!initialRef.current || !initialBookingRulesRef.current) return;
 
         const err = validate();
         if (err) {
@@ -255,6 +274,10 @@ export default function OpeningHoursPage() {
         setIsSaving(true);
         try {
             const payload = {
+                business: {
+                    limitCustomerToOneUpcomingAppointment:
+                        bookingRules.limitCustomerToOneUpcomingAppointment,
+                },
                 availability: {
                     timezone: availability.timezone,
                     weekStartsOn: 0,
@@ -275,10 +298,15 @@ export default function OpeningHoursPage() {
             });
 
             initialRef.current = availability;
+            initialBookingRulesRef.current = bookingRules;
             queryClient.setQueryData(ONBOARDING_QUERY_KEY, (prev: any) => ({
                 ...(prev || {}),
                 onboarding: {
                     ...((prev as any)?.onboarding || {}),
+                    business: {
+                        ...((prev as any)?.onboarding?.business || {}),
+                        ...payload.business,
+                    },
                     availability: payload.availability,
                 },
             }));
@@ -386,10 +414,10 @@ export default function OpeningHoursPage() {
         <div className="space-y-6">
             <div className="space-y-2">
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                    Opening hours
+                    Booking & hours
                 </h1>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
-                    Set your working days and hours.
+                    Set your working days and booking rules.
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                     Tap a time to open the hour picker.
@@ -397,6 +425,26 @@ export default function OpeningHoursPage() {
             </div>
 
             <div className="space-y-5">
+                <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4">
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="min-w-0">
+                            <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                                Limit customers to 1 upcoming appointment
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                Default is off (customers can book multiple). Same service on the same day is always blocked.
+                            </div>
+                        </div>
+                        <Switch
+                            checked={bookingRules.limitCustomerToOneUpcomingAppointment}
+                            onCheckedChange={(checked) =>
+                                setBookingRules({ limitCustomerToOneUpcomingAppointment: checked })
+                            }
+                            disabled={isSaving || (isPending && !initialRef.current)}
+                        />
+                    </div>
+                </div>
+
                 <div className="space-y-3">
                     {orderedDays.map((d) => (
                         <div key={d.day} className="space-y-2">

@@ -188,7 +188,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid price" }, { status: 400 });
     }
 
-    // Enforce: only one active future appointment per customer (server-side only).
+    const businessSettings = (onboarding as any)?.business ?? {};
+    const limitCustomerToOneUpcomingAppointment = Boolean(
+      (businessSettings as any).limitCustomerToOneUpcomingAppointment
+    );
+
+    // Always enforce: same customer cannot book the same service on the same day.
+    // Additionally enforce: only one active future appointment per customer when enabled.
     const timeZone =
       String((onboarding as any)?.availability?.timezone ?? "").trim() || "UTC";
     const todayStr = formatDateInTimeZone(new Date(), timeZone);
@@ -216,36 +222,66 @@ export async function POST(req: Request) {
       );
     }
 
-    // Conflict check MUST use verified identity only (email), never cookies/session.
-    const existing = await c.appointments.findOne(
+    const sameServiceSameDay = await c.appointments.findOne(
       {
         businessUserId: user._id as ObjectId,
         status: "BOOKED",
         "customer.email": customerEmail,
-        $or: [
-          { date: { $gt: todayStr } },
-          { date: todayStr, endTime: { $gt: nowTimeStr } },
-        ],
+        date,
+        serviceId,
       } as any,
-      { sort: { date: 1, startTime: 1 } }
+      { sort: { startTime: 1 } }
     );
 
-    if (existing) {
+    if (sameServiceSameDay) {
       return NextResponse.json(
         {
-          error:
-            "You already have an active upcoming appointment. Please cancel it first.",
-          code: "ACTIVE_APPOINTMENT_EXISTS",
+          error: "You already booked this service on this day.",
+          code: "SAME_SERVICE_SAME_DAY_EXISTS",
           existingAppointment: {
-            id: (existing as any)?._id?.toHexString?.() ?? undefined,
-            date: (existing as any)?.date,
-            startTime: (existing as any)?.startTime,
-            endTime: (existing as any)?.endTime,
-            serviceName: (existing as any)?.serviceName,
+            id: (sameServiceSameDay as any)?._id?.toHexString?.() ?? undefined,
+            date: (sameServiceSameDay as any)?.date,
+            startTime: (sameServiceSameDay as any)?.startTime,
+            endTime: (sameServiceSameDay as any)?.endTime,
+            serviceName: (sameServiceSameDay as any)?.serviceName,
           },
         },
         { status: 409 }
       );
+    }
+
+    if (limitCustomerToOneUpcomingAppointment) {
+      // Conflict check MUST use verified identity only (email), never cookies/session.
+      const existing = await c.appointments.findOne(
+        {
+          businessUserId: user._id as ObjectId,
+          status: "BOOKED",
+          "customer.email": customerEmail,
+          $or: [
+            { date: { $gt: todayStr } },
+            { date: todayStr, endTime: { $gt: nowTimeStr } },
+          ],
+        } as any,
+        { sort: { date: 1, startTime: 1 } }
+      );
+
+      if (existing) {
+        return NextResponse.json(
+          {
+            error:
+              "You already have an active upcoming appointment. Please cancel it first.",
+            code: "ACTIVE_APPOINTMENT_EXISTS",
+            existingAppointment: {
+              id: (existing as any)?._id?.toHexString?.() ?? undefined,
+              date: (existing as any)?.date,
+              startTime: (existing as any)?.startTime,
+              endTime: (existing as any)?.endTime,
+              serviceName: (existing as any)?.serviceName,
+            },
+          },
+          { status: 409 }
+        );
+      }
     }
 
     const booked = await c.appointments

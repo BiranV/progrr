@@ -24,7 +24,12 @@ import ImageCropperModal, {
 
 type OnboardingData = {
   businessTypes?: string[];
-  business?: { name?: string; phone?: string; address?: string };
+  business?: {
+    name?: string;
+    phone?: string;
+    address?: string;
+    limitCustomerToOneUpcomingAppointment?: boolean;
+  };
   branding?: {
     // New (Cloudinary)
     logo?: {
@@ -1281,6 +1286,12 @@ export default function OnboardingPage() {
         }
 
         await savePartial({
+          business: {
+            ...(data.business || {}),
+            limitCustomerToOneUpcomingAppointment: Boolean(
+              data.business?.limitCustomerToOneUpcomingAppointment
+            ),
+          },
           availability: {
             ...(data.availability || {}),
             days: days.map((d) => ({
@@ -2016,11 +2027,40 @@ export default function OnboardingPage() {
           <div className="space-y-4">
             <div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Opening hours
+                Booking & hours
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-300">
-                Set your working days and hours.
+                Set your working days and booking rules.
               </p>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                    Limit customers to 1 upcoming appointment
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Default is off (customers can book multiple). Same service on the same day is always blocked.
+                  </div>
+                </div>
+                <UISwitch
+                  checked={Boolean(
+                    data.business?.limitCustomerToOneUpcomingAppointment
+                  )}
+                  onCheckedChange={(checked) =>
+                    setData((prev) => ({
+                      ...prev,
+                      business: {
+                        ...(prev.business || {}),
+                        limitCustomerToOneUpcomingAppointment: checked,
+                      },
+                    }))
+                  }
+                  disabled={loading || saving}
+                  aria-label="Limit customers to 1 upcoming appointment"
+                />
+              </div>
             </div>
 
             <div className="space-y-3">
@@ -2329,7 +2369,7 @@ export default function OnboardingPage() {
 
               <div className="space-y-2">
                 <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                  Opening hours
+                  Booking & hours
                 </div>
                 <div className="text-sm text-gray-700 dark:text-gray-200">
                   <span className="font-medium">Week starts:</span> Sunday
@@ -2417,7 +2457,7 @@ export default function OnboardingPage() {
                 : step === 2
                   ? "Setup Services"
                   : step === 3
-                    ? "Set Opening hours"
+                    ? "Set Booking & hours"
                     : step === 4
                       ? "Business Branding"
                       : "Review & Finish"}

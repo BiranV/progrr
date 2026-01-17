@@ -103,6 +103,16 @@ function asNumber(v: unknown): number | undefined {
   return n;
 }
 
+function asBoolean(v: unknown): boolean | undefined {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "string") {
+    const s = v.trim().toLowerCase();
+    if (s === "true") return true;
+    if (s === "false") return false;
+  }
+  return undefined;
+}
+
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function parseTimeToMinutes(hhmm: string): number {
@@ -153,8 +163,8 @@ function normalizeAvailabilityDay(d: any) {
     rangesIn.length > 0
       ? rangesIn
       : legacyStart || legacyEnd
-      ? [{ start: legacyStart ?? "", end: legacyEnd ?? "" }]
-      : [];
+        ? [{ start: legacyStart ?? "", end: legacyEnd ?? "" }]
+        : [];
 
   return { day, enabled, ranges };
 }
@@ -219,10 +229,10 @@ function normalizeService(s: any) {
   const rawActive = (s as any)?.isActive;
   const isActive =
     rawActive === false ||
-    rawActive === 0 ||
-    String(rawActive ?? "")
-      .trim()
-      .toLowerCase() === "false"
+      rawActive === 0 ||
+      String(rawActive ?? "")
+        .trim()
+        .toLowerCase() === "false"
       ? false
       : true;
 
@@ -372,6 +382,9 @@ export async function PATCH(req: Request) {
     const businessName = asString(body?.business?.name, 120);
     const businessPhone = asString(body?.business?.phone, 40);
     const businessAddress = asString(body?.business?.address, 200);
+    const limitCustomerToOneUpcomingAppointment = asBoolean(
+      (body as any)?.business?.limitCustomerToOneUpcomingAppointment
+    );
 
     const timezone = asString(body?.availability?.timezone, 80);
     const weekStartsOnRaw = (body as any)?.availability?.weekStartsOn;
@@ -458,6 +471,10 @@ export async function PATCH(req: Request) {
       set["onboarding.business.phone"] = businessPhone;
     if (businessAddress !== undefined)
       set["onboarding.business.address"] = businessAddress;
+    if (limitCustomerToOneUpcomingAppointment !== undefined) {
+      set["onboarding.business.limitCustomerToOneUpcomingAppointment"] =
+        limitCustomerToOneUpcomingAppointment;
+    }
 
     if (timezone !== undefined)
       set["onboarding.availability.timezone"] = timezone;

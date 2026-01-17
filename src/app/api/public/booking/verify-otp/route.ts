@@ -155,6 +155,15 @@ export async function POST(req: Request) {
     const bookingSessionId = await signBookingVerifyToken({ email });
 
     const onboarding = (user as any).onboarding ?? {};
+    const businessSettings = (onboarding as any)?.business ?? {};
+    const limitCustomerToOneUpcomingAppointment = Boolean(
+      (businessSettings as any).limitCustomerToOneUpcomingAppointment
+    );
+
+    if (!limitCustomerToOneUpcomingAppointment) {
+      return NextResponse.json({ ok: true, bookingSessionId });
+    }
+
     const timeZone =
       String((onboarding as any)?.availability?.timezone ?? "").trim() || "UTC";
 
