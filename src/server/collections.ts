@@ -87,12 +87,14 @@ export type CustomerDoc = {
   status?: "ACTIVE" | "BLOCKED";
   isHidden?: boolean;
   createdAt: Date;
+  pendingEmail?: string;
+  pendingEmailRequestedAt?: Date;
   // Legacy fields (no longer used for counts; counts are computed from appointments).
   appointmentsCount?: number;
   lastAppointmentAt?: Date;
 };
 
-export type CustomerOtpPurpose = "booking_verify";
+export type CustomerOtpPurpose = "booking_verify" | "profile_email_change";
 
 export type CustomerOtpDoc = {
   _id?: ObjectId;

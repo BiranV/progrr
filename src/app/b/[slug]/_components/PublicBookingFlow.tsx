@@ -338,6 +338,18 @@ export default function PublicBookingFlow({
   >(null);
   const [loggingOut, setLoggingOut] = React.useState(false);
 
+  const [profileOpen, setProfileOpen] = React.useState(false);
+  const [profileStep, setProfileStep] = React.useState<"form" | "verify">("form");
+  const [profileFullName, setProfileFullName] = React.useState("");
+  const [profilePhone, setProfilePhone] = React.useState("");
+  const [profilePhoneValid, setProfilePhoneValid] = React.useState(true);
+  const [profilePhoneTouched, setProfilePhoneTouched] = React.useState(false);
+  const [profileCurrentEmail, setProfileCurrentEmail] = React.useState("");
+  const [profileNewEmail, setProfileNewEmail] = React.useState("");
+  const [profileCode, setProfileCode] = React.useState("");
+  const [profileSubmitting, setProfileSubmitting] = React.useState(false);
+  const [profileError, setProfileError] = React.useState<string | null>(null);
+
   const resetFlow = React.useCallback(() => {
     setResult(null);
     setIdentified(false);
@@ -697,6 +709,21 @@ export default function PublicBookingFlow({
     ) : null;
   }, [connected, customerEmail, data, date, result, selectedService, step]);
 
+  const openProfileEditor = React.useCallback(() => {
+    const email = customerEmail.trim();
+    setProfileOpen(true);
+    setProfileStep("form");
+    setProfileError(null);
+    setProfileSubmitting(false);
+    setProfileCode("");
+    setProfileFullName(customerFullName);
+    setProfilePhone(customerPhone);
+    setProfilePhoneValid(true);
+    setProfilePhoneTouched(false);
+    setProfileCurrentEmail(email);
+    setProfileNewEmail(email);
+  }, [customerEmail, customerFullName, customerPhone]);
+
   const shellHeaderRight = React.useMemo<React.ReactNode>(() => {
     if (!data) return null;
 
@@ -705,10 +732,34 @@ export default function PublicBookingFlow({
     const dateForMy = date || result?.appointment?.date || todayStr;
 
     return (
-      <div className="flex w-full flex-col items-stretch gap-1">
-        {connected && customerEmail.trim() ? (
-          <div className="text-xs text-muted-foreground text-right">
-            Logged in as {customerEmail.trim()}
+      <div className="flex w-full flex-col items-stretch gap-2">
+        {connected ? (
+          <div className="flex w-full items-center justify-between gap-2">
+            <div className="min-w-0 flex-1 text-xs text-muted-foreground truncate">
+              {customerEmail.trim() ? `Logged in as ${customerEmail.trim()}` : ""}
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="default"
+              className="shrink-0 rounded-xl h-7 px-3 text-sm gap-2"
+              disabled={loggingOut}
+              onClick={async () => {
+                setLoggingOut(true);
+                try {
+                  await disconnectCustomer();
+                  setConnected(false);
+                  setMyAppointmentsOpen(false);
+                  setMyAppointments([]);
+                  resetFlow();
+                } finally {
+                  setLoggingOut(false);
+                }
+              }}
+            >
+              <LogOut className="h-4 w-4" />
+              <span>{loggingOut ? "Logging out…" : "Logout"}</span>
+            </Button>
           </div>
         ) : null}
 
@@ -751,29 +802,17 @@ export default function PublicBookingFlow({
               type="button"
               size="sm"
               variant="outline"
-              className="rounded-xl h-7 px-3 text-sm gap-2"
+              className="shrink-0 rounded-xl h-7 px-3 text-sm"
               disabled={loggingOut}
-              onClick={async () => {
-                setLoggingOut(true);
-                try {
-                  await disconnectCustomer();
-                  setConnected(false);
-                  setMyAppointmentsOpen(false);
-                  setMyAppointments([]);
-                  resetFlow();
-                } finally {
-                  setLoggingOut(false);
-                }
-              }}
+              onClick={openProfileEditor}
             >
-              <LogOut className="h-4 w-4" />
-              <span>{loggingOut ? "Logging out…" : "Logout"}</span>
+              Update details
             </Button>
           ) : null}
         </div>
       </div>
     );
-  }, [connected, customerEmail, data, date, disconnectCustomer, loggingOut, resetFlow, result?.appointment?.date]);
+  }, [connected, customerEmail, data, date, disconnectCustomer, loggingOut, openProfileEditor, resetFlow, result?.appointment?.date]);
 
   const selectedSlot = React.useMemo(() => {
     const list = Array.isArray((slots as any)?.slots) ? ((slots as any).slots as any[]) : [];
@@ -894,6 +933,86 @@ export default function PublicBookingFlow({
     if (!customerPhone.trim() && typeof json?.customer?.phone === "string") {
       setCustomerPhone(String(json.customer.phone));
     }
+  };
+
+  const submitProfileUpdate = async () => {
+    if (!publicId) throw new Error("Business not found");
+    const fullName = profileFullName.trim();
+    const phone = profilePhone.trim();
+    const currentEmail = profileCurrentEmail.trim();
+    const newEmail = profileNewEmail.trim();
+
+    if (!fullName) throw new Error("Full name is required");
+    if (!phone) throw new Error("Phone number is required");
+    if (!profilePhoneValid) throw new Error("Please enter a valid phone number");
+    if (!currentEmail) throw new Error("Email is required");
+    if (!isValidEmail(currentEmail)) throw new Error("Please enter a valid email address");
+    if (!newEmail) throw new Error("Email is required");
+    if (!isValidEmail(newEmail)) throw new Error("Please enter a valid email address");
+
+    const res = await fetch("/api/public/booking/profile/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        businessPublicId: publicId,
+        fullName,
+        phone,
+        currentEmail,
+        newEmail,
+      }),
+    });
+
+    const json = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new Error((json as any)?.error || `Request failed (${res.status})`);
+    }
+
+    if ((json as any)?.requiresVerification) {
+      setProfileStep("verify");
+      setProfileCode("");
+      return;
+    }
+
+    setCustomerFullName(fullName);
+    setCustomerPhone(phone);
+    setCustomerEmail(currentEmail);
+    setConnected(true);
+    setProfileOpen(false);
+  };
+
+  const submitProfileEmailVerify = async () => {
+    if (!publicId) throw new Error("Business not found");
+    const currentEmail = profileCurrentEmail.trim();
+    const newEmail = profileNewEmail.trim();
+    const code = profileCode.trim();
+    if (!currentEmail) throw new Error("Email is required");
+    if (!newEmail) throw new Error("Email is required");
+    if (!code) throw new Error("Code is required");
+
+    const res = await fetch("/api/public/booking/profile/verify-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        businessPublicId: publicId,
+        currentEmail,
+        newEmail,
+        code,
+      }),
+    });
+
+    const json = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new Error((json as any)?.error || `Request failed (${res.status})`);
+    }
+
+    const cust = (json as any)?.customer ?? {};
+    const email = String(cust?.email ?? "").trim() || newEmail;
+
+    setCustomerFullName(String(cust?.fullName ?? profileFullName).trim());
+    setCustomerPhone(String(cust?.phone ?? profilePhone).trim());
+    setCustomerEmail(email);
+    setConnected(true);
+    setProfileOpen(false);
   };
 
   const verifyBookingSession = async (): Promise<string> => {
@@ -1137,13 +1256,7 @@ export default function PublicBookingFlow({
           {loginStep === "email" ? (
             <div className="space-y-3">
               <div className="space-y-2">
-                <Label htmlFor="loginEmail">
-                  Email
-                  <span aria-hidden="true" className="text-red-600">
-                    {" "}*
-                  </span>
-                  <span className="sr-only"> (required)</span>
-                </Label>
+                <Label htmlFor="loginEmail">Email *</Label>
                 <Input
                   id="loginEmail"
                   className="rounded-2xl"
@@ -1272,51 +1385,201 @@ export default function PublicBookingFlow({
                 : "No appointments for this day."}
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="divide-y divide-gray-200 dark:divide-gray-800">
               {myAppointments
                 .filter((a) => String(a.status || "").toUpperCase() === "BOOKED")
                 .map((a) => (
                   <div
                     key={a.id}
-                    className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/10 p-3"
+                    className="py-3"
                   >
-                    {a.date ? (
-                      <div className="text-xs text-muted-foreground">
-                        {a.date}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        {a.date ? (
+                          <div className="text-xs text-muted-foreground">
+                            {a.date}
+                          </div>
+                        ) : null}
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                          {a.startTime}–{a.endTime}
+                        </div>
+                        <div className="text-sm text-gray-700 dark:text-gray-200">
+                          {a.serviceName}
+                        </div>
+
+                        <div className="text-xs text-muted-foreground mt-1">Booked</div>
                       </div>
-                    ) : null}
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">
-                      {a.startTime}–{a.endTime}
-                    </div>
-                    <div className="text-sm text-gray-700 dark:text-gray-200">
-                      {a.serviceName}
-                    </div>
 
-                    <div className="text-xs text-muted-foreground mt-1">Booked</div>
-
-                    <Button
-                      variant="outline"
-                      className="rounded-2xl w-full mt-2"
-                      disabled={cancellingMyAppointmentId === a.id}
-                      onClick={async () => {
-                        setCancellingMyAppointmentId(a.id);
-                        setMyAppointmentsError(null);
-                        try {
-                          await cancelSameDayAppointment(a.id);
-                          setMyAppointments((prev) => prev.filter((x) => x.id !== a.id));
-                        } catch (e: any) {
-                          setMyAppointmentsError(e?.message || "Failed");
-                        } finally {
-                          setCancellingMyAppointmentId(null);
-                        }
-                      }}
-                    >
-                      {cancellingMyAppointmentId === a.id
-                        ? "Cancelling…"
-                        : "Cancel this appointment"}
-                    </Button>
+                      <Button
+                        variant="outline"
+                        className="rounded-xl shrink-0"
+                        disabled={cancellingMyAppointmentId === a.id}
+                        onClick={async () => {
+                          setCancellingMyAppointmentId(a.id);
+                          setMyAppointmentsError(null);
+                          try {
+                            await cancelSameDayAppointment(a.id);
+                            setMyAppointments((prev) => prev.filter((x) => x.id !== a.id));
+                          } catch (e: any) {
+                            setMyAppointmentsError(e?.message || "Failed");
+                          } finally {
+                            setCancellingMyAppointmentId(null);
+                          }
+                        }}
+                      >
+                        {cancellingMyAppointmentId === a.id
+                          ? "Cancelling…"
+                          : "Cancel this appointment"}
+                      </Button>
+                    </div>
                   </div>
                 ))}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={profileOpen}
+        onOpenChange={(open) => {
+          setProfileOpen(open);
+          if (!open) {
+            setProfileError(null);
+            setProfileSubmitting(false);
+            setProfileStep("form");
+            setProfileCode("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>Update details</DialogTitle>
+            <DialogDescription>
+              Update your details. If you change your email, you’ll need to verify the new one.
+            </DialogDescription>
+          </DialogHeader>
+
+          {profileError ? (
+            <div className="text-sm text-red-600 dark:text-red-400">{profileError}</div>
+          ) : null}
+
+          {profileStep === "form" ? (
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="profileFullName">Full Name *</Label>
+                <Input
+                  id="profileFullName"
+                  className="rounded-2xl"
+                  value={profileFullName}
+                  onChange={(e) => setProfileFullName(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="profileEmail">Email *</Label>
+                <Input
+                  id="profileEmail"
+                  className="rounded-2xl"
+                  value={profileNewEmail}
+                  onChange={(e) => setProfileNewEmail(e.target.value)}
+                  placeholder="name@example.com"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="profilePhone">Phone *</Label>
+                <PhoneInput
+                  id="profilePhone"
+                  className="rounded-2xl"
+                  inputClassName="rounded-2xl"
+                  value={profilePhone}
+                  onChange={(v) => setProfilePhone(v)}
+                  onValidityChange={setProfilePhoneValid}
+                  onBlur={() => setProfilePhoneTouched(true)}
+                  aria-invalid={profilePhoneTouched && !profilePhoneValid}
+                  placeholder="Phone number"
+                />
+                {profilePhoneTouched && profilePhone.trim() && !profilePhoneValid ? (
+                  <div className="text-xs text-red-600 dark:text-red-400">
+                    Please enter a valid phone number.
+                  </div>
+                ) : null}
+              </div>
+
+              <Button
+                className="rounded-2xl w-full"
+                disabled={
+                  profileSubmitting ||
+                  !profileFullName.trim() ||
+                  !profilePhone.trim() ||
+                  !profilePhoneValid ||
+                  !profileNewEmail.trim() ||
+                  !isValidEmail(profileNewEmail.trim())
+                }
+                onClick={async () => {
+                  setProfileSubmitting(true);
+                  setProfileError(null);
+                  try {
+                    await submitProfileUpdate();
+                  } catch (e: any) {
+                    setProfileError(e?.message || "Failed");
+                  } finally {
+                    setProfileSubmitting(false);
+                  }
+                }}
+              >
+                {profileSubmitting ? "Saving…" : "Save"}
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="text-sm text-gray-600 dark:text-gray-300">
+                We sent a code to {profileNewEmail.trim() || "your email"}.
+              </div>
+
+              <div className="flex justify-center">
+                <OtpInput
+                  id="profile-otp"
+                  name="code"
+                  length={6}
+                  value={profileCode}
+                  onChange={setProfileCode}
+                  disabled={profileSubmitting}
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-2xl"
+                  onClick={() => {
+                    setProfileStep("form");
+                    setProfileCode("");
+                    setProfileError(null);
+                  }}
+                  disabled={profileSubmitting}
+                >
+                  Back
+                </Button>
+                <Button
+                  className="rounded-2xl flex-1"
+                  disabled={profileSubmitting || profileCode.replace(/\D/g, "").length < 6}
+                  onClick={async () => {
+                    setProfileSubmitting(true);
+                    setProfileError(null);
+                    try {
+                      await submitProfileEmailVerify();
+                    } catch (e: any) {
+                      setProfileError(e?.message || "Failed");
+                    } finally {
+                      setProfileSubmitting(false);
+                    }
+                  }}
+                >
+                  {profileSubmitting ? "Verifying…" : "Verify"}
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
