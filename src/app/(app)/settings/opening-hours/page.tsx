@@ -174,7 +174,16 @@ export default function OpeningHoursPage() {
     const initialRef = React.useRef<AvailabilityState | null>(null);
     const initialBookingRulesRef = React.useRef<BookingRulesState | null>(null);
     const [availability, setAvailability] = React.useState<AvailabilityState>({
-        timezone: "UTC",
+        timezone: (() => {
+            try {
+                return (
+                    String(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC").trim() ||
+                    "UTC"
+                );
+            } catch {
+                return "UTC";
+            }
+        })(),
         days: defaultDays(),
     });
     const [bookingRules, setBookingRules] = React.useState<BookingRulesState>({
@@ -225,7 +234,8 @@ export default function OpeningHoursPage() {
 
         const av = (onboardingRes as any)?.onboarding?.availability ?? {};
         const business = (onboardingRes as any)?.onboarding?.business ?? {};
-        const timezone = String((av as any)?.timezone ?? "").trim() || "UTC";
+        const rawTz = String((av as any)?.timezone ?? "").trim();
+        const timezone = rawTz && rawTz !== "UTC" ? rawTz : browserTimeZone;
         const days = normalizeDays((av as any)?.days);
         const next: AvailabilityState = { timezone, days };
 
@@ -242,7 +252,7 @@ export default function OpeningHoursPage() {
             initialBookingRulesRef.current = nextBookingRules;
             setBookingRules(nextBookingRules);
         }
-    }, [onboardingRes, isDirty, isSaving]);
+    }, [onboardingRes, isDirty, isSaving, browserTimeZone]);
 
     React.useEffect(() => {
         // Background refresh if cached data is older than 2 minutes.
@@ -466,7 +476,7 @@ export default function OpeningHoursPage() {
                                 Used to evaluate your opening hours and show “Open/Closed”.
                             </div>
                             {availability.timezone === "UTC" && browserTimeZone !== "UTC" ? (
-                                <div className="text-xs text-amber-600 dark:text-amber-300 mt-1">
+                                <div className="text-xs font-semibold text-gray-900 dark:text-white mt-1">
                                     Tip: your browser time zone is {browserTimeZone}.
                                 </div>
                             ) : null}

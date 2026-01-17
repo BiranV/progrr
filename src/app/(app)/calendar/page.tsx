@@ -5,6 +5,7 @@ import Flatpickr from "react-flatpickr";
 import { Arabic } from "flatpickr/dist/l10n/ar";
 import { Hebrew } from "flatpickr/dist/l10n/he";
 import { useSearchParams } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,7 @@ import {
 
 export default function CalendarPage() {
     const searchParams = useSearchParams();
+    const queryClient = useQueryClient();
 
     const [date, setDate] = React.useState<string>(() => {
         const d = new Date();
@@ -42,27 +44,44 @@ export default function CalendarPage() {
         const qp = String(searchParams?.get("date") ?? "").trim();
         if (!qp) return;
         if (!/^\d{4}-\d{2}-\d{2}$/.test(qp)) return;
-        setDate(qp);
+        setDate((prev) => (prev === qp ? prev : qp));
         // only react to param changes
     }, [searchParams]);
 
-    const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
-    const [showCanceled, setShowCanceled] = React.useState(false);
-    const [appointments, setAppointments] = React.useState<
-        Array<{
-            id: string;
-            date: string;
-            startTime: string;
-            endTime: string;
-            serviceName: string;
-            status: string;
-            cancelledBy?: string;
-            bookedByYou?: boolean;
-            customer: { fullName: string; phone: string; email?: string };
-            notes?: string;
-        }>
-    >([]);
+    const [showAll, setShowAll] = React.useState(false);
+
+    type Appointment = {
+        id: string;
+        date: string;
+        startTime: string;
+        endTime: string;
+        serviceName: string;
+        status: string;
+        cancelledBy?: string;
+        bookedByYou?: boolean;
+        customer: { fullName: string; phone: string; email?: string };
+        notes?: string;
+    };
+
+    const appointmentsQuery = useQuery({
+        queryKey: ["appointments", date],
+        staleTime: 30 * 1000,
+        queryFn: async (): Promise<Appointment[]> => {
+            const res = await fetch(`/api/appointments?date=${encodeURIComponent(date)}`);
+            const json = await res.json().catch(() => null);
+            if (!res.ok) {
+                throw new Error(json?.error || `Request failed (${res.status})`);
+            }
+            return Array.isArray(json?.appointments) ? (json.appointments as Appointment[]) : [];
+        },
+    });
+
+    const loading = appointmentsQuery.isPending;
+    const appointments = React.useMemo(
+        () => appointmentsQuery.data ?? [],
+        [appointmentsQuery.data]
+    );
 
     const [cancelId, setCancelId] = React.useState<string | null>(null);
     const [cancelling, setCancelling] = React.useState(false);
@@ -100,32 +119,68 @@ export default function CalendarPage() {
         return s === "CANCELED" || s === "CANCELLED";
     }, []);
 
-    const load = React.useCallback(async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const res = await fetch(
-                `/api/appointments?date=${encodeURIComponent(date)}`
-            );
-            const json = await res.json().catch(() => null);
-            if (!res.ok) {
-                throw new Error(json?.error || `Request failed (${res.status})`);
-            }
-            const list = Array.isArray(json?.appointments) ? json.appointments : [];
-            setAppointments(list);
-        } catch (e: any) {
-            setError(e?.message || "Failed to load appointments");
-            setAppointments([]);
-        } finally {
-            setLoading(false);
-        }
-    }, [date]);
+    const parseTimeToMinutes = React.useCallback((hhmm: string): number => {
+        const m = /^\s*(\d{1,2}):(\d{2})\s*$/.exec(String(hhmm ?? ""));
+        if (!m) return NaN;
+        const h = Number(m[1]);
+        const min = Number(m[2]);
+        if (!Number.isFinite(h) || !Number.isFinite(min)) return NaN;
+        if (h < 0 || h > 23) return NaN;
+        if (min < 0 || min > 59) return NaN;
+        return h * 60 + min;
+    }, []);
+
+    const todayLocal = React.useMemo(() => {
+        const d = new Date();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
+    }, []);
+
+    const [nowTimeLocal, setNowTimeLocal] = React.useState(() => {
+        const d = new Date();
+        const h = String(d.getHours()).padStart(2, "0");
+        const m = String(d.getMinutes()).padStart(2, "0");
+        return `${h}:${m}`;
+    });
+
+    React.useEffect(() => {
+        const id = window.setInterval(() => {
+            const d = new Date();
+            const h = String(d.getHours()).padStart(2, "0");
+            const m = String(d.getMinutes()).padStart(2, "0");
+            setNowTimeLocal(`${h}:${m}`);
+        }, 30 * 1000);
+        return () => window.clearInterval(id);
+    }, []);
+
+    React.useEffect(() => {
+        if (!appointmentsQuery.isError) return;
+        const msg = (appointmentsQuery.error as any)?.message || "Failed to load appointments";
+        setError(msg);
+    }, [appointmentsQuery.isError, appointmentsQuery.error]);
 
     const visibleAppointments = React.useMemo(() => {
-        return showCanceled
-            ? appointments
-            : appointments.filter((a) => !isCanceledStatus(a.status));
-    }, [appointments, isCanceledStatus, showCanceled]);
+        if (showAll) return appointments;
+
+        // Default view: show only remaining meetings.
+        // - Past date: none
+        // - Future date: all non-canceled
+        // - Today: non-canceled with endTime after now
+        const nonCanceled = appointments.filter((a) => !isCanceledStatus(a.status));
+        if (date < todayLocal) return [];
+        if (date > todayLocal) return nonCanceled;
+
+        const nowMin = parseTimeToMinutes(nowTimeLocal);
+        if (!Number.isFinite(nowMin)) return nonCanceled;
+
+        return nonCanceled.filter((a) => {
+            const endMin = parseTimeToMinutes(String(a.endTime ?? ""));
+            if (!Number.isFinite(endMin)) return true;
+            return endMin > nowMin;
+        });
+    }, [appointments, date, isCanceledStatus, nowTimeLocal, parseTimeToMinutes, showAll, todayLocal]);
 
     const openReschedule = React.useCallback(
         async (appt: { id: string; startTime: string; endTime: string; serviceName: string }) => {
@@ -191,15 +246,11 @@ export default function CalendarPage() {
 
             setRescheduleId(null);
             setRescheduleTitle("");
-            await load();
+            await queryClient.invalidateQueries({ queryKey: ["appointments", date] });
         } finally {
             setRescheduling(false);
         }
-    }, [date, load, rescheduleId, selectedStartTime]);
-
-    React.useEffect(() => {
-        load();
-    }, [load]);
+    }, [date, queryClient, rescheduleId, selectedStartTime]);
 
     const flatpickrOptions = React.useMemo(() => {
         return {
@@ -245,12 +296,12 @@ export default function CalendarPage() {
                 <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
                         <Switch
-                            checked={showCanceled}
-                            onCheckedChange={setShowCanceled}
-                            aria-label="Show canceled appointments"
+                            checked={showAll}
+                            onCheckedChange={setShowAll}
+                            aria-label="Show all appointments"
                         />
                         <span className="text-xs text-gray-600 dark:text-gray-300 select-none">
-                            Show canceled
+                            Show all
                         </span>
                     </div>
 
@@ -258,7 +309,10 @@ export default function CalendarPage() {
                         variant="outline"
                         size="sm"
                         className="rounded-xl"
-                        onClick={load}
+                        onClick={() => {
+                            setError(null);
+                            appointmentsQuery.refetch();
+                        }}
                         disabled={loading}
                     >
                         Refresh
@@ -387,13 +441,17 @@ export default function CalendarPage() {
                                 json?.error || `Request failed (${res.status})`
                             );
                         }
-
-                        setAppointments((prev) => {
-                            const next = prev.map((a) =>
-                                a.id === cancelId ? { ...a, status: "CANCELED", cancelledBy: "BUSINESS" } : a
-                            );
-                            return showCanceled ? next : next.filter((a) => a.id !== cancelId);
-                        });
+                        queryClient.setQueryData(
+                            ["appointments", date],
+                            (prev: unknown): Appointment[] => {
+                                const list = Array.isArray(prev) ? (prev as Appointment[]) : [];
+                                return list.map((a) =>
+                                    a.id === cancelId
+                                        ? { ...a, status: "CANCELED", cancelledBy: "BUSINESS" }
+                                        : a
+                                );
+                            }
+                        );
 
                         const emailSent = json?.email?.sent;
                         if (emailSent === false) {

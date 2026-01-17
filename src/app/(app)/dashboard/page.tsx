@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useBusiness } from "@/hooks/useBusiness";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import React from "react";
 import { toast } from "sonner";
@@ -15,6 +16,13 @@ type DashboardSummary = {
   todayAppointmentsCount: number;
   upcomingAppointmentsCount: number;
   totalCustomersCount: number;
+  revenueToday: number;
+  completedAppointmentsCount: number;
+  currency: {
+    code: string;
+    symbol?: string;
+    name?: string;
+  };
   businessStatus: {
     isOpenNow: boolean;
     label: string;
@@ -26,9 +34,6 @@ export default function DashboardPage() {
   const { data: business } = useBusiness();
   const [copyStatus, setCopyStatus] = React.useState<"idle" | "copied">("idle");
   const copyTimeoutRef = React.useRef<number | null>(null);
-
-  const [summary, setSummary] = React.useState<DashboardSummary | null>(null);
-  const [summaryLoading, setSummaryLoading] = React.useState(true);
 
   const bookingLink = React.useMemo(() => {
     const publicId = String((business as any)?.publicId ?? "").trim();
@@ -83,53 +88,49 @@ export default function DashboardPage() {
     };
   }, []);
 
-  React.useEffect(() => {
-    let cancelled = false;
+  const summaryQuery = useQuery({
+    queryKey: ["dashboardSummary"],
+    staleTime: 30 * 1000,
+    queryFn: async (): Promise<DashboardSummary> => {
+      const res = await fetch("/api/dashboard/summary", {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
 
-    const run = async () => {
-      try {
-        setSummaryLoading(true);
-        const res = await fetch("/api/dashboard/summary", {
-          method: "GET",
-          headers: { Accept: "application/json" },
-        });
+      const json = (await res.json().catch(() => null)) as
+        | DashboardSummary
+        | { error?: string }
+        | null;
 
-        const json = (await res.json().catch(() => null)) as
-          | DashboardSummary
-          | { error?: string }
-          | null;
-
-        if (cancelled) return;
-
-        if (!res.ok || !json || (json as any).ok !== true) {
-          const msg =
-            (json as any)?.error || "Failed to load dashboard summary";
-          toast.error(msg);
-          setSummary(null);
-          return;
-        }
-
-        setSummary(json as DashboardSummary);
-      } catch {
-        if (!cancelled) {
-          toast.error("Failed to load dashboard summary");
-          setSummary(null);
-        }
-      } finally {
-        if (!cancelled) setSummaryLoading(false);
+      if (!res.ok || !json || (json as any).ok !== true) {
+        const msg =
+          (json as any)?.error || "Failed to load dashboard summary";
+        throw new Error(msg);
       }
-    };
 
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+      return json as DashboardSummary;
+    },
+  });
 
-  const todayCount = summary?.todayAppointmentsCount ?? 0;
+  const lastToastRef = React.useRef<string>("");
+  React.useEffect(() => {
+    if (!summaryQuery.isError) return;
+    const msg =
+      (summaryQuery.error as any)?.message || "Failed to load dashboard summary";
+    if (msg && msg !== lastToastRef.current) {
+      lastToastRef.current = msg;
+      toast.error(msg);
+    }
+  }, [summaryQuery.isError, summaryQuery.error]);
+
+  const summary = summaryQuery.data ?? null;
+  const summaryLoading = summaryQuery.isPending;
+
   const upcomingCount = summary?.upcomingAppointmentsCount ?? 0;
   const customersCount = summary?.totalCustomersCount ?? 0;
   const isOpenNow = summary?.businessStatus?.isOpenNow;
+  const revenueToday = summary?.revenueToday ?? 0;
+  const currencySymbol = String(summary?.currency?.symbol ?? "").trim();
 
   const todayHref = summary?.todayStr
     ? `/calendar?date=${encodeURIComponent(summary.todayStr)}`
@@ -144,6 +145,31 @@ export default function DashboardPage() {
         <p className="text-sm text-gray-600 dark:text-gray-300">
           Overview of your business activity.
         </p>
+
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-xs text-muted-foreground">Business status</div>
+          <Link
+            href="/settings/opening-hours"
+            className="inline-flex items-center gap-2"
+          >
+            {summaryLoading ? (
+              <div className="text-xs font-semibold text-gray-900 dark:text-white">
+                —
+              </div>
+            ) : typeof isOpenNow === "boolean" ? (
+              <Badge
+                variant="outline"
+                className={
+                  isOpenNow
+                    ? "border-emerald-200 bg-emerald-500/10 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-500/15 dark:text-emerald-200"
+                    : "border-red-200 bg-red-500/10 text-red-700 dark:border-red-900/50 dark:bg-red-500/15 dark:text-red-200"
+                }
+              >
+                {isOpenNow ? "Open" : "Closed"}
+              </Badge>
+            ) : null}
+          </Link>
+        </div>
       </div>
 
       {/* 1) Overview Cards */}
@@ -154,11 +180,9 @@ export default function DashboardPage() {
         >
           <Card className="cursor-pointer transition-colors hover:bg-muted/30">
             <CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">
-                Today&apos;s appointments
-              </div>
+              <div className="text-xs text-muted-foreground">Remaining today</div>
               <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-                {summaryLoading ? "—" : todayCount}
+                {summaryLoading ? "—" : upcomingCount}
               </div>
             </CardContent>
           </Card>
@@ -166,11 +190,13 @@ export default function DashboardPage() {
 
         <Card>
           <CardContent className="p-4">
-            <div className="text-xs text-muted-foreground">
-              Upcoming appointments
-            </div>
+            <div className="text-xs text-muted-foreground">Revenue today</div>
             <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-              {summaryLoading ? "—" : upcomingCount}
+              {summaryLoading
+                ? "—"
+                : `${currencySymbol || ""}${revenueToday.toLocaleString(undefined, {
+                  maximumFractionDigits: 2,
+                })}`}
             </div>
           </CardContent>
         </Card>
@@ -189,34 +215,7 @@ export default function DashboardPage() {
           </Card>
         </Link>
 
-        <Link
-          href="/settings/opening-hours"
-          className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl"
-        >
-          <Card className="cursor-pointer transition-colors hover:bg-muted/30">
-            <CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">Business status</div>
-              <div className="mt-1 flex items-center justify-between gap-2">
-                {summaryLoading ? (
-                  <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                    —
-                  </div>
-                ) : typeof isOpenNow === "boolean" ? (
-                  <Badge
-                    variant="outline"
-                    className={
-                      isOpenNow
-                        ? "border-emerald-200 bg-emerald-500/10 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-500/15 dark:text-emerald-200"
-                        : "border-red-200 bg-red-500/10 text-red-700 dark:border-red-900/50 dark:bg-red-500/15 dark:text-red-200"
-                    }
-                  >
-                    {isOpenNow ? "Open" : "Closed"}
-                  </Badge>
-                ) : null}
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
+        {/* Intentionally no 4th card; status is shown at the top. */}
       </div>
 
       {/* 2) Public booking link */}

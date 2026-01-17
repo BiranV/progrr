@@ -38,6 +38,13 @@ export async function POST(
       return NextResponse.json({ ok: true, alreadyCanceled: true });
     }
 
+    if (appt.status === "COMPLETED") {
+      return NextResponse.json(
+        { error: "Cannot cancel a completed appointment" },
+        { status: 400 }
+      );
+    }
+
     await c.appointments.updateOne(
       { _id: apptId },
       { $set: { status: "CANCELED", cancelledAt: new Date(), cancelledBy: "BUSINESS" } }

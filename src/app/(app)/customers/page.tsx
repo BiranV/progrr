@@ -3,6 +3,7 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { Users } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,9 +33,31 @@ type Customer = {
 
 export default function CustomersPage() {
   const router = useRouter();
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
-  const [customers, setCustomers] = React.useState<Customer[]>([]);
+
+  const customersQuery = useQuery({
+    queryKey: ["customers"],
+    staleTime: 2 * 60 * 1000,
+    queryFn: async (): Promise<Customer[]> => {
+      const res = await fetch("/api/customers", {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(json?.error || `Request failed (${res.status})`);
+      }
+      return Array.isArray(json?.customers) ? (json.customers as Customer[]) : [];
+    },
+  });
+
+  const loading = customersQuery.isPending;
+  const error = customersQuery.isError
+    ? (customersQuery.error as any)?.message || "Failed to load customers"
+    : null;
+  const customers = React.useMemo(
+    () => customersQuery.data ?? [],
+    [customersQuery.data]
+  );
 
   const [query, setQuery] = React.useState("");
   const [page, setPage] = React.useState(1);
@@ -43,33 +66,6 @@ export default function CustomersPage() {
     key: "client",
     direction: "asc",
   });
-
-  React.useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch("/api/customers");
-        const json = await res.json().catch(() => null);
-        if (cancelled) return;
-        if (!res.ok) {
-          throw new Error(json?.error || `Request failed (${res.status})`);
-        }
-
-        const list = Array.isArray(json?.customers) ? json.customers : [];
-        setCustomers(list);
-      } catch (e: any) {
-        if (cancelled) return;
-        setError(e?.message || "Failed to load customers");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   React.useEffect(() => {
     setPage(1);

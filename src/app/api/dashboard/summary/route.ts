@@ -112,7 +112,7 @@ function isOpenNowFromAvailability(args: {
         if (!Number.isFinite(startMin) || !Number.isFinite(endMin)) continue;
         // Treat end time as inclusive (e.g. 09:00–16:00 is still open at 16:00,
         // and becomes closed at 16:01).
-        if (startMin <= nowMin && nowMin <= endMin) return true;
+        if (startMin <= nowMin && nowMin < endMin) return true;
     }
 
     return false;
@@ -139,7 +139,59 @@ export async function GET() {
         const todayStr = formatDateInTimeZone(now, timeZone);
         const nowTimeStr = formatTimeInTimeZone(now, timeZone);
 
-        const [todayAppointmentsCount, upcomingAppointmentsCount, totalCustomersCount] =
+        const onboarding = (owner as any)?.onboarding ?? {};
+        const business = onboarding?.business ?? {};
+        const currencyCode =
+            String(business.currency ?? "").trim() ||
+            String(onboarding.currency ?? "").trim() ||
+            "ILS";
+        const customCurrency = onboarding.customCurrency ?? undefined;
+
+        const currencySymbol = (code: string): string => {
+            switch (String(code || "").trim().toUpperCase()) {
+                case "ILS":
+                case "NIS":
+                    return "₪";
+                case "USD":
+                    return "$";
+                case "EUR":
+                    return "€";
+                case "GBP":
+                    return "£";
+                case "AUD":
+                case "CAD":
+                    return "$";
+                case "CHF":
+                    return "CHF";
+                default:
+                    return "";
+            }
+        };
+
+        // Keep appointment statuses in sync: if a booked appointment has passed, mark it completed.
+        await Promise.all([
+            // Any previous day bookings are definitely completed.
+            c.appointments.updateMany(
+                {
+                    businessUserId,
+                    status: "BOOKED",
+                    date: { $lt: todayStr },
+                } as any,
+                { $set: { status: "COMPLETED" } }
+            ),
+            // Today's bookings become completed once their end time has passed.
+            c.appointments.updateMany(
+                {
+                    businessUserId,
+                    status: "BOOKED",
+                    date: todayStr,
+                    endTime: { $lte: nowTimeStr },
+                } as any,
+                { $set: { status: "COMPLETED" } }
+            ),
+        ]);
+
+        const [todayAppointmentsCount, upcomingAppointmentsCount, totalCustomersCount, revenueAgg] =
             await Promise.all([
                 c.appointments.countDocuments({
                     businessUserId,
@@ -150,17 +202,42 @@ export async function GET() {
                     {
                         businessUserId,
                         status: "BOOKED",
-                        $or: [
-                            { date: { $gt: todayStr } },
-                            { date: todayStr, endTime: { $gt: nowTimeStr } },
-                        ],
+                        // Only remaining appointments *today*.
+                        date: todayStr,
+                        endTime: { $gt: nowTimeStr },
                     } as any
                 ),
                 c.customers.countDocuments({
                     businessUserId,
                     isHidden: { $ne: true },
                 } as any),
+                c.appointments
+                    .aggregate([
+                        {
+                            $match: {
+                                businessUserId,
+                                status: "COMPLETED",
+                                date: todayStr,
+                            },
+                        },
+                        {
+                            $group: {
+                                _id: null,
+                                revenue: { $sum: "$price" },
+                                completedCount: { $sum: 1 },
+                            },
+                        },
+                    ])
+                    .toArray(),
             ]);
+
+        const revenueRow = Array.isArray(revenueAgg) ? (revenueAgg[0] as any) : null;
+        const revenueToday = Number.isFinite(Number(revenueRow?.revenue))
+            ? Number(revenueRow.revenue)
+            : 0;
+        const completedAppointmentsCount = Number.isFinite(Number(revenueRow?.completedCount))
+            ? Number(revenueRow.completedCount)
+            : 0;
 
         const availability = (owner as any)?.onboarding?.availability ?? {};
         const openNow = isOpenNowFromAvailability({ now, timeZone, availability });
@@ -171,6 +248,18 @@ export async function GET() {
             todayAppointmentsCount,
             upcomingAppointmentsCount,
             totalCustomersCount,
+            revenueToday,
+            completedAppointmentsCount,
+            currency: {
+                code: currencyCode,
+                symbol:
+                    currencyCode === "OTHER"
+                        ? String(customCurrency?.symbol ?? "").trim()
+                        : currencySymbol(currencyCode),
+                ...(currencyCode === "OTHER"
+                    ? { name: String(customCurrency?.name ?? "").trim() }
+                    : {}),
+            },
             businessStatus: {
                 isOpenNow: openNow,
                 label: openNow ? "Open" : "Closed",

@@ -59,6 +59,13 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true, alreadyCancelled: true });
       }
 
+      if (appt.status === "COMPLETED") {
+        return NextResponse.json(
+          { error: "Cannot cancel a completed appointment" },
+          { status: 400 }
+        );
+      }
+
       await c.appointments.updateOne(
         { _id: apptId },
         { $set: { status: "CANCELED", cancelledAt: new Date(), cancelledBy: "CUSTOMER" } }
@@ -84,6 +91,13 @@ export async function POST(req: Request) {
 
       if (appt.status === "CANCELLED" || appt.status === "CANCELED") {
         return NextResponse.json({ ok: true, alreadyCancelled: true });
+      }
+
+      if (appt.status === "COMPLETED") {
+        return NextResponse.json(
+          { error: "Cannot cancel a completed appointment" },
+          { status: 400 }
+        );
       }
 
       await c.appointments.updateOne(
@@ -131,6 +145,13 @@ export async function POST(req: Request) {
 
     if (appt.status === "CANCELLED" || appt.status === "CANCELED") {
       return NextResponse.json({ ok: true, alreadyCancelled: true });
+    }
+
+    if (appt.status === "COMPLETED") {
+      return NextResponse.json(
+        { error: "Cannot cancel a completed appointment" },
+        { status: 400 }
+      );
     }
 
     await c.appointments.updateOne(
