@@ -138,9 +138,11 @@ export async function GET(
       const rawStatus = String(a?.status ?? "");
       const cancelled = rawStatus === "CANCELLED" || rawStatus === "CANCELED";
 
-      let status: "BOOKED" | "CANCELED" | "COMPLETED";
+      let status: "BOOKED" | "CANCELED" | "COMPLETED" | "NO_SHOW";
       if (cancelled) {
         status = "CANCELED";
+      } else if (rawStatus === "NO_SHOW") {
+        status = "NO_SHOW";
       } else if (rawStatus === "COMPLETED") {
         status = "COMPLETED";
       } else {

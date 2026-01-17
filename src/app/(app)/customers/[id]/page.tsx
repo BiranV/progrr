@@ -18,7 +18,7 @@ type Booking = {
   date: string;
   startTime: string;
   endTime: string;
-  status: "BOOKED" | "CANCELED" | "COMPLETED";
+  status: "BOOKED" | "CANCELED" | "COMPLETED" | "NO_SHOW";
   cancelledBy?: "BUSINESS" | "CUSTOMER" | string;
 };
 
@@ -48,6 +48,9 @@ function statusBadgeVariant(status: Booking["status"]) {
   }
   if (status === "COMPLETED") {
     return { label: "COMPLETED", className: "bg-blue-600 text-white" };
+  }
+  if (status === "NO_SHOW") {
+    return { label: "NO SHOW", className: "bg-amber-600 text-white" };
   }
   return { label: "CANCELED", className: "bg-gray-500 text-white dark:bg-gray-700" };
 }

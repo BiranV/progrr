@@ -71,7 +71,7 @@ export type AppointmentDoc = {
     email?: string;
   };
   notes?: string;
-  status: "BOOKED" | "COMPLETED" | "CANCELED" | "CANCELLED";
+  status: "BOOKED" | "COMPLETED" | "NO_SHOW" | "CANCELED" | "CANCELLED";
   createdBy?: "BUSINESS" | "CUSTOMER";
   createdAt: Date;
   cancelledAt?: Date;

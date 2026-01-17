@@ -6,6 +6,8 @@ import { Arabic } from "flatpickr/dist/l10n/ar";
 import { Hebrew } from "flatpickr/dist/l10n/he";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { MoreVertical } from "lucide-react";
+import { toast } from "sonner";
 
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +29,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function CalendarPage() {
     const searchParams = useSearchParams();
@@ -96,6 +105,8 @@ export default function CalendarPage() {
     const [selectedStartTime, setSelectedStartTime] = React.useState<string>("");
     const [rescheduling, setRescheduling] = React.useState(false);
 
+    const [statusUpdatingId, setStatusUpdatingId] = React.useState<string | null>(null);
+
     const dir = React.useMemo<"ltr" | "rtl">(() => {
         if (typeof document === "undefined") return "ltr";
         const v = String(
@@ -118,6 +129,57 @@ export default function CalendarPage() {
         const s = String(status ?? "").toUpperCase();
         return s === "CANCELED" || s === "CANCELLED";
     }, []);
+
+    const isNoShowStatus = React.useCallback((status: unknown) => {
+        const s = String(status ?? "").toUpperCase();
+        return s === "NO_SHOW" || s === "NO SHOW";
+    }, []);
+
+    const statusLabel = React.useCallback((status: unknown) => {
+        const s = String(status ?? "").toUpperCase();
+        if (s === "NO_SHOW") return "NO SHOW";
+        return s;
+    }, []);
+
+    const updateStatus = React.useCallback(
+        async (appointmentId: string, nextStatus: "BOOKED" | "COMPLETED" | "NO_SHOW") => {
+            setError(null);
+            setStatusUpdatingId(appointmentId);
+            try {
+                const res = await fetch(
+                    `/api/appointments/${encodeURIComponent(appointmentId)}/status`,
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ status: nextStatus }),
+                    }
+                );
+                const json = await res.json().catch(() => null);
+                if (!res.ok) {
+                    throw new Error(json?.error || `Request failed (${res.status})`);
+                }
+
+                toast.success(
+                    nextStatus === "NO_SHOW"
+                        ? "Marked as NO SHOW"
+                        : nextStatus === "COMPLETED"
+                            ? "Marked as COMPLETED"
+                            : "Marked as BOOKED"
+                );
+
+                await queryClient.invalidateQueries({ queryKey: ["appointments", date] });
+                await queryClient.invalidateQueries({ queryKey: ["dashboardSummary"] });
+                await queryClient.invalidateQueries({ queryKey: ["dashboardRevenueSeries"] });
+            } catch (e: any) {
+                const msg = String(e?.message || "Failed");
+                setError(msg);
+                toast.error(msg);
+            } finally {
+                setStatusUpdatingId(null);
+            }
+        },
+        [date, queryClient]
+    );
 
     const parseTimeToMinutes = React.useCallback((hhmm: string): number => {
         const m = /^\s*(\d{1,2}):(\d{2})\s*$/.exec(String(hhmm ?? ""));
@@ -406,13 +468,53 @@ export default function CalendarPage() {
                                             ? "bg-emerald-600 text-white"
                                             : String(a.status) === "COMPLETED"
                                                 ? "bg-blue-600 text-white"
+                                            : isNoShowStatus(a.status)
+                                                ? "bg-amber-600 text-white"
                                             : isCanceledStatus(a.status)
                                                 ? "bg-gray-500 text-white dark:bg-gray-700"
                                                 : "bg-gray-600 text-white"
                                     }
                                 >
-                                    {String(a.status)}
+                                    {statusLabel(a.status)}
                                 </Badge>
+
+                                {!isCanceledStatus(a.status) ? (
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                type="button"
+                                                size="icon"
+                                                variant="ghost"
+                                                className="h-8 w-8 rounded-xl"
+                                                disabled={statusUpdatingId === a.id}
+                                                aria-label="Change status"
+                                                title="Change status"
+                                            >
+                                                <MoreVertical className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                            <DropdownMenuItem
+                                                onClick={() => updateStatus(a.id, "BOOKED")}
+                                                disabled={statusUpdatingId === a.id}
+                                            >
+                                                Set as BOOKED
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                onClick={() => updateStatus(a.id, "COMPLETED")}
+                                                disabled={statusUpdatingId === a.id}
+                                            >
+                                                Set as COMPLETED
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                onClick={() => updateStatus(a.id, "NO_SHOW")}
+                                                disabled={statusUpdatingId === a.id}
+                                            >
+                                                Set as NO SHOW
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                ) : null}
                             </div>
                         </div>
                     ))}

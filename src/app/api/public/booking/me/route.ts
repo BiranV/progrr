@@ -138,7 +138,7 @@ export async function GET(req: Request) {
                     : {
                         businessUserId: user._id as ObjectId,
                         date,
-                        status: { $in: ["BOOKED", "COMPLETED"] },
+                        status: { $in: ["BOOKED", "COMPLETED", "NO_SHOW"] },
                         "customer.id": claims.customerId,
                     }) as any,
                 {
