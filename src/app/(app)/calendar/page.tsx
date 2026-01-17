@@ -8,6 +8,22 @@ import { Hebrew } from "flatpickr/dist/l10n/he";
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import ConfirmModal from "@/components/ui/confirm-modal";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 export default function CalendarPage() {
     const [date, setDate] = React.useState<string>(() => {
@@ -32,6 +48,19 @@ export default function CalendarPage() {
             notes?: string;
         }>
     >([]);
+
+    const [cancelId, setCancelId] = React.useState<string | null>(null);
+    const [cancelling, setCancelling] = React.useState(false);
+
+    const [rescheduleId, setRescheduleId] = React.useState<string | null>(null);
+    const [rescheduleTitle, setRescheduleTitle] = React.useState<string>("");
+    const [timesLoading, setTimesLoading] = React.useState(false);
+    const [timesError, setTimesError] = React.useState<string | null>(null);
+    const [availableTimes, setAvailableTimes] = React.useState<
+        Array<{ startTime: string; endTime: string }>
+    >([]);
+    const [selectedStartTime, setSelectedStartTime] = React.useState<string>("");
+    const [rescheduling, setRescheduling] = React.useState(false);
 
     const dir = React.useMemo<"ltr" | "rtl">(() => {
         if (typeof document === "undefined") return "ltr";
@@ -71,6 +100,76 @@ export default function CalendarPage() {
             setLoading(false);
         }
     }, [date]);
+
+    const openReschedule = React.useCallback(
+        async (appt: { id: string; startTime: string; endTime: string; serviceName: string }) => {
+            setRescheduleId(appt.id);
+            setRescheduleTitle(`${appt.startTime}–${appt.endTime} • ${appt.serviceName}`);
+            setTimesError(null);
+            setAvailableTimes([]);
+            setSelectedStartTime("");
+
+            setTimesLoading(true);
+            try {
+                const res = await fetch(
+                    `/api/appointments/${encodeURIComponent(
+                        appt.id
+                    )}/available-times?date=${encodeURIComponent(date)}`
+                );
+                const json = await res.json().catch(() => null);
+                if (!res.ok) {
+                    throw new Error(json?.error || `Request failed (${res.status})`);
+                }
+                const slots = Array.isArray(json?.slots) ? json.slots : [];
+                const normalized = slots
+                    .map((s: any) => ({
+                        startTime: String(s?.startTime ?? ""),
+                        endTime: String(s?.endTime ?? ""),
+                    }))
+                    .filter((s: any) => /^\d{2}:\d{2}$/.test(s.startTime) && /^\d{2}:\d{2}$/.test(s.endTime));
+
+                setAvailableTimes(normalized);
+                const current = normalized.find((t: { startTime: string }) => t.startTime === appt.startTime);
+                setSelectedStartTime(current ? current.startTime : normalized[0]?.startTime ?? "");
+            } catch (e: any) {
+                setTimesError(e?.message || "Failed to load available times");
+            } finally {
+                setTimesLoading(false);
+            }
+        },
+        [date]
+    );
+
+    const submitReschedule = React.useCallback(async () => {
+        if (!rescheduleId) return;
+        if (!selectedStartTime) throw new Error("Please select a time");
+
+        setRescheduling(true);
+        try {
+            const res = await fetch(`/api/appointments/${encodeURIComponent(rescheduleId)}/reschedule`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ date, startTime: selectedStartTime }),
+            });
+            const json = await res.json().catch(() => null);
+            if (!res.ok) {
+                throw new Error(json?.error || `Request failed (${res.status})`);
+            }
+
+            const emailSent = json?.email?.sent;
+            if (emailSent === false) {
+                setError(
+                    String(json?.email?.error || "Rescheduled, but failed to email the customer")
+                );
+            }
+
+            setRescheduleId(null);
+            setRescheduleTitle("");
+            await load();
+        } finally {
+            setRescheduling(false);
+        }
+    }, [date, load, rescheduleId, selectedStartTime]);
 
     React.useEffect(() => {
         load();
@@ -164,6 +263,29 @@ export default function CalendarPage() {
                                             {a.notes}
                                         </div>
                                     ) : null}
+
+                                    {String(a.status) === "BOOKED" ? (
+                                        <div className="flex flex-wrap gap-2 mt-2">
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                className="rounded-xl"
+                                                onClick={() => openReschedule(a)}
+                                            >
+                                                Change hour
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="destructive"
+                                                className="rounded-xl"
+                                                onClick={() => setCancelId(a.id)}
+                                            >
+                                                Cancel
+                                            </Button>
+                                        </div>
+                                    ) : null}
                                 </div>
 
                                 <Badge
@@ -180,6 +302,125 @@ export default function CalendarPage() {
                     ))}
                 </div>
             )}
+
+            <ConfirmModal
+                open={Boolean(cancelId)}
+                onOpenChange={(open) => {
+                    if (!open) setCancelId(null);
+                }}
+                title="Cancel appointment?"
+                description="This will mark the appointment as canceled."
+                confirmText="Cancel appointment"
+                confirmVariant="destructive"
+                loading={cancelling}
+                onConfirm={async () => {
+                    if (!cancelId) return;
+                    setCancelling(true);
+                    try {
+                        const res = await fetch(
+                            `/api/appointments/${encodeURIComponent(cancelId)}/cancel`,
+                            { method: "POST" }
+                        );
+                        const json = await res.json().catch(() => null);
+                        if (!res.ok) {
+                            throw new Error(
+                                json?.error || `Request failed (${res.status})`
+                            );
+                        }
+                        setCancelId(null);
+                        await load();
+                    } finally {
+                        setCancelling(false);
+                    }
+                }}
+            />
+
+            <Dialog
+                open={Boolean(rescheduleId)}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setRescheduleId(null);
+                        setRescheduleTitle("");
+                        setTimesError(null);
+                        setAvailableTimes([]);
+                        setSelectedStartTime("");
+                    }
+                }}
+            >
+                <DialogContent showCloseButton={!rescheduling && !timesLoading}>
+                    <DialogHeader>
+                        <DialogTitle>Change hour</DialogTitle>
+                        <DialogDescription>
+                            {rescheduleTitle ? (
+                                <span className="block truncate">{rescheduleTitle}</span>
+                            ) : null}
+                            <span className="block">Choose a new time for {date}.</span>
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {timesError ? (
+                        <div className="text-sm text-red-600 dark:text-red-400">
+                            {timesError}
+                        </div>
+                    ) : null}
+
+                    {timesLoading ? (
+                        <CenteredSpinner className="min-h-[10vh] items-center" />
+                    ) : availableTimes.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">
+                            No available times.
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            <div className="text-sm font-medium">Available hours</div>
+                            <Select
+                                value={selectedStartTime}
+                                onValueChange={(v) => setSelectedStartTime(v)}
+                            >
+                                <SelectTrigger className="rounded-xl">
+                                    <SelectValue placeholder="Select time" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableTimes.map((t) => (
+                                        <SelectItem key={t.startTime} value={t.startTime}>
+                                            {t.startTime}–{t.endTime}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={rescheduling || timesLoading}
+                            onClick={() => setRescheduleId(null)}
+                        >
+                            Close
+                        </Button>
+                        <Button
+                            type="button"
+                            disabled={
+                                rescheduling ||
+                                timesLoading ||
+                                availableTimes.length === 0 ||
+                                !selectedStartTime
+                            }
+                            onClick={async () => {
+                                try {
+                                    await submitReschedule();
+                                } catch (e: any) {
+                                    setTimesError(e?.message || "Failed to reschedule");
+                                }
+                            }}
+                        >
+                            {rescheduling ? "Saving…" : "Save"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
