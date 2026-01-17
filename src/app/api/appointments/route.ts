@@ -8,6 +8,13 @@ function isYmd(v: string): boolean {
     return /^\d{4}-\d{2}-\d{2}$/.test(String(v || "").trim());
 }
 
+function normalizeEmail(input: unknown): string {
+    return String(input ?? "")
+        .replace(/[\s\u200B\u200C\u200D\uFEFF]/g, "")
+        .trim()
+        .toLowerCase();
+}
+
 export async function GET(req: Request) {
     try {
         const user = await requireAppUser();
@@ -34,6 +41,7 @@ export async function GET(req: Request) {
                         startTime: 1,
                         endTime: 1,
                         status: 1,
+                        cancelledBy: 1,
                         customer: 1,
                         notes: 1,
                     },
@@ -50,6 +58,8 @@ export async function GET(req: Request) {
             endTime: String(a?.endTime ?? ""),
             serviceName: String(a?.serviceName ?? ""),
             status: String(a?.status ?? ""),
+            cancelledBy: typeof a?.cancelledBy === "string" ? a.cancelledBy : undefined,
+            bookedByYou: normalizeEmail(a?.customer?.email) === normalizeEmail(user.email),
             customer: {
                 fullName: String(a?.customer?.fullName ?? ""),
                 phone: String(a?.customer?.phone ?? ""),

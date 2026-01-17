@@ -133,14 +133,18 @@ export async function POST(req: Request) {
       );
     }
 
-    // Business-scoped customer block: prevent booking for this business.
-    const blocked = await c.customers.findOne({
-      businessUserId: user._id as ObjectId,
-      email,
-      status: "BLOCKED",
-    } as any);
+    const isOwnerBooking = normalizeEmail((user as any)?.email) === email;
 
-    if (blocked) {
+    // Business-scoped customer block: prevent booking for this business.
+    const blocked = isOwnerBooking
+      ? null
+      : await c.customers.findOne({
+        businessUserId: user._id as ObjectId,
+        email,
+        status: "BLOCKED",
+      } as any);
+
+    if (!isOwnerBooking && blocked) {
       return NextResponse.json(
         {
           error: "You cannot book with this business.",
@@ -160,7 +164,7 @@ export async function POST(req: Request) {
       (businessSettings as any).limitCustomerToOneUpcomingAppointment
     );
 
-    if (!limitCustomerToOneUpcomingAppointment) {
+    if (isOwnerBooking || !limitCustomerToOneUpcomingAppointment) {
       return NextResponse.json({ ok: true, bookingSessionId });
     }
 
@@ -185,6 +189,23 @@ export async function POST(req: Request) {
     );
 
     if (existing) {
+      const existingList = await c.appointments
+        .find(
+          {
+            businessUserId: user._id as ObjectId,
+            status: "BOOKED",
+            "customer.email": email,
+            $or: [
+              { date: { $gt: todayStr } },
+              { date: todayStr, endTime: { $gt: nowTimeStr } },
+            ],
+          } as any,
+          { projection: { date: 1, startTime: 1, endTime: 1, serviceName: 1 } }
+        )
+        .sort({ date: 1, startTime: 1 })
+        .limit(50)
+        .toArray();
+
       return NextResponse.json(
         {
           error:
@@ -198,6 +219,13 @@ export async function POST(req: Request) {
             endTime: (existing as any)?.endTime,
             serviceName: (existing as any)?.serviceName,
           },
+          existingAppointments: existingList.map((a: any) => ({
+            id: a?._id?.toHexString?.() ?? "",
+            date: String(a?.date ?? ""),
+            startTime: String(a?.startTime ?? ""),
+            endTime: String(a?.endTime ?? ""),
+            serviceName: String(a?.serviceName ?? ""),
+          })),
         },
         { status: 409 }
       );

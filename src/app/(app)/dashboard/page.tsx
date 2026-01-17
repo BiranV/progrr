@@ -4,13 +4,30 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useBusiness } from "@/hooks/useBusiness";
+import Link from "next/link";
 import React from "react";
 import { toast } from "sonner";
+
+type DashboardSummary = {
+  ok: true;
+  todayStr: string;
+  todayAppointmentsCount: number;
+  upcomingAppointmentsCount: number;
+  totalCustomersCount: number;
+  businessStatus: {
+    isOpenNow: boolean;
+    label: string;
+    timeZone: string;
+  };
+};
 
 export default function DashboardPage() {
   const { data: business } = useBusiness();
   const [copyStatus, setCopyStatus] = React.useState<"idle" | "copied">("idle");
   const copyTimeoutRef = React.useRef<number | null>(null);
+
+  const [summary, setSummary] = React.useState<DashboardSummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = React.useState(true);
 
   const bookingLink = React.useMemo(() => {
     const publicId = String((business as any)?.publicId ?? "").trim();
@@ -65,6 +82,58 @@ export default function DashboardPage() {
     };
   }, []);
 
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      try {
+        setSummaryLoading(true);
+        const res = await fetch("/api/dashboard/summary", {
+          method: "GET",
+          headers: { Accept: "application/json" },
+        });
+
+        const json = (await res.json().catch(() => null)) as
+          | DashboardSummary
+          | { error?: string }
+          | null;
+
+        if (cancelled) return;
+
+        if (!res.ok || !json || (json as any).ok !== true) {
+          const msg =
+            (json as any)?.error || "Failed to load dashboard summary";
+          toast.error(msg);
+          setSummary(null);
+          return;
+        }
+
+        setSummary(json as DashboardSummary);
+      } catch {
+        if (!cancelled) {
+          toast.error("Failed to load dashboard summary");
+          setSummary(null);
+        }
+      } finally {
+        if (!cancelled) setSummaryLoading(false);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const todayCount = summary?.todayAppointmentsCount ?? 0;
+  const upcomingCount = summary?.upcomingAppointmentsCount ?? 0;
+  const customersCount = summary?.totalCustomersCount ?? 0;
+  const statusLabel = summary?.businessStatus?.label ?? "—";
+
+  const todayHref = summary?.todayStr
+    ? `/calendar?date=${encodeURIComponent(summary.todayStr)}`
+    : "/calendar";
+
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -78,16 +147,21 @@ export default function DashboardPage() {
 
       {/* 1) Overview Cards */}
       <div className="grid grid-cols-2 gap-3">
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-xs text-muted-foreground">
-              Today&apos;s appointments
-            </div>
-            <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-              0
-            </div>
-          </CardContent>
-        </Card>
+        <Link
+          href={todayHref}
+          className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl"
+        >
+          <Card className="cursor-pointer transition-colors hover:bg-muted/30">
+            <CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">
+                Today&apos;s appointments
+              </div>
+              <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
+                {summaryLoading ? "—" : todayCount}
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
 
         <Card>
           <CardContent className="p-4">
@@ -95,28 +169,38 @@ export default function DashboardPage() {
               Upcoming appointments
             </div>
             <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-              0
+              {summaryLoading ? "—" : upcomingCount}
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-xs text-muted-foreground">Total customers</div>
-            <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-              0
-            </div>
-          </CardContent>
-        </Card>
+        <Link
+          href="/customers"
+          className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl"
+        >
+          <Card className="cursor-pointer transition-colors hover:bg-muted/30">
+            <CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">Total customers</div>
+              <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
+                {summaryLoading ? "—" : customersCount}
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-xs text-muted-foreground">Business status</div>
-            <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-              Open
-            </div>
-          </CardContent>
-        </Card>
+        <Link
+          href="/settings/opening-hours"
+          className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-xl"
+        >
+          <Card className="cursor-pointer transition-colors hover:bg-muted/30">
+            <CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">Business status</div>
+              <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
+                {summaryLoading ? "—" : statusLabel}
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       {/* 2) Public booking link */}

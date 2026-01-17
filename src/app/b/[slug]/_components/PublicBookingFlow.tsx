@@ -43,6 +43,13 @@ type BookingResult = {
     notes?: string;
     status: string;
   };
+  sameDayAppointments?: Array<{
+    id: string;
+    serviceName: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+  }>;
   cancelToken: string;
 };
 
@@ -56,6 +63,13 @@ type ActiveAppointmentConflict = {
     endTime?: string;
     serviceName?: string;
   };
+  existingAppointments?: Array<{
+    id?: string;
+    date?: string;
+    startTime?: string;
+    endTime?: string;
+    serviceName?: string;
+  }>;
 };
 
 function weekdayFromDateString(dateStr: string): number {
@@ -209,6 +223,12 @@ export default function PublicBookingFlow({
   }, [data, publicId, result]);
   const [cancelError, setCancelError] = React.useState<string | null>(null);
   const [cancelling, setCancelling] = React.useState(false);
+  const [cancellingConflictId, setCancellingConflictId] = React.useState<
+    string | null
+  >(null);
+  const [cancellingSameDayId, setCancellingSameDayId] = React.useState<
+    string | null
+  >(null);
 
   const resetFlow = React.useCallback(() => {
     setResult(null);
@@ -216,6 +236,7 @@ export default function PublicBookingFlow({
     setActiveConflict(null);
     setCancelError(null);
     setCancelling(false);
+    setCancellingConflictId(null);
     setSubmitting(false);
     setFormError(null);
     setOtpCode("");
@@ -534,6 +555,9 @@ export default function PublicBookingFlow({
         code: "ACTIVE_APPOINTMENT_EXISTS",
         bookingSessionId: sessionId,
         existingAppointment: verifyJson?.existingAppointment,
+        existingAppointments: Array.isArray(verifyJson?.existingAppointments)
+          ? verifyJson.existingAppointments
+          : undefined,
       });
       const err: any = new Error(
         verifyJson?.error ||
@@ -592,6 +616,9 @@ export default function PublicBookingFlow({
               : "ACTIVE_APPOINTMENT_EXISTS",
           bookingSessionId: sessionId,
           existingAppointment: confirmJson?.existingAppointment,
+          existingAppointments: Array.isArray(confirmJson?.existingAppointments)
+            ? confirmJson.existingAppointments
+            : undefined,
         });
 
         const err: any = new Error(
@@ -621,13 +648,11 @@ export default function PublicBookingFlow({
     await fetch("/api/public/booking/disconnect", { method: "POST" });
   };
 
-  const cancelExistingAppointment = async () => {
+  const cancelExistingAppointment = async (appointmentIdRaw: string) => {
     const sessionId = String(
       bookingSessionId || activeConflict?.bookingSessionId || ""
     ).trim();
-    const appointmentId = String(
-      activeConflict?.existingAppointment?.id ?? ""
-    ).trim();
+    const appointmentId = String(appointmentIdRaw ?? "").trim();
     if (!sessionId) throw new Error("Verification required");
     if (!appointmentId) throw new Error("Appointment not found");
 
@@ -659,6 +684,20 @@ export default function PublicBookingFlow({
     const json = await res.json().catch(() => null);
     if (!res.ok)
       throw new Error(json?.error || `Request failed (${res.status})`);
+  };
+
+  const cancelSameDayAppointment = async (appointmentId: string) => {
+    const id = String(appointmentId ?? "").trim();
+    if (!id) throw new Error("Appointment not found");
+
+    const res = await fetch("/api/public/booking/cancel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ appointmentId: id }),
+    });
+
+    const json = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
   };
 
   if (loading && !data) {
@@ -938,46 +977,71 @@ export default function PublicBookingFlow({
                   ? "Please cancel it first to book the same service again."
                   : "Please cancel it first to book a new one."}
               </div>
-              {activeConflict.existingAppointment?.date ||
-                activeConflict.existingAppointment?.startTime ? (
-                <div className="text-sm text-amber-900/90 dark:text-amber-200/90 mt-2">
-                  {activeConflict.existingAppointment?.serviceName
-                    ? `${activeConflict.existingAppointment.serviceName} • `
-                    : ""}
-                  {activeConflict.existingAppointment?.date || ""}
-                  {activeConflict.existingAppointment?.startTime
-                    ? ` • ${activeConflict.existingAppointment.startTime}`
-                    : ""}
-                </div>
-              ) : null}
 
-              <div className="mt-3">
-                <Button
-                  variant="outline"
-                  className="rounded-2xl w-full"
-                  disabled={submitting}
-                  onClick={async () => {
-                    setSubmitting(true);
-                    setFormError(null);
-                    try {
-                      await cancelExistingAppointment();
-                      setActiveConflict(null);
-                      const sessionId =
-                        bookingSessionId ||
-                        String(activeConflict?.bookingSessionId ?? "").trim();
-                      if (!sessionId) throw new Error("Verification required");
-                      const r = await confirmBookingWithSession(sessionId);
-                      setResult(r);
-                      setStep("success");
-                    } catch (e: any) {
-                      setFormError(e?.message || "Failed");
-                    } finally {
-                      setSubmitting(false);
-                    }
-                  }}
-                >
-                  {submitting ? "Cancelling…" : "Cancel existing appointment"}
-                </Button>
+              <div className="mt-2 space-y-2">
+                {(Array.isArray(activeConflict.existingAppointments)
+                  ? activeConflict.existingAppointments
+                  : activeConflict.existingAppointment
+                    ? [activeConflict.existingAppointment]
+                    : []
+                )
+                  .filter((x: any) => String(x?.id ?? "").trim())
+                  .map((appt: any) => {
+                    const apptId = String(appt?.id ?? "").trim();
+                    const label = `${appt?.serviceName ? `${appt.serviceName} • ` : ""}${appt?.date || ""
+                      }${appt?.startTime ? ` • ${appt.startTime}` : ""}`;
+
+                    return (
+                      <div
+                        key={apptId}
+                        className="rounded-xl border border-amber-200/70 dark:border-amber-900/40 bg-white/60 dark:bg-black/10 p-3"
+                      >
+                        <div className="text-sm text-amber-900/90 dark:text-amber-200/90">
+                          {label}
+                        </div>
+                        <Button
+                          variant="outline"
+                          className="rounded-2xl w-full mt-2"
+                          disabled={submitting || cancellingConflictId === apptId}
+                          onClick={async () => {
+                            setFormError(null);
+                            setCancellingConflictId(apptId);
+                            try {
+                              await cancelExistingAppointment(apptId);
+                              setActiveConflict((prev) => {
+                                if (!prev) return prev;
+                                const list = Array.isArray(prev.existingAppointments)
+                                  ? prev.existingAppointments
+                                  : [];
+                                const nextList = list.filter(
+                                  (x: any) => String(x?.id ?? "").trim() !== apptId
+                                );
+
+                                // If we only had a single fallback appointment, clear conflict after cancel.
+                                if (list.length === 0) return null;
+                                if (nextList.length === 0) return null;
+                                return { ...prev, existingAppointments: nextList };
+                              });
+                            } catch (e: any) {
+                              if (
+                                String(e?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS" ||
+                                String(e?.code ?? "") === "SAME_SERVICE_SAME_DAY_EXISTS"
+                              ) {
+                                return;
+                              }
+                              setFormError(e?.message || "Failed");
+                            } finally {
+                              setCancellingConflictId(null);
+                            }
+                          }}
+                        >
+                          {cancellingConflictId === apptId
+                            ? "Cancelling…"
+                            : "Cancel this appointment"}
+                        </Button>
+                      </div>
+                    );
+                  })}
               </div>
             </div>
           ) : null}
@@ -1008,7 +1072,7 @@ export default function PublicBookingFlow({
                   setSubmitting(false);
                 }
               }}
-              disabled={submitting}
+              disabled={submitting || cancellingConflictId !== null}
             >
               Resend
             </Button>
@@ -1025,7 +1089,10 @@ export default function PublicBookingFlow({
                   setStep("success");
                   setIdentified(true);
                 } catch (e: any) {
-                  if (String(e?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS") {
+                  if (
+                    String(e?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS" ||
+                    String(e?.code ?? "") === "SAME_SERVICE_SAME_DAY_EXISTS"
+                  ) {
                     // Business rule violation; show conflict UI, not an OTP error.
                     return;
                   }
@@ -1034,7 +1101,11 @@ export default function PublicBookingFlow({
                   setSubmitting(false);
                 }
               }}
-              disabled={submitting || otpCode.replace(/\D/g, "").length < 6}
+              disabled={
+                submitting ||
+                cancellingConflictId !== null ||
+                otpCode.replace(/\D/g, "").length < 6
+              }
             >
               {submitting ? "Confirming…" : "Confirm booking"}
             </Button>
@@ -1064,6 +1135,67 @@ export default function PublicBookingFlow({
               </div>
             ) : null}
           </div>
+
+          {Array.isArray(result.sameDayAppointments) &&
+            result.sameDayAppointments.length > 1 ? (
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4 shadow-sm">
+              <div className="font-semibold text-gray-900 dark:text-white">
+                Your appointments on {result.appointment.date}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                You can cancel any of them below.
+              </div>
+
+              <div className="mt-3 space-y-2">
+                {result.sameDayAppointments.map((a) => (
+                  <div
+                    key={a.id}
+                    className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/10 p-3"
+                  >
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">
+                      {a.startTime}–{a.endTime}
+                    </div>
+                    <div className="text-sm text-gray-700 dark:text-gray-200">
+                      {a.serviceName}
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      className="rounded-2xl w-full mt-2"
+                      disabled={cancellingSameDayId === a.id || cancelling}
+                      onClick={async () => {
+                        setCancelError(null);
+                        setCancellingSameDayId(a.id);
+                        try {
+                          await cancelSameDayAppointment(a.id);
+                          setResult((prev) => {
+                            if (!prev) return prev;
+                            const list = Array.isArray(prev.sameDayAppointments)
+                              ? prev.sameDayAppointments
+                              : [];
+                            return {
+                              ...prev,
+                              sameDayAppointments: list.filter(
+                                (x) => x.id !== a.id
+                              ),
+                            };
+                          });
+                        } catch (e: any) {
+                          setCancelError(e?.message || "Failed");
+                        } finally {
+                          setCancellingSameDayId(null);
+                        }
+                      }}
+                    >
+                      {cancellingSameDayId === a.id
+                        ? "Cancelling…"
+                        : "Cancel this appointment"}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <div className="space-y-2">
             <div className="flex flex-wrap gap-3">

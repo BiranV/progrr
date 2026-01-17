@@ -10,6 +10,14 @@ import {
 } from "@/server/jwt";
 import { CUSTOMER_ACCESS_COOKIE_NAME } from "@/server/customer-access";
 import { formatDateInTimeZone } from "@/lib/public-booking";
+import { customerIdFor } from "@/server/customer-id";
+
+function normalizeEmail(input: unknown): string {
+  return String(input ?? "")
+    .replace(/[\s\u200B\u200C\u200D\uFEFF]/g, "")
+    .trim()
+    .toLowerCase();
+}
 
 function formatTimeInTimeZone(date: Date, timeZone: string): string {
   const tz = String(timeZone || "UTC").trim() || "UTC";
@@ -85,7 +93,30 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: true, appointment: null });
     }
 
+    // If the business owner is using the public link (same browser/device),
+    // they may have a customer access cookie from previous bookings.
+    // Owner bookings should never be blocked by an "active appointment" banner.
+    const ownerEmail = normalizeEmail((user as any)?.email);
+    if (ownerEmail) {
+      const ownerCustomerId = customerIdFor({ businessUserId, email: ownerEmail });
+      if (ownerCustomerId && claims.customerId === ownerCustomerId) {
+        return NextResponse.json({ ok: true, appointment: null });
+      }
+    }
+
     const onboarding = (user as any).onboarding ?? {};
+
+    const businessSettings = (onboarding as any)?.business ?? {};
+    const limitCustomerToOneUpcomingAppointment = Boolean(
+      (businessSettings as any).limitCustomerToOneUpcomingAppointment
+    );
+
+    // When the business allows multiple upcoming appointments, don't show the
+    // "active appointment" banner in the public booking flow.
+    if (!limitCustomerToOneUpcomingAppointment) {
+      return NextResponse.json({ ok: true, appointment: null });
+    }
+
     const timeZone =
       String((onboarding as any)?.availability?.timezone ?? "").trim() || "UTC";
 

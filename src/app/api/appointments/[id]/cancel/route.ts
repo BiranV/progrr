@@ -40,7 +40,7 @@ export async function POST(
 
     await c.appointments.updateOne(
       { _id: apptId },
-      { $set: { status: "CANCELED", cancelledAt: new Date() } }
+      { $set: { status: "CANCELED", cancelledAt: new Date(), cancelledBy: "BUSINESS" } }
     );
 
     const owner = await c.users.findOne({ _id: appt.businessUserId as ObjectId } as any);

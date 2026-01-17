@@ -159,6 +159,8 @@ export async function POST(req: Request) {
       );
     }
 
+    const isOwnerBooking = normalizeEmail((user as any)?.email) === customerEmail;
+
     const onboarding = (user as any).onboarding ?? {};
     const services: any[] = Array.isArray(onboarding.services)
       ? onboarding.services
@@ -204,15 +206,21 @@ export async function POST(req: Request) {
     const customerId = customerIdFor({ businessUserId, email: customerEmail });
 
     // Business-scoped customer block: do not allow booking for this business.
-    const existingCustomerForBusiness = await c.customers.findOne(
-      {
-        businessUserId: user._id as ObjectId,
-        $or: [{ phone: customerPhone }, { email: customerEmail }],
-      } as any,
-      { projection: { status: 1 } }
-    );
+    const existingCustomerForBusiness = isOwnerBooking
+      ? null
+      : await c.customers.findOne(
+        {
+          businessUserId: user._id as ObjectId,
+          $or: [{ phone: customerPhone }, { email: customerEmail }],
+        } as any,
+        { projection: { status: 1 } }
+      );
 
-    if (String((existingCustomerForBusiness as any)?.status ?? "").toUpperCase() === "BLOCKED") {
+    if (
+      !isOwnerBooking &&
+      String((existingCustomerForBusiness as any)?.status ?? "").toUpperCase() ===
+      "BLOCKED"
+    ) {
       return NextResponse.json(
         {
           error: "You cannot book with this business.",
@@ -222,35 +230,59 @@ export async function POST(req: Request) {
       );
     }
 
-    const sameServiceSameDay = await c.appointments.findOne(
-      {
-        businessUserId: user._id as ObjectId,
-        status: "BOOKED",
-        "customer.email": customerEmail,
-        date,
-        serviceId,
-      } as any,
-      { sort: { startTime: 1 } }
-    );
-
-    if (sameServiceSameDay) {
-      return NextResponse.json(
+    if (!isOwnerBooking) {
+      const sameServiceSameDay = await c.appointments.findOne(
         {
-          error: "You already booked this service on this day.",
-          code: "SAME_SERVICE_SAME_DAY_EXISTS",
-          existingAppointment: {
-            id: (sameServiceSameDay as any)?._id?.toHexString?.() ?? undefined,
-            date: (sameServiceSameDay as any)?.date,
-            startTime: (sameServiceSameDay as any)?.startTime,
-            endTime: (sameServiceSameDay as any)?.endTime,
-            serviceName: (sameServiceSameDay as any)?.serviceName,
-          },
-        },
-        { status: 409 }
+          businessUserId: user._id as ObjectId,
+          status: "BOOKED",
+          "customer.email": customerEmail,
+          date,
+          serviceId,
+        } as any,
+        { sort: { startTime: 1 } }
       );
+
+      if (sameServiceSameDay) {
+        const sameDayList = await c.appointments
+          .find(
+            {
+              businessUserId: user._id as ObjectId,
+              status: "BOOKED",
+              "customer.email": customerEmail,
+              date,
+            } as any,
+            { projection: { date: 1, startTime: 1, endTime: 1, serviceName: 1 } }
+          )
+          .sort({ startTime: 1 })
+          .limit(50)
+          .toArray();
+
+        return NextResponse.json(
+          {
+            error: "You already booked this service on this day.",
+            code: "SAME_SERVICE_SAME_DAY_EXISTS",
+            existingAppointment: {
+              id:
+                (sameServiceSameDay as any)?._id?.toHexString?.() ?? undefined,
+              date: (sameServiceSameDay as any)?.date,
+              startTime: (sameServiceSameDay as any)?.startTime,
+              endTime: (sameServiceSameDay as any)?.endTime,
+              serviceName: (sameServiceSameDay as any)?.serviceName,
+            },
+            existingAppointments: sameDayList.map((a: any) => ({
+              id: a?._id?.toHexString?.() ?? "",
+              date: String(a?.date ?? ""),
+              startTime: String(a?.startTime ?? ""),
+              endTime: String(a?.endTime ?? ""),
+              serviceName: String(a?.serviceName ?? ""),
+            })),
+          },
+          { status: 409 }
+        );
+      }
     }
 
-    if (limitCustomerToOneUpcomingAppointment) {
+    if (!isOwnerBooking && limitCustomerToOneUpcomingAppointment) {
       // Conflict check MUST use verified identity only (email), never cookies/session.
       const existing = await c.appointments.findOne(
         {
@@ -266,6 +298,23 @@ export async function POST(req: Request) {
       );
 
       if (existing) {
+        const upcomingList = await c.appointments
+          .find(
+            {
+              businessUserId: user._id as ObjectId,
+              status: "BOOKED",
+              "customer.email": customerEmail,
+              $or: [
+                { date: { $gt: todayStr } },
+                { date: todayStr, endTime: { $gt: nowTimeStr } },
+              ],
+            } as any,
+            { projection: { date: 1, startTime: 1, endTime: 1, serviceName: 1 } }
+          )
+          .sort({ date: 1, startTime: 1 })
+          .limit(50)
+          .toArray();
+
         return NextResponse.json(
           {
             error:
@@ -278,6 +327,13 @@ export async function POST(req: Request) {
               endTime: (existing as any)?.endTime,
               serviceName: (existing as any)?.serviceName,
             },
+            existingAppointments: upcomingList.map((a: any) => ({
+              id: a?._id?.toHexString?.() ?? "",
+              date: String(a?.date ?? ""),
+              startTime: String(a?.startTime ?? ""),
+              endTime: String(a?.endTime ?? ""),
+              serviceName: String(a?.serviceName ?? ""),
+            })),
           },
           { status: 409 }
         );
@@ -382,6 +438,7 @@ export async function POST(req: Request) {
         },
         ...(notes ? { notes } : {}),
         status: "BOOKED",
+        createdBy: isOwnerBooking ? "BUSINESS" : "CUSTOMER",
         createdAt: new Date(),
       } as any);
 
@@ -409,6 +466,32 @@ export async function POST(req: Request) {
         businessUserId,
       });
 
+      const includeSameDayAppointments =
+        !isOwnerBooking && !limitCustomerToOneUpcomingAppointment;
+
+      const sameDayAppointments = includeSameDayAppointments
+        ? await c.appointments
+          .find(
+            {
+              businessUserId: user._id as ObjectId,
+              status: "BOOKED",
+              "customer.email": customerEmail,
+              date,
+            } as any,
+            {
+              projection: {
+                serviceName: 1,
+                date: 1,
+                startTime: 1,
+                endTime: 1,
+              },
+            }
+          )
+          .sort({ startTime: 1 })
+          .limit(50)
+          .toArray()
+        : null;
+
       const res = NextResponse.json({
         ok: true,
         appointment: {
@@ -429,6 +512,15 @@ export async function POST(req: Request) {
           notes: notes || undefined,
           status: "BOOKED",
         },
+        sameDayAppointments: Array.isArray(sameDayAppointments)
+          ? sameDayAppointments.map((a: any) => ({
+            id: a?._id?.toHexString?.() ?? "",
+            serviceName: String(a?.serviceName ?? ""),
+            date: String(a?.date ?? ""),
+            startTime: String(a?.startTime ?? ""),
+            endTime: String(a?.endTime ?? ""),
+          }))
+          : undefined,
         cancelToken,
       });
 

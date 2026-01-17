@@ -75,14 +75,18 @@ export async function POST(req: Request) {
       );
     }
 
-    // Business-scoped customer block: do NOT send OTP if blocked for this business.
-    const blocked = await c.customers.findOne({
-      businessUserId: user._id as ObjectId,
-      email,
-      status: "BLOCKED",
-    } as any);
+    const isOwnerBooking = normalizeEmail((user as any)?.email) === email;
 
-    if (blocked) {
+    // Business-scoped customer block: do NOT send OTP if blocked for this business.
+    const blocked = isOwnerBooking
+      ? null
+      : await c.customers.findOne({
+          businessUserId: user._id as ObjectId,
+          email,
+          status: "BLOCKED",
+        } as any);
+
+    if (!isOwnerBooking && blocked) {
       return NextResponse.json(
         {
           error: "You cannot book with this business.",

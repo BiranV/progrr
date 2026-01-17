@@ -61,7 +61,7 @@ export async function POST(req: Request) {
 
       await c.appointments.updateOne(
         { _id: apptId },
-        { $set: { status: "CANCELED", cancelledAt: new Date() } }
+        { $set: { status: "CANCELED", cancelledAt: new Date(), cancelledBy: "CUSTOMER" } }
       );
 
       return NextResponse.json({ ok: true });
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
 
       await c.appointments.updateOne(
         { _id: apptId },
-        { $set: { status: "CANCELED", cancelledAt: new Date() } }
+        { $set: { status: "CANCELED", cancelledAt: new Date(), cancelledBy: "CUSTOMER" } }
       );
 
       return NextResponse.json({ ok: true });
@@ -135,7 +135,7 @@ export async function POST(req: Request) {
 
     await c.appointments.updateOne(
       { _id: apptId },
-      { $set: { status: "CANCELED", cancelledAt: new Date() } }
+      { $set: { status: "CANCELED", cancelledAt: new Date(), cancelledBy: "CUSTOMER" } }
     );
 
     return NextResponse.json({ ok: true });

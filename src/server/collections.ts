@@ -72,8 +72,10 @@ export type AppointmentDoc = {
   };
   notes?: string;
   status: "BOOKED" | "CANCELED" | "CANCELLED";
+  createdBy?: "BUSINESS" | "CUSTOMER";
   createdAt: Date;
   cancelledAt?: Date;
+  cancelledBy?: "BUSINESS" | "CUSTOMER";
 };
 
 export type CustomerDoc = {

@@ -4,6 +4,7 @@ import React from "react";
 import Flatpickr from "react-flatpickr";
 import { Arabic } from "flatpickr/dist/l10n/ar";
 import { Hebrew } from "flatpickr/dist/l10n/he";
+import { useSearchParams } from "next/navigation";
 
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +28,8 @@ import {
 } from "@/components/ui/select";
 
 export default function CalendarPage() {
+    const searchParams = useSearchParams();
+
     const [date, setDate] = React.useState<string>(() => {
         const d = new Date();
         const y = d.getFullYear();
@@ -34,6 +37,14 @@ export default function CalendarPage() {
         const day = String(d.getDate()).padStart(2, "0");
         return `${y}-${m}-${day}`;
     });
+
+    React.useEffect(() => {
+        const qp = String(searchParams?.get("date") ?? "").trim();
+        if (!qp) return;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(qp)) return;
+        setDate(qp);
+        // only react to param changes
+    }, [searchParams]);
 
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
@@ -46,6 +57,8 @@ export default function CalendarPage() {
             endTime: string;
             serviceName: string;
             status: string;
+            cancelledBy?: string;
+            bookedByYou?: boolean;
             customer: { fullName: string; phone: string; email?: string };
             notes?: string;
         }>
@@ -273,8 +286,27 @@ export default function CalendarPage() {
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
                                     <div className="font-semibold text-gray-900 dark:text-white truncate">
-                                        {a.startTime}–{a.endTime} • {a.serviceName}
+                                        {a.startTime}–{a.endTime}
                                     </div>
+                                    <div className="text-sm text-gray-700 dark:text-gray-200 truncate">
+                                        {a.serviceName}
+                                    </div>
+
+                                    {a.bookedByYou ? (
+                                        <div className="text-xs text-muted-foreground mt-1">
+                                            Booked by you
+                                        </div>
+                                    ) : null}
+
+                                    {isCanceledStatus(a.status) ? (
+                                        <div className="text-xs text-muted-foreground mt-1">
+                                            {String(a.cancelledBy || "").toUpperCase() === "BUSINESS"
+                                                ? "Canceled by you"
+                                                : String(a.cancelledBy || "").toUpperCase() === "CUSTOMER"
+                                                    ? "Canceled by customer"
+                                                    : "Canceled"}
+                                        </div>
+                                    ) : null}
                                     <div className="text-sm text-gray-600 dark:text-gray-300 truncate">
                                         {a.customer.fullName}
                                         {a.customer.phone ? ` • ${a.customer.phone}` : ""}
@@ -304,8 +336,8 @@ export default function CalendarPage() {
                                             <Button
                                                 type="button"
                                                 size="sm"
-                                                variant="destructive"
-                                                className="rounded-xl"
+                                                variant="outline"
+                                                className="rounded-xl border-gray-300 text-gray-800 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-800"
                                                 onClick={() => setCancelId(a.id)}
                                             >
                                                 Cancel
@@ -339,7 +371,7 @@ export default function CalendarPage() {
                 title="Cancel appointment?"
                 description="This will mark the appointment as canceled."
                 confirmText="Cancel appointment"
-                confirmVariant="destructive"
+                confirmVariant="default"
                 loading={cancelling}
                 onConfirm={async () => {
                     if (!cancelId) return;
@@ -358,7 +390,7 @@ export default function CalendarPage() {
 
                         setAppointments((prev) => {
                             const next = prev.map((a) =>
-                                a.id === cancelId ? { ...a, status: "CANCELED" } : a
+                                a.id === cancelId ? { ...a, status: "CANCELED", cancelledBy: "BUSINESS" } : a
                             );
                             return showCanceled ? next : next.filter((a) => a.id !== cancelId);
                         });
