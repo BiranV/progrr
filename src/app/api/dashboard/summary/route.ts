@@ -110,7 +110,9 @@ function isOpenNowFromAvailability(args: {
         const startMin = parseTimeToMinutes(r.start);
         const endMin = parseTimeToMinutes(r.end);
         if (!Number.isFinite(startMin) || !Number.isFinite(endMin)) continue;
-        if (startMin <= nowMin && nowMin < endMin) return true;
+        // Treat end time as inclusive (e.g. 09:00–16:00 is still open at 16:00,
+        // and becomes closed at 16:01).
+        if (startMin <= nowMin && nowMin <= endMin) return true;
     }
 
     return false;
