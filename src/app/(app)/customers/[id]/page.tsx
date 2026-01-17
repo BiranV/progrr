@@ -103,8 +103,13 @@ export default function CustomerDetailsPage() {
 
     if (prevCustomerIdRef.current !== id) {
       prevCustomerIdRef.current = id;
-      setBookingsPage(1);
-      return;
+      // Only reset pagination when moving between customers.
+      // Important: don't return unconditionally here, otherwise the initial load
+      // can be skipped (and the page stays stuck on the spinner in production).
+      if (bookingsPage !== 1) {
+        setBookingsPage(1);
+        return;
+      }
     }
 
     load();
