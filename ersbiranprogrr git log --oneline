@@ -1,0 +1,361 @@
+[33m9eb6481[m[33m ([m[1;36mHEAD -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m fix(PublicBookingShell): remove unused publicIdOrSlug prop from component
+[33m5a521a3[m feat(accessibility): Enhance accessibility features across the application
+[33m8c41d19[m feat(AuthFlow): enhance AdminAuthStep with initial view and email props; add login page
+[33me57ebdf[m feat(AdminAuthStep): add click-to-glow effect for logo and improve styling
+[33mb678db5[m feat(CustomerDetailsPage): synchronize customer status with the list on action completion
+[33m1a53c4a[m fix(CustomerDetailsPage): reset pagination only when switching customers to prevent skipping initial load
+[33mb0fd069[m style(AdminAuthStep): improve code formatting and consistency in conditional rendering
+[33m21b8a69[m feat(gallery): implement paginated gallery with scrolling functionality
+[33mf4923a6[m feat(calendar): update button styles for improved consistency and responsiveness feat(customers): add confirmation modal for blocking customers and streamline update logic feat(settings): enhance button styles for delete actions feat(PublicBookingFlow): adjust input styling for better usability feat(PublicBookingShell): refactor gallery layout for improved visual presentation feat(OtpInput): refine layout and styling for better alignment feat(BottomNav): adjust height and padding for better navigation experience feat(confirm-modal): enhance button styles for consistency
+[33mbcec9aa[m feat(PublicBookingFlow): enhance button styling and layout adjustments for better responsiveness
+[33mf58cbd8[m feat(calendar): add loading spinner to refresh button and manage refresh state
+[33m2378719[m feat(profile): implement profile update and email verification flow
+[33mac8dfa3[m feat(PublicBookingFlow): improve layout and enhance email label accessibility
+[33m8d315ac[m feat(appointments): add appointment creation and cancellation endpoints
+[33mb7264ef[m feat(calendar): implement appointment creation with customer details and validation
+[33mf1a90bf[m feat: add NO_SHOW status to appointments and update related logic across components
+[33m9cc2ae3[m feat: enhance caching behavior and refresh logic for navigation in BottomNav and onboarding settings
+[33mcd48c74[m feat(customers): implement pagination for customer bookings and update booking status handling
+[33mb2beb55[m feat(dashboard): add xAxisMode prop to RevenueLineChart for flexible date labeling
+[33m564d466[m feat(dashboard): remove total customers count display and reorganize layout for revenue graphs and public booking link
+[33m43b8ff0[m feat(dashboard): add revenue line charts for weekly and monthly data
+[33mc091fa5[m feat: enhance availability filtering by adding time zone-aware slot management
+[33mc093545[m feat: enhance appointment status handling and time zone formatting in API routes
+[33mcb12f8b[m feat: integrate react-query for data fetching in calendar, customers, and dashboard pages; enhance appointment cancellation logic
+[33m96cc9e5[m feat: update isOpenNowFromAvailability to treat end time as inclusive
+[33med18f51[m feat: add time zone validation in onboarding API and enhance dashboard with business status badge
+[33mfa645d1[m feat: add booking management API and UI enhancements
+[33mce58654[m feat: enhance appointment management with cancellation tracking and dashboard summary
+[33m96a4e75[m feat(appointments): add functionality to limit customers to one upcoming appointment and send cancellation emails
+[33m1d36ed4[m feat(calendar): add appointment rescheduling and cancellation functionality with UI updates
+[33m0270731[m feat(calendar): implement Flatpickr for date selection and fetch appointments from API
+[33m2778a90[m feat: integrate Flatpickr for date selection and remove deprecated calendar component
+[33m3cbeb56[m feat(customers): implement customer status management and update UI components
+[33mf7454bb[m feat: add phone input component and validation
+[33m7f7950b[m feat: add customer details page with messaging and booking cancellation functionality
+[33mc866de6[m feat(customers): implement customer management API and UI
+[33m08e438f[m feat: enhance booking cancellation flow with email verification and conflict handling
+[33m995def1[m feat: implement email verification in booking flow and add email input handling
+[33m028bb6d[m feat: add Instagram and WhatsApp fields to business details and public booking flow
+[33m948ce52[m feat: add gallery management functionality with upload, replace, and remove options
+[33mbd2b231[m Refactor public booking pages to streamline routing and remove unused components
+[33me75c273[m feat: enhance PublicBookingShell with RTL support and improve back navigation
+[33m6c9ec6b[m Refactor public business API to use stable publicId instead of slug
+[33me33756f[m feat: implement image cropping functionality for logo and banner uploads
+[33mae5e5eb[m feat: update booking pages to remove Card components and enhance layout with divs
+[33m9811412[m feat: implement horizontal gallery scrolling functionality and enhance styling
+[33m2ea576c[m feat: add business public ID generation and validation functionality
+[33m42b0a15[m feat: add business banner upload and management functionality
+[33mecfff8a[m feat: enforce single business type selection in onboarding process
+[33m4b00af5[m Refactor onboarding API to use centralized business types and improve code readability
+[33me59b66e[m feat: implement account deletion functionality and add goodbye page
+[33m14a3e16[m feat: implement onboarding settings hook and enhance business data fetching with caching
+[33mf492168[m feat: add centered spinner component and integrate loading indicators in various pages
+[33m2e13a74[m feat: update currency handling in services settings and onboarding route
+[33mf6eaf13[m feat: add services management page with CRUD functionality
+[33m0a08bc2[m feat: refactor time picker and improve availability validation logic
+[33m92abffb[m feat: enhance formatDateInTimeZone to fallback to UTC for invalid timezones
+[33mb8f77b2[m feat: remove minuteStep prop from TimePicker and update to use Dialog for time selection
+[33m7815403[m feat: normalize availability data structure and implement legacy migration for onboarding
+[33m6206314[m feat(settings): refactor settings page to use link components and add logout functionality
+[33m883e378[m feat: add BusinessDetailsPage component with form for business information management
+[33mf89298c[m feat: update SettingsRow descriptions for clarity and add new settings options
+[33m16efacc[m feat: restructure Settings page with new layout and SettingsRow component for better organization
+[33m920be17[m feat: enhance Calendar and Customers pages with improved layout and messaging
+[33mebe79a1[m feat: add Calendar and Customers pages with initial layout and content
+[33mfa6630e[m feat: refine logo display in AppLayout for improved aesthetics and fallback handling
+[33m0ec2e7f[m feat: enhance business logo display with improved layout and fallback handling
+[33ma22c3d1[m feat: improve gallery image upload handling and enhance Cloudinary URL generation
+[33mb081adf[m feat: update image upload handling to use 'images' instead of 'files' and improve error messaging
+[33m9496b7f[m feat: enhance image upload validation for gallery with format and size checks
+[33mad80317[m feat: refactor onboarding branding to use Cloudinary for logo and gallery images
+[33m46d64e0[m feat: enhance public booking verification page with business branding and gallery
+[33m35e3942[m Main App Layout
+[33mffd6dab[m refactor: simplify availability section layout and improve code readability in OnboardingPage
+[33m1dca90e[m refactor: clean up code formatting and improve readability in onboarding route
+[33mfcf8c5c[m feat: enhance error handling and validation feedback in OnboardingPage
+[33m7e91a5a[m fix: adjust grid layout for business type selection in OnboardingPage
+[33m26b6de3[m feat: update OnboardingPage layout and replace user image with logo
+[33m9eb35fb[m feat: enhance error handling and user feedback in AdminAuthStep and OnboardingPage components
+[33m220f6a6[m Refactor AppLayout to use BottomNav for mobile navigation and improve layout structure
+[33m95fab3b[m feat: implement business slug management and update API routes
+[33m0b5230f[m feat: implement onboarding slug normalization and enhance user session handling
+[33m43dd4de[m feat: add public booking functionality with success, times, and verification pages
+[33m66bcc5c[m refactor(AppLayout): remove unused useRouter import
+[33m20265ea[m feat(AuthContext): add authStatus state and handle guest transitions
+[33m067a8f8[m feat: enhance user session management and onboarding flow, add pricing page
+[33mbbfc895[m style(OnboardingPage): enhance focus styles for currency selection button
+[33me95ae4d[m refactor: remove unused authentication components and related logic
+[33mbb67aab[m feat: implement onboarding flow with middleware and API endpoints, update user model to track onboarding status
+[33m730434c[m style(AppLayout): streamline sidebar item styles and simplify main content padding
+[33ma2aa8a2[m Refactor: Remove unused files and types related to invite tokens, meeting notifications, owner management, plan guards, message hub, exercises service, and USDA food service. Simplify JWT handling by removing role and plan properties. Update types for appointments and user management.
+[33maf12c69[m feat: update admin plan structure to replace "free" with "starter" and adjust related limits and functionalities
+[33m15b7d2f[m feat: introduce PENDING_LIMIT status and enhance client management
+[33mba9e8de[m feat: update plan limits and improve upgrade prompts across various pages
+[33m97d0be7[m feat(ExercisePanel, FoodsPage): enhance video upload functionality and improve catalog button accessibility
+[33m1166e31[m feat(ExercisePanel): update video upload messaging and add plan upgrade prompt
+[33m994173a[m feat(PricingPage): format monthly pricing display to include dollar sign
+[33mf7b18e1[m feat(PricingPage): add monthly pricing details for subscription plans
+[33m81f00b5[m feat(PricingPage): enable custom video uploads and update related messaging
+[33m41ea668[m feat: update subscription terminology and upgrade prompts across the application
+[33md10e4fe[m feat(PricingPage): swap icons for Free and Basic pricing tiers
+[33m3ee6bd3[m feat: implement plan guards and upgrade prompts for admin features
+[33mfac4b78[m feat(ClientPanel): update invitation status display and resend functionality
+[33m31e9738[m feat: enhance email templates with logo support and layout improvements
+[33m06e6479[m feat: implement Daily Nutrition and Workout log endpoints with admin access control
+[33mb7d9e9c[m feat: add Daily Compliance Calendar component for tracking workouts and nutrition
+[33m7d3c07d[m feat(ClientDashboard): add functionality to copy and download client meal and workout plans
+[33m43dbf36[m feat: add meeting notification functionality with message handling for scheduled meetings
+[33m99a9902[m feat: add search validation and message handling for catalog queries
+[33m800ef70[m feat: implement useCatalogSearch hook for unified catalog searching functionality
+[33m58b2863[m refactor(SettingsPage): improve logo upload validation and enhance code formatting
+[33mb18dd3d[m refactor(SettingsPage): persist logo crop data for improved preview handling
+[33md31af10[m feat: add TikTok URL support to AppSettings and enhance logo cropping functionality
+[33m6889a3e[m refactor(EntityTableSection, DataTable): update title handling to support React nodes and improve linting rules
+[33m6dd58e7[m refactor: remove unused components and hooks from the dashboard and UI
+[33m9c9dcf0[m Refactor MeetingPanel and WorkoutPlanPanel to use new entity components
+[33mef369f9[m refactor: enhance EntityTableSection and EntityToolbar for improved prop handling
+[33mf8e4c5d[m feat: enhance MealPlanPanel with food library normalization and status checks
+[33mb60c466[m feat(MealPlanPanel, WorkoutPlanDetailsDialog): implement optimistic UI updates for meal and workout plans
+[33m0722998[m feat(WorkoutPlan, ClientPanel): implement workout plan archiving and restoration functionality
+[33mef1d490[m feat(ClientPanel, MealPlanPanel, WorkoutPlanDetailsDialog): enhance meal plan management with custom options and unarchive functionality
+[33m9a57855[m feat: Enhance client and meal plan management
+[33m8808c89[m feat: enhance PlansPage for client role and add meal plan goal selection
+[33m2e5e7fd[m feat(FoodPanel): enhance validation error display with improved styling and icon
+[33m59685f2[m feat: add ExerciseDB integration for exercise catalog and search
+[33mddc6016[m feat(MealPlanPanel, FoodPanel, plan-export): enhance nutrition data handling with additional metrics and improved formatting
+[33m4a2720d[m feat(FoodCatalog): implement USDA food import and search functionality with enhanced nutrition data handling
+[33mf65bd46[m feat(ClientPanel, Dashboard): add StepsProgressGraph component for visualizing recent steps data
+[33mf71563c[m feat(ClientPanel, MeetingPanel): add sanitization functions for client data and update UI components for better privacy
+[33mb26a29e[m feat(ClientPanel): add date formatting function and apply it to steps date display
+[33m9ad74e8[m feat(ClientPanel): add steps tracking and sharing functionality with recent steps display
+[33me7b9166[m feat(ClientDashboard): add cursor pointer style to dropdown menu items for better UX
+[33m46feb87[m feat(MeetingPanel): add share notes functionality and update notes visibility
+[33m587b22b[m feat(MeetingPanel): normalize meeting status and improve notes handling
+[33m76fb128[m fix(ClientDashboard): replace Textarea with Input for notes field
+[33mb3b021b[m feat(ClientPanel): enhance status display with configurable styles
+[33m4d17fd5[m fix(ClientDashboard): update back button color for better visibility
+[33mda08862[m fix(ClientPanel, SettingsPage): prevent copy/paste actions on delete confirmation input
+[33m16e37ab[m feat(settings): add logo shape option to settings and update logo display
+[33m2d5eb20[m feat(emails): implement email building functions for OTP and invite emails
+[33mf55d3e2[m feat: add MeetingPanel component for managing meetings with clients
+[33m6bc6e0a[m fix(MeetingDialog): ensure default location is set to 'https://' for zoom meetings
+[33m649ed49[m feat(Meetings): enhance meeting type normalization and location handling in MeetingDialog
+[33maee67a3[m feat(Meetings): update client handling to support 'Other' clients with name input
+[33m97943d9[m fix(PlansPage): adjust column alignment for exercises count and sorting header
+[33m854cf5b[m feat: enhance WorkoutPlanDetailsDialog with editing capabilities and improved form validation
+[33m6b317c2[m feat(ExerciseLibraryDetailsDialog, FoodLibraryDetailsDialog): add export functionality with copy, download text, and download PDF options
+[33m5844ec1[m Refactor Exercise Library Dialog: Merge functionality into ExerciseLibraryDetailsDialog and remove redundant code
+[33m75812f3[m feat(ClientDetailsDialog): add detailed client information display including birth date, gender, height, weight, goals, and assigned plans
+[33m6fb55a1[m feat(FoodsPage): enhance food management with pagination, sorting, and improved UI; remove FoodLibraryDialog
+[33m697cdf3[m feat(ClientDetailsDialog): add permanent deletion functionality and update client status management
+[33m95d4727[m feat(ClientDetailsDialog): add restore client functionality with pending status
+[33m6ce106e[m refactor: simplify confirmation check for account deletion
+[33mcc1bd43[m feat(ClientDetailsDialog): add resend invite functionality for pending clients
+[33m55082cf[m feat(ClientDetailsDialog): enhance status management and loading indicators for client actions
+[33mbca3b81[m refactor: remove ClientDialog component and related logic
+[33m26bae58[m feat(auth): add back button with icon to Admin and Client authentication steps
+[33mc440f4b[m feat(auth): implement AuthFlow component for handling authentication steps
+[33m591bc0e[m feat: Add favicon generation script and update layout for multiple favicon sizes
+[33md061a66[m feat: Implement authentication guards to prevent access to auth entry points for authenticated users; enhance isSafeNextPath function for path validation
+[33m8a036d9[m feat: Add initial Next.js configuration with turbopack settings and development indicators
+[33m50e9a7b[m feat: Update SettingsPage to remove required attribute from Business Name input; enhance ExerciseLibraryDialog file input styling
+[33mf80bdf2[m feat: Add toast notifications for meeting scheduling and error handling in MeetingDialog
+[33m8509cd0[m feat: Enhance FoodsPage and MealsPage with error handling for editing; improve user feedback with toast notifications in MealPlanDialog
+[33m63df5ef[m feat: Enhance ExercisesPage and ExerciseLibraryDialog with error handling for exercise editing; add video removal logic in ExerciseLibraryDialog
+[33mcc79bd8[m feat: Enhance MeetingsPage and MeetingDialog with improved client selection logic; add error handling for meeting editing
+[33m49c5417[m feat: Enhance PlansPage and PlanDialog with error handling and difficulty normalization; improve user experience during plan editing
+[33m749a3ab[m feat: Enhance client management with normalization functions for gender, goal, and activity level; update dialogs to use canonical values for improved data consistency
+[33mf2db82c[m feat: Integrate ConfirmModal for meeting deletion confirmation in MeetingsPage; refactor MeetingDialog and MeetingDetailsDialog to use SidePanel for improved UI consistency
+[33m34450f0[m feat: Integrate ConfirmModal for meal plan deletion confirmation in MealsPage; refactor MealPlanDetailsDialog and MealPlanDialog to use SidePanel for improved UI consistency
+[33m4e8e960[m feat: Integrate ConfirmModal for food deletion confirmation in FoodsPage; refactor FoodLibraryDialog and FoodLibraryDetailsDialog to use SidePanel for improved UI consistency
+[33m8059d1b[m feat: Integrate ConfirmModal for workout plan deletion confirmation; refactor PlanDialog and WorkoutPlanDetailsDialog to use SidePanel for improved UI consistency
+[33me627eab[m feat: Integrate ConfirmModal for delete confirmation in ExercisesPage and ExerciseLibraryDialog; refactor dialogs to use SidePanel for improved UI consistency
+[33m46f0e15[m feat: Improve layout and responsiveness of ClientDetailsDialog, ClientDialog, and SidePanel components; adjust grid and padding for better user experience
+[33me24f0b9[m feat: Implement side panel and confirm modal for client management; refactor ClientDialog and ClientsPage for improved user experience and delete confirmation
+[33md7bcbb8[m feat: Enhance MongoDB client management with improved connection handling and logging; refactor client and database retrieval logic for better performance
+[33m49ec87d[m feat: Enhance InviteClient component with improved UI and error handling; integrate AuthShell, AuthBanner, and OtpInput for better user experience
+[33ma6106fc[m Refactor authentication flow to redirect to /auth instead of root path; update error handling messages for account access; implement invite system with token signing and verification; add invite status and database collection for invites; ensure legacy relations are handled correctly in client relations.
+[33m327b843[m feat: Refactor ClientDashboard layout for improved coach information display
+[33m2bed4b1[m feat: Implement real-time messaging updates and refetch on visibility for various pages
+[33m2d5cccb[m feat: Enhance client management and profile features with phone support and status control
+[33m18fd3b4[m feat: Implement coach selection and client relation management
+[33m476f27d[m feat: add destructive button styling to block mutation action in ClientDialog
+[33me4e423b[m feat: add DELETE API endpoint for message deletion by admin and implement broadcast messaging feature in admin panel
+[33m0b26f24[m feat: implement account deletion functionality with confirmation dialog and server-side enforcement for deleted clients
+[33mc767326[m feat: update fixed client details in mock data
+[33mdab217b[m feat: enhance OTP input component with auto-focus functionality
+[33ma6443ae[m feat: add goodbye page and account deletion functionality with confirmation dialog
+[33mab1b7e8[m refactor: remove meal type handling from SettingsPage and clean up MealPlanDialog
+[33m8a52161[m feat: enhance client blocking functionality with tooltip display for block reason
+[33m3018664[m feat: implement client blocking mechanism with access control and status handling
+[33m202a47c[m feat: add phone as a required field in ClientDialog and implement validation
+[33m6493463[m refactor: remove phone number handling from ClientDialog and update related types
+[33mda44316[m style: implement client identity check to prevent email and phone duplication with admin account
+[33m7f748c5[m style: add new PWA icons for improved branding and consistency
+[33mdf8125d[m style: adjust CardContent height for improved layout consistency and enhance PWA functionality with standalone detection and input blur handling
+[33m7960b62[m style: adjust CardContent height for improved layout consistency
+[33m4ff51bc[m style: update PWA icons and manifest for improved branding and consistency
+[33m8055db0[m style: adjust layout and spacing for improved consistency in LoginForm and SubmitButton components
+[33maa8af25[m style: adjust spacing in forms and card components for improved visual consistency
+[33m39c6030[m style: refine button spacing and typography for improved visual consistency in Home component
+[33mc0c3976[m style: adjust typography and layout for improved readability and consistency in Home component
+[33me85aa59[m style: refine layout and spacing for improved visual consistency in Home component
+[33m9846fec[m feat: add PWA support with service worker registration and manifest file
+[33mf6ead9b[m style: enhance layout and typography for improved visual consistency in forms
+[33m025cc40[m style: adjust layout and typography for improved responsiveness and aesthetics
+[33m632982c[m feat: implement client weekly schedule access control and data retrieval
+[33m64ca52f[m feat: implement week navigation and year selection in ClientDashboard
+[33m3208f93[m feat: add weekly calendar section with workout scheduling and notes functionality
+[33mdf64cf7[m refactor: simplify type-based kind calculation in MeetingDetailsDialog
+[33m42f0b8e[m feat: enhance meeting details and mock data generation with type-based location handling
+[33m03d2749[m feat: enhance meeting details with location kind handling for improved clarity
+[33mf7115ef[m feat: improve meeting scheduling logic to prevent unintended changes to past meetings
+[33m9284575[m feat: update workout and meal plan generation logic for improved data handling and UI consistency
+[33mb10cf67[m feat: enhance mock data management by adding entity clear logic and improving UI feedback
+[33m3b84e9b[m feat: enhance signup flow by adding tab handling and admin email validation
+[33m27f047b[m feat: update Dumbbell, Video, and FileText icon colors for improved visibility
+[33ma204966[m feat: update icon colors in PlansPage for improved visual consistency
+[33mbdbc0d6[m feat: refactor MealPlanDialog to improve data handling and state management
+[33m58b13c5[m feat: adjust DialogContent width in ClientDashboard for better responsiveness
+[33m6ed69a1[m feat: enhance ClientDashboard layout with improved message display and UI adjustments
+[33mb95a09d[m feat: add visual spacing between meals in formatMealPlanText for improved readability
+[33m23b488a[m feat: add background color to ClientDashboard for improved UI
+[33mddb75f6[m feat: add YouTube video ID extraction and enhance exercise display in ClientDashboard
+[33m32cca0d[m feat: enhance ClientDashboard with improved avatar upload functionality and nutritional information display
+[33m0053062[m refactor: simplify layout in ClientDetailsDialog by removing unnecessary divs
+[33m3a1b520[m feat: enhance ClientDetailsDialog with gender icons and improve layout
+[33m89d7a85[m Refactor code structure for improved readability and maintainability
+[33m2a225ec[m feat: add seed demo data script for populating initial database entries
+[33ma016ab3[m feat: replace Dumbbell icon with ClipboardList in PlansPage for improved visual representation
+[33mae466ef[m refactor: remove unused close button from MeetingDetailsDialog
+[33m6777b70[m feat: reposition meeting status display for improved layout and accessibility
+[33m8be28f4[m feat: add dark mode scrollbar styles and MeetingDetailsDialog component
+[33mb7b6655[m feat: add exercise count display and validation for plan dialog fields
+[33mefbfa3b[m fix: correct subtitle casing for video and guidelines in ExercisesPage
+[33mfd99f2c[m feat: add ExerciseLibraryDetailsDialog for displaying exercise details and export options
+[33m0f698da[m feat: enhance food card display with improved header structure and styling
+[33m3f9f3c4[m feat: update food details display to show nutritional values per 100g
+[33md5e366e[m feat: enhance meal plan details display with improved formatting and color coding
+[33mfc2b89c[m feat: streamline meal plan display and enhance nutritional information presentation
+[33m5906384[m feat: improve layout and labeling in food card display for better clarity
+[33m1c4c11b[m feat: enhance food and meal plan details display with nutritional icons
+[33m7052ab0[m feat: add meal type management to settings and update meal plan calculations
+[33m3959946[m feat: update food icons in the foods page for better representation
+[33m74a3b7d[m feat: add food export functionality with PDF, text download, and clipboard copy options
+[33me3666c4[m feat: implement food library management with CRUD operations and integrate into meal plans
+[33m1715302[m feat: enhance exercise export functionality with video support and add rest time formatting
+[33md360907[m feat: add duration formatting and YouTube video link support in workout plans
+[33ma788169[m feat: add YouTube video link extraction and open video functionality in workout plan dialog
+[33m744c348[m feat: add exercise library management with CRUD operations
+[33mbd6790c[m fix: update border color for meal and workout plan sections
+[33m3b1e6ae[m fix: adjust padding and border color for meal plan section
+[33m9007179[m feat: add auto focus handling for dialog content
+[33mde189a6[m feat: enhance meal and workout plan dialogs with copy and download functionality
+[33me78e014[m feat: add meal and workout plan export functionality
+[33m7c3d90e[m feat: implement cookie-based persistence for page size in ClientsPage
+[33m38f9ef7[m feat: implement local storage for page size persistence in ClientsPage
+[33mc4eac2e[m feat: implement pagination and page size selection in ClientsPage
+[33mfd51c28[m feat: simplify avatar source handling in ClientDialog
+[33mf1bd55d[m feat: add avatar upload functionality for clients
+[33m8ff47ba[m feat: implement deterministic selection for gender and status in mock data generation
+[33m01c1efd[m feat: enhance goal and activity level normalization with additional values
+[33m0ce9e28[m feat: add goal and activity level normalization functions in ClientDialog
+[33m306d5a4[m feat: implement mock data generation and management in settings and client dialogs
+[33ma76c1fa[m feat: enhance client and plan management with support for multiple assigned plans
+[33m3cd5e9f[m feat: add details dialogs for Meal and Workout plans with corresponding state management
+[33mb40c60c[m feat: update MeetingDialog to correct SelectItem value for in-person meetings
+[33m5d83869[m feat: reposition Notes field in ClientDialog for improved layout
+[33mbd1b973[m feat: enhance AdminDashboard with meeting client labels and type icons
+[33m02840f0[m feat: enhance client sorting logic and add support for 'other' gender icon
+[33m780917a[m feat: add validation error handling and prospect client option to MeetingDialog
+[33me49e6f0[m feat: add validation error handling to MealPlanDialog and PlanDialog for improved user feedback
+[33mb3ef6c7[m feat: update status chip styles for improved visibility and consistency across pages
+[33md9e3c82[m feat: implement client form validation with error handling and user feedback
+[33m3aab4c5[m feat: integrate libphonenumber-js for enhanced phone number handling and validation
+[33m173300d[m feat: add date validation for meetings to prevent past scheduling and ensure proper input
+[33m5f2a5cb[m feat: add navigation links to admin dashboard stats cards for improved user interaction
+[33mb52a516[m feat: add workout and meal plan associations to clients table
+[33m8d29c15[m feat: add gender icons to client list for improved visual representation
+[33m7cffb62[m feat: add birth date validation and set max date in ClientDialog
+[33m75d80c5[m feat: enforce email requirement in client creation and update actions
+[33m6093c6a[m feat: enhance client creation and update actions with duplicate checks for phone and email
+[33mf53cb06[m feat: update status options in ClientDialog for improved readability
+[33m7032bd0[m feat: add client status normalization and validation across forms for improved data integrity
+[33m6bc4fbf[m feat: update LoginForm tab styles for improved UI consistency
+[33me0f701d[m feat: add clearBanner functionality to LoginForm and RegisterForm for improved user experience
+[33m07c0003[m feat: update login and registration forms for improved UI consistency and accessibility
+[33m44806eb[m feat: enhance login and registration forms with improved state management and UI feedback
+[33m27062b9[m feat: enhance admin login form with validation error handling and UI improvements
+[33m42930d3[m feat: add client-specific meeting retrieval and display in dashboard
+[33m3b2661e[m feat: enhance client dashboard meal plan details with nutritional information
+[33md39293c[m feat: enhance client access control and filtering for entity records
+[33m93ee34e[m feat: add dark mode toggle and enhance client dashboard with detailed information
+[33m516105d[m feat: enhance SMS delivery handling and client feedback for OTP generation
+[33m93e2cfd[m feat: add authentication and cookie management functionality
+[33m7e242d3[m Refactor authentication and subscription handling
+[33m2406a01[m fix: remove subscription field from client data structure and related components
+[33md9ebd18[m fix: enhance invite handling to support both token_hash and token for session management
+[33me422d45[m fix: improve invite handling by using password reset for existing users and fallback to invite
+[33m45dd681[m Merge branch 'main' of https://github.com/BiranV/progrr
+[33m2b8aede[m fix: implement client role access control and enhance user experience across various components
+[33mf0d3189[m fix: implement client role access control and enhance user experience across various components
+[33mfb70895[m fix: enhance error handling for invite links and improve session management
+[33mbecf84b[m fix: optimize auth state handling for invite page to improve loading experience
+[33mf91490f[m fix: implement canonical host redirect to prevent auth cookie/session loss and enhance client creation validation
+[33mbeb495d[m fix: prevent double execution of code processing in InvitePage component
+[33m67742c1[m fix: prevent redirection from invite and public pages during authentication
+[33m1427bc5[m fix: enhance error handling in createClientAction and resendInviteAction for better user experience
+[33mc80a7ef[m fix: improve error handling in resend invite action and add password reset for already registered users
+[33m3a5ccd8[m fix: enhance error handling in resend invite action and update user session retrieval in subscription checks
+[33m19f03c5[m fix: update client management actions to ensure proper entity ownership and avoid duplicates fix: enhance auth guards to use getUser for session management and improve subscription checks fix: modify cookie handling in createClient to safely manage server component calls
+[33m9ae4865[m feat: add resend invite functionality in client management and integrate with ClientsPage
+[33m5dccb86[m fix: remove unused Supabase client initialization and related code in Home component
+[33m8ff47c4[m fix: remove fallback URL for invite redirect in client management actions
+[33m0ce053a[m feat: Implement user activation action and integrate with Supabase authentication
+[33m3d280b6[m fix: enhance button styles for dark mode support in Meals and Plans pages
+[33m5d11ba4[m fix: add email validation pattern and title for improved input accuracy
+[33mdab781f[m fix: change default upload method to 'upload' for consistency in settings
+[33m6100511[m fix: reset file input value after logo upload to improve user experience
+[33m40ed088[m fix: remove success toast message for logo upload to streamline user feedback
+[33md52794c[m fix: update header text color for improved readability in light and dark modes
+[33m308722f[m fix: improve toast positioning and styling for better visibility and usability
+[33md28bc42[m fix: enhance dark mode styles for input labels and dialog backgrounds
+[33m21982ec[m refactor: standardize code formatting and improve component styles for better consistency
+[33m601861f[m fix: update error handling to provide more detailed error information in API response
+[33mc43e606[m feat: update authentication flow to use getUser instead of getClaims for improved user data retrieval
+[33m54443d6[m feat: add daily fat input field to meal plan form and remove meal name input
+[33m8082781[m feat: add assigned workout and meal plan selection to client dialog
+[33mfbde8f4[m feat: format meeting scheduled date for improved readability
+[33mad7538c[m feat: enhance meeting status display and improve past meetings layout
+[33mbe05f08[m feat: implement dark mode toggle and context provider for theme management
+[33m3745194[m feat: add min-width to business name header for improved layout
+[33me940b70[m feat: update logo and business name display in mobile header for better responsiveness
+[33m286c501[m feat: add message to prompt users when no meals are added in MealPlanDialog
+[33m3c775db[m feat: update sidebar positioning to use sticky behavior on larger screens
+[33mb251fe2[m feat: add max date attribute to birth date input for validation
+[33me529f95[m feat: fix date picker icon appearance in dark mode
+[33ma2b6e5d[m feat: update button styles to include text color for better visibility
+[33mef6d717[m feat: apply dark mode styles to Card components in dashboard, meals, and settings pages
+[33m5b0c07d[m feat: enhance data import functionality and remove unused terminology fields
+[33m3d9a481[m feat: add icons to Recent Clients and Upcoming Meetings sections
+[33m9a3bf18[m feat: add icons for upcoming and past meetings sections
+[33ma738fff[m fix: update password validation regex to remove special character requirement
+[33m256f680[m feat: add form validation for login and registration forms
+[33mc6e8ccd[m feat: update logo handling and remove unused favicon
+[33mdf5773c[m feat: add logo and implement loading animations in Home and AppLayout components
+[33me9d8b90[m refactor(middleware): update authentication check to refresh session and validate user refactor(AppLayout): enhance security by preventing unauthenticated content rendering
+[33m89ee017[m feat: migrate from localStorage to cookies for user settings and authentication
+[33m7eec491[m refactor: update button labels and adjust minimum width for consistency across pages
+[33ma2402cd[m refactor(SettingsPage): enhance layout with background color and improved header structure
+[33me589064[m refactor(ClientsPage): add empty state card for no clients found
+[33m8c91bab[m refactor(HomePage): enhance layout and styling for improved user experience
+[33m39ad016[m feat(Logo): add new logo image to the application
+[33md2c6ebe[m refactor(AdminDashboard): enhance client display with email and phone information
+[33m158fc32[m refactor(AdminDashboard): add status configuration for client status display
+[33m11cc17a[m refactor(ClientsPage): enhance table header styling and capitalize client attributes
+[33m8e1e7e4[m refactor(ClientsPage): implement client sorting functionality and enhance table headers
+[33ma33c13a[m refactor(ClientsPage): streamline client deletion and enhance client display in table format
+[33mfc0be03[m refactor(Client): change required fields to mandatory in Client interface
+[33m308ee96[m Initial commit
+[33m2f52970[m Initial commit
