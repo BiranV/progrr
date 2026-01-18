@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import "flatpickr/dist/flatpickr.min.css";
 import "./globals.css";
 import { Providers } from "./providers";
 import PWARegister from "@/components/PWARegister";

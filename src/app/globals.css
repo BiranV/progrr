@@ -1,6 +1,5 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "flatpickr/dist/flatpickr.min.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -293,4 +292,78 @@ select:-webkit-autofill:focus {
 /* Keep today's number color unchanged on hover (Flatpickr may set it to white). */
 .flatpickr-day.today:not(.flatpickr-disabled):not(.prevMonthDay):not(.nextMonthDay):not(.selected):not(.startRange):not(.endRange):not(.inRange):hover {
   color: #111827 !important;
+}
+
+/* Auth logo click-to-glow */
+@layer utilities {
+  .progrr-auth-logo {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .progrr-auth-logo[data-lit="true"] {
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.35),
+      0 0 28px rgba(255, 255, 255, 0.22),
+      0 0 72px rgba(99, 102, 241, 0.28);
+  }
+
+  .progrr-auth-logo[data-lit="true"]::after {
+    content: "";
+    position: absolute;
+    inset: -14px;
+    border-radius: 9999px;
+    background: radial-gradient(
+      circle at 50% 50%,
+      rgba(255, 255, 255, 0.42),
+      rgba(99, 102, 241, 0.22) 35%,
+      rgba(0, 0, 0, 0) 70%
+    );
+    filter: blur(10px);
+    opacity: 0.9;
+    pointer-events: none;
+    animation: progrr-auth-glow-pulse 1.35s ease-in-out infinite alternate;
+  }
+
+  .progrr-auth-logo-aura {
+    opacity: 0.35;
+    transition: opacity 250ms ease, transform 250ms ease;
+  }
+
+  .progrr-auth-logo[data-lit="true"] + .progrr-auth-logo-aura {
+    opacity: 0.95;
+    transform: translateX(-50%) scale(1.15);
+    animation: progrr-auth-aura 1.7s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .progrr-auth-logo[data-lit="true"]::after {
+      animation: none;
+    }
+    .progrr-auth-logo[data-lit="true"] + .progrr-auth-logo-aura {
+      animation: none;
+    }
+  }
+}
+
+@keyframes progrr-auth-glow-pulse {
+  from {
+    transform: scale(0.98);
+    opacity: 0.65;
+  }
+  to {
+    transform: scale(1.04);
+    opacity: 1;
+  }
+}
+
+@keyframes progrr-auth-aura {
+  0% {
+    filter: blur(20px);
+  }
+  50% {
+    filter: blur(28px);
+  }
+  100% {
+    filter: blur(22px);
+  }
 }

@@ -56,6 +56,9 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
+  // Fun: click the logo to "turn on" a glow
+  const [logoLit, setLogoLit] = useState(false);
+
   // Initial Error/Message handling
   useEffect(() => {
     const authError = searchParams.get("authError");
@@ -134,8 +137,8 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
         typeof data?.redirectTo === "string"
           ? data.redirectTo
           : data?.onboardingCompleted
-            ? "/dashboard"
-            : "/onboarding";
+          ? "/dashboard"
+          : "/onboarding";
       router.replace(dest);
     } catch (err: any) {
       // Keep the field highlighted, but also show global banner like onboarding.
@@ -209,8 +212,8 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
         typeof data?.redirectTo === "string"
           ? data.redirectTo
           : data?.onboardingCompleted
-            ? "/dashboard"
-            : "/onboarding";
+          ? "/dashboard"
+          : "/onboarding";
       router.replace(dest);
     } catch (err: any) {
       setSignupCodeError(err?.message || "Verification failed");
@@ -231,8 +234,8 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
   const bannerState: AuthBannerState = globalError
     ? { type: "error", text: globalError }
     : info
-      ? { type: "message", text: info }
-      : null;
+    ? { type: "message", text: info }
+    : null;
 
   // For inputs
   const inputErrorClass = "border-red-300/50 ring-1 ring-red-300/20";
@@ -245,7 +248,14 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
         transition={{ type: "spring", stiffness: 260, damping: 20 }}
         className="mb-10 relative flex flex-col items-center"
       >
-        <div className="relative z-10 w-24 h-24 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-xl mb-4">
+        <button
+          type="button"
+          aria-label="Toggle logo light"
+          aria-pressed={logoLit}
+          data-lit={logoLit ? "true" : "false"}
+          onClick={() => setLogoLit((v) => !v)}
+          className="progrr-auth-logo relative z-10 w-24 h-24 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-xl mb-4 cursor-pointer transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+        >
           <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center shadow-inner overflow-hidden p-3">
             <Image
               src="/logo.png"
@@ -255,8 +265,8 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
               className="object-contain"
             />
           </div>
-        </div>
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-24 bg-white/20 blur-xl rounded-full -z-10" />
+        </button>
+        <div className="progrr-auth-logo-aura absolute top-0 left-1/2 -translate-x-1/2 w-24 h-24 bg-white/20 blur-xl rounded-full -z-10" />
 
         <h1 className="text-2xl font-bold text-white tracking-tight">Progrr</h1>
         <p className="text-white/70 text-sm mt-1 font-medium">
@@ -326,8 +336,9 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
                     <Input
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
-                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${loginError ? inputErrorClass : "border-white/20"
-                        }`}
+                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${
+                        loginError ? inputErrorClass : "border-white/20"
+                      }`}
                       placeholder="name@company.com"
                       autoFocus
                     />
@@ -351,8 +362,9 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
                       onChange={setLoginCode}
                       length={6}
                       disabled={loading}
-                      inputClassName={`bg-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent ${loginCodeError ? inputErrorClass : "border-white/20"
-                        }`}
+                      inputClassName={`bg-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent ${
+                        loginCodeError ? inputErrorClass : "border-white/20"
+                      }`}
                     />
                     <InlineError message={loginCodeError} />
                     <p className="text-xs text-white/60 ml-1 pt-1">
@@ -407,8 +419,9 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
                     <Input
                       value={signupName}
                       onChange={(e) => setSignupName(e.target.value)}
-                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${signupNameError ? inputErrorClass : "border-white/20"
-                        }`}
+                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${
+                        signupNameError ? inputErrorClass : "border-white/20"
+                      }`}
                       placeholder="Jane Doe"
                       autoFocus
                     />
@@ -419,8 +432,9 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
                     <Input
                       value={signupEmail}
                       onChange={(e) => setSignupEmail(e.target.value)}
-                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${signupEmailError ? inputErrorClass : "border-white/20"
-                        }`}
+                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${
+                        signupEmailError ? inputErrorClass : "border-white/20"
+                      }`}
                       placeholder="name@company.com"
                     />
                     <InlineError message={signupEmailError} />
@@ -443,8 +457,9 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
                       onChange={setSignupCode}
                       length={6}
                       disabled={loading}
-                      inputClassName={`bg-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent ${signupCodeError ? inputErrorClass : "border-white/20"
-                        }`}
+                      inputClassName={`bg-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent ${
+                        signupCodeError ? inputErrorClass : "border-white/20"
+                      }`}
                     />
                     <InlineError message={signupCodeError} />
                     <p className="text-xs text-white/60 ml-1 pt-1">
