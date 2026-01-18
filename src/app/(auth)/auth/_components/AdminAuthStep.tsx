@@ -25,18 +25,33 @@ type ViewState =
   | "login"
   | "login-verify"
   | "signup"
-  | "signup-verify";
+  | "signup-verify"
+  | "existing-account";
 
-export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
+type InitialView = "landing" | "login" | "signup";
+
+export default function AdminAuthStep({
+  nextPath,
+  initialView,
+  initialEmail,
+}: {
+  nextPath: string;
+  initialView?: InitialView;
+  initialEmail?: string;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setSessionUser } = useAuth();
 
   // State
-  const [view, setView] = useState<ViewState>("landing");
+  const [view, setView] = useState<ViewState>(() => {
+    if (initialView === "login") return "login";
+    if (initialView === "signup") return "signup";
+    return "landing";
+  });
 
   // Login State
-  const [loginEmail, setLoginEmail] = useState("");
+  const [loginEmail, setLoginEmail] = useState(() => initialEmail ?? "");
   const [loginCode, setLoginCode] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
 
@@ -77,11 +92,19 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
     setInfo(null);
   };
 
+  const useDifferentEmail = () => {
+    resetError();
+    setSignupEmail("");
+    setSignupCode("");
+    setView("signup");
+  };
+
   const handleBack = () => {
     resetError();
     if (view === "login" || view === "signup") setView("landing");
     if (view === "login-verify") setView("login");
     if (view === "signup-verify") setView("signup");
+    if (view === "existing-account") setView("signup");
   };
 
   // --- Actions ---
@@ -126,7 +149,11 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
       const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: loginEmail, code: loginCode }),
+        body: JSON.stringify({
+          email: loginEmail,
+          code: loginCode,
+          flow: "login",
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed");
@@ -172,7 +199,13 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: signupEmail, flow: "signup" }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data?.error === "EMAIL_ALREADY_EXISTS") {
+        setGlobalError(null);
+        setInfo(null);
+        setView("existing-account");
+        return;
+      }
       if (!res.ok) throw new Error(data.error || "Failed");
 
       setInfo("Code sent to email");
@@ -201,9 +234,16 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
           email: signupEmail,
           code: signupCode,
           full_name: signupName,
+          flow: "signup",
         }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data?.error === "EMAIL_ALREADY_EXISTS") {
+        setGlobalError(null);
+        setInfo(null);
+        setView("existing-account");
+        return;
+      }
       if (!res.ok) throw new Error(data.error || "Failed");
 
       if (data.user) setSessionUser(data.user);
@@ -379,6 +419,63 @@ export default function AdminAuthStep({ nextPath }: { nextPath: string }) {
                   </Button>
                 </form>
               )}
+            </motion.div>
+          )}
+
+          {view === "existing-account" && (
+            <motion.div
+              key="existing-account"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-6"
+            >
+              <div className="flex items-center gap-4 mb-2">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="text-white hover:text-white hover:bg-white/10 -ml-2"
+                  onClick={handleBack}
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </Button>
+                <h2 className="text-xl font-bold text-white">Create Account</h2>
+              </div>
+
+              <div className="rounded-3xl border border-white/15 bg-white/5 backdrop-blur-md px-6 py-7 shadow-xl text-center">
+                <h3 className="text-xl font-semibold text-white">
+                  This email is already registered
+                </h3>
+                <p className="text-sm text-white/70 mt-2">
+                  You already have an account with this email.
+                </p>
+                <p className="text-sm text-white/80 mt-3 font-medium break-all">
+                  {signupEmail}
+                </p>
+
+                <Button
+                  type="button"
+                  className="mt-6 w-full h-12 bg-white text-neutral-900 hover:bg-white/90 rounded-2xl text-base font-semibold"
+                  onClick={() =>
+                    router.push(
+                      `/login?email=${encodeURIComponent(
+                        String(signupEmail || "").trim()
+                      )}`
+                    )
+                  }
+                >
+                  Continue to Login
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="mt-2 w-full h-11 rounded-2xl text-white/80 hover:text-white hover:bg-white/10"
+                  onClick={useDifferentEmail}
+                >
+                  Use a different email
+                </Button>
+              </div>
             </motion.div>
           )}
 

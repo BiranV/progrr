@@ -28,6 +28,9 @@ export async function POST(req: Request) {
     const email = normalizeEmail(body?.email);
     const code = String(body?.code ?? "").trim();
     const fullName = String(body?.full_name ?? body?.fullName ?? "").trim();
+    const flow = String(body?.flow ?? "")
+      .trim()
+      .toLowerCase();
 
     if (!email) {
       return NextResponse.json({ error: "Email is required" }, { status: 400 });
@@ -45,6 +48,10 @@ export async function POST(req: Request) {
       );
     }
 
+    if (flow !== "login" && flow !== "signup") {
+      return NextResponse.json({ error: "Invalid flow" }, { status: 400 });
+    }
+
     const c = await collections();
 
     const db = await getDb();
@@ -58,7 +65,20 @@ export async function POST(req: Request) {
     });
 
     const existing = await c.users.findOne({ email });
-    const purpose = existing ? "login" : "signup";
+
+    if (flow === "login" && !existing) {
+      return NextResponse.json({ error: "Account not found" }, { status: 404 });
+    }
+
+    if (flow === "signup" && existing) {
+      return NextResponse.json(
+        { error: "EMAIL_ALREADY_EXISTS" },
+        { status: 409 }
+      );
+    }
+
+    // IMPORTANT: never auto-switch signup into login.
+    const purpose = flow;
 
     const otp = await c.otps.findOne({ key: email, purpose });
     if (!otp) {
@@ -92,11 +112,14 @@ export async function POST(req: Request) {
     let userId: string;
     let onboardingCompleted = false;
     let fullNameOut: string | null = null;
-    if (existing) {
-      userId = existing._id!.toHexString();
+
+    if (flow === "login") {
+      // existing is guaranteed by the checks above
+      userId = existing!._id!.toHexString();
       onboardingCompleted = Boolean((existing as any).onboardingCompleted);
       fullNameOut = (existing as any).fullName ?? null;
     } else {
+      // flow === "signup" and existing is guaranteed to be null by the checks above
       const insert = await c.users.insertOne({
         email,
         createdAt: new Date(),

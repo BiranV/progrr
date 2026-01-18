@@ -21,9 +21,13 @@ function isSafeNextPath(next: string): boolean {
 export default function AuthFlow({
   initialBanner,
   initialNext,
+  initialView,
+  initialEmail,
 }: {
   initialBanner: AuthBannerState;
   initialNext: string;
+  initialView?: "landing" | "login" | "signup";
+  initialEmail?: string;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -94,7 +98,11 @@ export default function AuthFlow({
 
   return (
     <div className="w-full flex-1 flex flex-col justify-center max-w-md mx-auto px-6 pb-12">
-      <AdminAuthStep nextPath={nextPath} />
+      <AdminAuthStep
+        nextPath={nextPath}
+        initialView={initialView}
+        initialEmail={initialEmail}
+      />
     </div>
   );
 }
