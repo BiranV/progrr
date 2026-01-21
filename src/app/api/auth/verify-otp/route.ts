@@ -120,11 +120,22 @@ export async function POST(req: Request) {
       fullNameOut = (existing as any).fullName ?? null;
     } else {
       // flow === "signup" and existing is guaranteed to be null by the checks above
+      const trialStartAt = new Date();
+      const trialEndAt = new Date(trialStartAt.getTime() + 14 * 24 * 60 * 60 * 1000);
+
       const insert = await c.users.insertOne({
         email,
-        createdAt: new Date(),
+        createdAt: trialStartAt,
         fullName: fullName || undefined,
         onboardingCompleted: false,
+        onboarding: {
+          business: {
+            trialStartAt,
+            trialEndAt,
+            subscriptionStatus: "trial",
+          },
+          updatedAt: trialStartAt,
+        },
       } as any);
       // Allocate immutable, unique 5-digit public business id at signup time.
       await ensureBusinessPublicIdForUser(insert.insertedId as ObjectId).catch(

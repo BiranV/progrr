@@ -17,6 +17,11 @@ interface User {
   email: string;
   full_name?: string;
   onboardingCompleted?: boolean;
+  business?: {
+    trialStartAt?: string;
+    trialEndAt?: string;
+    subscriptionStatus?: "trial" | "active" | "expired";
+  };
   [key: string]: any;
 }
 
@@ -80,7 +85,16 @@ async function fetchMeOnce(): Promise<MeResult> {
   if (!meResultPromise) {
     meResultPromise = db.auth
       .me()
-      .then((u) => ({ user: u as User }))
+      .then((u) => {
+        if (u && typeof u === "object" && (u as any).user) {
+          const merged = {
+            ...((u as any).user as User),
+            business: (u as any).business,
+          } as User;
+          return { user: merged };
+        }
+        return { user: u as User };
+      })
       .catch((err: any) => {
         const status = typeof err?.status === "number" ? err.status : undefined;
         const message = String(err?.message || "");

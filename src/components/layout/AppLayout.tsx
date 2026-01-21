@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import BottomNav from "./BottomNav";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 
 function isPublicPath(pathname: string) {
   return (
@@ -16,7 +17,7 @@ function isPublicPath(pathname: string) {
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, isLoadingAuth: loading, updateUser } = useAuth();
+  const { user, isLoadingAuth: loading, updateUser, logout } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
   const mainRef = React.useRef<HTMLElement | null>(null);
@@ -92,6 +93,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     shouldRedirectToOnboarding ||
     shouldRedirectToDashboard;
 
+  const subscriptionStatus = String(
+    (user as any)?.business?.subscriptionStatus ?? ""
+  ).trim();
+  const isSubscriptionExpired = subscriptionStatus === "expired";
+  const isAllowedWhenExpired =
+    pathname === "/settings" ||
+    pathname === "/settings/subscription" ||
+    pathname === "/support" ||
+    pathname.startsWith("/legal");
+
+  const shouldShowExpiredGate =
+    !shouldBlockChildren && isSubscriptionExpired && !isAllowedWhenExpired;
+
   const blockingFallback = (
     <div className="space-y-4">
       <div className="text-sm text-muted-foreground">Redirecting…</div>
@@ -100,6 +114,32 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <Skeleton className="h-20 w-full" />
       </div>
       <Skeleton className="h-48 w-full" />
+    </div>
+  );
+
+  const expiredFallback = (
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          Your free trial has ended
+        </h1>
+        <p className="text-sm text-gray-600 dark:text-gray-300">
+          To continue using Progrr, please choose a plan.
+        </p>
+      </div>
+      <div className="flex flex-col gap-2">
+        <Button className="w-full" onClick={() => router.push("/settings/subscription")}>
+          View plans
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={() => logout()}
+        >
+          Log out
+        </Button>
+      </div>
     </div>
   );
 
@@ -171,7 +211,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               Hi, {headerName}
             </div>
           </div> */}
-          {shouldBlockChildren ? blockingFallback : children}
+          {shouldBlockChildren
+            ? blockingFallback
+            : shouldShowExpiredGate
+              ? expiredFallback
+              : children}
         </main>
       </div>
       <BottomNav />
