@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { PublicBusiness } from "@/lib/public-booking";
 
@@ -51,7 +51,7 @@ export default function PublicBookingShell({
 
   const logoUrl = String(business?.branding?.logoUrl ?? "").trim();
   const bannerUrl = String(
-    business?.branding?.bannerUrl ?? business?.branding?.banner?.url ?? ""
+    business?.branding?.bannerUrl ?? business?.branding?.banner?.url ?? "",
   ).trim();
   const gallery = Array.isArray(business?.branding?.gallery)
     ? (business?.branding?.gallery || []).filter(Boolean).slice(0, 10)
@@ -79,13 +79,16 @@ export default function PublicBookingShell({
     }
   }, [galleryPaged, galleryPages.length]);
 
-  const scrollGalleryToPage = React.useCallback((nextPage: number) => {
-    const el = galleryScrollerRef.current;
-    if (!el) return;
-    const clamped = Math.max(0, Math.min(nextPage, galleryPages.length - 1));
-    const pageWidth = el.clientWidth || 1;
-    el.scrollTo({ left: clamped * pageWidth, behavior: "smooth" });
-  }, [galleryPages.length]);
+  const scrollGalleryToPage = React.useCallback(
+    (nextPage: number) => {
+      const el = galleryScrollerRef.current;
+      if (!el) return;
+      const clamped = Math.max(0, Math.min(nextPage, galleryPages.length - 1));
+      const pageWidth = el.clientWidth || 1;
+      el.scrollTo({ left: clamped * pageWidth, behavior: "smooth" });
+    },
+    [galleryPages.length],
+  );
 
   React.useEffect(() => {
     const el = galleryScrollerRef.current;
@@ -112,18 +115,18 @@ export default function PublicBookingShell({
   const businessPhone = String(business?.business?.phone ?? "").trim();
   const businessAddress = String(business?.business?.address ?? "").trim();
   const instagramRaw = String(
-    (business as any)?.business?.instagram ?? ""
+    (business as any)?.business?.instagram ?? "",
   ).trim();
   const whatsappRaw = String(
-    (business as any)?.business?.whatsapp ?? ""
+    (business as any)?.business?.whatsapp ?? "",
   ).trim();
 
   const digitsOnly = (value: string) => value.replace(/\D/g, "");
 
   const wazeHref = businessAddress
     ? `https://waze.com/ul?q=${encodeURIComponent(
-      businessAddress
-    )}&navigate=yes`
+        businessAddress,
+      )}&navigate=yes`
     : "";
 
   const telHref = businessPhone ? `tel:${businessPhone}` : "";
@@ -184,6 +187,8 @@ export default function PublicBookingShell({
           // Don’t steal focus (nice for mobile + image viewing)
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
+          {/* A11y: DialogContent requires a DialogTitle */}
+          <DialogTitle className="sr-only">Image preview</DialogTitle>
           {previewSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -221,7 +226,7 @@ export default function PublicBookingShell({
                 "absolute top-5 rounded-xl",
                 "text-gray-900 hover:bg-gray-100",
                 "dark:text-white dark:hover:bg-white/10",
-                isRtl ? "right-6" : "left-6"
+                isRtl ? "right-6" : "left-6",
               )}
               aria-label="Back"
             >
@@ -281,7 +286,7 @@ export default function PublicBookingShell({
                       "shadow-sm",
                       "transition",
                       "hover:bg-white hover:shadow-md",
-                      "dark:hover:bg-gray-900/30"
+                      "dark:hover:bg-gray-900/30",
                     )}
                   >
                     <Icon className="h-4 w-4" />
@@ -298,7 +303,7 @@ export default function PublicBookingShell({
                 <div
                   className={cn(
                     "grid grid-cols-3 gap-2",
-                    "auto-rows-[84px] sm:auto-rows-[92px]"
+                    "auto-rows-[84px] sm:auto-rows-[92px]",
                   )}
                 >
                   {gallery.map((src, idx) => {
@@ -321,7 +326,7 @@ export default function PublicBookingShell({
                           "cursor-zoom-in",
                           isHero
                             ? "col-span-2 row-span-2"
-                            : "col-span-1 row-span-1"
+                            : "col-span-1 row-span-1",
                         )}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -331,7 +336,7 @@ export default function PublicBookingShell({
                           className={cn(
                             "h-full w-full object-cover",
                             "transition duration-300",
-                            "group-hover:scale-[1.03]"
+                            "group-hover:scale-[1.03]",
                           )}
                           draggable={false}
                         />
@@ -340,7 +345,7 @@ export default function PublicBookingShell({
                             "pointer-events-none absolute inset-0",
                             "bg-gradient-to-t from-black/25 via-black/0 to-black/0",
                             "opacity-0 group-hover:opacity-100",
-                            "transition-opacity"
+                            "transition-opacity",
                           )}
                         />
                       </button>
@@ -355,7 +360,7 @@ export default function PublicBookingShell({
                     className={cn(
                       "flex overflow-x-auto scroll-smooth",
                       "snap-x snap-mandatory",
-                      "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                      "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
                     )}
                   >
                     {galleryPages.map((page, pageIdx) => (
@@ -363,7 +368,7 @@ export default function PublicBookingShell({
                         <div
                           className={cn(
                             "grid grid-cols-3 gap-2",
-                            "auto-rows-[84px] sm:auto-rows-[92px]"
+                            "auto-rows-[84px] sm:auto-rows-[92px]",
                           )}
                         >
                           {page.map((src, idx) => (
@@ -381,7 +386,7 @@ export default function PublicBookingShell({
                                 "transition",
                                 "hover:shadow-md",
                                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30 dark:focus-visible:ring-white/30",
-                                "cursor-zoom-in"
+                                "cursor-zoom-in",
                               )}
                             >
                               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -391,7 +396,7 @@ export default function PublicBookingShell({
                                 className={cn(
                                   "h-full w-full object-cover",
                                   "transition duration-300",
-                                  "group-hover:scale-[1.03]"
+                                  "group-hover:scale-[1.03]",
                                 )}
                                 draggable={false}
                               />
@@ -400,7 +405,7 @@ export default function PublicBookingShell({
                                   "pointer-events-none absolute inset-0",
                                   "bg-gradient-to-t from-black/25 via-black/0 to-black/0",
                                   "opacity-0 group-hover:opacity-100",
-                                  "transition-opacity"
+                                  "transition-opacity",
                                 )}
                               />
                             </button>
@@ -425,7 +430,7 @@ export default function PublicBookingShell({
                           "backdrop-blur",
                           "border border-gray-200/70 dark:border-gray-800",
                           "shadow-sm",
-                          "ml-1"
+                          "ml-1",
                         )}
                         aria-label="Previous gallery images"
                       >
@@ -447,7 +452,7 @@ export default function PublicBookingShell({
                           "backdrop-blur",
                           "border border-gray-200/70 dark:border-gray-800",
                           "shadow-sm",
-                          "mr-1"
+                          "mr-1",
                         )}
                         aria-label="Next gallery images"
                       >
@@ -467,7 +472,7 @@ export default function PublicBookingShell({
                           "h-1.5 rounded-full transition",
                           i === galleryPage
                             ? "w-6 bg-gray-900/60 dark:bg-white/60"
-                            : "w-2 bg-gray-900/20 dark:bg-white/20"
+                            : "w-2 bg-gray-900/20 dark:bg-white/20",
                         )}
                       />
                     ))}
@@ -482,7 +487,7 @@ export default function PublicBookingShell({
               className={cn(
                 "flex justify-end",
                 showGallery && gallery.length > 0 ? "mt-5" : "mt-3",
-                subtitle || subtitleRight ? "mb-2" : "mb-3"
+                subtitle || subtitleRight ? "mb-2" : "mb-3",
               )}
             >
               {headerRight}
@@ -493,9 +498,13 @@ export default function PublicBookingShell({
             <div
               className={cn(
                 "flex items-center gap-3",
-                headerRight ? "mt-0" : showGallery && gallery.length > 0 ? "mt-5" : "mt-3",
+                headerRight
+                  ? "mt-0"
+                  : showGallery && gallery.length > 0
+                    ? "mt-5"
+                    : "mt-3",
                 "mb-3",
-                "justify-between"
+                "justify-between",
               )}
             >
               <div className="min-w-0">
