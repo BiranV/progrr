@@ -285,12 +285,6 @@ export default function SettingsPage() {
               destructive
               onActivate={() => setDeleteOpen(true)}
             />
-            <SettingsLinkRow
-              href="/settings/delete-business"
-              title="Delete business"
-              description="Permanently delete your business"
-              destructive
-            />
           </div>
         </CardContent>
       </Card>
