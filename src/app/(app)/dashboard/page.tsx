@@ -269,6 +269,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between gap-2">
               <CardTitle className="text-base">Revenue (last 7 days)</CardTitle>
               <div className="flex items-center gap-1">
+                {/* A11y: icon-only buttons need accessible names */}
                 <Button
                   type="button"
                   variant="outline"
@@ -276,6 +277,7 @@ export default function DashboardPage() {
                   className="h-8 w-8 rounded-xl"
                   onClick={() => setWeekOffset((v) => v - 1)}
                   disabled={weekSeriesQuery.isFetching}
+                  aria-label="Previous week"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -287,6 +289,7 @@ export default function DashboardPage() {
                   onClick={() => setWeekOffset((v) => v + 1)}
                   disabled={weekSeriesQuery.isFetching || weekOffset >= 0}
                   title={weekOffset >= 0 ? "Cannot go to the future" : "Next"}
+                  aria-label={weekOffset >= 0 ? "Next week (disabled)" : "Next week"}
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
@@ -334,6 +337,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between gap-2">
               <CardTitle className="text-base">Revenue (monthly)</CardTitle>
               <div className="flex items-center gap-1">
+                {/* A11y: icon-only buttons need accessible names */}
                 <Button
                   type="button"
                   variant="outline"
@@ -341,6 +345,7 @@ export default function DashboardPage() {
                   className="h-8 w-8 rounded-xl"
                   onClick={() => setMonthOffset((v) => v - 1)}
                   disabled={monthSeriesQuery.isFetching}
+                  aria-label="Previous month"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -352,6 +357,7 @@ export default function DashboardPage() {
                   onClick={() => setMonthOffset((v) => v + 1)}
                   disabled={monthSeriesQuery.isFetching || monthOffset >= 0}
                   title={monthOffset >= 0 ? "Cannot go to the future" : "Next"}
+                  aria-label={monthOffset >= 0 ? "Next month (disabled)" : "Next month"}
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>

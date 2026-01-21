@@ -348,11 +348,13 @@ export default function AdminAuthStep({
               className="space-y-6"
             >
               <div className="flex items-center gap-4 mb-8">
+                {/* A11y: icon-only button needs an accessible name */}
                 <Button
                   size="icon"
                   variant="ghost"
                   className="text-white hover:text-white hover:bg-white/10 -ml-2"
                   onClick={handleBack}
+                  aria-label="Back"
                 >
                   <ChevronLeft className="w-6 h-6" />
                 </Button>
@@ -436,6 +438,7 @@ export default function AdminAuthStep({
                   variant="ghost"
                   className="text-white hover:text-white hover:bg-white/10 -ml-2"
                   onClick={handleBack}
+                  aria-label="Back"
                 >
                   <ChevronLeft className="w-6 h-6" />
                 </Button>
@@ -493,6 +496,7 @@ export default function AdminAuthStep({
                   variant="ghost"
                   className="text-white hover:text-white hover:bg-white/10 -ml-2"
                   onClick={handleBack}
+                  aria-label="Back"
                 >
                   <ChevronLeft className="w-6 h-6" />
                 </Button>

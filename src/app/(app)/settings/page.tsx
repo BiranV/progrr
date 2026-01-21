@@ -97,18 +97,12 @@ function SettingsActionRow({
   destructive?: boolean;
 }) {
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    // A11y: use native button semantics instead of role="button".
+    <button
+      type="button"
       onClick={onActivate}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onActivate();
-        }
-      }}
       className={
-        "flex items-center justify-between gap-4 py-3 focus:outline-none cursor-pointer hover:bg-muted" +
+        "flex w-full items-center justify-between gap-4 py-3 focus:outline-none cursor-pointer hover:bg-muted" +
         (destructive ? "" : "")
       }
     >
@@ -117,7 +111,7 @@ function SettingsActionRow({
         description={description}
         destructive={destructive}
       />
-    </div>
+    </button>
   );
 }
 
