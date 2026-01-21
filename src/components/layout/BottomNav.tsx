@@ -67,7 +67,11 @@ export default function BottomNav() {
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <item.icon className="h-6 w-6" strokeWidth={isActive ? 2.5 : 2} />
+              <item.icon
+                className="h-6 w-6"
+                strokeWidth={isActive ? 2.5 : 2}
+                aria-hidden="true"
+              />
               <span className="text-[10px] sm:text-xs">{item.name}</span>
             </Link>
           );

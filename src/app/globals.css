@@ -127,6 +127,13 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  a:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+  }
 }
 
 /* Fix date picker icon in dark mode */
