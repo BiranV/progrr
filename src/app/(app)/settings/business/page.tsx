@@ -52,7 +52,7 @@ export default function BusinessDetailsPage() {
   const [isSaving, setIsSaving] = React.useState(false);
   const [copyStatus, setCopyStatus] = React.useState<"idle" | "copied">("idle");
   const copyTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
-    null
+    null,
   );
 
   React.useEffect(() => {
@@ -73,8 +73,16 @@ export default function BusinessDetailsPage() {
     };
 
     setForm((currentForm) => {
-      // First hydrate.
-      if (!initialRef.current) {
+      const isFormEmpty =
+        !currentForm.name &&
+        !currentForm.phone &&
+        !currentForm.address &&
+        !currentForm.description &&
+        !currentForm.instagram &&
+        !currentForm.whatsapp;
+
+      // First hydrate (or recover if form is empty).
+      if (!initialRef.current || isFormEmpty) {
         initialRef.current = next;
         return next;
       }
@@ -125,29 +133,32 @@ export default function BusinessDetailsPage() {
       form.instagram !== initialData.instagram ||
       form.whatsapp !== initialData.whatsapp);
 
-  const validate = React.useCallback((next: BusinessDetailsForm) => {
-    const nextErrors: Partial<Record<keyof BusinessDetailsForm, string>> = {};
+  const validate = React.useCallback(
+    (next: BusinessDetailsForm) => {
+      const nextErrors: Partial<Record<keyof BusinessDetailsForm, string>> = {};
 
-    if (!next.name.trim()) {
-      nextErrors.name = "Business name cannot be empty.";
-    }
+      if (!next.name.trim()) {
+        nextErrors.name = "Business name cannot be empty.";
+      }
 
-    if (!next.phone.trim()) {
-      nextErrors.phone = "Phone number is required.";
-    } else if (!isPhoneValid) {
-      nextErrors.phone = "Please enter a valid phone number.";
-    }
+      if (!next.phone.trim()) {
+        nextErrors.phone = "Phone number is required.";
+      } else if (!isPhoneValid) {
+        nextErrors.phone = "Please enter a valid phone number.";
+      }
 
-    if (next.whatsapp.trim() && !isWhatsAppValid) {
-      nextErrors.whatsapp = "WhatsApp number must be a valid mobile number.";
-    }
+      if (next.whatsapp.trim() && !isWhatsAppValid) {
+        nextErrors.whatsapp = "WhatsApp number must be a valid mobile number.";
+      }
 
-    if (!next.address.trim()) {
-      nextErrors.address = "Address cannot be empty.";
-    }
+      if (!next.address.trim()) {
+        nextErrors.address = "Address cannot be empty.";
+      }
 
-    return nextErrors;
-  }, [isPhoneValid, isWhatsAppValid]);
+      return nextErrors;
+    },
+    [isPhoneValid, isWhatsAppValid],
+  );
 
   const onSave = async () => {
     const nextErrors = validate(form);
@@ -195,7 +206,7 @@ export default function BusinessDetailsPage() {
 
   const updateField = <K extends keyof BusinessDetailsForm>(
     key: K,
-    value: BusinessDetailsForm[K]
+    value: BusinessDetailsForm[K],
   ) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => {

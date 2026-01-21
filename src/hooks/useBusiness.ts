@@ -55,6 +55,7 @@ export function useBusiness() {
   return useQuery({
     queryKey: ["business"],
     queryFn: () => apiFetch<Business>("/api/business"),
+    placeholderData: (prev) => prev,
     staleTime: 2 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     refetchOnMount: true,

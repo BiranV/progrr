@@ -20,6 +20,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const mainRef = React.useRef<HTMLElement | null>(null);
+  const [isMounted, setIsMounted] = React.useState(false);
 
   const isOnboardingPath =
     pathname === "/onboarding" || pathname.startsWith("/onboarding/");
@@ -110,6 +111,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     });
   }, [pathname, shouldBlockChildren]);
 
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   // Onboarding Layout (Minimal, no nav)
   if (isOnboardingPath) {
     return (
@@ -140,7 +145,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-black pb-safe">
       <header className="relative w-full z-0 h-[140px] bg-gradient-to-br from-neutral-950 via-zinc-900 to-zinc-800 shrink-0 overflow-hidden">
-        {bannerUrl ? (
+        {isMounted && bannerUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={bannerUrl}
