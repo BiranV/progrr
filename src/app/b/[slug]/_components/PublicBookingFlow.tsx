@@ -21,6 +21,7 @@ import PublicBookingShell from "./PublicBookingShell";
 import { usePublicBusiness } from "./usePublicBusiness";
 import { formatDateInTimeZone, formatPrice } from "@/lib/public-booking";
 import Flatpickr from "react-flatpickr";
+import { english } from "flatpickr/dist/l10n/default";
 import { Arabic } from "flatpickr/dist/l10n/ar";
 import { Hebrew } from "flatpickr/dist/l10n/he";
 import { CalendarDays, LogIn, LogOut } from "lucide-react";
@@ -539,6 +540,8 @@ export default function PublicBookingFlow({
     return { ...Arabic, rtl: true };
   }, [dir]);
 
+  const resolvedLocale = React.useMemo(() => fpLocale ?? english, [fpLocale]);
+
   const availabilityByDay = React.useMemo(() => {
     const days = Array.isArray((data as any)?.availability?.days)
       ? (data as any).availability.days
@@ -591,7 +594,7 @@ export default function PublicBookingFlow({
       disableMobile: false,
       monthSelectorType: "static" as const,
       minDate: businessTodayYmd || undefined,
-      locale: fpLocale,
+      locale: resolvedLocale,
       disable: [
         (d: Date) => {
           const ymd = ymdFromDateLocal(d);
@@ -599,7 +602,7 @@ export default function PublicBookingFlow({
         },
       ],
     };
-  }, [businessTodayYmd, fpLocale, isDisabledYmd]);
+  }, [businessTodayYmd, isDisabledYmd, resolvedLocale]);
 
   const selectedService = React.useMemo(() => {
     if (!data?.services) return null;
