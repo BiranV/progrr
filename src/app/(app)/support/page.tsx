@@ -2,10 +2,14 @@ import { Mail } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import SettingsBackHeader from "@/components/settings/SettingsBackHeader";
 
 export default function SupportPage() {
   return (
     <div className="space-y-6">
+      <div className="mb-2">
+        <SettingsBackHeader />
+      </div>
       <div className="space-y-2">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
           Support
