@@ -32,6 +32,37 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const AUTH_CACHE_KEY = "progrr:auth-cache:v1";
+
+function readAuthCache(): User | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(AUTH_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { user?: User } | null;
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed.user ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function writeAuthCache(user: User | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if (!user) {
+      window.localStorage.removeItem(AUTH_CACHE_KEY);
+      return;
+    }
+    window.localStorage.setItem(
+      AUTH_CACHE_KEY,
+      JSON.stringify({ user, updatedAt: Date.now() }),
+    );
+  } catch {
+    // Ignore cache errors.
+  }
+}
+
 type MeResult = { user: User | null; status?: number };
 
 let meResultPromise: Promise<MeResult> | null = null;
@@ -66,11 +97,12 @@ function setMeCache(user: User | null) {
 }
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const initialUser = React.useMemo(() => readAuthCache(), []);
+  const [user, setUser] = useState<User | null>(initialUser);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [authStatus, setAuthStatus] = useState<
     "loading" | "guest" | "authenticated"
-  >("loading");
+  >(initialUser ? "authenticated" : "loading");
   const didFetchMeRef = useRef(false);
   const mountedRef = useRef(true);
   const router = useRouter();
@@ -98,6 +130,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       mountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    writeAuthCache(user);
+  }, [user]);
 
   useEffect(() => {
     // Fully public booking pages must never call /api/me.

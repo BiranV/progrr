@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useBusiness } from "@/hooks/useBusiness";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
@@ -44,7 +45,9 @@ type RevenueSeriesResponse = {
 };
 
 export default function DashboardPage() {
-  const { data: business } = useBusiness();
+  const businessQuery = useBusiness();
+  const business = businessQuery.data;
+  const businessLoading = businessQuery.isPending && !businessQuery.data;
   const [copyStatus, setCopyStatus] = React.useState<"idle" | "copied">("idle");
   const copyTimeoutRef = React.useRef<number | null>(null);
 
@@ -104,6 +107,7 @@ export default function DashboardPage() {
   const summaryQuery = useQuery({
     queryKey: ["dashboardSummary"],
     staleTime: 30 * 1000,
+    placeholderData: (prev) => prev,
     queryFn: async (): Promise<DashboardSummary> => {
       const res = await fetch("/api/dashboard/summary", {
         method: "GET",
@@ -137,7 +141,7 @@ export default function DashboardPage() {
   }, [summaryQuery.isError, summaryQuery.error]);
 
   const summary = summaryQuery.data ?? null;
-  const summaryLoading = summaryQuery.isPending;
+  const summaryLoading = summaryQuery.isPending && !summaryQuery.data;
 
   const upcomingCount = summary?.upcomingAppointmentsCount ?? 0;
   const isOpenNow = summary?.businessStatus?.isOpenNow;
@@ -150,6 +154,7 @@ export default function DashboardPage() {
   const weekSeriesQuery = useQuery({
     queryKey: ["dashboardRevenueSeries", "week", weekOffset],
     staleTime: 30 * 1000,
+    placeholderData: (prev) => prev,
     queryFn: async (): Promise<RevenueSeriesResponse> => {
       const res = await fetch(
         `/api/dashboard/revenue-series?period=week&offset=${encodeURIComponent(
@@ -168,6 +173,7 @@ export default function DashboardPage() {
   const monthSeriesQuery = useQuery({
     queryKey: ["dashboardRevenueSeries", "month", monthOffset],
     staleTime: 30 * 1000,
+    placeholderData: (prev) => prev,
     queryFn: async (): Promise<RevenueSeriesResponse> => {
       const res = await fetch(
         `/api/dashboard/revenue-series?period=month&offset=${encodeURIComponent(
@@ -187,6 +193,9 @@ export default function DashboardPage() {
     ? `/calendar?date=${encodeURIComponent(summary.todayStr)}`
     : "/calendar";
 
+  const weekLoading = weekSeriesQuery.isPending && !weekSeriesQuery.data;
+  const monthLoading = monthSeriesQuery.isPending && !monthSeriesQuery.data;
+
   return (
     <div className="space-y-6">
       <div className="space-y-2">
@@ -204,9 +213,7 @@ export default function DashboardPage() {
             className="inline-flex items-center gap-2"
           >
             {summaryLoading ? (
-              <div className="text-xs font-semibold text-gray-900 dark:text-white">
-                —
-              </div>
+              <Skeleton className="h-5 w-16" />
             ) : typeof isOpenNow === "boolean" ? (
               <Badge
                 variant="outline"
@@ -233,7 +240,7 @@ export default function DashboardPage() {
             <CardContent className="p-4">
               <div className="text-xs text-muted-foreground">Remaining today</div>
               <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-                {summaryLoading ? "—" : upcomingCount}
+                {summaryLoading ? <Skeleton className="h-7 w-14" /> : upcomingCount}
               </div>
             </CardContent>
           </Card>
@@ -243,11 +250,13 @@ export default function DashboardPage() {
           <CardContent className="p-4">
             <div className="text-xs text-muted-foreground">Revenue today</div>
             <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-              {summaryLoading
-                ? "—"
-                : `${currencySymbol || ""}${revenueToday.toLocaleString(undefined, {
+              {summaryLoading ? (
+                <Skeleton className="h-7 w-20" />
+              ) : (
+                `${currencySymbol || ""}${revenueToday.toLocaleString(undefined, {
                   maximumFractionDigits: 2,
-                })}`}
+                })}`
+              )}
             </div>
           </CardContent>
         </Card>
@@ -296,16 +305,26 @@ export default function DashboardPage() {
               </div>
             ) : null}
 
-            <RevenueLineChart
-              points={weekSeriesQuery.data?.points ?? []}
-              currencySymbol={currencySymbol}
-            />
+            {weekLoading ? (
+              <Skeleton className="h-[200px] w-full" />
+            ) : (
+              <RevenueLineChart
+                points={weekSeriesQuery.data?.points ?? []}
+                currencySymbol={currencySymbol}
+              />
+            )}
 
             <div className="mt-2 text-xs text-muted-foreground">
-              Total: {currencySymbol || ""}
-              {(weekSeriesQuery.data?.totalRevenue ?? 0).toLocaleString(undefined, {
-                maximumFractionDigits: 2,
-              })}
+              {weekLoading ? (
+                <Skeleton className="h-4 w-24" />
+              ) : (
+                <>
+                  Total: {currencySymbol || ""}
+                  {(weekSeriesQuery.data?.totalRevenue ?? 0).toLocaleString(undefined, {
+                    maximumFractionDigits: 2,
+                  })}
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -351,17 +370,27 @@ export default function DashboardPage() {
               </div>
             ) : null}
 
-            <RevenueLineChart
-              points={monthSeriesQuery.data?.points ?? []}
-              currencySymbol={currencySymbol}
-              xAxisMode="day"
-            />
+            {monthLoading ? (
+              <Skeleton className="h-[200px] w-full" />
+            ) : (
+              <RevenueLineChart
+                points={monthSeriesQuery.data?.points ?? []}
+                currencySymbol={currencySymbol}
+                xAxisMode="day"
+              />
+            )}
 
             <div className="mt-2 text-xs text-muted-foreground">
-              Total: {currencySymbol || ""}
-              {(monthSeriesQuery.data?.totalRevenue ?? 0).toLocaleString(undefined, {
-                maximumFractionDigits: 2,
-              })}
+              {monthLoading ? (
+                <Skeleton className="h-4 w-24" />
+              ) : (
+                <>
+                  Total: {currencySymbol || ""}
+                  {(monthSeriesQuery.data?.totalRevenue ?? 0).toLocaleString(undefined, {
+                    maximumFractionDigits: 2,
+                  })}
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -373,7 +402,11 @@ export default function DashboardPage() {
           <CardTitle>Public booking link</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Input readOnly value={bookingLink} placeholder="Loading…" />
+          {businessLoading ? (
+            <Skeleton className="h-10 w-full" />
+          ) : (
+            <Input readOnly value={bookingLink} placeholder="Loading…" />
+          )}
           <div className="flex justify-end gap-2">
             <Button
               type="button"

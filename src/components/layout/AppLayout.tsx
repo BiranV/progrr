@@ -2,10 +2,10 @@
 
 import React from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
 import BottomNav from "./BottomNav";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function isPublicPath(pathname: string) {
   return (
@@ -74,32 +74,41 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [isOnboardingPath, loading, onboardingCompleted, pathname, router, user]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
   // Public paths (no layout/nav)
-  if (!user) {
-    if (isPublicPath(pathname)) {
-      return <>{children}</>;
-    }
-    return null;
+  if (isPublicPath(pathname)) {
+    return <>{children}</>;
   }
 
-  // Redirecting...
-  if (!onboardingCompleted && !isOnboardingPath) return null;
-  if (onboardingCompleted && isOnboardingPath) return null;
+  const shouldRedirectToAuth = !loading && !user;
+  const shouldRedirectToOnboarding =
+    !loading && user && !onboardingCompleted && !isOnboardingPath;
+  const shouldRedirectToDashboard =
+    !loading && user && onboardingCompleted && isOnboardingPath;
+
+  const shouldBlockChildren =
+    shouldRedirectToAuth ||
+    shouldRedirectToOnboarding ||
+    shouldRedirectToDashboard;
+
+  const blockingFallback = (
+    <div className="space-y-4">
+      <div className="text-sm text-muted-foreground">Redirecting…</div>
+      <div className="grid grid-cols-2 gap-3">
+        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-20 w-full" />
+      </div>
+      <Skeleton className="h-48 w-full" />
+    </div>
+  );
 
   // Onboarding Layout (Minimal, no nav)
   if (isOnboardingPath) {
     return (
       <div className="min-h-screen bg-neutral-100 dark:bg-black/90 flex justify-center">
         <div className="mobile-layout w-full bg-background flex flex-col">
-          <main className="flex-1 p-4">{children}</main>
+          <main className="flex-1 p-4">
+            {shouldBlockChildren ? blockingFallback : children}
+          </main>
         </div>
       </div>
     );
@@ -107,15 +116,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Main App Layout (Dashboard, Settings, etc.)
   const businessName = String(
-    (user as any)?.onboarding?.business?.name ?? ""
+    (user as any)?.onboarding?.business?.name ?? "",
   ).trim();
   const logoUrl = String(
     (user as any)?.onboarding?.branding?.logo?.url ??
       (user as any)?.onboarding?.branding?.logoUrl ??
-      ""
+      "",
   ).trim();
   const bannerUrl = String(
-    (user as any)?.onboarding?.branding?.banner?.url ?? ""
+    (user as any)?.onboarding?.branding?.banner?.url ?? "",
   ).trim();
   const headerName = businessName || user?.full_name || "Progrr";
 
@@ -144,7 +153,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               Hi, {headerName}
             </div>
           </div> */}
-          {children}
+          {shouldBlockChildren ? blockingFallback : children}
         </main>
       </div>
       <BottomNav />
