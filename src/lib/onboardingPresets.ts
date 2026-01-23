@@ -36,9 +36,14 @@ export const BUSINESS_TYPES: BusinessType[] = [
     descriptionKey: "onboarding.businessTypes.spa_massage.description",
   },
   {
-    key: "fitness_coaching",
-    titleKey: "onboarding.businessTypes.fitness_coaching.title",
-    descriptionKey: "onboarding.businessTypes.fitness_coaching.description",
+    key: "fitness_coach",
+    titleKey: "onboarding.businessTypes.fitness_coach.title",
+    descriptionKey: "onboarding.businessTypes.fitness_coach.description",
+  },
+  {
+    key: "nutrition_clinic",
+    titleKey: "onboarding.businessTypes.nutrition_clinic.title",
+    descriptionKey: "onboarding.businessTypes.nutrition_clinic.description",
   },
   {
     key: "other",
@@ -187,29 +192,39 @@ export const SERVICE_PRESETS: Record<string, ServicePreset[]> = {
     },
   ],
 
-  fitness_coaching: [
+  fitness_coach: [
     {
-      nameKey: "onboarding.servicePresets.fitness_coaching.introSession",
+      nameKey: "onboarding.servicePresets.fitness_coach.introSession",
       durationMinutes: 30,
     },
     {
-      nameKey: "onboarding.servicePresets.fitness_coaching.personalTraining",
+      nameKey: "onboarding.servicePresets.fitness_coach.personalTraining",
       durationMinutes: 60,
     },
     {
-      nameKey: "onboarding.servicePresets.fitness_coaching.strengthTraining",
+      nameKey: "onboarding.servicePresets.fitness_coach.strengthTraining",
       durationMinutes: 60,
     },
     {
-      nameKey: "onboarding.servicePresets.fitness_coaching.mobilitySession",
+      nameKey: "onboarding.servicePresets.fitness_coach.progressReview",
+      durationMinutes: 30,
+    },
+  ],
+  nutrition_clinic: [
+    {
+      nameKey: "onboarding.servicePresets.nutrition_clinic.initialConsultation",
       durationMinutes: 45,
     },
     {
-      nameKey: "onboarding.servicePresets.fitness_coaching.nutritionCheckIn",
+      nameKey: "onboarding.servicePresets.nutrition_clinic.personalPlan",
+      durationMinutes: 60,
+    },
+    {
+      nameKey: "onboarding.servicePresets.nutrition_clinic.followUp",
       durationMinutes: 30,
     },
     {
-      nameKey: "onboarding.servicePresets.fitness_coaching.progressReview",
+      nameKey: "onboarding.servicePresets.nutrition_clinic.planAdjustment",
       durationMinutes: 30,
     },
   ],

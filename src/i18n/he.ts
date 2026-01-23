@@ -167,9 +167,13 @@ const he = {
                 title: "ספא ועיסוי",
                 description: "עיסויים וטיפולי גוף",
             },
-            fitness_coaching: {
-                title: "כושר ואימון",
-                description: "אימונים ומפגשי אימון אישי",
+            fitness_coach: {
+                title: "אימון כושר אישי",
+                description: "אימונים אישיים, ליווי כושר ותוכניות אימון",
+            },
+            nutrition_clinic: {
+                title: "תזונה ודיאטה",
+                description: "ייעוץ תזונתי, דיאטניות וליווי תזונה",
             },
             other: {
                 title: "אחר",
@@ -226,13 +230,17 @@ const he = {
                 bodyScrub: "פילינג גוף",
                 aromatherapyMassage: "עיסוי ארומתרפי",
             },
-            fitness_coaching: {
-                introSession: "מפגש היכרות",
+            fitness_coach: {
+                introSession: "אימון היכרות",
                 personalTraining: "אימון אישי",
                 strengthTraining: "אימון כוח",
-                mobilitySession: "מפגש מוביליטי",
-                nutritionCheckIn: "בדיקת תזונה",
                 progressReview: "בדיקת התקדמות",
+            },
+            nutrition_clinic: {
+                initialConsultation: "ייעוץ תזונתי ראשוני",
+                personalPlan: "בניית תפריט אישי",
+                followUp: "פגישת מעקב",
+                planAdjustment: "התאמת תפריט",
             },
         },
         errors: {
