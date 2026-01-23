@@ -36,8 +36,8 @@ export async function POST() {
                 if (!String(s?.name ?? "").trim()) return `${prefix}name is required`;
 
                 const durationMinutes = Number(s?.durationMinutes);
-                if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
-                    return `${prefix}duration is required`;
+                if (!Number.isFinite(durationMinutes) || durationMinutes < 10) {
+                    return `${prefix}duration must be at least 10 minutes`;
                 }
 
                 const price = Number(s?.price);

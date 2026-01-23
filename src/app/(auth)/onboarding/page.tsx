@@ -1905,7 +1905,7 @@ export default function OnboardingPage() {
                       <div className="w-[70px] shrink-0">
                         <Input
                           type="number"
-                          min={5}
+                          min={10}
                           className={`px-2 text-center ${fieldErrors[`serviceDuration_${s.id}`]
                             ? inputErrorClass
                             : ""

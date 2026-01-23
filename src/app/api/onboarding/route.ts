@@ -237,7 +237,7 @@ function normalizeService(s: any) {
       : true;
 
   if (!name) return null;
-  if (!durationMinutes || durationMinutes <= 0 || durationMinutes > 24 * 60)
+  if (!durationMinutes || durationMinutes < 10 || durationMinutes > 24 * 60)
     return null;
   if (price !== undefined && (price < 0 || price > 1_000_000)) return null;
 
@@ -257,8 +257,8 @@ function firstServiceError(services: any[]): string | null {
     if (!name) return `${prefix}name is required`;
 
     const durationMinutes = asNumber(s?.durationMinutes);
-    if (!durationMinutes || durationMinutes <= 0 || durationMinutes > 24 * 60) {
-      return `${prefix}duration is required`;
+    if (!durationMinutes || durationMinutes < 10 || durationMinutes > 24 * 60) {
+      return `${prefix}duration must be at least 10 minutes`;
     }
 
     const price = asNumber(s?.price);

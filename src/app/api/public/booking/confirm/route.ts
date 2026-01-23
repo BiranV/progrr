@@ -214,7 +214,7 @@ export async function POST(req: Request) {
     const durationMinutes = Number(service?.durationMinutes);
     const rawPrice = Number(service?.price);
     const price = Number.isFinite(rawPrice) ? rawPrice : 0;
-    if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+    if (!Number.isFinite(durationMinutes) || durationMinutes < 10) {
       return NextResponse.json(
         { error: "Invalid service duration" },
         { status: 400 }

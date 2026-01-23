@@ -71,7 +71,7 @@ export async function GET(req: Request) {
         }
 
         const durationMinutes = Number(service?.durationMinutes);
-        if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+        if (!Number.isFinite(durationMinutes) || durationMinutes < 10) {
             return NextResponse.json({ error: "Invalid service duration" }, { status: 400 });
         }
 

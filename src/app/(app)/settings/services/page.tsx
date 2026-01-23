@@ -265,8 +265,8 @@ export default function ServicesSettingsPage() {
             if (!name) nextFieldErrors[`serviceName_${s.id}`] = "Service name is required";
 
             const duration = Number(s.durationMinutes);
-            if (!Number.isFinite(duration) || duration <= 0)
-                nextFieldErrors[`serviceDuration_${s.id}`] = "Duration must be greater than 0";
+            if (!Number.isFinite(duration) || duration < 10)
+                nextFieldErrors[`serviceDuration_${s.id}`] = "Duration must be at least 10 minutes";
 
             const price = Number(s.price);
             if (!Number.isFinite(price) || price < 0)
@@ -460,7 +460,7 @@ export default function ServicesSettingsPage() {
                                 <div className="w-[70px] shrink-0">
                                     <Input
                                         type="number"
-                                        min={5}
+                                        min={10}
                                         className={`px-2 text-center ${fieldErrors[`serviceDuration_${s.id}`]
                                             ? "border-rose-500 focus-visible:ring-rose-500"
                                             : ""
