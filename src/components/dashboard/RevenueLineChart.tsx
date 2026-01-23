@@ -11,6 +11,7 @@ import {
     Tooltip,
 } from "recharts";
 import { useLocale } from "@/context/LocaleContext";
+import { useI18n } from "@/i18n/useI18n";
 
 type Point = { date: string; revenue: number; completedCount?: number };
 
@@ -36,6 +37,7 @@ export function RevenueLineChart(props: {
 }) {
     const { points, currencySymbol, xAxisMode = "md" } = props;
     const { locale } = useLocale();
+    const { t } = useI18n();
 
     const data = React.useMemo(
         () =>
@@ -80,13 +82,13 @@ export function RevenueLineChart(props: {
                                     maximumFractionDigits: 2,
                                 })}`
                                 : String(value);
-                            return [pretty, "Revenue"];
+                            return [pretty, t("dashboard.revenue")];
                         }}
                         labelFormatter={(_, payload) => {
                             const ymd = payload?.[0]?.payload?.date;
                             if (!ymd) return "";
                             const pretty = formatDayLabel(ymd, "md", locale);
-                            return `Date: ${pretty}`;
+                            return `${t("dashboard.date")}: ${pretty}`;
                         }}
                     />
                     <Line

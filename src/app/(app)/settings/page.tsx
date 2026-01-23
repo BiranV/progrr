@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/context/AuthContext";
 import { useLocale } from "@/context/LocaleContext";
+import { useI18n } from "@/i18n/useI18n";
 
 function SettingsRowContent({
   title,
@@ -132,6 +133,7 @@ function SettingsActionRow({
 export default function SettingsPage() {
   const { logout, setSessionUser } = useAuth();
   const { language, setLanguage } = useLocale();
+  const { t } = useI18n();
   const router = useRouter();
   const queryClient = useQueryClient();
   const isLoggingOutRef = React.useRef(false);
@@ -161,10 +163,10 @@ export default function SettingsPage() {
     try {
       const res = await fetch("/api/account", { method: "DELETE" });
       if (!res.ok) {
-        let message = `Request failed (${res.status})`;
+        let message = t("errors.requestFailed", { status: res.status });
         try {
           const body = await res.json();
-          if (body?.error) message = body.error;
+          if (body?.error) message = t("errors.somethingWentWrong");
         } catch {
           // ignore
         }
@@ -178,7 +180,7 @@ export default function SettingsPage() {
 
       router.replace("/auth/goodbye");
     } catch (e: any) {
-      toast.error(e?.message || "Failed to delete account");
+      toast.error(t("errors.failedToDeleteAccount"));
     } finally {
       setDeletePending(false);
     }
@@ -283,7 +285,7 @@ export default function SettingsPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (e: any) {
-      toast.error(e?.message || "Failed to export data");
+      toast.error(t("errors.failedToExport"));
     } finally {
       setExportPending(false);
     }
@@ -293,39 +295,39 @@ export default function SettingsPage() {
     <div className="space-y-6">
       <div className="space-y-2">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Settings
+          {t("settings.title")}
         </h1>
         <p className="text-sm text-gray-600 dark:text-gray-300">
-          Manage your business configuration.
+          {t("settings.subtitle")}
         </p>
       </div>
 
       {/* Section 1: Business */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Business</CardTitle>
+          <CardTitle className="text-base">{t("settings.businessSection")}</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="divide-y">
             <SettingsLinkRow
               href="/settings/business"
-              title="Business details"
-              description="Edit your business information"
+              title={t("settings.businessDetails")}
+              description={t("settings.businessDetailsDesc")}
             />
             <SettingsLinkRow
               href="/settings/opening-hours"
-              title="Booking & hours"
-              description="Opening hours and booking rules"
+              title={t("settings.bookingHours")}
+              description={t("settings.bookingHoursDesc")}
             />
             <SettingsLinkRow
               href="/settings/services"
-              title="Services"
-              description="Manage services, duration and pricing"
+              title={t("settings.services")}
+              description={t("settings.servicesDesc")}
             />
             <SettingsLinkRow
               href="/settings/branding"
-              title="Branding"
-              description="Logo, gallery and brand color"
+              title={t("settings.branding")}
+              description={t("settings.brandingDesc")}
             />
           </div>
         </CardContent>
@@ -334,11 +336,11 @@ export default function SettingsPage() {
       {/* Section 2: Subscription */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Language & region</CardTitle>
+          <CardTitle className="text-base">{t("settings.languageRegion")}</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="space-y-2">
-            <Label>Language</Label>
+            <Label>{t("settings.language")}</Label>
             <Select
               value={language}
               onValueChange={(value) =>
@@ -346,15 +348,15 @@ export default function SettingsPage() {
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select language" />
+                <SelectValue placeholder={t("settings.language")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="he">Hebrew (RTL)</SelectItem>
-                <SelectItem value="en">English (LTR)</SelectItem>
+                <SelectItem value="he">{t("settings.languageHebrew")}</SelectItem>
+                <SelectItem value="en">{t("settings.languageEnglish")}</SelectItem>
               </SelectContent>
             </Select>
             <div className="text-xs text-gray-600 dark:text-gray-300">
-              Default language and text direction for the app.
+              {t("settings.languageHelp")}
             </div>
           </div>
         </CardContent>
@@ -363,19 +365,19 @@ export default function SettingsPage() {
       {/* Section 3: Subscription */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Subscription</CardTitle>
+          <CardTitle className="text-base">{t("settings.subscriptionSection")}</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="divide-y">
             <SettingsLinkRow
               href="/settings/subscription"
-              title="Plans & pricing"
-              description="View or upgrade your plan"
+              title={t("settings.plansPricing")}
+              description={t("settings.plansPricingDesc")}
             />
             <SettingsLinkRow
               href="/settings/billing"
-              title="Billing history"
-              description="Invoices and payment history"
+              title={t("settings.billingHistory")}
+              description={t("settings.billingHistoryDesc")}
             />
           </div>
         </CardContent>
@@ -384,29 +386,29 @@ export default function SettingsPage() {
       {/* Section 4: Support & Legal */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Support & Legal</CardTitle>
+          <CardTitle className="text-base">{t("settings.supportSection")}</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="divide-y">
             <SettingsLinkRow
               href="/support"
-              title="Support"
-              description="Get help or contact support"
+              title={t("settings.support")}
+              description={t("settings.supportDesc")}
             />
             <SettingsLinkRow
               href="/legal/privacy"
-              title="Privacy policy"
-              description="View privacy policy"
+              title={t("settings.privacy")}
+              description={t("settings.privacyDesc")}
             />
             <SettingsLinkRow
               href="/legal/terms"
-              title="Terms of service"
-              description="View terms and conditions"
+              title={t("settings.terms")}
+              description={t("settings.termsDesc")}
             />
             <SettingsLinkRow
               href="/legal/accessibility"
-              title="Accessibility"
-              description="Accessibility information"
+              title={t("settings.accessibility")}
+              description={t("settings.accessibilityDesc")}
             />
           </div>
         </CardContent>
@@ -415,18 +417,18 @@ export default function SettingsPage() {
       {/* Section 5: Account */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Account</CardTitle>
+          <CardTitle className="text-base">{t("settings.accountSection")}</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="divide-y">
             <SettingsActionRow
-              title="Log out"
-              description="Sign out from your account"
+              title={t("settings.logout")}
+              description={t("settings.logoutDesc")}
               onActivate={onLogout}
             />
             <SettingsActionRow
-              title="Delete account"
-              description="Permanently delete your account and data"
+              title={t("settings.deleteAccount")}
+              description={t("settings.deleteAccountDesc")}
               destructive
               onActivate={() => setDeleteOpen(true)}
             />
@@ -440,23 +442,22 @@ export default function SettingsPage() {
       >
         <DialogContent showCloseButton={!deletePending}>
           <DialogHeader>
-            <DialogTitle>Delete account?</DialogTitle>
+            <DialogTitle>{t("settings.deleteDialogTitle")}</DialogTitle>
             <DialogDescription>
-              This will permanently delete your account and all your data. This
-              action cannot be undone.
+              {t("settings.deleteDialogDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3">
             <div className="text-sm text-gray-700 dark:text-gray-300">
-              This will delete:
+              {t("settings.deleteListTitle")}
             </div>
             <ul className="list-disc pl-5 text-sm text-gray-700 dark:text-gray-300 space-y-1">
-              <li>Business data</li>
-              <li>Customers</li>
-              <li>Appointments</li>
-              <li>Services</li>
-              <li>Settings</li>
+              <li>{t("settings.deleteListBusiness")}</li>
+              <li>{t("settings.deleteListCustomers")}</li>
+              <li>{t("settings.deleteListAppointments")}</li>
+              <li>{t("settings.deleteListServices")}</li>
+              <li>{t("settings.deleteListSettings")}</li>
             </ul>
 
             <Button
@@ -469,15 +470,15 @@ export default function SettingsPage() {
               {exportPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : null}
-              Download your data before deleting
+              {t("settings.deleteDownload")}
             </Button>
 
             <div className="space-y-2">
-              <Label>Type DELETE to confirm</Label>
+              <Label>{t("settings.deleteTypeConfirm")}</Label>
               <Input
                 value={deleteConfirmText}
                 onChange={(e) => setDeleteConfirmText(e.target.value)}
-                placeholder="DELETE"
+                placeholder={t("settings.deletePlaceholder")}
                 autoComplete="off"
               />
             </div>
@@ -491,7 +492,7 @@ export default function SettingsPage() {
               disabled={deletePending}
               onClick={() => setDeleteOpen(false)}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               type="button"
@@ -503,7 +504,7 @@ export default function SettingsPage() {
               {deletePending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : null}
-              Delete account
+              {t("settings.deleteConfirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

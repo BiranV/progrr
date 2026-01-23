@@ -2,6 +2,7 @@
 
 import { X } from "lucide-react";
 import { useLocale } from "@/context/LocaleContext";
+import { useI18n } from "@/i18n/useI18n";
 
 export type AuthBannerState =
   | { type: "error"; text: string }
@@ -19,6 +20,7 @@ export default function AuthBanner({
 
   const isError = banner.type === "error";
   const { dir } = useLocale();
+  const { t } = useI18n();
 
   return (
     <div
@@ -36,7 +38,7 @@ export default function AuthBanner({
         <button
           type="button"
           onClick={onClose}
-          aria-label="Dismiss alert"
+          aria-label={t("auth.dismissAlert")}
           className={
             (isError
               ? "-m-1 rounded-md p-1 text-[#B42318]/70 hover:text-[#B42318] hover:bg-[#B42318]/10"

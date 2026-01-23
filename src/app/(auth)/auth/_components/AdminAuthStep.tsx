@@ -15,6 +15,7 @@ import { useLocale } from "@/context/LocaleContext";
 
 import AuthBanner, { type AuthBannerState } from "./AuthBanner";
 import OtpInput from "@/components/OtpInput";
+import { useI18n } from "@/i18n/useI18n";
 
 const isValidEmail = (email: string) =>
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -45,6 +46,7 @@ export default function AdminAuthStep({
   const { setSessionUser } = useAuth();
   const { dir } = useLocale();
   const BackIcon = dir === "rtl" ? ChevronRight : ChevronLeft;
+  const { t } = useI18n();
 
   // State
   const [view, setView] = useState<ViewState>(() => {
@@ -116,7 +118,7 @@ export default function AdminAuthStep({
     e.preventDefault();
     resetError();
     if (!isValidEmail(loginEmail)) {
-      setLoginError("Please enter a valid email address");
+      setLoginError(t("errors.invalidEmail"));
       return;
     }
 
@@ -128,12 +130,12 @@ export default function AdminAuthStep({
         body: JSON.stringify({ email: loginEmail, flow: "login" }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed");
+      if (!res.ok) throw new Error(data.error || t("errors.somethingWentWrong"));
 
-      setInfo("Code sent to email");
+      setInfo(t("auth.codeSentToEmailShort"));
       setView("login-verify");
     } catch (err: any) {
-      setGlobalError(err?.message || "Something went wrong");
+      setGlobalError(t("errors.somethingWentWrong"));
     } finally {
       setLoading(false);
     }
@@ -143,7 +145,7 @@ export default function AdminAuthStep({
     e.preventDefault();
     resetError();
     if (!loginCode) {
-      setLoginCodeError("Code required");
+      setLoginCodeError(t("errors.codeRequired"));
       return;
     }
 
@@ -159,7 +161,7 @@ export default function AdminAuthStep({
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed");
+      if (!res.ok) throw new Error(data.error || t("errors.somethingWentWrong"));
 
       if (data.user) setSessionUser(data.user);
 
@@ -172,8 +174,8 @@ export default function AdminAuthStep({
       router.replace(dest);
     } catch (err: any) {
       // Keep the field highlighted, but also show global banner like onboarding.
-      setLoginCodeError(err?.message || "Invalid code");
-      setGlobalError(err?.message || "Invalid code");
+      setLoginCodeError(t("errors.invalidCode"));
+      setGlobalError(t("errors.invalidCode"));
       setLoading(false);
     }
   };
@@ -184,12 +186,12 @@ export default function AdminAuthStep({
     let hasError = false;
 
     if (!isValidFullName(signupName)) {
-      setSignupNameError("Please enter your full name");
+      setSignupNameError(t("errors.fullNameRequired"));
       hasError = true;
     }
 
     if (!isValidEmail(signupEmail)) {
-      setSignupEmailError("Please enter a valid email address");
+      setSignupEmailError(t("errors.invalidEmail"));
       hasError = true;
     }
 
@@ -209,12 +211,12 @@ export default function AdminAuthStep({
         setView("existing-account");
         return;
       }
-      if (!res.ok) throw new Error(data.error || "Failed");
+      if (!res.ok) throw new Error(data.error || t("errors.somethingWentWrong"));
 
-      setInfo("Code sent to email");
+      setInfo(t("auth.codeSentToEmailShort"));
       setView("signup-verify");
     } catch (err: any) {
-      setGlobalError(err?.message || "Sign up failed");
+      setGlobalError(t("errors.signupFailed"));
     } finally {
       setLoading(false);
     }
@@ -224,7 +226,7 @@ export default function AdminAuthStep({
     e.preventDefault();
     resetError();
     if (!signupCode) {
-      setSignupCodeError("Code required");
+      setSignupCodeError(t("errors.codeRequired"));
       return;
     }
 
@@ -247,7 +249,7 @@ export default function AdminAuthStep({
         setView("existing-account");
         return;
       }
-      if (!res.ok) throw new Error(data.error || "Failed");
+      if (!res.ok) throw new Error(data.error || t("errors.somethingWentWrong"));
 
       if (data.user) setSessionUser(data.user);
 
@@ -259,8 +261,8 @@ export default function AdminAuthStep({
             : "/onboarding";
       router.replace(dest);
     } catch (err: any) {
-      setSignupCodeError(err?.message || "Verification failed");
-      setGlobalError(err?.message || "Verification failed");
+      setSignupCodeError(t("errors.verificationFailed"));
+      setGlobalError(t("errors.verificationFailed"));
       setLoading(false);
     }
   };
@@ -293,7 +295,7 @@ export default function AdminAuthStep({
       >
         <button
           type="button"
-          aria-label="Toggle logo light"
+          aria-label={t("auth.toggleLogoLight")}
           aria-pressed={logoLit}
           data-lit={logoLit ? "true" : "false"}
           onClick={() => setLogoLit((v) => !v)}
@@ -302,7 +304,7 @@ export default function AdminAuthStep({
           <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center shadow-inner overflow-hidden p-3">
             <Image
               src="/logo.png"
-              alt="Progrr"
+              alt={t("common.appName")}
               width={64}
               height={64}
               className="object-contain"
@@ -311,9 +313,11 @@ export default function AdminAuthStep({
         </button>
         <div className="progrr-auth-logo-aura absolute top-0 left-1/2 -translate-x-1/2 w-24 h-24 bg-white/20 blur-xl rounded-full -z-10" />
 
-        <h1 className="text-2xl font-bold text-white tracking-tight">Progrr</h1>
+        <h1 className="text-2xl font-bold text-white tracking-tight">
+          {t("common.appName")}
+        </h1>
         <p className="text-white/70 text-sm mt-1 font-medium">
-          Simple appointment scheduling for your business
+          {t("auth.landingTitle")}
         </p>
       </motion.div>
 
@@ -331,13 +335,13 @@ export default function AdminAuthStep({
                 className="w-full h-14 text-lg font-semibold bg-white text-neutral-900 hover:bg-white/90 rounded-2xl"
                 onClick={() => setView("login")}
               >
-                Login
+                {t("auth.login")}
               </Button>
               <Button
                 className="w-full h-14 text-lg font-semibold bg-transparent text-white border-2 border-white/20 hover:bg-white/10 rounded-2xl"
                 onClick={() => setView("signup")}
               >
-                Create Account
+                {t("auth.createAccountCta")}
               </Button>
             </motion.div>
           )}
@@ -357,12 +361,14 @@ export default function AdminAuthStep({
                   variant="ghost"
                   className="text-white hover:text-white hover:bg-white/10 -ml-2"
                   onClick={handleBack}
-                  aria-label="Back"
+                  aria-label={t("common.back")}
                 >
                   <BackIcon className="w-6 h-6" />
                 </Button>
                 <h2 className="text-xl font-bold text-white">
-                  {view === "login" ? "Welcome Back" : "Verify Login"}
+                  {view === "login"
+                    ? t("auth.welcomeBack")
+                    : t("auth.verifyLogin")}
                 </h2>
               </div>
 
@@ -377,13 +383,15 @@ export default function AdminAuthStep({
               {view === "login" ? (
                 <form onSubmit={sendLoginCode} className="space-y-6">
                   <div className="space-y-2">
-                    <Label className="text-white/80 ml-1">Email Address</Label>
+                    <Label className="text-white/80 ml-1">
+                      {t("auth.emailAddress")}
+                    </Label>
                     <Input
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
                       className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${loginError ? inputErrorClass : "border-white/20"
                         }`}
-                      placeholder="name@company.com"
+                      placeholder={t("auth.emailPlaceholder")}
                       autoFocus
                     />
                     <InlineError message={loginError} />
@@ -392,13 +400,15 @@ export default function AdminAuthStep({
                     disabled={loading}
                     className="w-full h-14 bg-white text-neutral-900 hover:bg-white/90 rounded-xl text-lg font-medium"
                   >
-                    {loading ? "Sending..." : "Continue"}
+                    {loading ? t("common.sending") : t("common.continue")}
                   </Button>
                 </form>
               ) : (
                 <form onSubmit={verifyLoginCode} className="space-y-6">
                   <div className="space-y-2">
-                    <Label className="text-white/80 ml-1">Enter Code</Label>
+                    <Label className="text-white/80 ml-1">
+                      {t("auth.enterCode")}
+                    </Label>
                     <OtpInput
                       id="otp-login"
                       name="code"
@@ -411,14 +421,14 @@ export default function AdminAuthStep({
                     />
                     <InlineError message={loginCodeError} />
                     <p className="text-xs text-white/60 ml-1 pt-1">
-                      Code sent to {loginEmail}
+                      {t("auth.codeSentToEmail", { email: loginEmail })}
                     </p>
                   </div>
                   <Button
                     disabled={loading}
                     className="w-full h-14 bg-white text-neutral-900 hover:bg-white/90 rounded-xl text-lg font-medium"
                   >
-                    {loading ? "Verifying..." : "Login"}
+                    {loading ? t("common.verifying") : t("auth.login")}
                   </Button>
                 </form>
               )}
@@ -439,19 +449,21 @@ export default function AdminAuthStep({
                   variant="ghost"
                   className="text-white hover:text-white hover:bg-white/10 -ml-2"
                   onClick={handleBack}
-                  aria-label="Back"
+                  aria-label={t("common.back")}
                 >
                   <BackIcon className="w-6 h-6" />
                 </Button>
-                <h2 className="text-xl font-bold text-white">Create Account</h2>
+                <h2 className="text-xl font-bold text-white">
+                  {t("auth.createAccount")}
+                </h2>
               </div>
 
               <div className="rounded-3xl border border-white/15 bg-white/5 backdrop-blur-md px-6 py-7 shadow-xl text-center">
                 <h3 className="text-xl font-semibold text-white">
-                  This email is already registered
+                  {t("auth.existingEmailTitle")}
                 </h3>
                 <p className="text-sm text-white/70 mt-2">
-                  You already have an account with this email.
+                  {t("auth.existingEmailBody")}
                 </p>
                 <p className="text-sm text-white/80 mt-3 font-medium break-all">
                   {signupEmail}
@@ -468,7 +480,7 @@ export default function AdminAuthStep({
                     )
                   }
                 >
-                  Continue to Login
+                  {t("auth.continueToLogin")}
                 </Button>
 
                 <Button
@@ -477,7 +489,7 @@ export default function AdminAuthStep({
                   className="mt-2 w-full h-11 rounded-2xl text-white/80 hover:text-white hover:bg-white/10"
                   onClick={useDifferentEmail}
                 >
-                  Use a different email
+                  {t("auth.useDifferentEmail")}
                 </Button>
               </div>
             </motion.div>
@@ -497,12 +509,14 @@ export default function AdminAuthStep({
                   variant="ghost"
                   className="text-white hover:text-white hover:bg-white/10 -ml-2"
                   onClick={handleBack}
-                  aria-label="Back"
+                  aria-label={t("common.back")}
                 >
                   <BackIcon className="w-6 h-6" />
                 </Button>
                 <h2 className="text-xl font-bold text-white">
-                  {view === "signup" ? "Create Account" : "Verify Email"}
+                  {view === "signup"
+                    ? t("auth.createAccount")
+                    : t("auth.verifyEmail")}
                 </h2>
               </div>
 
@@ -517,25 +531,29 @@ export default function AdminAuthStep({
               {view === "signup" ? (
                 <form onSubmit={sendSignupCode} className="space-y-6">
                   <div className="space-y-2">
-                    <Label className="text-white/80 ml-1">Full Name</Label>
+                    <Label className="text-white/80 ml-1">
+                      {t("auth.fullName")}
+                    </Label>
                     <Input
                       value={signupName}
                       onChange={(e) => setSignupName(e.target.value)}
                       className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${signupNameError ? inputErrorClass : "border-white/20"
                         }`}
-                      placeholder="Jane Doe"
+                      placeholder={t("auth.fullNamePlaceholder")}
                       autoFocus
                     />
                     <InlineError message={signupNameError} />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-white/80 ml-1">Email Address</Label>
+                    <Label className="text-white/80 ml-1">
+                      {t("auth.emailAddress")}
+                    </Label>
                     <Input
                       value={signupEmail}
                       onChange={(e) => setSignupEmail(e.target.value)}
                       className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${signupEmailError ? inputErrorClass : "border-white/20"
                         }`}
-                      placeholder="name@company.com"
+                      placeholder={t("auth.emailPlaceholder")}
                     />
                     <InlineError message={signupEmailError} />
                   </div>
@@ -543,13 +561,15 @@ export default function AdminAuthStep({
                     disabled={loading}
                     className="w-full h-14 bg-white text-neutral-900 hover:bg-white/90 rounded-xl text-lg font-medium"
                   >
-                    {loading ? "Sending..." : "Continue"}
+                    {loading ? t("common.sending") : t("common.continue")}
                   </Button>
                 </form>
               ) : (
                 <form onSubmit={verifySignupCode} className="space-y-6">
                   <div className="space-y-2">
-                    <Label className="text-white/80 ml-1">Enter Code</Label>
+                    <Label className="text-white/80 ml-1">
+                      {t("auth.enterCode")}
+                    </Label>
                     <OtpInput
                       id="otp-signup"
                       name="code"
@@ -562,14 +582,14 @@ export default function AdminAuthStep({
                     />
                     <InlineError message={signupCodeError} />
                     <p className="text-xs text-white/60 ml-1 pt-1">
-                      Code sent to {signupEmail}
+                      {t("auth.codeSentToEmail", { email: signupEmail })}
                     </p>
                   </div>
                   <Button
                     disabled={loading}
                     className="w-full h-14 bg-white text-neutral-900 hover:bg-white/90 rounded-xl text-lg font-medium"
                   >
-                    {loading ? "Verifying..." : "Create Account"}
+                    {loading ? t("common.verifying") : t("auth.createAccount")}
                   </Button>
                 </form>
               )}

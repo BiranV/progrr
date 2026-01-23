@@ -3,7 +3,7 @@
 import React from "react";
 import { getCookie, setCookie } from "@/lib/client-cookies";
 
-type Language = "he" | "en";
+export type Language = "he" | "en";
 
 type LocaleContextValue = {
     language: Language;
@@ -14,6 +14,7 @@ type LocaleContextValue = {
 
 const DEFAULT_LANGUAGE: Language = "he";
 const LOCALE_COOKIE = "progrr_lang";
+const LOCALE_STORAGE = "progrr_lang";
 
 const LANG_META: Record<Language, { locale: "he-IL" | "en-US"; dir: "rtl" | "ltr" }> = {
     he: { locale: "he-IL", dir: "rtl" },
@@ -34,6 +35,25 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     const setLanguage = React.useCallback((next: Language) => {
         setLanguageState(next);
         setCookie(LOCALE_COOKIE, next, { maxAgeSeconds: 60 * 60 * 24 * 365 });
+        if (typeof window !== "undefined") {
+            try {
+                window.localStorage.setItem(LOCALE_STORAGE, next);
+            } catch {
+                // ignore
+            }
+        }
+    }, []);
+
+    React.useEffect(() => {
+        if (typeof window !== "undefined") {
+            try {
+                const stored = window.localStorage.getItem(LOCALE_STORAGE);
+                const next = resolveLanguage(stored || undefined);
+                if (next !== language) setLanguageState(next);
+            } catch {
+                // ignore
+            }
+        }
     }, []);
 
     React.useEffect(() => {

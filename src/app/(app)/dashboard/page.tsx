@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { RevenueLineChart } from "@/components/dashboard/RevenueLineChart";
 import { useLocale } from "@/context/LocaleContext";
+import { useI18n } from "@/i18n/useI18n";
 
 type DashboardSummary = {
   ok: true;
@@ -48,6 +49,7 @@ type RevenueSeriesResponse = {
 export default function DashboardPage() {
   const businessQuery = useBusiness();
   const { locale } = useLocale();
+  const { t } = useI18n();
   const business = businessQuery.data;
   const businessLoading = businessQuery.isPending && !businessQuery.data;
   const [copyStatus, setCopyStatus] = React.useState<"idle" | "copied">("idle");
@@ -202,14 +204,16 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="space-y-2">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Dashboard
+          {t("dashboard.title")}
         </h1>
         <p className="text-sm text-gray-600 dark:text-gray-300">
-          Overview of your business activity.
+          {t("dashboard.subtitle")}
         </p>
 
         <div className="flex items-center justify-between gap-3">
-          <div className="text-xs text-muted-foreground">Business status</div>
+          <div className="text-xs text-muted-foreground">
+            {t("dashboard.businessStatus")}
+          </div>
           <Link
             href="/settings/opening-hours"
             className="inline-flex items-center gap-2"
@@ -225,7 +229,7 @@ export default function DashboardPage() {
                     : "border-red-200 bg-red-500/10 text-red-700 dark:border-red-900/50 dark:bg-red-500/15 dark:text-red-200"
                 }
               >
-                {isOpenNow ? "Open" : "Closed"}
+                {isOpenNow ? t("dashboard.open") : t("dashboard.closed")}
               </Badge>
             ) : null}
           </Link>
@@ -240,7 +244,9 @@ export default function DashboardPage() {
         >
           <Card className="cursor-pointer transition-colors hover:bg-muted/30">
             <CardContent className="p-4">
-              <div className="text-xs text-muted-foreground">Remaining today</div>
+              <div className="text-xs text-muted-foreground">
+                {t("dashboard.remainingToday")}
+              </div>
               <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
                 {summaryLoading ? <Skeleton className="h-7 w-14" /> : upcomingCount}
               </div>
@@ -250,7 +256,9 @@ export default function DashboardPage() {
 
         <Card>
           <CardContent className="p-4">
-            <div className="text-xs text-muted-foreground">Revenue today</div>
+            <div className="text-xs text-muted-foreground">
+              {t("dashboard.revenueToday")}
+            </div>
             <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
               {summaryLoading ? (
                 <Skeleton className="h-7 w-20" />
@@ -269,7 +277,9 @@ export default function DashboardPage() {
         <Card>
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between gap-2">
-              <CardTitle className="text-base">Revenue (last 7 days)</CardTitle>
+              <CardTitle className="text-base">
+                {t("dashboard.revenueLast7Days")}
+              </CardTitle>
               <div className="flex items-center gap-1">
                 {/* A11y: icon-only buttons need accessible names */}
                 <Button
@@ -279,7 +289,7 @@ export default function DashboardPage() {
                   className="h-8 w-8 rounded-xl"
                   onClick={() => setWeekOffset((v) => v - 1)}
                   disabled={weekSeriesQuery.isFetching}
-                  aria-label="Previous week"
+                  aria-label={t("dashboard.previousWeek")}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -290,8 +300,8 @@ export default function DashboardPage() {
                   className="h-8 w-8 rounded-xl"
                   onClick={() => setWeekOffset((v) => v + 1)}
                   disabled={weekSeriesQuery.isFetching || weekOffset >= 0}
-                  title={weekOffset >= 0 ? "Cannot go to the future" : "Next"}
-                  aria-label={weekOffset >= 0 ? "Next week (disabled)" : "Next week"}
+                  title={weekOffset >= 0 ? t("dashboard.nextWeekDisabled") : t("dashboard.nextWeek")}
+                  aria-label={weekOffset >= 0 ? t("dashboard.nextWeekDisabled") : t("dashboard.nextWeek")}
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
@@ -306,7 +316,7 @@ export default function DashboardPage() {
           <CardContent className="pt-2">
             {weekSeriesQuery.isError ? (
               <div className="text-sm text-red-600 dark:text-red-400">
-                {(weekSeriesQuery.error as any)?.message || "Failed to load"}
+                {t("dashboard.loadingFailed")}
               </div>
             ) : null}
 
@@ -324,7 +334,7 @@ export default function DashboardPage() {
                 <Skeleton className="h-4 w-24" />
               ) : (
                 <>
-                  Total: {currencySymbol || ""}
+                  {t("dashboard.total")}: {currencySymbol || ""}
                   {(weekSeriesQuery.data?.totalRevenue ?? 0).toLocaleString(locale, {
                     maximumFractionDigits: 2,
                   })}
@@ -337,7 +347,9 @@ export default function DashboardPage() {
         <Card>
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between gap-2">
-              <CardTitle className="text-base">Revenue (monthly)</CardTitle>
+              <CardTitle className="text-base">
+                {t("dashboard.revenueMonthly")}
+              </CardTitle>
               <div className="flex items-center gap-1">
                 {/* A11y: icon-only buttons need accessible names */}
                 <Button
@@ -347,7 +359,7 @@ export default function DashboardPage() {
                   className="h-8 w-8 rounded-xl"
                   onClick={() => setMonthOffset((v) => v - 1)}
                   disabled={monthSeriesQuery.isFetching}
-                  aria-label="Previous month"
+                  aria-label={t("dashboard.previousMonth")}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -358,8 +370,8 @@ export default function DashboardPage() {
                   className="h-8 w-8 rounded-xl"
                   onClick={() => setMonthOffset((v) => v + 1)}
                   disabled={monthSeriesQuery.isFetching || monthOffset >= 0}
-                  title={monthOffset >= 0 ? "Cannot go to the future" : "Next"}
-                  aria-label={monthOffset >= 0 ? "Next month (disabled)" : "Next month"}
+                  title={monthOffset >= 0 ? t("dashboard.nextMonthDisabled") : t("dashboard.nextMonth")}
+                  aria-label={monthOffset >= 0 ? t("dashboard.nextMonthDisabled") : t("dashboard.nextMonth")}
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
@@ -374,7 +386,7 @@ export default function DashboardPage() {
           <CardContent className="pt-2">
             {monthSeriesQuery.isError ? (
               <div className="text-sm text-red-600 dark:text-red-400">
-                {(monthSeriesQuery.error as any)?.message || "Failed to load"}
+                {t("dashboard.loadingFailed")}
               </div>
             ) : null}
 
@@ -393,7 +405,7 @@ export default function DashboardPage() {
                 <Skeleton className="h-4 w-24" />
               ) : (
                 <>
-                  Total: {currencySymbol || ""}
+                  {t("dashboard.total")}: {currencySymbol || ""}
                   {(monthSeriesQuery.data?.totalRevenue ?? 0).toLocaleString(locale, {
                     maximumFractionDigits: 2,
                   })}
@@ -407,13 +419,13 @@ export default function DashboardPage() {
       {/* 3) Public booking link */}
       <Card>
         <CardHeader>
-          <CardTitle>Public booking link</CardTitle>
+          <CardTitle>{t("dashboard.publicBookingLink")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {businessLoading ? (
             <Skeleton className="h-10 w-full" />
           ) : (
-            <Input readOnly value={bookingLink} placeholder="Loading…" />
+            <Input readOnly value={bookingLink} placeholder={t("common.loading")} />
           )}
           <div className="flex justify-end gap-2">
             <Button
@@ -422,10 +434,10 @@ export default function DashboardPage() {
               onClick={onCopy}
               disabled={!bookingLink}
             >
-              {copyStatus === "copied" ? "Copied!" : "Copy link"}
+              {copyStatus === "copied" ? t("auth.copied") : t("auth.copyLink")}
             </Button>
             <Button type="button" onClick={onShare} disabled={!bookingLink}>
-              Share
+              {t("auth.share")}
             </Button>
           </div>
         </CardContent>
