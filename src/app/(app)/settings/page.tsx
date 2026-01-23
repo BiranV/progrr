@@ -18,6 +18,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/AuthContext";
 
 function SettingsRowContent({
@@ -122,6 +124,8 @@ export default function SettingsPage() {
   const isLoggingOutRef = React.useRef(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [deletePending, setDeletePending] = React.useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = React.useState("");
+  const [exportPending, setExportPending] = React.useState(false);
 
   const onLogout = async () => {
     if (isLoggingOutRef.current) return;
@@ -164,6 +168,111 @@ export default function SettingsPage() {
       toast.error(e?.message || "Failed to delete account");
     } finally {
       setDeletePending(false);
+    }
+  };
+
+  const onDownloadData = async () => {
+    if (exportPending) return;
+    setExportPending(true);
+    try {
+      const [onboardingRes, businessRes, customersRes, meRes] = await Promise.all([
+        fetch("/api/onboarding", { method: "GET" }),
+        fetch("/api/business", { method: "GET" }),
+        fetch("/api/customers", { method: "GET" }),
+        fetch("/api/me", { method: "GET" }),
+      ]);
+
+      const onboardingPayload = onboardingRes.ok
+        ? await onboardingRes.json().catch(() => null)
+        : null;
+      const businessPayload = businessRes.ok
+        ? await businessRes.json().catch(() => null)
+        : null;
+      const customersPayload = customersRes.ok
+        ? await customersRes.json().catch(() => null)
+        : null;
+      const mePayload = meRes.ok ? await meRes.json().catch(() => null) : null;
+
+      const onboarding = onboardingPayload && typeof onboardingPayload === "object"
+        ? (onboardingPayload as any).onboarding
+        : null;
+
+      const services = Array.isArray(onboarding?.services)
+        ? onboarding.services.map((s: any) => ({
+          id: String(s?.id ?? "").trim(),
+          name: String(s?.name ?? "").trim(),
+          durationMinutes: Number(s?.durationMinutes),
+          price: typeof s?.price === "number" ? s.price : Number(s?.price) || 0,
+          description: typeof s?.description === "string" ? s.description : undefined,
+          isActive: s?.isActive !== false,
+        }))
+        : [];
+
+      const availability = onboarding?.availability
+        ? {
+          timezone: String(onboarding?.availability?.timezone ?? "").trim(),
+          weekStartsOn:
+            onboarding?.availability?.weekStartsOn === 0 ||
+              onboarding?.availability?.weekStartsOn === 1
+              ? onboarding.availability.weekStartsOn
+              : undefined,
+          days: Array.isArray(onboarding?.availability?.days)
+            ? onboarding.availability.days.map((d: any) => ({
+              day: Number(d?.day),
+              enabled: Boolean(d?.enabled),
+              ranges: Array.isArray(d?.ranges)
+                ? d.ranges.map((r: any) => ({
+                  start: String(r?.start ?? "").trim(),
+                  end: String(r?.end ?? "").trim(),
+                }))
+                : undefined,
+            }))
+            : [],
+        }
+        : { timezone: "", days: [] };
+
+      const customers = Array.isArray(customersPayload?.customers)
+        ? customersPayload.customers.map((c: any) => ({
+          externalId: String(c?._id ?? "").trim(),
+          fullName: String(c?.fullName ?? "").trim(),
+          phone: String(c?.phone ?? "").trim(),
+          email: String(c?.email ?? "").trim() || undefined,
+          status: String(c?.status ?? "ACTIVE"),
+          activeBookingsCount: Number(c?.activeBookingsCount ?? 0),
+          lastAppointmentAt: c?.lastAppointmentAt,
+          createdAt: c?.createdAt,
+        }))
+        : [];
+
+      const payload = {
+        exportMeta: {
+          exportVersion: 1,
+          exportedAt: new Date().toISOString(),
+        },
+        business: businessPayload ?? null,
+        services,
+        availability,
+        customers,
+        system: {
+          subscriptionStatus: mePayload?.business?.subscriptionStatus,
+          trialStartAt: mePayload?.business?.trialStartAt,
+          trialEndAt: mePayload?.business?.trialEndAt,
+        },
+      };
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "progrr-data-export.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to export data");
+    } finally {
+      setExportPending(false);
     }
   };
 
@@ -296,6 +405,42 @@ export default function SettingsPage() {
             </DialogDescription>
           </DialogHeader>
 
+          <div className="space-y-3">
+            <div className="text-sm text-gray-700 dark:text-gray-300">
+              This will delete:
+            </div>
+            <ul className="list-disc pl-5 text-sm text-gray-700 dark:text-gray-300 space-y-1">
+              <li>Business data</li>
+              <li>Customers</li>
+              <li>Appointments</li>
+              <li>Services</li>
+              <li>Settings</li>
+            </ul>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-2xl"
+              onClick={onDownloadData}
+              disabled={exportPending}
+            >
+              {exportPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : null}
+              Download your data before deleting
+            </Button>
+
+            <div className="space-y-2">
+              <Label>Type DELETE to confirm</Label>
+              <Input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE"
+                autoComplete="off"
+              />
+            </div>
+          </div>
+
           <DialogFooter>
             <Button
               type="button"
@@ -310,7 +455,7 @@ export default function SettingsPage() {
               type="button"
               variant="destructive"
               className="rounded-2xl"
-              disabled={deletePending}
+              disabled={deletePending || deleteConfirmText !== "DELETE"}
               onClick={onDeleteAccount}
             >
               {deletePending ? (
