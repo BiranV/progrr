@@ -1746,6 +1746,24 @@ export default function PublicBookingFlow({
                           try {
                             await cancelSameDayAppointment(a.id);
                             setMyAppointments((prev) => prev.filter((x) => x.id !== a.id));
+                            setFormError(null);
+                            setActiveConflict((prev) => {
+                              if (!prev) return prev;
+                              const id = String(a.id ?? "").trim();
+                              const existingId = String(prev.existingAppointment?.id ?? "").trim();
+                              if (existingId && existingId === id) return null;
+
+                              const list = Array.isArray(prev.existingAppointments)
+                                ? prev.existingAppointments
+                                : [];
+                              if (list.length === 0) return prev;
+
+                              const nextList = list.filter(
+                                (x: any) => String(x?.id ?? "").trim() !== id
+                              );
+                              if (nextList.length === 0) return null;
+                              return { ...prev, existingAppointments: nextList };
+                            });
                           } catch (e: any) {
                             setMyAppointmentsError(
                               e?.message || t("publicBooking.errors.failed")
