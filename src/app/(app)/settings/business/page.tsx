@@ -54,11 +54,16 @@ export default function BusinessDetailsPage() {
   const copyTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const [origin, setOrigin] = React.useState("");
 
   React.useEffect(() => {
     return () => {
       if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
     };
+  }, []);
+
+  React.useEffect(() => {
+    setOrigin(window.location.origin);
   }, []);
 
   React.useEffect(() => {
@@ -115,10 +120,7 @@ export default function BusinessDetailsPage() {
   const bookingLink = (() => {
     const publicId = String((business as any)?.publicId ?? "").trim();
     if (!/^\d{5}$/.test(publicId)) return "";
-    const origin =
-      typeof window !== "undefined"
-        ? window.location.origin
-        : "http://localhost:3000";
+    if (!origin) return "";
     return `${origin}/b/${publicId}`;
   })();
 

@@ -114,13 +114,12 @@ function setMeCache(user: User | null) {
 }
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const initialUser = React.useMemo(() => readAuthCache(), []);
-  const [user, setUser] = useState<User | null>(initialUser);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isVersionReady, setIsVersionReady] = useState(false);
   const [authStatus, setAuthStatus] = useState<
     "loading" | "guest" | "authenticated"
-  >(initialUser ? "authenticated" : "loading");
+  >("loading");
   const didFetchMeRef = useRef(false);
   const mountedRef = useRef(true);
   const versionCheckRef = useRef(false);
@@ -163,6 +162,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       mountedRef.current = false;
     };
+  }, []);
+
+  useEffect(() => {
+    const cached = readAuthCache();
+    if (!cached) return;
+    setUser(cached);
+    setAuthStatus("authenticated");
   }, []);
 
   useEffect(() => {

@@ -54,18 +54,20 @@ export default function DashboardPage() {
   const businessLoading = businessQuery.isPending && !businessQuery.data;
   const [copyStatus, setCopyStatus] = React.useState<"idle" | "copied">("idle");
   const copyTimeoutRef = React.useRef<number | null>(null);
+  const [origin, setOrigin] = React.useState("");
   const PrevChevron = dir === "rtl" ? ChevronRight : ChevronLeft;
   const NextChevron = dir === "rtl" ? ChevronLeft : ChevronRight;
+
+  React.useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
 
   const bookingLink = React.useMemo(() => {
     const publicId = String((business as any)?.publicId ?? "").trim();
     if (!/^\d{5}$/.test(publicId)) return "";
-    const origin =
-      typeof window !== "undefined"
-        ? window.location.origin
-        : "http://localhost:3000";
+    if (!origin) return "";
     return `${origin}/b/${publicId}`;
-  }, [business]);
+  }, [business, origin]);
 
   const onShare = React.useCallback(async () => {
     if (!bookingLink) return;

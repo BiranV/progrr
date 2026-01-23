@@ -230,23 +230,25 @@ export default function CalendarClient() {
         return serviceOk && startOk && customerOk;
     }, [createServiceId, createStartTime, selectedCustomerForPicker]);
 
-    const dir = React.useMemo<"ltr" | "rtl">(() => {
-        if (typeof document === "undefined") return "ltr";
-        const v = String(
+    const [dir, setDir] = React.useState<"ltr" | "rtl">("ltr");
+    const [lang, setLang] = React.useState("");
+
+    React.useEffect(() => {
+        const nextDir = String(
             document.documentElement.getAttribute("dir") || "ltr",
         ).toLowerCase();
-        return v === "rtl" ? "rtl" : "ltr";
+        const nextLang = String(
+            document.documentElement.getAttribute("lang") || "",
+        ).toLowerCase();
+        setDir(nextDir === "rtl" ? "rtl" : "ltr");
+        setLang(nextLang);
     }, []);
 
     const fpLocale = React.useMemo(() => {
         if (dir !== "rtl") return undefined;
-        if (typeof document === "undefined") return { ...Arabic, rtl: true };
-        const lang = String(
-            document.documentElement.getAttribute("lang") || "",
-        ).toLowerCase();
         if (lang.startsWith("he")) return { ...Hebrew, rtl: true };
         return { ...Arabic, rtl: true };
-    }, [dir]);
+    }, [dir, lang]);
 
     const resolvedLocale = React.useMemo(() => fpLocale ?? english, [fpLocale]);
 

@@ -11,15 +11,17 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [darkMode, setDarkMode] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = getCookie("progrr_dark_mode");
-      return saved === "true";
-    }
-    return false;
-  });
+  const [darkMode, setDarkMode] = useState(false);
+  const [isThemeReady, setIsThemeReady] = useState(false);
 
   useEffect(() => {
+    const saved = getCookie("progrr_dark_mode");
+    setDarkMode(saved === "true");
+    setIsThemeReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isThemeReady) return;
     setCookie("progrr_dark_mode", darkMode ? "true" : "false", {
       maxAgeSeconds: 60 * 60 * 24 * 365,
     });
@@ -28,7 +30,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     } else {
       document.documentElement.classList.remove("dark");
     }
-  }, [darkMode]);
+  }, [darkMode, isThemeReady]);
 
   const toggleDarkMode = () => {
     setDarkMode((prev) => !prev);
