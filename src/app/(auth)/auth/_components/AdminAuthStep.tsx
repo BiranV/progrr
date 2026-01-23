@@ -22,6 +22,21 @@ const isValidEmail = (email: string) =>
 const isValidFullName = (fullName: string) =>
   fullName.trim().split(/\s+/).length >= 2;
 
+const AUTH_ERROR_KEY_MAP = {
+  "Account not found": "auth.accountNotFound",
+  "Invalid code": "auth.invalidCode",
+  "Too many requests": "auth.tooManyAttempts",
+} as const;
+
+type AuthErrorKey = (typeof AUTH_ERROR_KEY_MAP)[keyof typeof AUTH_ERROR_KEY_MAP];
+
+const getAuthErrorKey = (error: unknown): AuthErrorKey | "errors.somethingWentWrong" => {
+  if (typeof error === "string" && error in AUTH_ERROR_KEY_MAP) {
+    return AUTH_ERROR_KEY_MAP[error as keyof typeof AUTH_ERROR_KEY_MAP];
+  }
+  return "errors.somethingWentWrong";
+};
+
 type ViewState =
   | "landing"
   | "login"
@@ -129,8 +144,12 @@ export default function AdminAuthStep({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: loginEmail, flow: "login" }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || t("errors.somethingWentWrong"));
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const errorKey = getAuthErrorKey(data?.error);
+        setGlobalError(t(errorKey));
+        return;
+      }
 
       setInfo(t("auth.codeSentToEmailShort"));
       setView("login-verify");
@@ -160,8 +179,16 @@ export default function AdminAuthStep({
           flow: "login",
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || t("errors.somethingWentWrong"));
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const errorKey = getAuthErrorKey(data?.error);
+        const message = t(errorKey);
+        if (errorKey === "auth.invalidCode") {
+          setLoginCodeError(message);
+        }
+        setGlobalError(message);
+        return;
+      }
 
       if (data.user) setSessionUser(data.user);
 
@@ -173,9 +200,8 @@ export default function AdminAuthStep({
             : "/onboarding";
       router.replace(dest);
     } catch (err: any) {
-      // Keep the field highlighted, but also show global banner like onboarding.
-      setLoginCodeError(t("errors.invalidCode"));
-      setGlobalError(t("errors.invalidCode"));
+      setGlobalError(t("errors.somethingWentWrong"));
+    } finally {
       setLoading(false);
     }
   };
@@ -211,7 +237,11 @@ export default function AdminAuthStep({
         setView("existing-account");
         return;
       }
-      if (!res.ok) throw new Error(data.error || t("errors.somethingWentWrong"));
+      if (!res.ok) {
+        const errorKey = getAuthErrorKey(data?.error);
+        setGlobalError(t(errorKey));
+        return;
+      }
 
       setInfo(t("auth.codeSentToEmailShort"));
       setView("signup-verify");
@@ -249,7 +279,15 @@ export default function AdminAuthStep({
         setView("existing-account");
         return;
       }
-      if (!res.ok) throw new Error(data.error || t("errors.somethingWentWrong"));
+      if (!res.ok) {
+        const errorKey = getAuthErrorKey(data?.error);
+        const message = t(errorKey);
+        if (errorKey === "auth.invalidCode") {
+          setSignupCodeError(message);
+        }
+        setGlobalError(message);
+        return;
+      }
 
       if (data.user) setSessionUser(data.user);
 
@@ -261,8 +299,8 @@ export default function AdminAuthStep({
             : "/onboarding";
       router.replace(dest);
     } catch (err: any) {
-      setSignupCodeError(t("errors.verificationFailed"));
       setGlobalError(t("errors.verificationFailed"));
+    } finally {
       setLoading(false);
     }
   };

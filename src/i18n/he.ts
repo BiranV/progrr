@@ -64,6 +64,9 @@ const he = {
         goodbyeBody: "החשבון וכל הנתונים המשויכים נמחקו לצמיתות.",
         goodbyeSignIn: "כניסה",
         goodbyeHome: "דף הבית",
+        accountNotFound: "לא נמצא חשבון עם האימייל הזה",
+        invalidCode: "קוד לא תקין",
+        tooManyAttempts: "יותר מדי ניסיונות. נסה/י שוב מאוחר יותר.",
     },
     onboarding: {
         businessTypeTitle: "סוג עסק",

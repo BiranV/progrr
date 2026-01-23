@@ -64,6 +64,9 @@ const en = {
         goodbyeBody: "Your account and associated data were permanently deleted.",
         goodbyeSignIn: "Sign in",
         goodbyeHome: "Home",
+        accountNotFound: "No account found with this email",
+        invalidCode: "Invalid code",
+        tooManyAttempts: "Too many attempts. Try again later.",
     },
     onboarding: {
         businessTypeTitle: "Business type",
