@@ -31,18 +31,10 @@ function detectBrowserLanguage(): Language {
     return raw.startsWith("he") ? "he" : "en";
 }
 
-function getInitialLanguage(): Language {
-    const cookieRaw = getCookie(LOCALE_COOKIE);
-    if (cookieRaw) return resolveLanguage(cookieRaw);
-    return DEFAULT_LANGUAGE;
-}
-
 const LocaleContext = React.createContext<LocaleContextValue | null>(null);
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
-    const [language, setLanguageState] = React.useState<Language>(() =>
-        getInitialLanguage()
-    );
+    const [language, setLanguageState] = React.useState<Language>(DEFAULT_LANGUAGE);
 
     const updateUserLanguage = React.useCallback((next: Language) => {
         setLanguageState(next);
@@ -67,6 +59,13 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
                 }
             } catch {
                 // ignore
+            }
+
+            const cookieRaw = getCookie(LOCALE_COOKIE);
+            if (cookieRaw) {
+                const next = resolveLanguage(cookieRaw);
+                if (next !== language) updateUserLanguage(next);
+                return;
             }
 
             const next = detectBrowserLanguage();

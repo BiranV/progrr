@@ -38,6 +38,9 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_CACHE_KEY = "progrr:auth-cache:v1";
+const APP_VERSION = "2026.01.23";
+const APP_VERSION_KEY = "progrr_app_version";
+const LANGUAGE_STORAGE_KEYS = ["progrr_lang", "languageCode"];
 
 function readAuthCache(): User | null {
   if (typeof window === "undefined") return null;
@@ -114,11 +117,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const initialUser = React.useMemo(() => readAuthCache(), []);
   const [user, setUser] = useState<User | null>(initialUser);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  const [isVersionReady, setIsVersionReady] = useState(false);
   const [authStatus, setAuthStatus] = useState<
     "loading" | "guest" | "authenticated"
   >(initialUser ? "authenticated" : "loading");
   const didFetchMeRef = useRef(false);
   const mountedRef = useRef(true);
+  const versionCheckRef = useRef(false);
   const router = useRouter();
   const pathname = usePathname();
   const isAuthenticated = useMemo(() => Boolean(user), [user]);
@@ -139,6 +144,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
+  const logout = React.useCallback(async (shouldRedirect = true) => {
+    setSessionUser(null);
+
+    if (shouldRedirect) {
+      db.auth.logout();
+    } else {
+      // Clear cookie server-side without forcing a full page navigation.
+      try {
+        await fetch("/api/auth/logout", { method: "POST" });
+      } catch {
+        // Ignore.
+      }
+    }
+  }, []);
+
   useEffect(() => {
     return () => {
       mountedRef.current = false;
@@ -146,10 +166,55 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   useEffect(() => {
+    if (versionCheckRef.current) return;
+    versionCheckRef.current = true;
+
+    if (typeof window === "undefined") {
+      setIsVersionReady(true);
+      return;
+    }
+
+    try {
+      const stored = window.localStorage.getItem(APP_VERSION_KEY);
+      if (!stored) {
+        window.localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
+        setIsVersionReady(true);
+        return;
+      }
+
+      if (stored !== APP_VERSION) {
+        LANGUAGE_STORAGE_KEYS.forEach((key) => {
+          try {
+            window.localStorage.removeItem(key);
+          } catch {
+            // ignore
+          }
+        });
+        try {
+          window.localStorage.removeItem(APP_VERSION_KEY);
+        } catch {
+          // ignore
+        }
+
+        logout(false);
+        window.localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
+        setIsVersionReady(false);
+        router.replace("/auth");
+        return;
+      }
+
+      setIsVersionReady(true);
+    } catch {
+      setIsVersionReady(true);
+    }
+  }, [logout, router]);
+
+  useEffect(() => {
     writeAuthCache(user);
   }, [user]);
 
   useEffect(() => {
+    if (!isVersionReady) return;
     // Fully public booking pages must never call /api/me.
     if (pathname.startsWith("/b")) {
       queueMicrotask(() => {
@@ -186,31 +251,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsLoadingAuth(false);
       setAuthStatus(res.user ? "authenticated" : "guest");
     })();
-  }, [pathname, router, user]);
+  }, [isVersionReady, pathname, router, user]);
 
   useEffect(() => {
+    if (!isVersionReady) return;
     if (isLoadingAuth) return;
     if (user) return;
 
     if (!isPublicPath(pathname)) {
       router.replace("/auth");
     }
-  }, [isLoadingAuth, pathname, router, user]);
-
-  const logout = async (shouldRedirect = true) => {
-    setSessionUser(null);
-
-    if (shouldRedirect) {
-      db.auth.logout();
-    } else {
-      // Clear cookie server-side without forcing a full page navigation.
-      try {
-        await fetch("/api/auth/logout", { method: "POST" });
-      } catch {
-        // Ignore.
-      }
-    }
-  };
+  }, [isVersionReady, isLoadingAuth, pathname, router, user]);
 
   return (
     <AuthContext.Provider
