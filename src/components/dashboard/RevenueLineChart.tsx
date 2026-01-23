@@ -10,15 +10,23 @@ import {
     CartesianGrid,
     Tooltip,
 } from "recharts";
+import { useLocale } from "@/context/LocaleContext";
 
 type Point = { date: string; revenue: number; completedCount?: number };
 
-function formatDayLabel(ymd: string, mode: "md" | "day"): string {
-    // YYYY-MM-DD -> either MM/DD or D
+function formatDayLabel(ymd: string, mode: "md" | "day", locale: string): string {
     const m = /^\s*(\d{4})-(\d{2})-(\d{2})\s*$/.exec(String(ymd));
     if (!m) return String(ymd);
-    if (mode === "day") return String(Number(m[3]));
-    return `${m[2]}/${m[3]}`;
+    const date = new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00`);
+    try {
+        if (mode === "day") {
+            return new Intl.DateTimeFormat(locale, { day: "numeric" }).format(date);
+        }
+        return new Intl.DateTimeFormat(locale, { day: "2-digit", month: "2-digit" }).format(date);
+    } catch {
+        if (mode === "day") return String(Number(m[3]));
+        return `${m[2]}/${m[3]}`;
+    }
 }
 
 export function RevenueLineChart(props: {
@@ -27,14 +35,15 @@ export function RevenueLineChart(props: {
     xAxisMode?: "md" | "day";
 }) {
     const { points, currencySymbol, xAxisMode = "md" } = props;
+    const { locale } = useLocale();
 
     const data = React.useMemo(
         () =>
             (Array.isArray(points) ? points : []).map((p) => ({
                 ...p,
-                label: formatDayLabel(p.date, xAxisMode),
+                label: formatDayLabel(p.date, xAxisMode, locale),
             })),
-        [points, xAxisMode]
+        [points, xAxisMode, locale]
     );
 
     return (
@@ -67,7 +76,7 @@ export function RevenueLineChart(props: {
                             if (name !== "revenue") return [value, name];
                             const n = Number(value);
                             const pretty = Number.isFinite(n)
-                                ? `${currencySymbol || ""}${n.toLocaleString(undefined, {
+                                ? `${currencySymbol || ""}${n.toLocaleString(locale, {
                                     maximumFractionDigits: 2,
                                 })}`
                                 : String(value);
@@ -75,7 +84,9 @@ export function RevenueLineChart(props: {
                         }}
                         labelFormatter={(_, payload) => {
                             const ymd = payload?.[0]?.payload?.date;
-                            return ymd ? `Date: ${ymd}` : "";
+                            if (!ymd) return "";
+                            const pretty = formatDayLabel(ymd, "md", locale);
+                            return `Date: ${pretty}`;
                         }}
                     />
                     <Line

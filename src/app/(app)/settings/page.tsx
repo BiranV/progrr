@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -20,7 +20,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/context/AuthContext";
+import { useLocale } from "@/context/LocaleContext";
 
 function SettingsRowContent({
   title,
@@ -31,6 +39,8 @@ function SettingsRowContent({
   description?: string;
   destructive?: boolean;
 }) {
+  const { dir } = useLocale();
+  const ChevronIcon = dir === "rtl" ? ChevronLeft : ChevronRight;
   return (
     <>
       <div className="min-w-0">
@@ -49,7 +59,7 @@ function SettingsRowContent({
         ) : null}
       </div>
 
-      <ChevronRight
+      <ChevronIcon
         className={
           "h-4 w-4 shrink-0 text-muted-foreground" +
           (destructive ? " opacity-70" : "")
@@ -98,13 +108,15 @@ function SettingsActionRow({
   description?: string;
   destructive?: boolean;
 }) {
+  const { dir } = useLocale();
   return (
     // A11y: use native button semantics instead of role="button".
     <button
       type="button"
       onClick={onActivate}
       className={
-        "flex w-full items-start justify-between gap-4 py-3 text-left focus:outline-none cursor-pointer hover:bg-muted" +
+        "flex w-full items-start justify-between gap-4 py-3 focus:outline-none cursor-pointer hover:bg-muted " +
+        (dir === "rtl" ? "text-right" : "text-left") +
         (destructive ? "" : "")
       }
     >
@@ -119,6 +131,7 @@ function SettingsActionRow({
 
 export default function SettingsPage() {
   const { logout, setSessionUser } = useAuth();
+  const { language, setLanguage } = useLocale();
   const router = useRouter();
   const queryClient = useQueryClient();
   const isLoggingOutRef = React.useRef(false);
@@ -321,6 +334,35 @@ export default function SettingsPage() {
       {/* Section 2: Subscription */}
       <Card>
         <CardHeader className="pb-2">
+          <CardTitle className="text-base">Language & region</CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="space-y-2">
+            <Label>Language</Label>
+            <Select
+              value={language}
+              onValueChange={(value) =>
+                setLanguage(value === "en" ? "en" : "he")
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select language" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="he">Hebrew (RTL)</SelectItem>
+                <SelectItem value="en">English (LTR)</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="text-xs text-gray-600 dark:text-gray-300">
+              Default language and text direction for the app.
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 3: Subscription */}
+      <Card>
+        <CardHeader className="pb-2">
           <CardTitle className="text-base">Subscription</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
@@ -339,7 +381,7 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Section 3: Support & Legal */}
+      {/* Section 4: Support & Legal */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Support & Legal</CardTitle>
@@ -370,7 +412,7 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Section 4: Account */}
+      {/* Section 5: Account */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Account</CardTitle>

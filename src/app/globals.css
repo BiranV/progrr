@@ -319,12 +319,10 @@ select:-webkit-autofill:focus {
     position: absolute;
     inset: -14px;
     border-radius: 9999px;
-    background: radial-gradient(
-      circle at 50% 50%,
-      rgba(255, 255, 255, 0.42),
-      rgba(99, 102, 241, 0.22) 35%,
-      rgba(0, 0, 0, 0) 70%
-    );
+    background: radial-gradient(circle at 50% 50%,
+        rgba(255, 255, 255, 0.42),
+        rgba(99, 102, 241, 0.22) 35%,
+        rgba(0, 0, 0, 0) 70%);
     filter: blur(10px);
     opacity: 0.9;
     pointer-events: none;
@@ -336,7 +334,7 @@ select:-webkit-autofill:focus {
     transition: opacity 250ms ease, transform 250ms ease;
   }
 
-  .progrr-auth-logo[data-lit="true"] + .progrr-auth-logo-aura {
+  .progrr-auth-logo[data-lit="true"]+.progrr-auth-logo-aura {
     opacity: 0.95;
     transform: translateX(-50%) scale(1.15);
     animation: progrr-auth-aura 1.7s ease-in-out infinite;
@@ -346,7 +344,8 @@ select:-webkit-autofill:focus {
     .progrr-auth-logo[data-lit="true"]::after {
       animation: none;
     }
-    .progrr-auth-logo[data-lit="true"] + .progrr-auth-logo-aura {
+
+    .progrr-auth-logo[data-lit="true"]+.progrr-auth-logo-aura {
       animation: none;
     }
   }
@@ -357,6 +356,7 @@ select:-webkit-autofill:focus {
     transform: scale(0.98);
     opacity: 0.65;
   }
+
   to {
     transform: scale(1.04);
     opacity: 1;
@@ -367,9 +367,11 @@ select:-webkit-autofill:focus {
   0% {
     filter: blur(20px);
   }
+
   50% {
     filter: blur(28px);
   }
+
   100% {
     filter: blur(22px);
   }

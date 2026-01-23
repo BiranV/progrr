@@ -42,6 +42,7 @@ type BookingRulesState = {
 };
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DEFAULT_TIMEZONE = "Asia/Jerusalem";
 
 function defaultDays(): AvailabilityDay[] {
     return DAY_LABELS.map((_, day) => ({
@@ -174,29 +175,14 @@ export default function OpeningHoursPage() {
     const initialRef = React.useRef<AvailabilityState | null>(null);
     const initialBookingRulesRef = React.useRef<BookingRulesState | null>(null);
     const [availability, setAvailability] = React.useState<AvailabilityState>({
-        timezone: (() => {
-            try {
-                return (
-                    String(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC").trim() ||
-                    "UTC"
-                );
-            } catch {
-                return "UTC";
-            }
-        })(),
+        timezone: DEFAULT_TIMEZONE,
         days: defaultDays(),
     });
     const [bookingRules, setBookingRules] = React.useState<BookingRulesState>({
         limitCustomerToOneUpcomingAppointment: false,
     });
 
-    const browserTimeZone = React.useMemo(() => {
-        try {
-            return String(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC").trim() || "UTC";
-        } catch {
-            return "UTC";
-        }
-    }, []);
+    const browserTimeZone = DEFAULT_TIMEZONE;
 
     const supportedTimeZones = React.useMemo(() => {
         try {
@@ -212,6 +198,8 @@ export default function OpeningHoursPage() {
         }
         return [] as string[];
     }, []);
+
+    const uiTimeZones = React.useMemo(() => [DEFAULT_TIMEZONE], [supportedTimeZones]);
 
     React.useEffect(() => {
         if (isError) {
@@ -235,7 +223,9 @@ export default function OpeningHoursPage() {
         const av = (onboardingRes as any)?.onboarding?.availability ?? {};
         const business = (onboardingRes as any)?.onboarding?.business ?? {};
         const rawTz = String((av as any)?.timezone ?? "").trim();
-        const timezone = rawTz && rawTz !== "UTC" ? rawTz : browserTimeZone;
+        const timezone = uiTimeZones.includes(rawTz)
+            ? rawTz
+            : DEFAULT_TIMEZONE;
         const days = normalizeDays((av as any)?.days);
         const next: AvailabilityState = { timezone, days };
 
@@ -482,20 +472,15 @@ export default function OpeningHoursPage() {
                             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                 Used to evaluate your opening hours and show “Open/Closed”.
                             </div>
-                            {availability.timezone === "UTC" && browserTimeZone !== "UTC" ? (
-                                <div className="text-xs font-semibold text-gray-900 dark:text-white mt-1">
-                                    Tip: your browser time zone is {browserTimeZone}.
-                                </div>
-                            ) : null}
                         </div>
 
-                        {supportedTimeZones.length ? (
+                        {uiTimeZones.length ? (
                             <Select
                                 value={availability.timezone}
                                 onValueChange={(v) =>
                                     setAvailability((prev) => ({
                                         ...prev,
-                                        timezone: String(v || "UTC").trim() || "UTC",
+                                        timezone: String(v || DEFAULT_TIMEZONE).trim() || DEFAULT_TIMEZONE,
                                     }))
                                 }
                                 disabled={isSaving || (isPending && !initialRef.current)}
@@ -504,7 +489,7 @@ export default function OpeningHoursPage() {
                                     <SelectValue placeholder="Select time zone" />
                                 </SelectTrigger>
                                 <SelectContent className="max-h-80">
-                                    {supportedTimeZones.map((tz) => (
+                                    {uiTimeZones.map((tz) => (
                                         <SelectItem key={tz} value={tz}>
                                             {tz}
                                         </SelectItem>
@@ -517,7 +502,7 @@ export default function OpeningHoursPage() {
                                 onChange={(e) =>
                                     setAvailability((prev) => ({
                                         ...prev,
-                                        timezone: String(e.target.value || "").trim() || "UTC",
+                                        timezone: String(e.target.value || "").trim() || DEFAULT_TIMEZONE,
                                     }))
                                 }
                                 disabled={isSaving || (isPending && !initialRef.current)}

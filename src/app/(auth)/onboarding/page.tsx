@@ -94,7 +94,7 @@ const OTHER_CURRENCY_CODE = "OTHER";
 const DEFAULT_TIMEZONE = "Asia/Jerusalem";
 
 const CURRENCIES: Array<{ code: string; label: string; symbol: string }> = [
-  { code: "NIS", label: "NIS (₪)", symbol: "₪" },
+  { code: "ILS", label: "ILS (₪)", symbol: "₪" },
   { code: "USD", label: "USD ($)", symbol: "$" },
   { code: "EUR", label: "EUR (€)", symbol: "€" },
   { code: "GBP", label: "GBP (£)", symbol: "£" },
@@ -104,17 +104,20 @@ const CURRENCIES: Array<{ code: string; label: string; symbol: string }> = [
   { code: OTHER_CURRENCY_CODE, label: "Other", symbol: "" },
 ];
 
-const ALLOWED_CURRENCY_CODES = new Set(CURRENCIES.map((c) => c.code));
+const ALLOWED_CURRENCY_CODES = new Set(CURRENCIES.map((c) => c.code).concat(["NIS"]));
+const UI_TIMEZONES = [DEFAULT_TIMEZONE];
 
 function normalizeCurrency(v: unknown): string {
   const code = String(v ?? "")
     .trim()
     .toUpperCase();
-  return ALLOWED_CURRENCY_CODES.has(code) ? code : "NIS";
+  if (code === "NIS") return "ILS";
+  return ALLOWED_CURRENCY_CODES.has(code) ? code : "ILS";
 }
 
 function currencySymbol(code: string): string {
-  return CURRENCIES.find((c) => c.code === code)?.symbol ?? "₪";
+  const normalized = normalizeCurrency(code);
+  return CURRENCIES.find((c) => c.code === normalized)?.symbol ?? "₪";
 }
 
 function effectiveCurrencySymbol(data: OnboardingData): string {
@@ -152,12 +155,7 @@ function newId() {
 }
 
 function detectTimeZone(): string {
-  try {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    return String(tz || "").trim() || DEFAULT_TIMEZONE;
-  } catch {
-    return DEFAULT_TIMEZONE;
-  }
+  return DEFAULT_TIMEZONE;
 }
 
 function parseTimeToMinutes(hhmm: string): number {
@@ -335,11 +333,13 @@ export default function OnboardingPage() {
     return Array.from(new Set([...base, ...zones]));
   }, [initialTimeZone]);
 
+  const uiTimeZones = React.useMemo(() => UI_TIMEZONES, [supportedTimeZones]);
+
   const [data, setData] = useState<OnboardingData>({
     businessTypes: [],
     business: { name: "", phone: "", address: "" },
     branding: { logo: undefined, banner: undefined, gallery: [] },
-    currency: "NIS",
+    currency: "ILS",
     services: [
       {
         id: crypto.randomUUID(),
@@ -1572,7 +1572,7 @@ export default function OnboardingPage() {
                     <SelectValue placeholder="Select timezone" />
                   </SelectTrigger>
                   <SelectContent className="max-h-80">
-                    {supportedTimeZones.map((tz) => (
+                    {uiTimeZones.map((tz) => (
                       <SelectItem key={tz} value={tz}>
                         {tz}
                       </SelectItem>

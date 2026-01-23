@@ -12,6 +12,7 @@ import React from "react";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { RevenueLineChart } from "@/components/dashboard/RevenueLineChart";
+import { useLocale } from "@/context/LocaleContext";
 
 type DashboardSummary = {
   ok: true;
@@ -46,6 +47,7 @@ type RevenueSeriesResponse = {
 
 export default function DashboardPage() {
   const businessQuery = useBusiness();
+  const { locale } = useLocale();
   const business = businessQuery.data;
   const businessLoading = businessQuery.isPending && !businessQuery.data;
   const [copyStatus, setCopyStatus] = React.useState<"idle" | "copied">("idle");
@@ -253,7 +255,7 @@ export default function DashboardPage() {
               {summaryLoading ? (
                 <Skeleton className="h-7 w-20" />
               ) : (
-                `${currencySymbol || ""}${revenueToday.toLocaleString(undefined, {
+                `${currencySymbol || ""}${revenueToday.toLocaleString(locale, {
                   maximumFractionDigits: 2,
                 })}`
               )}
@@ -323,7 +325,7 @@ export default function DashboardPage() {
               ) : (
                 <>
                   Total: {currencySymbol || ""}
-                  {(weekSeriesQuery.data?.totalRevenue ?? 0).toLocaleString(undefined, {
+                  {(weekSeriesQuery.data?.totalRevenue ?? 0).toLocaleString(locale, {
                     maximumFractionDigits: 2,
                   })}
                 </>
@@ -392,7 +394,7 @@ export default function DashboardPage() {
               ) : (
                 <>
                   Total: {currencySymbol || ""}
-                  {(monthSeriesQuery.data?.totalRevenue ?? 0).toLocaleString(undefined, {
+                  {(monthSeriesQuery.data?.totalRevenue ?? 0).toLocaleString(locale, {
                     maximumFractionDigits: 2,
                   })}
                 </>

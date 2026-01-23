@@ -55,12 +55,16 @@ export function currencyLabel(currency: {
 export function formatPrice(args: {
   price: number;
   currency: { code: string; symbol?: string; name?: string };
+  locale?: string;
 }): string {
   const value = Number(args.price);
   const label = currencyLabel(args.currency);
   if (!Number.isFinite(value)) return "";
-  // Keep simple/stable formatting.
-  return label ? `${label}${value}` : String(value);
+  const locale = args.locale || "he-IL";
+  const formatted = Number.isFinite(value)
+    ? new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value)
+    : String(value);
+  return label ? `${label}${formatted}` : formatted;
 }
 
 export function formatDateInTimeZone(date: Date, timeZone: string): string {

@@ -39,6 +39,8 @@ const CURRENCIES: Array<{ code: string; symbol: string; label: string }> = [
     { code: "CHF", symbol: "CHF", label: "CHF" },
 ];
 
+const UI_CURRENCIES = CURRENCIES.filter((c) => c.code === "ILS");
+
 const ALLOWED_CURRENCY_CODES = new Set(CURRENCIES.map((c) => c.code).concat(["NIS"]));
 
 function normalizeCurrency(v: unknown): string {
@@ -192,7 +194,7 @@ export default function ServicesSettingsPage() {
         const nextServices = normalizeServices((onboardingRes as any)?.onboarding?.services);
 
         // First hydrate, and background refresh only when user isn't editing.
-        const nextCurrency = normalizeCurrency((business as any)?.currency ?? "ILS");
+        const nextCurrency = "ILS";
         if (!initialRef.current) {
             setServices(nextServices);
             initialCurrencyRef.current = nextCurrency;
@@ -406,7 +408,7 @@ export default function ServicesSettingsPage() {
                             <SelectValue placeholder="Select currency" />
                         </SelectTrigger>
                         <SelectContent>
-                            {CURRENCIES.map((c) => (
+                            {UI_CURRENCIES.map((c) => (
                                 <SelectItem key={c.code} value={c.code}>
                                     {c.label}
                                 </SelectItem>

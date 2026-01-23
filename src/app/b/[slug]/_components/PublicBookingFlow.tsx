@@ -20,6 +20,7 @@ import OtpInput from "@/components/OtpInput";
 import PublicBookingShell from "./PublicBookingShell";
 import { usePublicBusiness } from "./usePublicBusiness";
 import { formatDateInTimeZone, formatPrice } from "@/lib/public-booking";
+import { useLocale } from "@/context/LocaleContext";
 import Flatpickr from "react-flatpickr";
 import { english } from "flatpickr/dist/l10n/default";
 import { Arabic } from "flatpickr/dist/l10n/ar";
@@ -187,6 +188,7 @@ export default function PublicBookingFlow({
   publicIdOrSlug: string;
 }) {
   const raw = String(publicIdOrSlug ?? "").trim();
+  const { locale } = useLocale();
 
   const { data, loading, error, resolvedPublicId } = usePublicBusiness(raw);
 
@@ -1628,7 +1630,7 @@ export default function PublicBookingFlow({
                   </div>
                 </div>
                 <div className="font-semibold text-gray-900 dark:text-white shrink-0">
-                  {formatPrice({ price: s.price, currency: data.currency })}
+                  {formatPrice({ price: s.price, currency: data.currency, locale })}
                 </div>
               </div>
             </button>
@@ -1838,7 +1840,7 @@ export default function PublicBookingFlow({
               </div>
               {selectedService ? (
                 <div className="text-sm text-muted-foreground mt-1">
-                  {selectedService.durationMinutes} min • {formatPrice({ price: selectedService.price, currency: data.currency })}
+                  {selectedService.durationMinutes} min • {formatPrice({ price: selectedService.price, currency: data.currency, locale })}
                 </div>
               ) : null}
             </div>
