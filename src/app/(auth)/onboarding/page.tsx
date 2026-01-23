@@ -1566,7 +1566,9 @@ export default function OnboardingPage() {
                     }))
                   }
                 >
-                  <SelectTrigger className={fieldErrors.businessTimezone ? inputErrorClass : ""}>
+                  <SelectTrigger
+                    className={(fieldErrors.businessTimezone ? inputErrorClass : "") + " w-full"}
+                  >
                     <SelectValue placeholder="Select timezone" />
                   </SelectTrigger>
                   <SelectContent className="max-h-80">
