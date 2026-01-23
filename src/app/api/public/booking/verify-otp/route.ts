@@ -52,20 +52,20 @@ export async function POST(req: Request) {
 
     const body = await req.json().catch(() => ({}));
     const businessPublicId = String(body?.businessPublicId ?? "").trim();
-    const email = normalizeEmail(body?.email);
-    const code = String(body?.code ?? "").trim();
+    const verifyToken = String(body?.verifyToken ?? "").trim();
+    const code = String(body?.otp ?? body?.code ?? "").trim();
 
-    if (!email) {
-      return NextResponse.json({ error: "Email is required" }, { status: 400 });
-    }
-    if (!isValidEmail(email)) {
+    if (!verifyToken) {
       return NextResponse.json(
-        { error: "Please enter a valid email address" },
+        { error: "Invalid token", code: "invalid_token" },
         { status: 400 }
       );
     }
     if (!code) {
-      return NextResponse.json({ error: "Code is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Code is required", code: "invalid_code" },
+        { status: 400 }
+      );
     }
     if (!businessPublicId) {
       return NextResponse.json(
@@ -87,38 +87,65 @@ export async function POST(req: Request) {
       db,
       req,
       purpose: "booking_otp_verify",
-      email,
+      email: verifyToken,
       perIp: { windowMs: 60_000, limit: 60 },
       perEmail: { windowMs: 10 * 60_000, limit: 10 },
     });
 
     const purpose = "booking_verify" as const;
-    const otp = await c.customerOtps.findOne({ key: email, purpose });
+    const otp = await c.customerOtps.findOne({ verifyToken, purpose });
     if (!otp) {
       return NextResponse.json(
-        { error: "Code expired or not requested" },
+        { error: "Invalid token", code: "invalid_token" },
+        { status: 400 }
+      );
+    }
+
+    if (otp.businessPublicId && otp.businessPublicId !== businessPublicId) {
+      return NextResponse.json(
+        { error: "Invalid token", code: "invalid_token" },
         { status: 400 }
       );
     }
 
     if (otp.expiresAt.getTime() < Date.now()) {
-      await c.customerOtps.deleteOne({ key: email, purpose });
-      return NextResponse.json({ error: "Code expired" }, { status: 400 });
+      await c.customerOtps.deleteOne({ _id: otp._id });
+      return NextResponse.json(
+        { error: "Code expired", code: "expired_code" },
+        { status: 400 }
+      );
     }
 
     if (otp.attempts >= 5) {
-      await c.customerOtps.deleteOne({ key: email, purpose });
-      return NextResponse.json({ error: "Too many attempts" }, { status: 429 });
+      await c.customerOtps.deleteOne({ _id: otp._id });
+      return NextResponse.json(
+        { error: "Invalid code", code: "invalid_code" },
+        { status: 401 }
+      );
     }
 
     const ok = verifyOtp(code, otp.codeHash);
     if (!ok) {
       await c.customerOtps.updateOne(
-        { key: email, purpose },
+        { _id: otp._id },
         { $inc: { attempts: 1 } }
       );
-      return NextResponse.json({ error: "Invalid code" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Invalid code", code: "invalid_code" },
+        { status: 401 }
+      );
     }
+
+    const email = normalizeEmail(otp.key);
+    if (!email || !isValidEmail(email)) {
+      return NextResponse.json(
+        { error: "Invalid token", code: "invalid_token" },
+        { status: 400 }
+      );
+    }
+
+    // Consume OTP immediately after successful verification (single-use).
+    await c.customerOtps.deleteOne({ _id: otp._id });
 
     // After successful OTP verification, check business rules (block list + active appointment conflict).
     const user = await c.users.findOne({

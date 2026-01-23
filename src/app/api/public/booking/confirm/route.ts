@@ -10,10 +10,10 @@ import {
   minutesToTime,
 } from "@/server/booking/slots";
 import {
-  verifyBookingVerifyToken,
   signBookingCancelToken,
   signCustomerAccessToken,
   verifyCustomerAccessToken,
+  verifyBookingVerifyToken,
 } from "@/server/jwt";
 import { isValidBusinessPublicId } from "@/server/business-public-id";
 import { formatDateInTimeZone } from "@/lib/public-booking";
@@ -87,10 +87,8 @@ export async function POST(req: Request) {
     const notes = typeof body?.notes === "string" ? body.notes.trim() : "";
 
     const bookingSessionId = String(body?.bookingSessionId ?? "").trim();
-
-    const verifiedEmail = bookingSessionId
-      ? normalizeEmail((await verifyBookingVerifyToken(bookingSessionId)).email)
-      : null;
+    const hasOtp = Boolean(body?.otp || body?.code);
+    const hasVerifyToken = Boolean(body?.verifyToken);
 
     const cookieStore = await cookies();
     const accessCookie = cookieStore.get(CUSTOMER_ACCESS_COOKIE_NAME)?.value;
@@ -107,13 +105,6 @@ export async function POST(req: Request) {
         }
       })()
       : null;
-
-    if (!verifiedEmail && !customerAccessClaims) {
-      return NextResponse.json(
-        { error: "Email verification required" },
-        { status: 401 }
-      );
-    }
 
     if (!businessPublicId) {
       return NextResponse.json(
@@ -164,14 +155,41 @@ export async function POST(req: Request) {
       );
     }
 
-    if (verifiedEmail && verifiedEmail !== customerEmail) {
+    if (hasOtp || hasVerifyToken) {
       return NextResponse.json(
-        { error: "Email verification mismatch" },
+        { error: "Unauthorized", code: "unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    if (!bookingSessionId && !customerAccessClaims) {
+      return NextResponse.json(
+        { error: "Unauthorized", code: "unauthorized" },
         { status: 401 }
       );
     }
 
     const c = await collections();
+    let sessionEmail = "";
+    if (bookingSessionId) {
+      try {
+        const claims = await verifyBookingVerifyToken(bookingSessionId);
+        sessionEmail = normalizeEmail(claims.email);
+      } catch (error: any) {
+        const code = String(error?.code ?? error?.name ?? "");
+        if (code === "ERR_JWT_EXPIRED" || code === "JWTExpired") {
+          return NextResponse.json(
+            { error: "Session expired", code: "session_expired" },
+            { status: 401 }
+          );
+        }
+        return NextResponse.json(
+          { error: "Unauthorized", code: "unauthorized" },
+          { status: 401 }
+        );
+      }
+    }
+
     const user = await c.users.findOne({
       "onboarding.business.publicId": businessPublicId,
       onboardingCompleted: true,
@@ -185,14 +203,37 @@ export async function POST(req: Request) {
     }
 
     const businessUserId = (user._id as ObjectId).toHexString();
-    if (
-      customerAccessClaims &&
-      customerAccessClaims.businessUserId &&
-      customerAccessClaims.businessUserId !== businessUserId
-    ) {
-      return NextResponse.json({ error: "Invalid session" }, { status: 401 });
+    if (bookingSessionId) {
+      if (!sessionEmail || sessionEmail !== customerEmail) {
+        return NextResponse.json(
+          { error: "Unauthorized", code: "unauthorized" },
+          { status: 401 }
+        );
+      }
+    } else {
+      if (!customerAccessClaims) {
+        return NextResponse.json(
+          { error: "Unauthorized", code: "unauthorized" },
+          { status: 401 }
+        );
+      }
+      if (customerAccessClaims.businessUserId !== businessUserId) {
+        return NextResponse.json(
+          { error: "Unauthorized", code: "unauthorized" },
+          { status: 401 }
+        );
+      }
+      const expectedCustomerId = customerIdFor({
+        businessUserId,
+        email: customerEmail,
+      });
+      if (expectedCustomerId !== customerAccessClaims.customerId) {
+        return NextResponse.json(
+          { error: "Unauthorized", code: "unauthorized" },
+          { status: 401 }
+        );
+      }
     }
-
     const isOwnerBooking = normalizeEmail((user as any)?.email) === customerEmail;
 
     const onboarding = (user as any).onboarding ?? {};
@@ -236,9 +277,7 @@ export async function POST(req: Request) {
     const todayStr = formatDateInTimeZone(new Date(), timeZone);
     const nowTimeStr = formatTimeInTimeZone(new Date(), timeZone);
 
-    const customerId = customerAccessClaims?.customerId
-      ? customerAccessClaims.customerId
-      : customerIdFor({ businessUserId, email: customerEmail });
+    const customerId = customerIdFor({ businessUserId, email: customerEmail });
 
     // Business-scoped customer block: do not allow booking for this business.
     const existingCustomerForBusiness = isOwnerBooking
@@ -311,6 +350,7 @@ export async function POST(req: Request) {
               endTime: String(a?.endTime ?? ""),
               serviceName: String(a?.serviceName ?? ""),
             })),
+            ...(bookingSessionId ? { bookingSessionId } : {}),
           },
           { status: 409 }
         );
@@ -369,6 +409,7 @@ export async function POST(req: Request) {
               endTime: String(a?.endTime ?? ""),
               serviceName: String(a?.serviceName ?? ""),
             })),
+            ...(bookingSessionId ? { bookingSessionId } : {}),
           },
           { status: 409 }
         );
@@ -507,15 +548,6 @@ export async function POST(req: Request) {
         { $set: { lastAppointmentAt: new Date() } }
       );
 
-      // Consume OTP only when an appointment is successfully created.
-      // This avoids forcing a resend if appointment creation is blocked by business rules.
-      if (bookingSessionId) {
-        await c.customerOtps.deleteOne({
-          key: customerEmail,
-          purpose: "booking_verify",
-        });
-      }
-
       const cancelToken = await signBookingCancelToken({
         appointmentId,
         phone: customerPhone,
@@ -582,6 +614,7 @@ export async function POST(req: Request) {
           }))
           : undefined,
         cancelToken,
+        ...(bookingSessionId ? { bookingSessionId } : {}),
       });
 
       res.cookies.set(

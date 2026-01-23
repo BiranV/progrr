@@ -22,12 +22,13 @@ import Flatpickr from "react-flatpickr";
 import PublicBookingShell from "./PublicBookingShell";
 import { usePublicBusiness } from "./usePublicBusiness";
 import { formatDateInTimeZone, formatPrice } from "@/lib/public-booking";
+import { formatTimeRange } from "@/lib/utils";
 import { useLocale } from "@/context/LocaleContext";
 import { useI18n } from "@/i18n/useI18n";
 import { english } from "flatpickr/dist/l10n/default";
 import { Arabic } from "flatpickr/dist/l10n/ar";
 import { Hebrew } from "flatpickr/dist/l10n/he";
-import { CalendarDays, LogIn, LogOut } from "lucide-react";
+import { CalendarDays, Loader2, LogIn, LogOut } from "lucide-react";
 
 type Step = "service" | "date" | "time" | "details" | "verify" | "success";
 
@@ -250,9 +251,91 @@ export default function PublicBookingFlow({
   const [notes, setNotes] = React.useState<string>("");
 
   const [otpCode, setOtpCode] = React.useState<string>("");
+  const [verifyToken, setVerifyToken] = React.useState<string>("");
   const [bookingSessionId, setBookingSessionId] = React.useState<string>("");
-  const [submitting, setSubmitting] = React.useState(false);
+  const [confirmBookingLoading, setConfirmBookingLoading] = React.useState(false);
+  const [resendOtpLoading, setResendOtpLoading] = React.useState(false);
   const [formError, setFormError] = React.useState<string | null>(null);
+
+  const verifyTokenStorageKey = React.useMemo(
+    () => (publicId ? `public-booking-verify-token:${publicId}` : ""),
+    [publicId]
+  );
+
+  const bookingSessionStorageKey = React.useMemo(
+    () => (publicId ? `public-booking-session:${publicId}` : ""),
+    [publicId]
+  );
+
+  const persistVerifyToken = React.useCallback(
+    (token: string) => {
+      const next = String(token ?? "").trim();
+      setVerifyToken(next);
+      if (typeof window === "undefined") return;
+      if (!verifyTokenStorageKey) return;
+      try {
+        if (next) {
+          window.localStorage.setItem(verifyTokenStorageKey, next);
+        } else {
+          window.localStorage.removeItem(verifyTokenStorageKey);
+        }
+      } catch {
+        // ignore
+      }
+    },
+    [verifyTokenStorageKey]
+  );
+
+  const persistBookingSession = React.useCallback(
+    (sessionId: string) => {
+      const next = String(sessionId ?? "").trim();
+      setBookingSessionId(next);
+      if (typeof window === "undefined") return;
+      if (!bookingSessionStorageKey) return;
+      try {
+        if (next) {
+          window.localStorage.setItem(bookingSessionStorageKey, next);
+        } else {
+          window.localStorage.removeItem(bookingSessionStorageKey);
+        }
+      } catch {
+        // ignore
+      }
+    },
+    [bookingSessionStorageKey]
+  );
+
+  const resolveVerifyToken = React.useCallback(() => {
+    const current = String(verifyToken ?? "").trim();
+    if (current) return current;
+    if (typeof window === "undefined") return "";
+    if (!verifyTokenStorageKey) return "";
+    try {
+      const stored = String(
+        window.localStorage.getItem(verifyTokenStorageKey) ?? ""
+      ).trim();
+      if (stored) setVerifyToken(stored);
+      return stored;
+    } catch {
+      return "";
+    }
+  }, [verifyToken, verifyTokenStorageKey]);
+
+  const resolveBookingSession = React.useCallback(() => {
+    const current = String(bookingSessionId ?? "").trim();
+    if (current) return current;
+    if (typeof window === "undefined") return "";
+    if (!bookingSessionStorageKey) return "";
+    try {
+      const stored = String(
+        window.localStorage.getItem(bookingSessionStorageKey) ?? ""
+      ).trim();
+      if (stored) setBookingSessionId(stored);
+      return stored;
+    } catch {
+      return "";
+    }
+  }, [bookingSessionId, bookingSessionStorageKey]);
 
   const slotsCacheRef = React.useRef<Map<string, SlotsResponse>>(new Map());
   const [slots, setSlots] = React.useState<SlotsResponse | null>(null);
@@ -399,10 +482,12 @@ export default function PublicBookingFlow({
     setCancelError(null);
     setCancelling(false);
     setCancellingConflictId(null);
-    setSubmitting(false);
+    setConfirmBookingLoading(false);
+    setResendOtpLoading(false);
     setFormError(null);
     setOtpCode("");
-    setBookingSessionId("");
+    persistBookingSession("");
+    persistVerifyToken("");
     setCustomerFullName("");
     setCustomerEmail("");
     setCustomerPhone("");
@@ -416,7 +501,7 @@ export default function PublicBookingFlow({
     slotsCacheRef.current.clear();
 
     setStep("service");
-  }, []);
+  }, [persistBookingSession, persistVerifyToken]);
 
   const resetBookingOnly = React.useCallback(() => {
     setResult(null);
@@ -426,10 +511,12 @@ export default function PublicBookingFlow({
     setCancelling(false);
     setCancellingConflictId(null);
     setCancellingSameDayId(null);
-    setSubmitting(false);
+    setConfirmBookingLoading(false);
+    setResendOtpLoading(false);
     setFormError(null);
     setOtpCode("");
-    setBookingSessionId("");
+    persistBookingSession("");
+    persistVerifyToken("");
     setNotes("");
     setStartTime("");
     setDate("");
@@ -439,7 +526,26 @@ export default function PublicBookingFlow({
     setSlotsLoading(false);
     slotsCacheRef.current.clear();
     setStep("service");
-  }, []);
+  }, [persistBookingSession, persistVerifyToken]);
+
+  React.useEffect(() => {
+    if (!verifyTokenStorageKey) return;
+    if (verifyToken.trim()) return;
+    resolveVerifyToken();
+  }, [resolveVerifyToken, verifyToken, verifyTokenStorageKey]);
+
+  React.useEffect(() => {
+    if (!bookingSessionStorageKey) return;
+    if (bookingSessionId.trim()) return;
+    resolveBookingSession();
+  }, [bookingSessionId, bookingSessionStorageKey, resolveBookingSession]);
+
+  React.useEffect(() => {
+    const session = resolveBookingSession();
+    if (!session) return;
+    if (connected) return;
+    setConnected(true);
+  }, [connected, resolveBookingSession]);
 
   React.useEffect(() => {
     if (!myAppointmentsOpen) return;
@@ -880,6 +986,39 @@ export default function PublicBookingFlow({
     });
   }, [data?.currency, locale, selectedService]);
 
+  const bookedAppointments = React.useMemo(() => {
+    if (!result?.appointment) return [] as MyAppointmentsItem[];
+    const base: MyAppointmentsItem[] = [
+      {
+        id: result.appointment.id,
+        date: result.appointment.date,
+        startTime: result.appointment.startTime,
+        endTime: result.appointment.endTime,
+        serviceName: result.appointment.serviceName,
+        status: "BOOKED",
+      },
+    ];
+    const extras: MyAppointmentsItem[] = Array.isArray(result.sameDayAppointments)
+      ? result.sameDayAppointments.map((a) => ({
+        id: a.id,
+        date: a.date,
+        startTime: a.startTime,
+        endTime: a.endTime,
+        serviceName: a.serviceName,
+        status: "BOOKED",
+      }))
+      : [];
+    const seen = new Set<string>();
+    const combined: MyAppointmentsItem[] = [];
+    for (const item of [...base, ...extras]) {
+      const key = String(item.id ?? "").trim();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      combined.push(item);
+    }
+    return combined;
+  }, [result]);
+
   const canSkipCustomerDetailsForm = Boolean(
     connected &&
     customerFullName.trim() &&
@@ -889,7 +1028,8 @@ export default function PublicBookingFlow({
   );
 
   const canSubmitDetails = Boolean(
-    !submitting &&
+    !confirmBookingLoading &&
+    !activeConflict &&
     customerFullName.trim() &&
     customerEmail.trim() &&
     customerPhone.trim() &&
@@ -897,7 +1037,8 @@ export default function PublicBookingFlow({
   );
 
   const canSubmitVerify =
-    !submitting &&
+    !confirmBookingLoading &&
+    !activeConflict &&
     cancellingConflictId === null &&
     normalizeOtpCode(otpCode).length >= 6;
 
@@ -987,17 +1128,21 @@ export default function PublicBookingFlow({
     const json = await res.json().catch(() => null);
     if (!res.ok)
       throw new Error(json?.error || requestFailed(res.status));
+    const token = String(json?.verifyToken ?? "").trim();
+    if (!token) throw new Error(t("publicBooking.errors.verificationFailed"));
+    persistBookingSession("");
+    persistVerifyToken(token);
   };
 
   const handleResendOtp = React.useCallback(async () => {
-    setSubmitting(true);
+    setResendOtpLoading(true);
     setFormError(null);
     try {
       await requestOtp();
     } catch (e: any) {
       setFormError(e?.message || t("publicBooking.errors.failed"));
     } finally {
-      setSubmitting(false);
+      setResendOtpLoading(false);
     }
   }, [requestOtp, t]);
 
@@ -1130,6 +1275,8 @@ export default function PublicBookingFlow({
     if (!publicId) throw new Error(t("publicBooking.errors.businessNotFound"));
     if (!customerEmail.trim())
       throw new Error(t("publicBooking.errors.emailRequired"));
+    const token = resolveVerifyToken();
+    if (!token) throw new Error(t("publicBooking.errors.verificationFailed"));
     const code = normalizeOtpCode(otpCode);
     if (!code) throw new Error(t("publicBooking.errors.codeRequired"));
 
@@ -1138,8 +1285,8 @@ export default function PublicBookingFlow({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         businessPublicId: publicId,
-        email: customerEmail.trim(),
-        code,
+        verifyToken: token,
+        otp: code,
       }),
     });
 
@@ -1150,7 +1297,10 @@ export default function PublicBookingFlow({
       String(verifyJson?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS"
     ) {
       const sessionId = String(verifyJson?.bookingSessionId ?? "").trim();
-      if (sessionId) setBookingSessionId(sessionId);
+      if (sessionId) {
+        persistBookingSession(sessionId);
+        setConnected(true);
+      }
       setActiveConflict({
         code: "ACTIVE_APPOINTMENT_EXISTS",
         bookingSessionId: sessionId,
@@ -1168,13 +1318,25 @@ export default function PublicBookingFlow({
     }
 
     if (!verifyRes.ok) {
+      const errCode = String(verifyJson?.code ?? "");
+      if (errCode === "invalid_code") {
+        throw new Error(t("publicBooking.errors.invalidCode"));
+      }
+      if (errCode === "expired_code") {
+        throw new Error(t("publicBooking.errors.codeExpired"));
+      }
+      if (errCode === "invalid_token") {
+        throw new Error(t("publicBooking.errors.verificationFailed"));
+      }
       throw new Error(verifyJson?.error || requestFailed(verifyRes.status));
     }
 
     const sessionId = String(verifyJson?.bookingSessionId ?? "").trim();
     if (!sessionId) throw new Error(t("publicBooking.errors.verificationFailed"));
-    setBookingSessionId(sessionId);
+    persistBookingSession(sessionId);
     setActiveConflict(null);
+    setConnected(true);
+    persistVerifyToken("");
     return sessionId;
   };
 
@@ -1183,7 +1345,7 @@ export default function PublicBookingFlow({
     if (!serviceId || !date || !startTime)
       throw new Error(t("publicBooking.errors.missingBookingDetails"));
 
-    const sid = String(sessionId ?? "").trim();
+    const sid = String(sessionId ?? resolveBookingSession() ?? "").trim();
     if (!sid && !connected)
       throw new Error(t("publicBooking.errors.emailVerificationRequired"));
 
@@ -1205,17 +1367,33 @@ export default function PublicBookingFlow({
 
     const confirmJson = await confirmRes.json().catch(() => null);
     if (!confirmRes.ok) {
+      const errCode = String(confirmJson?.code ?? "");
+      if (errCode === "invalid_code") {
+        throw new Error(t("publicBooking.errors.invalidCode"));
+      }
+      if (errCode === "expired_code") {
+        throw new Error(t("publicBooking.errors.codeExpired"));
+      }
+      if (errCode === "session_expired") {
+        throw new Error(t("publicBooking.errors.sessionExpired"));
+      }
+      if (errCode === "unauthorized") {
+        throw new Error(t("publicBooking.errors.emailVerificationRequired"));
+      }
+
       if (
         confirmRes.status === 409 &&
         (String(confirmJson?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS" ||
           String(confirmJson?.code ?? "") === "SAME_SERVICE_SAME_DAY_EXISTS")
       ) {
+        const conflictSessionId = String(sid ?? "").trim();
+        if (conflictSessionId) persistBookingSession(conflictSessionId);
         setActiveConflict({
           code:
             String(confirmJson?.code ?? "") === "SAME_SERVICE_SAME_DAY_EXISTS"
               ? "SAME_SERVICE_SAME_DAY_EXISTS"
               : "ACTIVE_APPOINTMENT_EXISTS",
-          bookingSessionId: sid,
+          bookingSessionId: conflictSessionId,
           existingAppointment: confirmJson?.existingAppointment,
           existingAppointments: Array.isArray(confirmJson?.existingAppointments)
             ? confirmJson.existingAppointments
@@ -1245,15 +1423,17 @@ export default function PublicBookingFlow({
 
   const handleDetailsConfirm = React.useCallback(async () => {
     if (!canSubmitDetails) return;
-    setSubmitting(true);
+    setConfirmBookingLoading(true);
     setFormError(null);
     try {
       if (connected) {
-        const r = await confirmBooking();
+        const r = await confirmBooking(resolveBookingSession());
         setResult(r);
         setStep("success");
         setIdentified(true);
         setConnected(true);
+        persistVerifyToken("");
+        setOtpCode("");
         return;
       }
 
@@ -1269,19 +1449,21 @@ export default function PublicBookingFlow({
       }
       setFormError(e?.message || t("publicBooking.errors.failed"));
     } finally {
-      setSubmitting(false);
+      setConfirmBookingLoading(false);
     }
   }, [
     canSubmitDetails,
     confirmBooking,
     connected,
+    persistVerifyToken,
     requestOtp,
+    resolveBookingSession,
     t,
   ]);
 
   const handleVerifyConfirm = React.useCallback(async () => {
     if (!canSubmitVerify) return;
-    setSubmitting(true);
+    setConfirmBookingLoading(true);
     setFormError(null);
     try {
       const sessionId = await verifyBookingSession();
@@ -1290,6 +1472,8 @@ export default function PublicBookingFlow({
       setStep("success");
       setIdentified(true);
       setConnected(true);
+      persistVerifyToken("");
+      setOtpCode("");
     } catch (e: any) {
       if (
         String(e?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS" ||
@@ -1300,9 +1484,9 @@ export default function PublicBookingFlow({
       }
       setFormError(e?.message || t("publicBooking.errors.failed"));
     } finally {
-      setSubmitting(false);
+      setConfirmBookingLoading(false);
     }
-  }, [canSubmitVerify, confirmBooking, t, verifyBookingSession]);
+  }, [canSubmitVerify, confirmBooking, persistVerifyToken, t, verifyBookingSession]);
 
   const handleConfirmKeyDown = React.useCallback(
     (event: React.KeyboardEvent) => {
@@ -1704,14 +1888,12 @@ export default function PublicBookingFlow({
                           </div>
                         ) : null}
                         <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {a.startTime}–{a.endTime}
+                          <span dir="ltr">
+                            {formatTimeRange(a.startTime, a.endTime)}
+                          </span>
                         </div>
                         <div className="text-sm text-gray-700 dark:text-gray-200">
                           {a.serviceName}
-                        </div>
-
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {t("publicBooking.status.booked")}
                         </div>
                       </div>
 
@@ -2108,7 +2290,10 @@ export default function PublicBookingFlow({
                   .filter((x: any) => String(x?.id ?? "").trim())
                   .map((appt: any) => {
                     const apptId = String(appt?.id ?? "").trim();
-                    const label = `${appt?.serviceName ? `${appt.serviceName} • ` : ""}${appt?.date || ""}${appt?.startTime ? ` • ${appt.startTime}` : ""}`;
+                    const timeRange =
+                      appt?.startTime && appt?.endTime
+                        ? formatTimeRange(appt.startTime, appt.endTime)
+                        : String(appt?.startTime ?? "").trim();
 
                     return (
                       <div
@@ -2116,13 +2301,20 @@ export default function PublicBookingFlow({
                         className="rounded-xl border border-amber-200/70 dark:border-amber-900/40 bg-white/60 dark:bg-black/10 p-3"
                       >
                         <div className="text-sm text-amber-900/90 dark:text-amber-200/90">
-                          {label}
+                          {appt?.serviceName ? `${appt.serviceName} • ` : ""}
+                          {appt?.date || ""}
+                          {timeRange ? (
+                            <>
+                              {" • "}
+                              <span dir="ltr">{timeRange}</span>
+                            </>
+                          ) : null}
                         </div>
                         <Button
                           variant="outline"
                           size="sm"
                           className="rounded-2xl w-full mt-2"
-                          disabled={submitting || cancellingConflictId === apptId}
+                          disabled={confirmBookingLoading || cancellingConflictId === apptId}
                           onClick={() => handleCancelConflictAppointment(apptId)}
                         >
                           {cancellingConflictId === apptId
@@ -2148,8 +2340,14 @@ export default function PublicBookingFlow({
               </div>
               <div className="text-sm text-gray-700 dark:text-gray-200 mt-1">
                 {date}
-                {startTime ? ` • ${startTime}` : ""}
-                {selectedSlot?.endTime ? `–${selectedSlot.endTime}` : ""}
+                {startTime ? (
+                  <>
+                    {" • "}
+                    <span dir="ltr">
+                      {formatTimeRange(startTime, selectedSlot?.endTime || "")}
+                    </span>
+                  </>
+                ) : null}
               </div>
               {durationLabel && priceLabel ? (
                 <div className="text-sm text-muted-foreground mt-1">
@@ -2230,7 +2428,7 @@ export default function PublicBookingFlow({
             disabled={!canSubmitDetails}
             className="rounded-2xl w-full"
           >
-            {submitting ? detailsSubmittingLabel : detailsConfirmLabel}
+            {confirmBookingLoading ? detailsSubmittingLabel : detailsConfirmLabel}
           </Button>
         </div>
       ) : null}
@@ -2287,7 +2485,7 @@ export default function PublicBookingFlow({
                           variant="outline"
                           size="sm"
                           className="rounded-2xl w-full mt-2"
-                          disabled={submitting || cancellingConflictId === apptId}
+                          disabled={confirmBookingLoading || cancellingConflictId === apptId}
                           onClick={() => handleCancelConflictAppointment(apptId)}
                         >
                           {cancellingConflictId === apptId
@@ -2308,7 +2506,7 @@ export default function PublicBookingFlow({
               length={6}
               value={otpCode}
               onChange={setOtpCode}
-              disabled={submitting}
+              disabled={confirmBookingLoading}
             />
           </div>
 
@@ -2317,9 +2515,16 @@ export default function PublicBookingFlow({
               variant="outline"
               className="rounded-2xl"
               onClick={handleResendOtp}
-              disabled={submitting || cancellingConflictId !== null}
+              disabled={resendOtpLoading || cancellingConflictId !== null}
             >
-              {t("publicBooking.verify.resend")}
+              {resendOtpLoading ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {t("publicBooking.actions.sendingCode")}
+                </span>
+              ) : (
+                t("publicBooking.verify.resend")
+              )}
             </Button>
 
             <Button
@@ -2327,7 +2532,7 @@ export default function PublicBookingFlow({
               onClick={handleVerifyConfirm}
               disabled={!canSubmitVerify}
             >
-              {submitting
+              {confirmBookingLoading
                 ? t("publicBooking.actions.confirming")
                 : t("publicBooking.verify.confirmBooking")}
             </Button>
@@ -2348,47 +2553,41 @@ export default function PublicBookingFlow({
 
           <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4 shadow-sm">
             <div className="font-semibold text-gray-900 dark:text-white">
-              {result.appointment.serviceName}
+              {t("publicBooking.success.appointmentsOn", {
+                date: result.appointment.date,
+              })}
             </div>
-            <div className="text-sm text-gray-600 dark:text-gray-300">
-              {result.appointment.customer.fullName}
+            <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+              {t("publicBooking.success.canCancelBelow")}
             </div>
-            {result.appointment.notes ? (
-              <div className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-                {result.appointment.notes}
-              </div>
-            ) : null}
-          </div>
 
-          {Array.isArray(result.sameDayAppointments) &&
-            result.sameDayAppointments.length > 1 ? (
-            <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4 shadow-sm">
-              <div className="font-semibold text-gray-900 dark:text-white">
-                {t("publicBooking.success.appointmentsOn", {
-                  date: result.appointment.date,
-                })}
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                {t("publicBooking.success.canCancelBelow")}
-              </div>
-
-              <div className="mt-3 space-y-2">
-                {result.sameDayAppointments.map((a) => (
-                  <div
-                    key={a.id}
-                    className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/10 p-3"
-                  >
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">
-                      {a.startTime}–{a.endTime}
-                    </div>
-                    <div className="text-sm text-gray-700 dark:text-gray-200">
-                      {a.serviceName}
+            <div className="mt-3 divide-y divide-gray-200 dark:divide-gray-800">
+              {bookedAppointments.map((a) => (
+                <div key={a.id} className="py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      {a.date ? (
+                        <div className="text-xs text-muted-foreground">
+                          {a.date}
+                        </div>
+                      ) : null}
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        <span dir="ltr">
+                          {formatTimeRange(a.startTime, a.endTime)}
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-700 dark:text-gray-200">
+                        {a.serviceName}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {t("publicBooking.status.booked")}
+                      </div>
                     </div>
 
                     <Button
                       variant="outline"
                       size="sm"
-                      className="rounded-2xl w-full mt-2"
+                      className="rounded-xl shrink-0"
                       disabled={cancellingSameDayId === a.id || cancelling}
                       onClick={() => handleCancelSameDay(a.id)}
                     >
@@ -2397,10 +2596,10 @@ export default function PublicBookingFlow({
                         : t("publicBooking.actions.cancelAppointment")}
                     </Button>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
-          ) : null}
+          </div>
 
           <div className="space-y-2">
             <div className="flex flex-wrap gap-3">

@@ -13,6 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import SettingsBackHeader from "@/components/settings/SettingsBackHeader";
 import { toast } from "sonner";
+import { useI18n } from "@/i18n/useI18n";
+import { formatTimeRange } from "@/lib/utils";
 
 type Booking = {
   id: string;
@@ -44,20 +46,8 @@ type CustomerDetailsResponse = {
   };
 };
 
-function statusBadgeVariant(status: Booking["status"]) {
-  if (status === "BOOKED") {
-    return { label: "BOOKED", className: "bg-emerald-600 text-white" };
-  }
-  if (status === "COMPLETED") {
-    return { label: "COMPLETED", className: "bg-blue-600 text-white" };
-  }
-  if (status === "NO_SHOW") {
-    return { label: "NO SHOW", className: "bg-amber-600 text-white" };
-  }
-  return { label: "CANCELED", className: "bg-gray-500 text-white dark:bg-gray-700" };
-}
-
 export default function CustomerDetailsPage() {
+  const { t } = useI18n();
   const params = useParams();
   const id = String((params as any)?.id ?? "");
 
@@ -79,6 +69,34 @@ export default function CustomerDetailsPage() {
     "block" | "unblock" | null
   >(null);
 
+  const statusBadgeVariant = React.useCallback(
+    (status: Booking["status"]) => {
+      if (status === "BOOKED") {
+        return {
+          label: t("customers.details.status.booked"),
+          className: "bg-emerald-600 text-white",
+        };
+      }
+      if (status === "COMPLETED") {
+        return {
+          label: t("customers.details.status.completed"),
+          className: "bg-blue-600 text-white",
+        };
+      }
+      if (status === "NO_SHOW") {
+        return {
+          label: t("customers.details.status.noShow"),
+          className: "bg-amber-600 text-white",
+        };
+      }
+      return {
+        label: t("customers.details.status.canceled"),
+        className: "bg-gray-500 text-white dark:bg-gray-700",
+      };
+    },
+    [t]
+  );
+
   const prevCustomerIdRef = React.useRef<string | null>(null);
 
   const load = React.useCallback(async () => {
@@ -92,14 +110,16 @@ export default function CustomerDetailsPage() {
       );
       const json = await res.json().catch(() => null);
       if (!res.ok)
-        throw new Error(json?.error || `Request failed (${res.status})`);
+        throw new Error(
+          json?.error || t("errors.requestFailed", { status: res.status })
+        );
       setData(json as CustomerDetailsResponse);
     } catch (e: any) {
-      setError(e?.message || "Failed");
+      setError(e?.message || t("errors.failedToLoad"));
     } finally {
       setLoading(false);
     }
-  }, [bookingsPage, id]);
+  }, [bookingsPage, id, t]);
 
   React.useEffect(() => {
     if (!id) return;
@@ -127,7 +147,9 @@ export default function CustomerDetailsPage() {
     );
     const json = await res.json().catch(() => null);
     if (!res.ok)
-      throw new Error(json?.error || `Request failed (${res.status})`);
+      throw new Error(
+        json?.error || t("errors.requestFailed", { status: res.status })
+      );
     await load();
   };
 
@@ -145,11 +167,13 @@ export default function CustomerDetailsPage() {
       );
       const json = await res.json().catch(() => null);
       if (!res.ok)
-        throw new Error(json?.error || `Request failed (${res.status})`);
+        throw new Error(
+          json?.error || t("errors.requestFailed", { status: res.status })
+        );
       setSubject("");
       setMessage("");
     } catch (e: any) {
-      setError(e?.message || "Failed");
+      setError(e?.message || t("errors.failedToSave"));
     } finally {
       setSending(false);
     }
@@ -169,13 +193,15 @@ export default function CustomerDetailsPage() {
       );
       const json = await res.json().catch(() => null);
       if (!res.ok) {
-        throw new Error(json?.error || `Request failed (${res.status})`);
+        throw new Error(
+          json?.error || t("errors.requestFailed", { status: res.status })
+        );
       }
 
       toast.success(
         action === "block"
-          ? "Customer blocked"
-          : "Customer unblocked"
+          ? t("customers.details.toastBlocked")
+          : t("customers.details.toastUnblocked")
       );
 
       // Keep the customers list in sync when navigating back.
@@ -204,7 +230,7 @@ export default function CustomerDetailsPage() {
 
       await load();
     } catch (e: any) {
-      setError(e?.message || "Failed");
+      setError(e?.message || t("errors.failedToSave"));
     } finally {
       setUpdatingCustomer(null);
     }
@@ -222,8 +248,8 @@ export default function CustomerDetailsPage() {
       <div className="space-y-4">
         <SettingsBackHeader
           href="/customers"
-          label="Customers"
-          ariaLabel="Back to Customers"
+          label={t("customers.title")}
+          ariaLabel={t("customers.details.backToCustomers")}
         />
         <div className="text-sm text-red-600 dark:text-red-400">{error}</div>
       </div>
@@ -235,10 +261,12 @@ export default function CustomerDetailsPage() {
       <div className="space-y-4">
         <SettingsBackHeader
           href="/customers"
-          label="Customers"
-          ariaLabel="Back to Customers"
+          label={t("customers.title")}
+          ariaLabel={t("customers.details.backToCustomers")}
         />
-        <div className="text-sm text-muted-foreground">Not found.</div>
+        <div className="text-sm text-muted-foreground">
+          {t("customers.details.notFound")}
+        </div>
       </div>
     );
   }
@@ -251,15 +279,19 @@ export default function CustomerDetailsPage() {
           if (!open) setConfirmAction(null);
         }}
         title={
-          confirmAction === "block" ? "Block customer?" : "Confirm"
+          confirmAction === "block"
+            ? t("customers.details.confirmBlockTitle")
+            : t("customers.details.confirmDefaultTitle")
         }
         description={
           confirmAction === "block"
-            ? "This customer will be blocked from making new bookings."
+            ? t("customers.details.confirmBlockDescription")
             : undefined
         }
         confirmText={
-          confirmAction === "block" ? "Block" : "Confirm"
+          confirmAction === "block"
+            ? t("customers.details.confirmBlockAction")
+            : t("customers.details.confirmDefaultAction")
         }
         confirmVariant="destructive"
         loading={confirmAction ? updatingCustomer === confirmAction : false}
@@ -273,12 +305,12 @@ export default function CustomerDetailsPage() {
       <div className="space-y-2">
         <SettingsBackHeader
           href="/customers"
-          label="Customers"
-          ariaLabel="Back to Customers"
+          label={t("customers.title")}
+          ariaLabel={t("customers.details.backToCustomers")}
         />
         <div className="flex items-start justify-between gap-3">
           <h1 className="min-w-0 text-2xl font-bold text-gray-900 dark:text-white truncate">
-            {data.customer.fullName || "Customer"}
+            {data.customer.fullName || t("customers.details.customerFallback")}
           </h1>
 
           <Badge
@@ -289,7 +321,9 @@ export default function CustomerDetailsPage() {
                 : "bg-emerald-600")
             }
           >
-            {String(data.customer.status ?? "ACTIVE")}
+            {String(data.customer.status ?? "ACTIVE") === "BLOCKED"
+              ? t("customers.details.status.blocked")
+              : t("customers.details.status.active")}
           </Badge>
         </div>
         <div className="text-sm text-gray-600 dark:text-gray-300 leading-tight space-y-0.5">
@@ -297,7 +331,11 @@ export default function CustomerDetailsPage() {
           {data.customer.email ? (
             <div className="truncate">{data.customer.email}</div>
           ) : null}
-          <div>{`Active bookings: ${data.activeBookingsCount}`}</div>
+          <div>
+            {t("customers.details.activeBookings", {
+              count: data.activeBookingsCount,
+            })}
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {String(data.customer.status ?? "ACTIVE") === "BLOCKED" ? (
@@ -309,7 +347,7 @@ export default function CustomerDetailsPage() {
               onClick={() => updateCustomer("unblock")}
               disabled={updatingCustomer === "unblock"}
             >
-              Unblock
+              {t("customers.details.unblock")}
             </Button>
           ) : (
             <Button
@@ -320,7 +358,7 @@ export default function CustomerDetailsPage() {
               onClick={() => setConfirmAction("block")}
               disabled={Boolean(updatingCustomer)}
             >
-              Block
+              {t("customers.details.block")}
             </Button>
           )}
         </div>
@@ -332,15 +370,15 @@ export default function CustomerDetailsPage() {
 
       <div className="space-y-3">
         <div className="text-sm font-semibold text-gray-900 dark:text-white">
-          Send message
+          {t("customers.details.sendMessageTitle")}
         </div>
         <Input
-          placeholder="Subject"
+          placeholder={t("customers.details.subjectPlaceholder")}
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
         />
         <Textarea
-          placeholder="Message"
+          placeholder={t("customers.details.messagePlaceholder")}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
         />
@@ -351,14 +389,16 @@ export default function CustomerDetailsPage() {
           onClick={sendMessage}
           disabled={sending || !subject.trim() || !message.trim()}
         >
-          {sending ? "Sending…" : "Send message"}
+          {sending
+            ? t("customers.details.sendingMessage")
+            : t("customers.details.sendMessage")}
         </Button>
       </div>
 
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <div className="text-sm font-semibold text-gray-900 dark:text-white">
-            Booking history
+            {t("customers.details.bookingHistory")}
           </div>
 
           {data.bookingsPagination ? (
@@ -373,8 +413,8 @@ export default function CustomerDetailsPage() {
                 className="h-8 w-8 rounded-xl"
                 onClick={() => setBookingsPage((p) => Math.max(1, p - 1))}
                 disabled={loading || data.bookingsPagination.page <= 1}
-                aria-label="Newer bookings"
-                title="Newer"
+                aria-label={t("customers.details.newerBookings")}
+                title={t("customers.details.newer")}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
@@ -395,8 +435,8 @@ export default function CustomerDetailsPage() {
                   loading ||
                   data.bookingsPagination.page >= data.bookingsPagination.totalPages
                 }
-                aria-label="Older bookings"
-                title="Older"
+                aria-label={t("customers.details.olderBookings")}
+                title={t("customers.details.older")}
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -405,7 +445,9 @@ export default function CustomerDetailsPage() {
         </div>
 
         {data.bookings.length === 0 ? (
-          <div className="text-sm text-muted-foreground">No bookings.</div>
+          <div className="text-sm text-muted-foreground">
+            {t("customers.details.noBookings")}
+          </div>
         ) : (
           <>
             {data.bookings.map((b) => {
@@ -421,7 +463,9 @@ export default function CustomerDetailsPage() {
                         {b.date}
                       </div>
                       <div className="text-sm text-gray-700 dark:text-gray-200 truncate">
-                        {b.startTime}–{b.endTime}
+                        <span dir="ltr">
+                          {formatTimeRange(b.startTime, b.endTime)}
+                        </span>
                       </div>
                       <div className="text-sm text-gray-700 dark:text-gray-200 truncate">
                         {b.serviceName}
@@ -430,10 +474,10 @@ export default function CustomerDetailsPage() {
                       {b.status === "CANCELED" ? (
                         <div className="text-xs text-muted-foreground mt-1">
                           {String(b.cancelledBy || "").toUpperCase() === "BUSINESS"
-                            ? "Canceled by you"
+                            ? t("customers.details.canceledBy.business")
                             : String(b.cancelledBy || "").toUpperCase() === "CUSTOMER"
-                              ? "Canceled by customer"
-                              : "Canceled"}
+                              ? t("customers.details.canceledBy.customer")
+                              : t("customers.details.canceledBy.unknown")}
                         </div>
                       ) : null}
 
@@ -446,7 +490,7 @@ export default function CustomerDetailsPage() {
                             className="rounded-xl border-gray-300 text-gray-800 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-800"
                             onClick={() => cancelBooking(b.id)}
                           >
-                            Cancel
+                            {t("customers.details.cancel")}
                           </Button>
                         </div>
                       ) : null}
@@ -460,7 +504,10 @@ export default function CustomerDetailsPage() {
 
             {data.bookingsPagination ? (
               <div className="text-xs text-muted-foreground">
-                Showing {pageSize} per page • Total {data.bookingsPagination.totalBookingsCount}
+                {t("customers.details.paginationSummary", {
+                  pageSize,
+                  total: data.bookingsPagination.totalBookingsCount,
+                })}
               </div>
             ) : null}
           </>

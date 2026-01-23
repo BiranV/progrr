@@ -8,6 +8,7 @@ import { checkRateLimit } from "@/server/rate-limit";
 import { buildOtpEmail } from "@/server/emails/auth";
 import { isValidBusinessPublicId } from "@/server/business-public-id";
 import { ObjectId } from "mongodb";
+import crypto from "crypto";
 
 function normalizeEmail(input: unknown): string {
   return String(input ?? "")
@@ -81,10 +82,10 @@ export async function POST(req: Request) {
     const blocked = isOwnerBooking
       ? null
       : await c.customers.findOne({
-          businessUserId: user._id as ObjectId,
-          email,
-          status: "BLOCKED",
-        } as any);
+        businessUserId: user._id as ObjectId,
+        email,
+        status: "BLOCKED",
+      } as any);
 
     if (!isOwnerBooking && blocked) {
       return NextResponse.json(
@@ -97,6 +98,11 @@ export async function POST(req: Request) {
     }
 
     const purpose = "booking_verify" as const;
+
+    const verifyToken =
+      typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : crypto.randomBytes(24).toString("hex");
 
     // Cooldown to prevent rapid resend loops.
     const existingOtp = await c.customerOtps.findOne({ key: email, purpose });
@@ -125,6 +131,8 @@ export async function POST(req: Request) {
           key: email,
           purpose,
           codeHash: hash,
+          verifyToken,
+          businessPublicId,
           expiresAt,
           attempts: 0,
           createdAt: new Date(),
@@ -148,7 +156,7 @@ export async function POST(req: Request) {
       html: emailContent.html,
     });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, verifyToken });
   } catch (error: any) {
     const status = typeof error?.status === "number" ? error.status : 500;
     return NextResponse.json(

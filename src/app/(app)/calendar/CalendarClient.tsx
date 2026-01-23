@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronsUpDown, Loader2, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/i18n/useI18n";
+import { formatTimeRange } from "@/lib/utils";
 
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 import { Badge } from "@/components/ui/badge";
@@ -120,7 +121,10 @@ export default function CalendarClient() {
             );
             const json = await res.json().catch(() => null);
             if (!res.ok) {
-                throw new Error(json?.error || `Request failed (${res.status})`);
+                throw new Error(
+                    json?.error ||
+                    t("errors.requestFailed", { status: res.status }),
+                );
             }
             return Array.isArray(json?.appointments)
                 ? (json.appointments as Appointment[])
@@ -141,7 +145,9 @@ export default function CalendarClient() {
     const [cancelling, setCancelling] = React.useState(false);
 
     const [rescheduleId, setRescheduleId] = React.useState<string | null>(null);
-    const [rescheduleTitle, setRescheduleTitle] = React.useState<string>("");
+    const [rescheduleTitle, setRescheduleTitle] = React.useState<
+        { timeRange: string; serviceName: string } | null
+    >(null);
     const [timesLoading, setTimesLoading] = React.useState(false);
     const [timesError, setTimesError] = React.useState<string | null>(null);
     const [availableTimes, setAvailableTimes] = React.useState<
@@ -185,7 +191,10 @@ export default function CalendarClient() {
             });
             const json = await res.json().catch(() => null);
             if (!res.ok) {
-                throw new Error(json?.error || `Request failed (${res.status})`);
+                throw new Error(
+                    json?.error ||
+                    t("errors.requestFailed", { status: res.status }),
+                );
             }
             return Array.isArray(json?.customers)
                 ? (json.customers as CustomerForPicker[])
@@ -291,9 +300,13 @@ export default function CalendarClient() {
 
     const statusLabel = React.useCallback((status: unknown) => {
         const s = String(status ?? "").toUpperCase();
-        if (s === "NO_SHOW") return "NO SHOW";
-        return s;
-    }, []);
+        if (s === "NO_SHOW" || s === "NO SHOW") return t("calendar.status.noShow");
+        if (s === "COMPLETED") return t("calendar.status.completed");
+        if (s === "BOOKED") return t("calendar.status.booked");
+        if (s === "CANCELLED" || s === "CANCELED")
+            return t("calendar.status.canceled");
+        return t("calendar.status.booked");
+    }, [t]);
 
     const updateStatus = React.useCallback(
         async (
@@ -313,15 +326,18 @@ export default function CalendarClient() {
                 );
                 const json = await res.json().catch(() => null);
                 if (!res.ok) {
-                    throw new Error(json?.error || `Request failed (${res.status})`);
+                    throw new Error(
+                        json?.error ||
+                        t("errors.requestFailed", { status: res.status }),
+                    );
                 }
 
                 toast.success(
                     nextStatus === "NO_SHOW"
-                        ? "Marked as NO SHOW"
+                        ? t("calendar.toast.markedNoShow")
                         : nextStatus === "COMPLETED"
-                            ? "Marked as COMPLETED"
-                            : "Marked as BOOKED",
+                            ? t("calendar.toast.markedCompleted")
+                            : t("calendar.toast.markedBooked"),
                 );
 
                 await queryClient.invalidateQueries({
@@ -332,14 +348,14 @@ export default function CalendarClient() {
                     queryKey: ["dashboardRevenueSeries"],
                 });
             } catch (e: any) {
-                const msg = String(e?.message || "Failed");
+                const msg = String(e?.message || t("errors.failedToSave"));
                 setError(msg);
                 toast.error(msg);
             } finally {
                 setStatusUpdatingId(null);
             }
         },
-        [date, queryClient],
+        [date, queryClient, t],
     );
 
     const services = React.useMemo(() => {
@@ -371,7 +387,10 @@ export default function CalendarClient() {
             );
             const json = await res.json().catch(() => null);
             if (!res.ok) {
-                throw new Error(json?.error || `Request failed (${res.status})`);
+                throw new Error(
+                    json?.error ||
+                    t("errors.requestFailed", { status: res.status }),
+                );
             }
             return Array.isArray(json?.slots) ? (json.slots as any[]) : [];
         },
@@ -426,13 +445,21 @@ export default function CalendarClient() {
 
             const json = await res.json().catch(() => null);
             if (!res.ok) {
-                throw new Error(json?.error || `Request failed (${res.status})`);
+                throw new Error(
+                    json?.error ||
+                    t("errors.requestFailed", { status: res.status }),
+                );
             }
 
             toast.success(t("calendar.appointmentCreated"));
 
             if (json?.email?.sent === false) {
-                toast.error(String(json?.email?.error || "Failed to send email"));
+                toast.error(
+                    String(
+                        json?.email?.error ||
+                        t("calendar.errors.failedToEmailCustomerCreate"),
+                    ),
+                );
             }
 
             setCreateOpen(false);
@@ -528,7 +555,10 @@ export default function CalendarClient() {
                 );
                 const json = await res.json().catch(() => null);
                 if (!res.ok) {
-                    throw new Error(json?.error || `Request failed (${res.status})`);
+                    throw new Error(
+                        json?.error ||
+                        t("errors.requestFailed", { status: res.status }),
+                    );
                 }
 
                 queryClient.setQueryData(
@@ -548,7 +578,7 @@ export default function CalendarClient() {
                     setError(
                         String(
                             json?.email?.error ||
-                            "Canceled, but failed to email the customer",
+                            t("calendar.errors.failedToEmailCustomerCancel"),
                         ),
                     );
                 }
@@ -563,9 +593,9 @@ export default function CalendarClient() {
         if (!appointmentsQuery.isError) return;
         const msg =
             (appointmentsQuery.error as any)?.message ||
-            "Failed to load appointments";
+            t("calendar.errors.failedToLoadAppointments");
         setError(msg);
-    }, [appointmentsQuery.isError, appointmentsQuery.error]);
+    }, [appointmentsQuery.isError, appointmentsQuery.error, t]);
 
     const visibleAppointments = React.useMemo(() => {
         if (showAll) {
@@ -622,9 +652,10 @@ export default function CalendarClient() {
             serviceName: string;
         }) => {
             setRescheduleId(appt.id);
-            setRescheduleTitle(
-                `${appt.startTime}–${appt.endTime} • ${appt.serviceName}`,
-            );
+            setRescheduleTitle({
+                timeRange: formatTimeRange(appt.startTime, appt.endTime),
+                serviceName: appt.serviceName,
+            });
             setTimesError(null);
             setAvailableTimes([]);
             setSelectedStartTime("");
@@ -638,7 +669,10 @@ export default function CalendarClient() {
                 );
                 const json = await res.json().catch(() => null);
                 if (!res.ok) {
-                    throw new Error(json?.error || `Request failed (${res.status})`);
+                    throw new Error(
+                        json?.error ||
+                        t("errors.requestFailed", { status: res.status }),
+                    );
                 }
                 const slots = Array.isArray(json?.slots) ? json.slots : [];
                 const normalized = slots
@@ -660,17 +694,20 @@ export default function CalendarClient() {
                     current ? current.startTime : (normalized[0]?.startTime ?? ""),
                 );
             } catch (e: any) {
-                setTimesError(e?.message || "Failed to load available times");
+                setTimesError(
+                    e?.message || t("calendar.errors.failedToLoadAvailableTimes"),
+                );
             } finally {
                 setTimesLoading(false);
             }
         },
-        [date],
+        [date, t],
     );
 
     const submitReschedule = React.useCallback(async () => {
         if (!rescheduleId) return;
-        if (!selectedStartTime) throw new Error("Please select a time");
+        if (!selectedStartTime)
+            throw new Error(t("calendar.reschedule.selectTime"));
 
         setRescheduling(true);
         try {
@@ -684,7 +721,10 @@ export default function CalendarClient() {
             );
             const json = await res.json().catch(() => null);
             if (!res.ok) {
-                throw new Error(json?.error || `Request failed (${res.status})`);
+                throw new Error(
+                    json?.error ||
+                    t("errors.requestFailed", { status: res.status }),
+                );
             }
 
             const emailSent = json?.email?.sent;
@@ -692,18 +732,18 @@ export default function CalendarClient() {
                 setError(
                     String(
                         json?.email?.error ||
-                        "Rescheduled, but failed to email the customer",
+                        t("calendar.errors.failedToEmailCustomerReschedule"),
                     ),
                 );
             }
 
             setRescheduleId(null);
-            setRescheduleTitle("");
+            setRescheduleTitle(null);
             await queryClient.invalidateQueries({ queryKey: ["appointments", date] });
         } finally {
             setRescheduling(false);
         }
-    }, [date, queryClient, rescheduleId, selectedStartTime]);
+    }, [date, queryClient, rescheduleId, selectedStartTime, t]);
 
     const flatpickrOptions = React.useMemo(() => {
         return {
@@ -881,7 +921,9 @@ export default function CalendarClient() {
                                                 key={s.startTime}
                                                 value={s.startTime}
                                             >
-                                                {s.startTime}–{s.endTime}
+                                                <span dir="ltr">
+                                                    {formatTimeRange(s.startTime, s.endTime)}
+                                                </span>
                                             </SelectItem>
                                         ))}
                                     </SelectContent>
@@ -1055,7 +1097,9 @@ export default function CalendarClient() {
                             <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
                                     <div className="font-semibold text-gray-900 dark:text-white truncate">
-                                        {a.startTime}–{a.endTime}
+                                        <span dir="ltr">
+                                            {formatTimeRange(a.startTime, a.endTime)}
+                                        </span>
                                     </div>
                                     <div className="text-sm text-gray-700 dark:text-gray-200 truncate">
                                         {a.serviceName}
@@ -1070,10 +1114,10 @@ export default function CalendarClient() {
                                     {isCanceledStatus(a.status) ? (
                                         <div className="text-xs text-muted-foreground mt-1">
                                             {String(a.cancelledBy || "").toUpperCase() === "BUSINESS"
-                                                ? "Canceled by you"
+                                                ? t("calendar.cancelledBy.business")
                                                 : String(a.cancelledBy || "").toUpperCase() === "CUSTOMER"
-                                                    ? "Canceled by customer"
-                                                    : "Canceled"}
+                                                    ? t("calendar.cancelledBy.customer")
+                                                    : t("calendar.cancelledBy.unknown")}
                                         </div>
                                     ) : null}
                                     <div className="text-sm text-gray-600 dark:text-gray-300 truncate">
@@ -1100,7 +1144,7 @@ export default function CalendarClient() {
                                                 className="rounded-xl"
                                                 onClick={() => openReschedule(a)}
                                             >
-                                                Change hour
+                                                {t("calendar.actions.changeHour")}
                                             </Button>
                                             <Button
                                                 type="button"
@@ -1116,7 +1160,7 @@ export default function CalendarClient() {
                                                     else cancelAppointmentById(a.id, false);
                                                 }}
                                             >
-                                                Cancel
+                                                {t("calendar.actions.cancel")}
                                             </Button>
                                         </div>
                                     ) : null}
@@ -1148,8 +1192,8 @@ export default function CalendarClient() {
                                                     variant="ghost"
                                                     className="h-8 w-8 rounded-xl"
                                                     disabled={statusUpdatingId === a.id}
-                                                    aria-label="Change status"
-                                                    title="Change status"
+                                                    aria-label={t("calendar.actions.changeStatus")}
+                                                    title={t("calendar.actions.changeStatus")}
                                                 >
                                                     <MoreVertical className="h-4 w-4" />
                                                 </Button>
@@ -1200,7 +1244,7 @@ export default function CalendarClient() {
                                                                     onClick={() => updateStatus(a.id, "BOOKED")}
                                                                     disabled={statusUpdatingId === a.id}
                                                                 >
-                                                                    Set as BOOKED
+                                                                    {t("calendar.actions.setAsBooked")}
                                                                 </DropdownMenuItem>
                                                             ) : null}
 
@@ -1209,7 +1253,7 @@ export default function CalendarClient() {
                                                                     onClick={() => updateStatus(a.id, "COMPLETED")}
                                                                     disabled={statusUpdatingId === a.id}
                                                                 >
-                                                                    Set as COMPLETED
+                                                                    {t("calendar.actions.setAsCompleted")}
                                                                 </DropdownMenuItem>
                                                             ) : null}
 
@@ -1218,7 +1262,7 @@ export default function CalendarClient() {
                                                                     onClick={() => updateStatus(a.id, "NO_SHOW")}
                                                                     disabled={statusUpdatingId === a.id}
                                                                 >
-                                                                    Set as NO SHOW
+                                                                    {t("calendar.actions.setAsNoShow")}
                                                                 </DropdownMenuItem>
                                                             ) : null}
 
@@ -1238,7 +1282,7 @@ export default function CalendarClient() {
                                                                     }}
                                                                     disabled={statusUpdatingId === a.id}
                                                                 >
-                                                                    Set as CANCELED
+                                                                    {t("calendar.actions.setAsCanceled")}
                                                                 </DropdownMenuItem>
                                                             ) : null}
                                                         </>
@@ -1259,9 +1303,9 @@ export default function CalendarClient() {
                 onOpenChange={(open) => {
                     if (!open) setCancelId(null);
                 }}
-                title="Cancel appointment?"
-                description="This will mark the appointment as canceled."
-                confirmText="Cancel appointment"
+                title={t("calendar.cancelModal.title")}
+                description={t("calendar.cancelModal.description")}
+                confirmText={t("calendar.cancelModal.confirm")}
                 confirmVariant="default"
                 loading={cancelling}
                 onConfirm={async () => {
@@ -1276,7 +1320,7 @@ export default function CalendarClient() {
                 onOpenChange={(open) => {
                     if (!open) {
                         setRescheduleId(null);
-                        setRescheduleTitle("");
+                        setRescheduleTitle(null);
                         setTimesError(null);
                         setAvailableTimes([]);
                         setSelectedStartTime("");
@@ -1285,12 +1329,19 @@ export default function CalendarClient() {
             >
                 <DialogContent showCloseButton={!rescheduling && !timesLoading}>
                     <DialogHeader>
-                        <DialogTitle>Change hour</DialogTitle>
+                        <DialogTitle>{t("calendar.actions.changeHour")}</DialogTitle>
                         <DialogDescription>
                             {rescheduleTitle ? (
-                                <span className="block truncate">{rescheduleTitle}</span>
+                                <span className="block truncate">
+                                    <span dir="ltr">{rescheduleTitle.timeRange}</span>
+                                    {rescheduleTitle.serviceName
+                                        ? ` • ${rescheduleTitle.serviceName}`
+                                        : ""}
+                                </span>
                             ) : null}
-                            <span className="block">Choose a new time for {date}.</span>
+                            <span className="block">
+                                {t("calendar.reschedule.chooseTimeForDate", { date })}
+                            </span>
                         </DialogDescription>
                     </DialogHeader>
 
@@ -1303,21 +1354,29 @@ export default function CalendarClient() {
                     {timesLoading ? (
                         <CenteredSpinner className="min-h-[10vh] items-center" />
                     ) : availableTimes.length === 0 ? (
-                        <div className="text-sm text-muted-foreground">No available times.</div>
+                        <div className="text-sm text-muted-foreground">
+                            {t("calendar.reschedule.noAvailableTimes")}
+                        </div>
                     ) : (
                         <div className="space-y-2">
-                            <div className="text-sm font-medium">Available hours</div>
+                            <div className="text-sm font-medium">
+                                {t("calendar.reschedule.availableHours")}
+                            </div>
                             <Select
                                 value={selectedStartTime}
                                 onValueChange={(v) => setSelectedStartTime(v)}
                             >
                                 <SelectTrigger className="rounded-xl w-full">
-                                    <SelectValue placeholder="Select time" />
+                                    <SelectValue
+                                        placeholder={t("calendar.reschedule.selectTime")}
+                                    />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {availableTimes.map((t) => (
                                         <SelectItem key={t.startTime} value={t.startTime}>
-                                            {t.startTime}–{t.endTime}
+                                            <span dir="ltr">
+                                                {formatTimeRange(t.startTime, t.endTime)}
+                                            </span>
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -1333,7 +1392,7 @@ export default function CalendarClient() {
                             disabled={rescheduling || timesLoading}
                             onClick={() => setRescheduleId(null)}
                         >
-                            Close
+                            {t("calendar.reschedule.close")}
                         </Button>
                         <Button
                             type="button"
@@ -1348,11 +1407,13 @@ export default function CalendarClient() {
                                 try {
                                     await submitReschedule();
                                 } catch (e: any) {
-                                    setTimesError(e?.message || "Failed to reschedule");
+                                    setTimesError(
+                                        e?.message || t("calendar.reschedule.failed")
+                                    );
                                 }
                             }}
                         >
-                            {rescheduling ? "Saving…" : "Save"}
+                            {rescheduling ? t("calendar.saving") : t("calendar.save")}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

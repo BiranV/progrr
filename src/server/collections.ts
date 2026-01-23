@@ -101,6 +101,8 @@ export type CustomerOtpDoc = {
   key: string; // normalized email
   purpose: CustomerOtpPurpose;
   codeHash: string;
+  verifyToken?: string;
+  businessPublicId?: string;
   expiresAt: Date;
   attempts: number;
   createdAt: Date;
@@ -157,6 +159,10 @@ export async function ensureIndexes() {
   await c.otps.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
   await c.customerOtps.createIndex({ key: 1, purpose: 1 }, { unique: true });
+  await c.customerOtps.createIndex(
+    { verifyToken: 1, purpose: 1 },
+    { unique: true, sparse: true }
+  );
   await c.customerOtps.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
   await c.appointments.createIndex(

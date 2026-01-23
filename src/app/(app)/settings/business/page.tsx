@@ -332,7 +332,8 @@ export default function BusinessDetailsPage() {
           <Input
             id="instagram"
             type="text"
-            placeholder="@yourbusiness or https://instagram.com/yourbusiness"
+            placeholder="@yourbusiness"
+            // placeholder="@yourbusiness or https://instagram.com/yourbusiness"
             value={form.instagram}
             onChange={(e) => updateField("instagram", e.target.value)}
           />
