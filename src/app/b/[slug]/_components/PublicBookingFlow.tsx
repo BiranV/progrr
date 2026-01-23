@@ -12,17 +12,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { PhoneInput } from "@/components/ui/phone-input";
 
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 import OtpInput from "@/components/OtpInput";
 import ProgressBar from "@/components/onboarding/ProgressBar";
-import DateStep from "@/components/public-booking/steps/DateStep";
-import DetailsStep from "@/components/public-booking/steps/DetailsStep";
-import ServiceStep from "@/components/public-booking/steps/ServiceStep";
-import SuccessStep from "@/components/public-booking/steps/SuccessStep";
-import TimeStep from "@/components/public-booking/steps/TimeStep";
-import VerifyStep from "@/components/public-booking/steps/VerifyStep";
+import Flatpickr from "react-flatpickr";
 import PublicBookingShell from "./PublicBookingShell";
 import { usePublicBusiness } from "./usePublicBusiness";
 import { formatDateInTimeZone, formatPrice } from "@/lib/public-booking";
@@ -71,6 +67,17 @@ type BookingResult = {
 
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function normalizeOtpCode(value: string): string {
+  const input = String(value ?? "");
+  const withArabicIndic = input.replace(/[٠-٩]/g, (d) =>
+    String(d.charCodeAt(0) - 0x660)
+  );
+  const withEasternIndic = withArabicIndic.replace(/[۰-۹]/g, (d) =>
+    String(d.charCodeAt(0) - 0x6f0)
+  );
+  return withEasternIndic.replace(/\D/g, "");
 }
 
 function wrapRtlSegment(value: string): string {
@@ -726,54 +733,6 @@ export default function PublicBookingFlow({
     setStep("details");
   }, [connected, step]);
 
-  const shellSubtitle = React.useMemo(() => {
-    if (!data) return "";
-    if (step === "service") return t("publicBooking.steps.service");
-    if (step === "date") return t("publicBooking.steps.date");
-    if (step === "time") return t("publicBooking.steps.time");
-    if (step === "details")
-      return date && startTime
-        ? t("publicBooking.subtitle.detailsWithTime", {
-          date,
-          time: startTime,
-        })
-        : t("publicBooking.steps.details");
-    if (step === "verify")
-      return customerEmail
-        ? t("publicBooking.subtitle.codeSent", { email: customerEmail })
-        : t("publicBooking.steps.verify");
-    if (step === "success") {
-      const appt = result?.appointment;
-      return appt
-        ? t("publicBooking.subtitle.bookingSummary", {
-          date: appt.date,
-          startTime: appt.startTime,
-          endTime: appt.endTime,
-        })
-        : t("publicBooking.steps.booked");
-    }
-    return "";
-  }, [customerEmail, data, date, result, startTime, step, t]);
-
-  const shellSubtitleRight = React.useMemo<React.ReactNode>(() => {
-    if (!data) return null;
-
-    const tz = String(data?.availability?.timezone ?? "").trim() || "UTC";
-    const todayStr = formatDateInTimeZone(new Date(), tz);
-    const dateForMy = date || result?.appointment?.date || todayStr;
-
-    const rightText = (() => {
-      if (!selectedService) return "";
-      if (step === "date") return `${selectedService.name}`;
-      if (step === "time") return `${selectedService.name}${date ? ` • ${date}` : ""}`;
-      return "";
-    })();
-
-    return rightText ? (
-      <span className="text-sm text-muted-foreground">{rightText}</span>
-    ) : null;
-  }, [connected, customerEmail, data, date, result, selectedService, step]);
-
   const openProfileEditor = React.useCallback(() => {
     const email = customerEmail.trim();
     setProfileOpen(true);
@@ -840,7 +799,7 @@ export default function PublicBookingFlow({
           className={
             connected
               ? "flex w-full items-center justify-between gap-2"
-              : "flex w-full items-center justify-end gap-2"
+              : "flex w-full items-center justify-start gap-2"
           }
         >
           <Button
@@ -940,7 +899,7 @@ export default function PublicBookingFlow({
   const canSubmitVerify =
     !submitting &&
     cancellingConflictId === null &&
-    otpCode.replace(/\D/g, "").length >= 6;
+    normalizeOtpCode(otpCode).length >= 6;
 
   const detailsConfirmLabel = connected
     ? t("publicBooking.details.confirmBookingAction")
@@ -951,6 +910,22 @@ export default function PublicBookingFlow({
     : t("publicBooking.actions.sendingCode");
 
   const showGallery = step === "service";
+
+  const renderStepHeader = React.useCallback(
+    (title: string, subtitle?: string) => (
+      <div className="space-y-1 mt-2">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+          {title}
+        </h2>
+        {subtitle ? (
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            {subtitle}
+          </p>
+        ) : null}
+      </div>
+    ),
+    []
+  );
 
   const onBack = React.useCallback(() => {
     if (step === "time") {
@@ -1046,7 +1021,7 @@ export default function PublicBookingFlow({
   const verifyLoginOtp = async () => {
     if (!publicId) throw new Error(t("publicBooking.errors.businessNotFound"));
     const email = loginEmail.trim();
-    const code = loginCode.trim();
+    const code = normalizeOtpCode(loginCode);
     if (!email) throw new Error(t("publicBooking.errors.emailRequired"));
     if (!code) throw new Error(t("publicBooking.errors.codeRequired"));
 
@@ -1120,7 +1095,7 @@ export default function PublicBookingFlow({
     if (!publicId) throw new Error(t("publicBooking.errors.businessNotFound"));
     const currentEmail = profileCurrentEmail.trim();
     const newEmail = profileNewEmail.trim();
-    const code = profileCode.trim();
+    const code = normalizeOtpCode(profileCode);
     if (!currentEmail) throw new Error(t("publicBooking.errors.emailRequired"));
     if (!newEmail) throw new Error(t("publicBooking.errors.emailRequired"));
     if (!code) throw new Error(t("publicBooking.errors.codeRequired"));
@@ -1155,7 +1130,8 @@ export default function PublicBookingFlow({
     if (!publicId) throw new Error(t("publicBooking.errors.businessNotFound"));
     if (!customerEmail.trim())
       throw new Error(t("publicBooking.errors.emailRequired"));
-    if (!otpCode.trim()) throw new Error(t("publicBooking.errors.codeRequired"));
+    const code = normalizeOtpCode(otpCode);
+    if (!code) throw new Error(t("publicBooking.errors.codeRequired"));
 
     const verifyRes = await fetch("/api/public/booking/verify-otp", {
       method: "POST",
@@ -1163,7 +1139,7 @@ export default function PublicBookingFlow({
       body: JSON.stringify({
         businessPublicId: publicId,
         email: customerEmail.trim(),
-        code: otpCode.trim(),
+        code,
       }),
     });
 
@@ -1541,8 +1517,8 @@ export default function PublicBookingFlow({
     <PublicBookingShell
       business={data}
       title={t("publicBooking.title")}
-      subtitle={shellSubtitle}
-      subtitleRight={shellSubtitleRight}
+      subtitle={undefined}
+      subtitleRight={undefined}
       headerRight={shellHeaderRight}
       onBack={step === "service" ? undefined : onBack}
       showGallery={showGallery}
@@ -1641,7 +1617,7 @@ export default function PublicBookingFlow({
                   className="rounded-2xl flex-1"
                   disabled={
                     loginSubmitting ||
-                    loginCode.replace(/\D/g, "").length < 6
+                    normalizeOtpCode(loginCode).length < 6
                   }
                   onClick={async () => {
                     setLoginSubmitting(true);
@@ -1906,7 +1882,7 @@ export default function PublicBookingFlow({
                 </Button>
                 <Button
                   className="rounded-2xl flex-1"
-                  disabled={profileSubmitting || profileCode.replace(/\D/g, "").length < 6}
+                  disabled={profileSubmitting || normalizeOtpCode(profileCode).length < 6}
                   onClick={async () => {
                     setProfileSubmitting(true);
                     setProfileError(null);
@@ -1939,128 +1915,537 @@ export default function PublicBookingFlow({
 
       {/* Service selection */}
       {step === "service" ? (
-        <ServiceStep
-          services={data.services}
-          currency={data.currency}
-          locale={locale}
-          formatPrice={formatPrice}
-          t={t}
-          onSelect={(serviceId) => {
-            setServiceId(serviceId);
-            setDate("");
-            setStartTime("");
-            setFormError(null);
-            setStep("date");
-          }}
-        />
+        <div className="space-y-4">
+          {renderStepHeader(t("publicBooking.steps.service"))}
+
+          <div className="space-y-3">
+            {data.services.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => {
+                  setServiceId(s.id);
+                  setDate("");
+                  setStartTime("");
+                  setFormError(null);
+                  setStep("date");
+                }}
+                className={
+                  "w-full text-start rounded-2xl border border-gray-200 dark:border-gray-800 " +
+                  "bg-white/70 dark:bg-gray-950/20 p-4 shadow-sm " +
+                  "transition cursor-pointer " +
+                  "hover:bg-white hover:shadow-md hover:-translate-y-[1px] " +
+                  "dark:hover:bg-gray-900/30 " +
+                  "active:translate-y-0 active:shadow-sm"
+                }
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="font-semibold text-gray-900 dark:text-white truncate">
+                      {s.name}
+                    </div>
+                    <div className="text-sm text-gray-600 dark:text-gray-300">
+                      {t("publicBooking.minutes", { count: s.durationMinutes })}
+                    </div>
+                  </div>
+                  <div className="font-semibold text-gray-900 dark:text-white shrink-0">
+                    {formatPrice({ price: s.price, currency: data.currency, locale })}
+                  </div>
+                </div>
+              </button>
+            ))}
+
+            {!data.services.length && (
+              <div className="text-sm text-gray-600 dark:text-gray-300">
+                {t("publicBooking.errors.noServices")}
+              </div>
+            )}
+          </div>
+        </div>
       ) : null}
 
       {/* Date selection */}
       {step === "date" ? (
-        <DateStep
-          flatpickrKey={flatpickrKey}
-          options={flatpickrOptions as any}
-          value={date || undefined}
-          selectDateAria={t("publicBooking.date.selectDateAria")}
-          onSelectDate={(next) => {
-            if (isDisabledYmd(next)) return;
-            setDate(next);
-            setStartTime("");
-            setFormError(null);
-            setStep("time");
-          }}
-        />
+        <div className="space-y-4">
+          {renderStepHeader(t("publicBooking.steps.date"))}
+
+          <div className="flex justify-center">
+            <div className="w-full">
+              <Flatpickr
+                key={flatpickrKey}
+                options={flatpickrOptions as any}
+                value={date || undefined}
+                onChange={(_selectedDates: Date[], dateStr: string) => {
+                  const next = String(dateStr || "").trim();
+                  if (!next) return;
+                  if (isDisabledYmd(next)) return;
+                  setDate(next);
+                  setStartTime("");
+                  setFormError(null);
+                  setStep("time");
+                }}
+                render={(_props: any, ref: any) => (
+                  <input
+                    ref={ref as any}
+                    type="text"
+                    aria-label={t("publicBooking.date.selectDateAria")}
+                    className="sr-only"
+                  />
+                )}
+              />
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {/* Time selection */}
       {step === "time" ? (
-        <TimeStep
-          loading={slotsLoading}
-          error={slotsError}
-          slots={slots}
-          selectedTime={startTime}
-          t={t}
-          onSelectTime={(start) => {
-            setStartTime(start);
-            setFormError(null);
-          }}
-          onConfirm={() => setStep("details")}
-        />
+        <div className="space-y-4">
+          {renderStepHeader(
+            t("publicBooking.steps.time"),
+            date || undefined
+          )}
+
+          <div className="space-y-3">
+            {slotsLoading ? (
+              <CenteredSpinner className="min-h-[40vh] items-center" />
+            ) : slotsError ? (
+              <div className="text-sm text-red-600 dark:text-red-400">
+                {slotsError}
+              </div>
+            ) : slots ? (
+              <>
+                {slots.slots.length ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    {slots.slots.map((s) => (
+                      <button
+                        key={s.startTime}
+                        className={
+                          "w-full h-16 rounded-2xl border border-gray-200 dark:border-gray-800 " +
+                          "bg-white/70 dark:bg-gray-950/20 shadow-sm " +
+                          "transition cursor-pointer " +
+                          "hover:bg-white hover:shadow-md hover:-translate-y-[1px] " +
+                          "dark:hover:bg-gray-900/30 " +
+                          "active:translate-y-0 active:shadow-sm " +
+                          "flex flex-col items-center justify-center text-center"
+                        }
+                        onClick={() => {
+                          setStartTime(s.startTime);
+                          setFormError(null);
+                        }}
+                      >
+                        <div className="font-semibold text-gray-900 dark:text-white leading-none">
+                          {s.startTime}
+                        </div>
+                        <div className="text-[11px] text-gray-600 dark:text-gray-300 leading-none mt-1">
+                          {s.endTime}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+
+                {!slots.slots.length ? (
+                  <div className="text-sm text-gray-600 dark:text-gray-300">
+                    {t("publicBooking.errors.noTimes")}
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <div className="text-sm text-gray-600 dark:text-gray-300">
+                {t("publicBooking.errors.selectDateToSeeTimes")}
+              </div>
+            )}
+          </div>
+
+          <Button
+            onClick={() => setStep("details")}
+            className="rounded-2xl w-full"
+            disabled={!startTime}
+          >
+            {t("publicBooking.steps.details")}
+          </Button>
+        </div>
       ) : null}
 
       {/* Details */}
       {step === "details" ? (
-        <DetailsStep
-          formError={formError}
-          activeConflict={activeConflict}
-          cancellingConflictId={cancellingConflictId}
-          submitting={submitting}
-          onCancelConflictAppointment={handleCancelConflictAppointment}
-          canSkipCustomerDetailsForm={canSkipCustomerDetailsForm}
-          selectedServiceName={selectedService?.name}
-          durationLabel={durationLabel}
-          priceLabel={priceLabel}
-          date={date}
-          startTime={startTime}
-          endTime={selectedSlot?.endTime}
-          customerFullName={customerFullName}
-          customerEmail={customerEmail}
-          customerPhone={customerPhone}
-          customerPhoneValid={customerPhoneValid}
-          customerPhoneTouched={customerPhoneTouched}
-          onCustomerFullNameChange={setCustomerFullName}
-          onCustomerEmailChange={setCustomerEmail}
-          onCustomerPhoneChange={setCustomerPhone}
-          onCustomerPhoneValidityChange={setCustomerPhoneValid}
-          onCustomerPhoneBlur={() => setCustomerPhoneTouched(true)}
-          notes={notes}
-          onNotesChange={setNotes}
-          onConfirm={handleDetailsConfirm}
-          confirmDisabled={!canSubmitDetails}
-          confirmLabel={detailsConfirmLabel}
-          submittingLabel={detailsSubmittingLabel}
-          onKeyDown={handleConfirmKeyDown}
-          t={t}
-        />
+        <div className="space-y-4" onKeyDown={handleConfirmKeyDown}>
+          {renderStepHeader(
+            t("publicBooking.steps.details"),
+            date && startTime
+              ? t("publicBooking.subtitle.detailsWithTime", {
+                date,
+                time: startTime,
+              })
+              : undefined
+          )}
+
+          {formError ? (
+            <div className="text-sm text-red-600 dark:text-red-400">
+              {formError}
+            </div>
+          ) : null}
+
+          {activeConflict ? (
+            <div className="rounded-2xl border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/70 dark:bg-amber-950/20 p-4">
+              <div className="font-semibold text-amber-900 dark:text-amber-200">
+                {activeConflict.code === "SAME_SERVICE_SAME_DAY_EXISTS"
+                  ? t("publicBooking.conflict.sameServiceTitle")
+                  : t("publicBooking.conflict.upcomingTitle")}
+              </div>
+              <div className="text-sm text-amber-800/90 dark:text-amber-200/80 mt-1">
+                {activeConflict.code === "SAME_SERVICE_SAME_DAY_EXISTS"
+                  ? t("publicBooking.conflict.sameServiceDescription")
+                  : t("publicBooking.conflict.upcomingDescription")}
+              </div>
+
+              <div className="mt-2 space-y-2">
+                {(Array.isArray(activeConflict.existingAppointments)
+                  ? activeConflict.existingAppointments
+                  : activeConflict.existingAppointment
+                    ? [activeConflict.existingAppointment]
+                    : [])
+                  .filter((x: any) => String(x?.id ?? "").trim())
+                  .map((appt: any) => {
+                    const apptId = String(appt?.id ?? "").trim();
+                    const label = `${appt?.serviceName ? `${appt.serviceName} • ` : ""}${appt?.date || ""}${appt?.startTime ? ` • ${appt.startTime}` : ""}`;
+
+                    return (
+                      <div
+                        key={apptId}
+                        className="rounded-xl border border-amber-200/70 dark:border-amber-900/40 bg-white/60 dark:bg-black/10 p-3"
+                      >
+                        <div className="text-sm text-amber-900/90 dark:text-amber-200/90">
+                          {label}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-2xl w-full mt-2"
+                          disabled={submitting || cancellingConflictId === apptId}
+                          onClick={() => handleCancelConflictAppointment(apptId)}
+                        >
+                          {cancellingConflictId === apptId
+                            ? t("publicBooking.actions.cancelling")
+                            : t("publicBooking.actions.cancelAppointment")}
+                        </Button>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          ) : null}
+
+          {canSkipCustomerDetailsForm ? (
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/10 p-4">
+              <div className="font-semibold text-gray-900 dark:text-white">
+                {t("publicBooking.details.confirmBookingTitle")}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                {selectedService?.name
+                  ? selectedService.name
+                  : t("publicBooking.details.appointmentFallback")}
+              </div>
+              <div className="text-sm text-gray-700 dark:text-gray-200 mt-1">
+                {date}
+                {startTime ? ` • ${startTime}` : ""}
+                {selectedSlot?.endTime ? `–${selectedSlot.endTime}` : ""}
+              </div>
+              {durationLabel && priceLabel ? (
+                <div className="text-sm text-muted-foreground mt-1">
+                  {durationLabel} • {priceLabel}
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-950/10 p-4">
+              <div className="font-semibold text-amber-900 dark:text-amber-200">
+                {t("publicBooking.details.completeDetailsTitle")}
+              </div>
+              <div className="text-sm text-amber-800/90 dark:text-amber-200/80 mt-1">
+                {t("publicBooking.details.completeDetailsDescription")}
+              </div>
+            </div>
+          )}
+
+          {!canSkipCustomerDetailsForm ? (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="fullName">
+                  {t("publicBooking.details.fullNameLabel")}
+                </Label>
+                <Input
+                  id="fullName"
+                  className="rounded-2xl"
+                  value={customerFullName}
+                  onChange={(e) => setCustomerFullName(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">{t("publicBooking.details.emailLabel")}</Label>
+                <Input
+                  id="email"
+                  className="rounded-2xl"
+                  value={customerEmail}
+                  onChange={(e) => setCustomerEmail(e.target.value)}
+                  placeholder={t("publicBooking.details.emailPlaceholder")}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="phone">{t("publicBooking.details.phoneLabel")}</Label>
+                <PhoneInput
+                  id="phone"
+                  className="rounded-2xl"
+                  inputClassName="rounded-2xl"
+                  value={customerPhone}
+                  onChange={(v) => setCustomerPhone(v)}
+                  onValidityChange={setCustomerPhoneValid}
+                  onBlur={() => setCustomerPhoneTouched(true)}
+                  aria-invalid={customerPhoneTouched && !customerPhoneValid}
+                  placeholder={t("publicBooking.details.phonePlaceholder")}
+                />
+                {customerPhoneTouched && customerPhone.trim() && !customerPhoneValid ? (
+                  <div className="text-xs text-red-600 dark:text-red-400">
+                    {t("publicBooking.details.invalidPhone")}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="notes">{t("publicBooking.details.notesLabel")}</Label>
+                <Textarea
+                  id="notes"
+                  className="rounded-2xl"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
+            </>
+          ) : null}
+
+          <Button
+            onClick={handleDetailsConfirm}
+            disabled={!canSubmitDetails}
+            className="rounded-2xl w-full"
+          >
+            {submitting ? detailsSubmittingLabel : detailsConfirmLabel}
+          </Button>
+        </div>
       ) : null}
 
       {/* Verify */}
       {step === "verify" ? (
-        <VerifyStep
-          formError={formError}
-          activeConflict={activeConflict}
-          cancellingConflictId={cancellingConflictId}
-          submitting={submitting}
-          otpCode={otpCode}
-          onOtpChange={setOtpCode}
-          onResend={handleResendOtp}
-          resendDisabled={submitting || cancellingConflictId !== null}
-          onConfirm={handleVerifyConfirm}
-          confirmDisabled={!canSubmitVerify}
-          onCancelConflictAppointment={handleCancelConflictAppointment}
-          onKeyDown={handleConfirmKeyDown}
-          t={t}
-        />
+        <div className="space-y-4" onKeyDown={handleConfirmKeyDown}>
+          {renderStepHeader(
+            t("publicBooking.steps.verify"),
+            customerEmail
+              ? t("publicBooking.subtitle.codeSent", { email: customerEmail })
+              : undefined
+          )}
+
+          {formError ? (
+            <div className="text-sm text-red-600 dark:text-red-400">
+              {formError}
+            </div>
+          ) : null}
+
+          {activeConflict ? (
+            <div className="rounded-2xl border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/70 dark:bg-amber-950/20 p-4">
+              <div className="font-semibold text-amber-900 dark:text-amber-200">
+                {activeConflict.code === "SAME_SERVICE_SAME_DAY_EXISTS"
+                  ? t("publicBooking.conflict.sameServiceTitle")
+                  : t("publicBooking.conflict.upcomingTitle")}
+              </div>
+              <div className="text-sm text-amber-800/90 dark:text-amber-200/80 mt-1">
+                {activeConflict.code === "SAME_SERVICE_SAME_DAY_EXISTS"
+                  ? t("publicBooking.conflict.sameServiceDescription")
+                  : t("publicBooking.conflict.upcomingDescription")}
+              </div>
+
+              <div className="mt-2 space-y-2">
+                {(Array.isArray(activeConflict.existingAppointments)
+                  ? activeConflict.existingAppointments
+                  : activeConflict.existingAppointment
+                    ? [activeConflict.existingAppointment]
+                    : [])
+                  .filter((x: any) => String(x?.id ?? "").trim())
+                  .map((appt: any) => {
+                    const apptId = String(appt?.id ?? "").trim();
+                    const label = `${appt?.serviceName ? `${appt.serviceName} • ` : ""}${appt?.date || ""}${appt?.startTime ? ` • ${appt.startTime}` : ""}`;
+
+                    return (
+                      <div
+                        key={apptId}
+                        className="rounded-xl border border-amber-200/70 dark:border-amber-900/40 bg-white/60 dark:bg-black/10 p-3"
+                      >
+                        <div className="text-sm text-amber-900/90 dark:text-amber-200/90">
+                          {label}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="rounded-2xl w-full mt-2"
+                          disabled={submitting || cancellingConflictId === apptId}
+                          onClick={() => handleCancelConflictAppointment(apptId)}
+                        >
+                          {cancellingConflictId === apptId
+                            ? t("publicBooking.actions.cancelling")
+                            : t("publicBooking.actions.cancelAppointment")}
+                        </Button>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="flex justify-center">
+            <OtpInput
+              id="booking-otp"
+              name="code"
+              length={6}
+              value={otpCode}
+              onChange={setOtpCode}
+              disabled={submitting}
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="rounded-2xl"
+              onClick={handleResendOtp}
+              disabled={submitting || cancellingConflictId !== null}
+            >
+              {t("publicBooking.verify.resend")}
+            </Button>
+
+            <Button
+              className="rounded-2xl flex-1"
+              onClick={handleVerifyConfirm}
+              disabled={!canSubmitVerify}
+            >
+              {submitting
+                ? t("publicBooking.actions.confirming")
+                : t("publicBooking.verify.confirmBooking")}
+            </Button>
+          </div>
+        </div>
       ) : null}
 
       {/* Success */}
       {step === "success" && result?.appointment ? (
-        <SuccessStep
-          result={result}
-          cancelError={cancelError}
-          cancelling={cancelling}
-          cancellingSameDayId={cancellingSameDayId}
-          limitCustomerToOneUpcomingAppointment={
-            limitCustomerToOneUpcomingAppointment
-          }
-          onCancelSameDay={handleCancelSameDay}
-          onBookAnother={resetBookingOnly}
-          onAddToGoogle={handleAddToGoogle}
-          onCancelBooking={handleCancelBooking}
-          identified={identified}
-          onDisconnect={handleDisconnect}
-          t={t}
-        />
+        <div className="space-y-4">
+          {renderStepHeader(t("publicBooking.steps.booked"))}
+
+          {cancelError ? (
+            <div className="text-sm text-red-600 dark:text-red-400">
+              {cancelError}
+            </div>
+          ) : null}
+
+          <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4 shadow-sm">
+            <div className="font-semibold text-gray-900 dark:text-white">
+              {result.appointment.serviceName}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-300">
+              {result.appointment.customer.fullName}
+            </div>
+            {result.appointment.notes ? (
+              <div className="text-sm text-gray-600 dark:text-gray-300 mt-2">
+                {result.appointment.notes}
+              </div>
+            ) : null}
+          </div>
+
+          {Array.isArray(result.sameDayAppointments) &&
+            result.sameDayAppointments.length > 1 ? (
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4 shadow-sm">
+              <div className="font-semibold text-gray-900 dark:text-white">
+                {t("publicBooking.success.appointmentsOn", {
+                  date: result.appointment.date,
+                })}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                {t("publicBooking.success.canCancelBelow")}
+              </div>
+
+              <div className="mt-3 space-y-2">
+                {result.sameDayAppointments.map((a) => (
+                  <div
+                    key={a.id}
+                    className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/10 p-3"
+                  >
+                    <div className="text-sm font-medium text-gray-900 dark:text-white">
+                      {a.startTime}–{a.endTime}
+                    </div>
+                    <div className="text-sm text-gray-700 dark:text-gray-200">
+                      {a.serviceName}
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-2xl w-full mt-2"
+                      disabled={cancellingSameDayId === a.id || cancelling}
+                      onClick={() => handleCancelSameDay(a.id)}
+                    >
+                      {cancellingSameDayId === a.id
+                        ? t("publicBooking.actions.cancelling")
+                        : t("publicBooking.actions.cancelAppointment")}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-3">
+              {!limitCustomerToOneUpcomingAppointment ? (
+                <Button className="rounded-2xl" onClick={resetBookingOnly}>
+                  {t("publicBooking.success.bookAnother")}
+                </Button>
+              ) : null}
+
+              <Button
+                variant="outline"
+                className="rounded-2xl"
+                onClick={handleAddToGoogle}
+              >
+                {t("publicBooking.success.addToGoogle")}
+              </Button>
+
+              <Button
+                variant="outline"
+                className="rounded-2xl"
+                onClick={handleCancelBooking}
+                disabled={cancelling}
+              >
+                {cancelling
+                  ? t("publicBooking.actions.cancelling")
+                  : t("publicBooking.success.cancelBooking")}
+              </Button>
+            </div>
+
+            {identified ? (
+              <div className="flex justify-center">
+                <Button
+                  variant="ghost"
+                  className="rounded-2xl"
+                  onClick={handleDisconnect}
+                  disabled={cancelling}
+                >
+                  {cancelling
+                    ? t("publicBooking.success.disconnecting")
+                    : t("publicBooking.success.notYouDisconnect")}
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        </div>
       ) : null}
 
       {step === "success" && !result?.appointment ? (

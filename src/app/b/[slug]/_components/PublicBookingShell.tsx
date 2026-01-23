@@ -211,8 +211,8 @@ export default function PublicBookingShell({
         </div>
       </div>
 
-      <div className="flex-1 -mt-16 bg-gray-50 dark:bg-zinc-900 rounded-t-[40px] relative z-10 flex flex-col items-center shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
-        <div className="flex-1 px-6 pt-4 pb-24 w-full max-w-md mx-auto relative">
+      <div className="flex-1 -mt-10 bg-gray-50 dark:bg-zinc-900 rounded-t-[40px] relative z-10 flex flex-col items-center shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
+        <div className="flex-1 px-6 pt-6 pb-24 w-full max-w-md mx-auto relative">
           {onBack ? (
             <Button
               type="button"
@@ -231,7 +231,7 @@ export default function PublicBookingShell({
             </Button>
           ) : null}
 
-          <div className="-mt-10 flex items-center justify-between">
+          <div className="flex items-center justify-between">
             <div className="w-10">
               {/* Back button is rendered in the top header for consistent placement */}
             </div>
@@ -262,8 +262,8 @@ export default function PublicBookingShell({
             <div className="w-10" />
           </div>
 
-          <div className="space-y-1 mt-4 mb-5">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white tracking-tight text-center w-full">
+          <div className="space-y-1 mt-6 mb-6">
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white tracking-tight text-center w-full">
               {businessName}
             </h1>
 
