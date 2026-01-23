@@ -9,12 +9,12 @@ type LocaleContextValue = {
     language: Language;
     locale: "he-IL" | "en-US";
     dir: "rtl" | "ltr";
-    setLanguage: (lang: Language) => void;
+    updateUserLanguage: (lang: Language) => void;
 };
 
-const DEFAULT_LANGUAGE: Language = "he";
+const DEFAULT_LANGUAGE: Language = "en";
 const LOCALE_COOKIE = "progrr_lang";
-const LOCALE_STORAGE = "progrr_lang";
+const LOCALE_STORAGE = "languageCode";
 
 const LANG_META: Record<Language, { locale: "he-IL" | "en-US"; dir: "rtl" | "ltr" }> = {
     he: { locale: "he-IL", dir: "rtl" },
@@ -22,17 +22,38 @@ const LANG_META: Record<Language, { locale: "he-IL" | "en-US"; dir: "rtl" | "ltr
 };
 
 function resolveLanguage(raw?: string | null): Language {
-    return raw === "en" ? "en" : DEFAULT_LANGUAGE;
+    return raw === "he" || raw === "en" ? raw : DEFAULT_LANGUAGE;
+}
+
+function detectBrowserLanguage(): Language {
+    if (typeof navigator === "undefined") return DEFAULT_LANGUAGE;
+    const raw = String(navigator.language || "").toLowerCase();
+    return raw.startsWith("he") ? "he" : "en";
+}
+
+function getInitialLanguage(): Language {
+    if (typeof window !== "undefined") {
+        try {
+            const stored = window.localStorage.getItem(LOCALE_STORAGE);
+            if (stored) return resolveLanguage(stored);
+        } catch {
+            // ignore
+        }
+    }
+
+    const cookieRaw = getCookie(LOCALE_COOKIE);
+    if (cookieRaw) return resolveLanguage(cookieRaw);
+    return detectBrowserLanguage();
 }
 
 const LocaleContext = React.createContext<LocaleContextValue | null>(null);
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
     const [language, setLanguageState] = React.useState<Language>(() =>
-        resolveLanguage(getCookie(LOCALE_COOKIE))
+        getInitialLanguage()
     );
 
-    const setLanguage = React.useCallback((next: Language) => {
+    const updateUserLanguage = React.useCallback((next: Language) => {
         setLanguageState(next);
         setCookie(LOCALE_COOKIE, next, { maxAgeSeconds: 60 * 60 * 24 * 365 });
         if (typeof window !== "undefined") {
@@ -48,13 +69,19 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
         if (typeof window !== "undefined") {
             try {
                 const stored = window.localStorage.getItem(LOCALE_STORAGE);
-                const next = resolveLanguage(stored || undefined);
-                if (next !== language) setLanguageState(next);
+                if (stored) {
+                    const next = resolveLanguage(stored || undefined);
+                    if (next !== language) setLanguageState(next);
+                    return;
+                }
             } catch {
                 // ignore
             }
+
+            const next = detectBrowserLanguage();
+            if (next !== language) updateUserLanguage(next);
         }
-    }, []);
+    }, [language, updateUserLanguage]);
 
     React.useEffect(() => {
         const meta = LANG_META[language];
@@ -70,9 +97,9 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
             language,
             locale: meta.locale,
             dir: meta.dir,
-            setLanguage,
+            updateUserLanguage,
         };
-    }, [language, setLanguage]);
+    }, [language, updateUserLanguage]);
 
     return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
 }
@@ -84,7 +111,7 @@ export function useLocale() {
             language: DEFAULT_LANGUAGE,
             locale: LANG_META[DEFAULT_LANGUAGE].locale,
             dir: LANG_META[DEFAULT_LANGUAGE].dir,
-            setLanguage: () => undefined,
+            updateUserLanguage: () => undefined,
         } as LocaleContextValue;
     }
     return ctx;

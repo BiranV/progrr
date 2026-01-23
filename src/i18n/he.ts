@@ -22,6 +22,11 @@ const he = {
         yes: "כן",
         no: "לא",
         emptyDash: "—",
+        languageSwitcher: "בחירת שפה",
+        languageHebrew: "עברית",
+        languageEnglish: "English",
+        appLogoAlt: "לוגו",
+        redirecting: "מעביר...",
     },
     auth: {
         welcomeBack: "ברוכים השבים",
@@ -53,6 +58,10 @@ const he = {
         share: "שיתוף",
         back: "חזרה",
         dismissAlert: "סגירת התראה",
+        goodbyeTitle: "החשבון נמחק",
+        goodbyeBody: "החשבון וכל הנתונים המשויכים נמחקו לצמיתות.",
+        goodbyeSignIn: "כניסה",
+        goodbyeHome: "דף הבית",
     },
     onboarding: {
         businessTypeTitle: "סוג עסק",

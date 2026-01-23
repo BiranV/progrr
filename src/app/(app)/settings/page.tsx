@@ -132,7 +132,7 @@ function SettingsActionRow({
 
 export default function SettingsPage() {
   const { logout, setSessionUser } = useAuth();
-  const { language, setLanguage } = useLocale();
+  const { language, updateUserLanguage } = useLocale();
   const { t } = useI18n();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -344,7 +344,7 @@ export default function SettingsPage() {
             <Select
               value={language}
               onValueChange={(value) =>
-                setLanguage(value === "en" ? "en" : "he")
+                updateUserLanguage(value === "en" ? "en" : "he")
               }
             >
               <SelectTrigger>

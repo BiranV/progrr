@@ -1850,7 +1850,7 @@ export default function OnboardingPage() {
                     }))
                   }
                   disabled={loading || saving}
-                  aria-label="Limit customers to 1 upcoming appointment"
+                  aria-label={t("onboarding.limitCustomersTitle")}
                 />
               </div>
             </div>

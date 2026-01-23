@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 import AdminAuthStep from "./AdminAuthStep";
 import { useAuth } from "@/context/AuthContext";
 import { type AuthBannerState } from "./AuthBanner";
+import { useI18n } from "@/i18n/useI18n";
 
 function isSafeNextPath(next: string): boolean {
   if (!next.startsWith("/")) return false;
@@ -32,6 +33,7 @@ export default function AuthFlow({
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated, isLoadingAuth } = useAuth();
+  const { t } = useI18n();
 
   const nextPath = React.useMemo(() => {
     const fromQuery = searchParams.get("next") || initialNext || "";
@@ -56,7 +58,7 @@ export default function AuthFlow({
           <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-inner overflow-hidden p-1.5">
             <Image
               src="/logo.png"
-              alt="Logo"
+              alt={t("common.appLogoAlt")}
               width={40}
               height={40}
               className="object-contain"
@@ -79,7 +81,7 @@ export default function AuthFlow({
           <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-inner overflow-hidden p-1.5">
             <Image
               src="/logo.png"
-              alt="Redirecting..."
+              alt={t("common.redirecting")}
               width={40}
               height={40}
               className="object-contain"

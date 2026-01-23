@@ -22,6 +22,11 @@ const en = {
         yes: "Yes",
         no: "No",
         emptyDash: "—",
+        languageSwitcher: "Language switcher",
+        languageHebrew: "Hebrew",
+        languageEnglish: "English",
+        appLogoAlt: "Logo",
+        redirecting: "Redirecting...",
     },
     auth: {
         welcomeBack: "Welcome Back",
@@ -53,6 +58,10 @@ const en = {
         share: "Share",
         back: "Back",
         dismissAlert: "Dismiss alert",
+        goodbyeTitle: "Account deleted",
+        goodbyeBody: "Your account and associated data were permanently deleted.",
+        goodbyeSignIn: "Sign in",
+        goodbyeHome: "Home",
     },
     onboarding: {
         businessTypeTitle: "Business type",
