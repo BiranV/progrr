@@ -21,6 +21,7 @@ import PublicBookingShell from "./PublicBookingShell";
 import { usePublicBusiness } from "./usePublicBusiness";
 import { formatDateInTimeZone, formatPrice } from "@/lib/public-booking";
 import { useLocale } from "@/context/LocaleContext";
+import { useI18n } from "@/i18n/useI18n";
 import Flatpickr from "react-flatpickr";
 import { english } from "flatpickr/dist/l10n/default";
 import { Arabic } from "flatpickr/dist/l10n/ar";
@@ -65,6 +66,12 @@ type BookingResult = {
 
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function wrapRtlSegment(value: string): string {
+  const text = String(value ?? "");
+  if (!text) return text;
+  return `\u2067${text}\u2069`;
 }
 
 type ActiveAppointmentConflict = {
@@ -189,8 +196,14 @@ export default function PublicBookingFlow({
 }) {
   const raw = String(publicIdOrSlug ?? "").trim();
   const { locale } = useLocale();
+  const { t, language } = useI18n();
 
   const { data, loading, error, resolvedPublicId } = usePublicBusiness(raw);
+
+  const requestFailed = React.useCallback(
+    (status: number) => t("publicBooking.errors.requestFailed", { status }),
+    [t]
+  );
 
   const publicId = React.useMemo(() => {
     if (/^\d{5}$/.test(raw)) return raw;
@@ -427,12 +440,12 @@ export default function PublicBookingFlow({
         );
         const json = (await res.json().catch(() => null)) as BookingMeResponse | null;
         if (!res.ok) {
-          throw new Error((json as any)?.error || `Request failed (${res.status})`);
+          throw new Error((json as any)?.error || requestFailed(res.status));
         }
-        if (!json?.ok) throw new Error("Failed");
+        if (!json?.ok) throw new Error(t("publicBooking.errors.failed"));
         if (!(json as any).loggedIn) {
           setConnected(false);
-          throw new Error("Please log in again");
+          throw new Error(t("publicBooking.errors.loginAgain"));
         }
 
         const cust = (json as any)?.customer ?? {};
@@ -452,7 +465,7 @@ export default function PublicBookingFlow({
         );
       } catch (e: any) {
         if (cancelled) return;
-        setMyAppointmentsError(e?.message || "Failed");
+        setMyAppointmentsError(e?.message || t("publicBooking.errors.failed"));
       } finally {
         if (!cancelled) setMyAppointmentsLoading(false);
       }
@@ -528,27 +541,40 @@ export default function PublicBookingFlow({
     return formatDateInTimeZone(new Date(), tz);
   }, [tz]);
 
-  const [dir, setDir] = React.useState<"ltr" | "rtl">("ltr");
-  const [lang, setLang] = React.useState("");
+  const isRtl = React.useMemo(
+    () => /^he(\b|-)|^ar(\b|-)/i.test(String(language || "")),
+    [language],
+  );
 
-  React.useEffect(() => {
-    const nextDir = String(
-      document.documentElement.getAttribute("dir") || "ltr"
-    ).toLowerCase();
-    const nextLang = String(
-      document.documentElement.getAttribute("lang") || ""
-    ).toLowerCase();
-    setDir(nextDir === "rtl" ? "rtl" : "ltr");
-    setLang(nextLang);
-  }, []);
+  const resolvedLocale = React.useMemo(() => {
+    const lang = String(language || "").toLowerCase();
+    if (lang.startsWith("he")) {
+      return {
+        ...Hebrew,
+        rtl: true,
+        months: {
+          shorthand: Hebrew.months.shorthand.map(wrapRtlSegment),
+          longhand: Hebrew.months.longhand.map(wrapRtlSegment),
+        },
+      };
+    }
+    if (lang.startsWith("ar")) {
+      return {
+        ...Arabic,
+        rtl: true,
+        months: {
+          shorthand: Arabic.months.shorthand.map(wrapRtlSegment),
+          longhand: Arabic.months.longhand.map(wrapRtlSegment),
+        },
+      };
+    }
+    return { ...english };
+  }, [language]);
 
-  const fpLocale = React.useMemo(() => {
-    if (dir !== "rtl") return undefined;
-    if (lang.startsWith("he")) return { ...Hebrew, rtl: true };
-    return { ...Arabic, rtl: true };
-  }, [dir, lang]);
-
-  const resolvedLocale = React.useMemo(() => fpLocale ?? english, [fpLocale]);
+  const flatpickrKey = React.useMemo(
+    () => `${language || ""}-${isRtl ? "rtl" : "ltr"}`,
+    [isRtl, language],
+  );
 
   const availabilityByDay = React.useMemo(() => {
     const days = Array.isArray((data as any)?.availability?.days)
@@ -651,7 +677,7 @@ export default function PublicBookingFlow({
 
         const json = await res.json().catch(() => null);
         if (!res.ok) {
-          throw new Error(json?.error || `Request failed (${res.status})`);
+          throw new Error(json?.error || requestFailed(res.status));
         }
 
         if (!alive) return;
@@ -661,7 +687,7 @@ export default function PublicBookingFlow({
       } catch (e: any) {
         if (!alive) return;
         if (e?.name === "AbortError") return;
-        setSlotsError(e?.message || "Failed to load availability");
+        setSlotsError(e?.message || t("publicBooking.errors.loadAvailabilityFailed"));
       } finally {
         if (!alive) return;
         setSlotsLoading(false);
@@ -683,23 +709,32 @@ export default function PublicBookingFlow({
 
   const shellSubtitle = React.useMemo(() => {
     if (!data) return "";
-    if (step === "service") return "Select service";
-    if (step === "date") return "Pick a date";
-    if (step === "time") return "Choose a time";
+    if (step === "service") return t("publicBooking.steps.service");
+    if (step === "date") return t("publicBooking.steps.date");
+    if (step === "time") return t("publicBooking.steps.time");
     if (step === "details")
-      return date && startTime ? `${date} • ${startTime}` : "Your details";
+      return date && startTime
+        ? t("publicBooking.subtitle.detailsWithTime", {
+          date,
+          time: startTime,
+        })
+        : t("publicBooking.steps.details");
     if (step === "verify")
       return customerEmail
-        ? `We sent a code to ${customerEmail}`
-        : "Verify email";
+        ? t("publicBooking.subtitle.codeSent", { email: customerEmail })
+        : t("publicBooking.steps.verify");
     if (step === "success") {
       const appt = result?.appointment;
       return appt
-        ? `${appt.date} • ${appt.startTime}–${appt.endTime}`
-        : "Booked";
+        ? t("publicBooking.subtitle.bookingSummary", {
+          date: appt.date,
+          startTime: appt.startTime,
+          endTime: appt.endTime,
+        })
+        : t("publicBooking.steps.booked");
     }
     return "";
-  }, [customerEmail, data, date, result, startTime, step]);
+  }, [customerEmail, data, date, result, startTime, step, t]);
 
   const shellSubtitleRight = React.useMemo<React.ReactNode>(() => {
     if (!data) return null;
@@ -747,7 +782,11 @@ export default function PublicBookingFlow({
         {connected ? (
           <div className="flex w-full items-center justify-between gap-2">
             <div className="min-w-0 flex-1 text-xs text-muted-foreground truncate">
-              {customerEmail.trim() ? `Logged in as ${customerEmail.trim()}` : ""}
+              {customerEmail.trim()
+                ? t("publicBooking.header.loggedInAs", {
+                  email: customerEmail.trim(),
+                })
+                : ""}
             </div>
             <Button
               type="button"
@@ -769,7 +808,11 @@ export default function PublicBookingFlow({
               }}
             >
               <LogOut className="h-4 w-4" />
-              <span>{loggingOut ? "Logging out…" : "Logout"}</span>
+              <span>
+                {loggingOut
+                  ? t("publicBooking.header.loggingOut")
+                  : t("publicBooking.header.logout")}
+              </span>
             </Button>
           </div>
         ) : null}
@@ -804,12 +847,12 @@ export default function PublicBookingFlow({
             {connected ? (
               <>
                 <CalendarDays className="h-4 w-4" />
-                <span>My appointments</span>
+                <span>{t("publicBooking.header.myAppointments")}</span>
               </>
             ) : (
               <>
                 <LogIn className="h-4 w-4" />
-                <span>Log in</span>
+                <span>{t("publicBooking.header.login")}</span>
               </>
             )}
           </Button>
@@ -823,13 +866,13 @@ export default function PublicBookingFlow({
               disabled={loggingOut}
               onClick={openProfileEditor}
             >
-              Update details
+              {t("publicBooking.header.updateDetails")}
             </Button>
           ) : null}
         </div>
       </div>
     );
-  }, [connected, customerEmail, data, date, disconnectCustomer, loggingOut, openProfileEditor, resetFlow, result?.appointment?.date]);
+  }, [connected, customerEmail, data, date, disconnectCustomer, loggingOut, openProfileEditor, resetFlow, result?.appointment?.date, t]);
 
   const selectedSlot = React.useMemo(() => {
     const list = Array.isArray((slots as any)?.slots) ? ((slots as any).slots as any[]) : [];
@@ -849,6 +892,18 @@ export default function PublicBookingFlow({
     customerEmail.trim() &&
     customerPhone.trim() &&
     customerPhoneValid;
+
+  const canSubmitDetails =
+    !submitting &&
+    customerFullName.trim() &&
+    customerEmail.trim() &&
+    customerPhone.trim() &&
+    customerPhoneValid;
+
+  const canSubmitVerify =
+    !submitting &&
+    cancellingConflictId === null &&
+    otpCode.replace(/\D/g, "").length >= 6;
 
   const showGallery = step === "service";
 
@@ -888,14 +943,17 @@ export default function PublicBookingFlow({
   }, [connected, resetBookingOnly, resetFlow, step]);
 
   const requestOtp = async () => {
-    if (!customerFullName.trim()) throw new Error("Full Name is required");
-    if (!customerEmail.trim()) throw new Error("Email is required");
-    if (!customerPhone.trim()) throw new Error("Phone is required");
+    if (!customerFullName.trim())
+      throw new Error(t("publicBooking.errors.fullNameRequired"));
+    if (!customerEmail.trim())
+      throw new Error(t("publicBooking.errors.emailRequired"));
+    if (!customerPhone.trim())
+      throw new Error(t("publicBooking.errors.phoneRequired"));
     if (!customerPhoneValid)
-      throw new Error("Please enter a valid phone number");
-    if (!publicId) throw new Error("Business not found");
+      throw new Error(t("publicBooking.errors.invalidPhone"));
+    if (!publicId) throw new Error(t("publicBooking.errors.businessNotFound"));
     if (!serviceId || !date || !startTime)
-      throw new Error("Missing booking details");
+      throw new Error(t("publicBooking.errors.missingBookingDetails"));
 
     const res = await fetch("/api/public/booking/request-otp", {
       method: "POST",
@@ -908,14 +966,15 @@ export default function PublicBookingFlow({
 
     const json = await res.json().catch(() => null);
     if (!res.ok)
-      throw new Error(json?.error || `Request failed (${res.status})`);
+      throw new Error(json?.error || requestFailed(res.status));
   };
 
   const requestLoginOtp = async () => {
-    if (!publicId) throw new Error("Business not found");
+    if (!publicId) throw new Error(t("publicBooking.errors.businessNotFound"));
     const email = loginEmail.trim();
-    if (!email) throw new Error("Email is required");
-    if (!isValidEmail(email)) throw new Error("Please enter a valid email address");
+    if (!email) throw new Error(t("publicBooking.errors.emailRequired"));
+    if (!isValidEmail(email))
+      throw new Error(t("publicBooking.errors.invalidEmail"));
 
     const res = await fetch("/api/public/booking/request-otp", {
       method: "POST",
@@ -924,15 +983,15 @@ export default function PublicBookingFlow({
     });
 
     const json = await res.json().catch(() => null);
-    if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
+    if (!res.ok) throw new Error(json?.error || requestFailed(res.status));
   };
 
   const verifyLoginOtp = async () => {
-    if (!publicId) throw new Error("Business not found");
+    if (!publicId) throw new Error(t("publicBooking.errors.businessNotFound"));
     const email = loginEmail.trim();
     const code = loginCode.trim();
-    if (!email) throw new Error("Email is required");
-    if (!code) throw new Error("Code is required");
+    if (!email) throw new Error(t("publicBooking.errors.emailRequired"));
+    if (!code) throw new Error(t("publicBooking.errors.codeRequired"));
 
     const res = await fetch("/api/public/booking/login/verify-otp", {
       method: "POST",
@@ -940,7 +999,7 @@ export default function PublicBookingFlow({
       body: JSON.stringify({ businessPublicId: publicId, email, code }),
     });
     const json = await res.json().catch(() => null);
-    if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
+    if (!res.ok) throw new Error(json?.error || requestFailed(res.status));
 
     setConnected(true);
     setCustomerEmail(email);
@@ -953,19 +1012,22 @@ export default function PublicBookingFlow({
   };
 
   const submitProfileUpdate = async () => {
-    if (!publicId) throw new Error("Business not found");
+    if (!publicId) throw new Error(t("publicBooking.errors.businessNotFound"));
     const fullName = profileFullName.trim();
     const phone = profilePhone.trim();
     const currentEmail = profileCurrentEmail.trim();
     const newEmail = profileNewEmail.trim();
 
-    if (!fullName) throw new Error("Full name is required");
-    if (!phone) throw new Error("Phone number is required");
-    if (!profilePhoneValid) throw new Error("Please enter a valid phone number");
-    if (!currentEmail) throw new Error("Email is required");
-    if (!isValidEmail(currentEmail)) throw new Error("Please enter a valid email address");
-    if (!newEmail) throw new Error("Email is required");
-    if (!isValidEmail(newEmail)) throw new Error("Please enter a valid email address");
+    if (!fullName) throw new Error(t("publicBooking.errors.fullNameRequired"));
+    if (!phone) throw new Error(t("publicBooking.errors.phoneRequired"));
+    if (!profilePhoneValid)
+      throw new Error(t("publicBooking.errors.invalidPhone"));
+    if (!currentEmail) throw new Error(t("publicBooking.errors.emailRequired"));
+    if (!isValidEmail(currentEmail))
+      throw new Error(t("publicBooking.errors.invalidEmail"));
+    if (!newEmail) throw new Error(t("publicBooking.errors.emailRequired"));
+    if (!isValidEmail(newEmail))
+      throw new Error(t("publicBooking.errors.invalidEmail"));
 
     const res = await fetch("/api/public/booking/profile/update", {
       method: "POST",
@@ -981,7 +1043,7 @@ export default function PublicBookingFlow({
 
     const json = await res.json().catch(() => null);
     if (!res.ok) {
-      throw new Error((json as any)?.error || `Request failed (${res.status})`);
+      throw new Error((json as any)?.error || requestFailed(res.status));
     }
 
     if ((json as any)?.requiresVerification) {
@@ -998,13 +1060,13 @@ export default function PublicBookingFlow({
   };
 
   const submitProfileEmailVerify = async () => {
-    if (!publicId) throw new Error("Business not found");
+    if (!publicId) throw new Error(t("publicBooking.errors.businessNotFound"));
     const currentEmail = profileCurrentEmail.trim();
     const newEmail = profileNewEmail.trim();
     const code = profileCode.trim();
-    if (!currentEmail) throw new Error("Email is required");
-    if (!newEmail) throw new Error("Email is required");
-    if (!code) throw new Error("Code is required");
+    if (!currentEmail) throw new Error(t("publicBooking.errors.emailRequired"));
+    if (!newEmail) throw new Error(t("publicBooking.errors.emailRequired"));
+    if (!code) throw new Error(t("publicBooking.errors.codeRequired"));
 
     const res = await fetch("/api/public/booking/profile/verify-email", {
       method: "POST",
@@ -1019,7 +1081,7 @@ export default function PublicBookingFlow({
 
     const json = await res.json().catch(() => null);
     if (!res.ok) {
-      throw new Error((json as any)?.error || `Request failed (${res.status})`);
+      throw new Error((json as any)?.error || requestFailed(res.status));
     }
 
     const cust = (json as any)?.customer ?? {};
@@ -1033,9 +1095,10 @@ export default function PublicBookingFlow({
   };
 
   const verifyBookingSession = async (): Promise<string> => {
-    if (!publicId) throw new Error("Business not found");
-    if (!customerEmail.trim()) throw new Error("Email is required");
-    if (!otpCode.trim()) throw new Error("Code is required");
+    if (!publicId) throw new Error(t("publicBooking.errors.businessNotFound"));
+    if (!customerEmail.trim())
+      throw new Error(t("publicBooking.errors.emailRequired"));
+    if (!otpCode.trim()) throw new Error(t("publicBooking.errors.codeRequired"));
 
     const verifyRes = await fetch("/api/public/booking/verify-otp", {
       method: "POST",
@@ -1065,32 +1128,31 @@ export default function PublicBookingFlow({
       });
       const err: any = new Error(
         verifyJson?.error ||
-        "You already have an active upcoming appointment. Please cancel it first."
+        t("publicBooking.errors.activeAppointmentExists")
       );
       err.code = "ACTIVE_APPOINTMENT_EXISTS";
       throw err;
     }
 
     if (!verifyRes.ok) {
-      throw new Error(
-        verifyJson?.error || `Request failed (${verifyRes.status})`
-      );
+      throw new Error(verifyJson?.error || requestFailed(verifyRes.status));
     }
 
     const sessionId = String(verifyJson?.bookingSessionId ?? "").trim();
-    if (!sessionId) throw new Error("Verification failed");
+    if (!sessionId) throw new Error(t("publicBooking.errors.verificationFailed"));
     setBookingSessionId(sessionId);
     setActiveConflict(null);
     return sessionId;
   };
 
   const confirmBooking = async (sessionId?: string) => {
-    if (!publicId) throw new Error("Business not found");
+    if (!publicId) throw new Error(t("publicBooking.errors.businessNotFound"));
     if (!serviceId || !date || !startTime)
-      throw new Error("Missing booking details");
+      throw new Error(t("publicBooking.errors.missingBookingDetails"));
 
     const sid = String(sessionId ?? "").trim();
-    if (!sid && !connected) throw new Error("Email verification required");
+    if (!sid && !connected)
+      throw new Error(t("publicBooking.errors.emailVerificationRequired"));
 
     const confirmRes = await fetch("/api/public/booking/confirm", {
       method: "POST",
@@ -1130,8 +1192,8 @@ export default function PublicBookingFlow({
         const err: any = new Error(
           confirmJson?.error ||
           (String(confirmJson?.code ?? "") === "SAME_SERVICE_SAME_DAY_EXISTS"
-            ? "You already booked this service on this day."
-            : "You already have an active upcoming appointment. Please cancel it first.")
+            ? t("publicBooking.errors.sameServiceSameDay")
+            : t("publicBooking.errors.activeAppointmentExists"))
         );
         err.code =
           String(confirmJson?.code ?? "") === "SAME_SERVICE_SAME_DAY_EXISTS"
@@ -1140,15 +1202,94 @@ export default function PublicBookingFlow({
         throw err;
       }
 
-      throw new Error(
-        confirmJson?.error || `Request failed (${confirmRes.status})`
-      );
+      throw new Error(confirmJson?.error || requestFailed(confirmRes.status));
     }
 
     setActiveConflict(null);
 
     return confirmJson as BookingResult;
   };
+
+  const handleDetailsConfirm = React.useCallback(async () => {
+    if (!canSubmitDetails) return;
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      if (connected) {
+        const r = await confirmBooking();
+        setResult(r);
+        setStep("success");
+        setIdentified(true);
+        setConnected(true);
+        return;
+      }
+
+      await requestOtp();
+      setStep("verify");
+    } catch (e: any) {
+      if (
+        String(e?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS" ||
+        String(e?.code ?? "") === "SAME_SERVICE_SAME_DAY_EXISTS"
+      ) {
+        // Business rule conflict: show conflict panel only.
+        return;
+      }
+      setFormError(e?.message || t("publicBooking.errors.failed"));
+    } finally {
+      setSubmitting(false);
+    }
+  }, [
+    canSubmitDetails,
+    confirmBooking,
+    connected,
+    requestOtp,
+    t,
+  ]);
+
+  const handleVerifyConfirm = React.useCallback(async () => {
+    if (!canSubmitVerify) return;
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      const sessionId = await verifyBookingSession();
+      const r = await confirmBooking(sessionId);
+      setResult(r);
+      setStep("success");
+      setIdentified(true);
+      setConnected(true);
+    } catch (e: any) {
+      if (
+        String(e?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS" ||
+        String(e?.code ?? "") === "SAME_SERVICE_SAME_DAY_EXISTS"
+      ) {
+        // Business rule violation; show conflict UI, not an OTP error.
+        return;
+      }
+      setFormError(e?.message || t("publicBooking.errors.failed"));
+    } finally {
+      setSubmitting(false);
+    }
+  }, [canSubmitVerify, confirmBooking, t, verifyBookingSession]);
+
+  const handleConfirmKeyDown = React.useCallback(
+    (event: React.KeyboardEvent) => {
+      if (event.key !== "Enter") return;
+      if (event.shiftKey || event.altKey || event.ctrlKey || event.metaKey)
+        return;
+      const target = event.target as HTMLElement | null;
+      if (target?.tagName === "TEXTAREA") return;
+      event.preventDefault();
+
+      if (step === "details") {
+        void handleDetailsConfirm();
+      }
+
+      if (step === "verify") {
+        void handleVerifyConfirm();
+      }
+    },
+    [handleDetailsConfirm, handleVerifyConfirm, step],
+  );
 
   async function disconnectCustomer() {
     await fetch("/api/public/booking/disconnect", { method: "POST" });
@@ -1159,7 +1300,8 @@ export default function PublicBookingFlow({
       bookingSessionId || activeConflict?.bookingSessionId || ""
     ).trim();
     const appointmentId = String(appointmentIdRaw ?? "").trim();
-    if (!appointmentId) throw new Error("Appointment not found");
+    if (!appointmentId)
+      throw new Error(t("publicBooking.errors.appointmentNotFound"));
 
     const res = await fetch("/api/public/booking/cancel", {
       method: "POST",
@@ -1177,12 +1319,12 @@ export default function PublicBookingFlow({
 
     const json = await res.json().catch(() => null);
     if (!res.ok)
-      throw new Error(json?.error || `Request failed (${res.status})`);
+      throw new Error(json?.error || requestFailed(res.status));
   };
 
   const cancelBooking = async () => {
     const cancelToken = String(result?.cancelToken ?? "").trim();
-    if (!cancelToken) throw new Error("Cancel token missing");
+    if (!cancelToken) throw new Error(t("publicBooking.errors.cancelTokenMissing"));
 
     const res = await fetch("/api/public/booking/cancel", {
       method: "POST",
@@ -1192,12 +1334,12 @@ export default function PublicBookingFlow({
 
     const json = await res.json().catch(() => null);
     if (!res.ok)
-      throw new Error(json?.error || `Request failed (${res.status})`);
+      throw new Error(json?.error || requestFailed(res.status));
   };
 
   const cancelSameDayAppointment = async (appointmentId: string) => {
     const id = String(appointmentId ?? "").trim();
-    if (!id) throw new Error("Appointment not found");
+    if (!id) throw new Error(t("publicBooking.errors.appointmentNotFound"));
 
     const res = await fetch("/api/public/booking/cancel", {
       method: "POST",
@@ -1206,12 +1348,16 @@ export default function PublicBookingFlow({
     });
 
     const json = await res.json().catch(() => null);
-    if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
+    if (!res.ok) throw new Error(json?.error || requestFailed(res.status));
   };
 
   if (loading && !data) {
     return (
-      <PublicBookingShell business={null} title="Booking" showGallery={false}>
+      <PublicBookingShell
+        business={null}
+        title={t("publicBooking.title")}
+        showGallery={false}
+      >
         <CenteredSpinner fullPage />
       </PublicBookingShell>
     );
@@ -1221,13 +1367,13 @@ export default function PublicBookingFlow({
     return (
       <PublicBookingShell
         business={data}
-        title="Booking"
+        title={t("publicBooking.title")}
         subtitle=""
         showGallery={false}
       >
         <div className="space-y-4">
           <div className="text-sm text-red-600 dark:text-red-400">
-            {error || "Business not found"}
+            {error || t("publicBooking.errors.businessNotFound")}
           </div>
         </div>
       </PublicBookingShell>
@@ -1237,7 +1383,7 @@ export default function PublicBookingFlow({
   return (
     <PublicBookingShell
       business={data}
-      title="Booking"
+      title={t("publicBooking.title")}
       subtitle={shellSubtitle}
       subtitleRight={shellSubtitleRight}
       headerRight={shellHeaderRight}
@@ -1258,9 +1404,9 @@ export default function PublicBookingFlow({
       >
         <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
-            <DialogTitle>Log in</DialogTitle>
+            <DialogTitle>{t("publicBooking.login.title")}</DialogTitle>
             <DialogDescription>
-              Verify your email once to book and manage appointments faster.
+              {t("publicBooking.login.description")}
             </DialogDescription>
           </DialogHeader>
 
@@ -1273,13 +1419,13 @@ export default function PublicBookingFlow({
           {loginStep === "email" ? (
             <div className="space-y-3">
               <div className="space-y-2">
-                <Label htmlFor="loginEmail">Email *</Label>
+                <Label htmlFor="loginEmail">{t("publicBooking.login.emailLabel")}</Label>
                 <Input
                   id="loginEmail"
                   className="rounded-2xl"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
-                  placeholder="name@example.com"
+                  placeholder={t("publicBooking.login.emailPlaceholder")}
                 />
               </div>
 
@@ -1293,19 +1439,21 @@ export default function PublicBookingFlow({
                     await requestLoginOtp();
                     setLoginStep("code");
                   } catch (e: any) {
-                    setLoginError(e?.message || "Failed");
+                    setLoginError(e?.message || t("publicBooking.errors.failed"));
                   } finally {
                     setLoginSubmitting(false);
                   }
                 }}
               >
-                {loginSubmitting ? "Sending code…" : "Send code"}
+                {loginSubmitting
+                  ? t("publicBooking.login.sendingCode")
+                  : t("publicBooking.login.sendCode")}
               </Button>
             </div>
           ) : (
             <div className="space-y-3">
               <div className="text-sm text-gray-600 dark:text-gray-300">
-                We sent a code to {loginEmail}.
+                {t("publicBooking.login.codeSent", { email: loginEmail })}
               </div>
               <div className="flex justify-center">
                 <OtpInput
@@ -1330,7 +1478,7 @@ export default function PublicBookingFlow({
                   }}
                   disabled={loginSubmitting}
                 >
-                  Back
+                  {t("common.back")}
                 </Button>
                 <Button
                   className="rounded-2xl flex-1"
@@ -1345,13 +1493,15 @@ export default function PublicBookingFlow({
                       await verifyLoginOtp();
                       setLoginOpen(false);
                     } catch (e: any) {
-                      setLoginError(e?.message || "Failed");
+                      setLoginError(e?.message || t("publicBooking.errors.failed"));
                     } finally {
                       setLoginSubmitting(false);
                     }
                   }}
                 >
-                  {loginSubmitting ? "Verifying…" : "Verify"}
+                  {loginSubmitting
+                    ? t("publicBooking.login.verifying")
+                    : t("publicBooking.login.verify")}
                 </Button>
               </div>
             </div>
@@ -1374,14 +1524,16 @@ export default function PublicBookingFlow({
           <DialogHeader>
             <DialogTitle>
               {myAppointmentsScope === "future"
-                ? "Your upcoming appointments"
-                : "My appointments"}
+                ? t("publicBooking.myAppointments.titleUpcoming")
+                : t("publicBooking.myAppointments.titleAll")}
             </DialogTitle>
             <DialogDescription>
               {myAppointmentsScope === "future"
-                ? "Only upcoming booked appointments"
+                ? t("publicBooking.myAppointments.subtitleUpcoming")
                 : myAppointmentsDate
-                  ? `For ${myAppointmentsDate}`
+                  ? t("publicBooking.myAppointments.subtitleForDate", {
+                    date: myAppointmentsDate,
+                  })
                   : ""}
             </DialogDescription>
           </DialogHeader>
@@ -1399,8 +1551,8 @@ export default function PublicBookingFlow({
           ).length === 0 ? (
             <div className="text-sm text-muted-foreground">
               {myAppointmentsScope === "future"
-                ? "No upcoming appointments."
-                : "No appointments for this day."}
+                ? t("publicBooking.myAppointments.emptyUpcoming")
+                : t("publicBooking.myAppointments.emptyForDay")}
             </div>
           ) : (
             <div className="divide-y divide-gray-200 dark:divide-gray-800">
@@ -1425,7 +1577,9 @@ export default function PublicBookingFlow({
                           {a.serviceName}
                         </div>
 
-                        <div className="text-xs text-muted-foreground mt-1">Booked</div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {t("publicBooking.status.booked")}
+                        </div>
                       </div>
 
                       <Button
@@ -1440,15 +1594,17 @@ export default function PublicBookingFlow({
                             await cancelSameDayAppointment(a.id);
                             setMyAppointments((prev) => prev.filter((x) => x.id !== a.id));
                           } catch (e: any) {
-                            setMyAppointmentsError(e?.message || "Failed");
+                            setMyAppointmentsError(
+                              e?.message || t("publicBooking.errors.failed")
+                            );
                           } finally {
                             setCancellingMyAppointmentId(null);
                           }
                         }}
                       >
                         {cancellingMyAppointmentId === a.id
-                          ? "Cancelling…"
-                          : "Cancel this appointment"}
+                          ? t("publicBooking.actions.cancelling")
+                          : t("publicBooking.actions.cancelAppointment")}
                       </Button>
                     </div>
                   </div>
@@ -1472,9 +1628,9 @@ export default function PublicBookingFlow({
       >
         <DialogContent className="sm:max-w-[520px]">
           <DialogHeader>
-            <DialogTitle>Update details</DialogTitle>
+            <DialogTitle>{t("publicBooking.profile.title")}</DialogTitle>
             <DialogDescription>
-              Update your details. If you change your email, you’ll need to verify the new one.
+              {t("publicBooking.profile.description")}
             </DialogDescription>
           </DialogHeader>
 
@@ -1485,7 +1641,9 @@ export default function PublicBookingFlow({
           {profileStep === "form" ? (
             <div className="space-y-3">
               <div className="space-y-2">
-                <Label htmlFor="profileFullName">Full Name *</Label>
+                <Label htmlFor="profileFullName">
+                  {t("publicBooking.profile.fullNameLabel")}
+                </Label>
                 <Input
                   id="profileFullName"
                   className="rounded-2xl"
@@ -1495,18 +1653,22 @@ export default function PublicBookingFlow({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="profileEmail">Email *</Label>
+                <Label htmlFor="profileEmail">
+                  {t("publicBooking.profile.emailLabel")}
+                </Label>
                 <Input
                   id="profileEmail"
                   className="rounded-2xl"
                   value={profileNewEmail}
                   onChange={(e) => setProfileNewEmail(e.target.value)}
-                  placeholder="name@example.com"
+                  placeholder={t("publicBooking.profile.emailPlaceholder")}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="profilePhone">Phone *</Label>
+                <Label htmlFor="profilePhone">
+                  {t("publicBooking.profile.phoneLabel")}
+                </Label>
                 <PhoneInput
                   id="profilePhone"
                   className="rounded-2xl"
@@ -1516,11 +1678,11 @@ export default function PublicBookingFlow({
                   onValidityChange={setProfilePhoneValid}
                   onBlur={() => setProfilePhoneTouched(true)}
                   aria-invalid={profilePhoneTouched && !profilePhoneValid}
-                  placeholder="Phone number"
+                  placeholder={t("publicBooking.profile.phonePlaceholder")}
                 />
                 {profilePhoneTouched && profilePhone.trim() && !profilePhoneValid ? (
                   <div className="text-xs text-red-600 dark:text-red-400">
-                    Please enter a valid phone number.
+                    {t("publicBooking.profile.invalidPhone")}
                   </div>
                 ) : null}
               </div>
@@ -1541,19 +1703,23 @@ export default function PublicBookingFlow({
                   try {
                     await submitProfileUpdate();
                   } catch (e: any) {
-                    setProfileError(e?.message || "Failed");
+                    setProfileError(e?.message || t("publicBooking.errors.failed"));
                   } finally {
                     setProfileSubmitting(false);
                   }
                 }}
               >
-                {profileSubmitting ? "Saving…" : "Save"}
+                {profileSubmitting
+                  ? t("publicBooking.actions.saving")
+                  : t("common.save")}
               </Button>
             </div>
           ) : (
             <div className="space-y-3">
               <div className="text-sm text-gray-600 dark:text-gray-300">
-                We sent a code to {profileNewEmail.trim() || "your email"}.
+                {t("publicBooking.profile.codeSent", {
+                  email: profileNewEmail.trim() || t("publicBooking.profile.yourEmail"),
+                })}
               </div>
 
               <div className="flex justify-center">
@@ -1579,7 +1745,7 @@ export default function PublicBookingFlow({
                   }}
                   disabled={profileSubmitting}
                 >
-                  Back
+                  {t("common.back")}
                 </Button>
                 <Button
                   className="rounded-2xl flex-1"
@@ -1590,13 +1756,15 @@ export default function PublicBookingFlow({
                     try {
                       await submitProfileEmailVerify();
                     } catch (e: any) {
-                      setProfileError(e?.message || "Failed");
+                      setProfileError(e?.message || t("publicBooking.errors.failed"));
                     } finally {
                       setProfileSubmitting(false);
                     }
                   }}
                 >
-                  {profileSubmitting ? "Verifying…" : "Verify"}
+                  {profileSubmitting
+                    ? t("publicBooking.profile.verifying")
+                    : t("publicBooking.profile.verify")}
                 </Button>
               </div>
             </div>
@@ -1632,7 +1800,7 @@ export default function PublicBookingFlow({
                     {s.name}
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-300">
-                    {s.durationMinutes} min
+                    {t("publicBooking.minutes", { count: s.durationMinutes })}
                   </div>
                 </div>
                 <div className="font-semibold text-gray-900 dark:text-white shrink-0">
@@ -1644,7 +1812,7 @@ export default function PublicBookingFlow({
 
           {!data.services.length && (
             <div className="text-sm text-gray-600 dark:text-gray-300">
-              No services available.
+              {t("publicBooking.errors.noServices")}
             </div>
           )}
         </div>
@@ -1656,6 +1824,7 @@ export default function PublicBookingFlow({
           <div className="flex justify-center">
             <div className="w-full">
               <Flatpickr
+                key={flatpickrKey}
                 options={flatpickrOptions as any}
                 value={date || undefined}
                 onChange={(_selectedDates: Date[], dateStr: string) => {
@@ -1671,7 +1840,7 @@ export default function PublicBookingFlow({
                   <input
                     ref={ref as any}
                     type="text"
-                    aria-label="Select date"
+                    aria-label={t("publicBooking.date.selectDateAria")}
                     className="sr-only"
                   />
                 )}
@@ -1726,13 +1895,13 @@ export default function PublicBookingFlow({
 
                 {!slots.slots.length ? (
                   <div className="text-sm text-gray-600 dark:text-gray-300">
-                    No times available.
+                    {t("publicBooking.errors.noTimes")}
                   </div>
                 ) : null}
               </>
             ) : (
               <div className="text-sm text-gray-600 dark:text-gray-300">
-                Select a date to see times.
+                {t("publicBooking.errors.selectDateToSeeTimes")}
               </div>
             )}
           </div>
@@ -1741,7 +1910,7 @@ export default function PublicBookingFlow({
 
       {/* Details */}
       {step === "details" ? (
-        <div className="space-y-4">
+        <div className="space-y-4" onKeyDown={handleConfirmKeyDown}>
           {formError ? (
             <div className="text-sm text-red-600 dark:text-red-400">
               {formError}
@@ -1752,13 +1921,13 @@ export default function PublicBookingFlow({
             <div className="rounded-2xl border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/70 dark:bg-amber-950/20 p-4">
               <div className="font-semibold text-amber-900 dark:text-amber-200">
                 {activeConflict.code === "SAME_SERVICE_SAME_DAY_EXISTS"
-                  ? "You already booked this service on this day"
-                  : "You already have an upcoming appointment"}
+                  ? t("publicBooking.conflict.sameServiceTitle")
+                  : t("publicBooking.conflict.upcomingTitle")}
               </div>
               <div className="text-sm text-amber-800/90 dark:text-amber-200/80 mt-1">
                 {activeConflict.code === "SAME_SERVICE_SAME_DAY_EXISTS"
-                  ? "Please cancel it first to book the same service again."
-                  : "Please cancel it first to book a new one."}
+                  ? t("publicBooking.conflict.sameServiceDescription")
+                  : t("publicBooking.conflict.upcomingDescription")}
               </div>
 
               <div className="mt-2 space-y-2">
@@ -1814,15 +1983,17 @@ export default function PublicBookingFlow({
                               ) {
                                 return;
                               }
-                              setFormError(e?.message || "Failed");
+                              setFormError(
+                                e?.message || t("publicBooking.errors.failed")
+                              );
                             } finally {
                               setCancellingConflictId(null);
                             }
                           }}
                         >
                           {cancellingConflictId === apptId
-                            ? "Cancelling…"
-                            : "Cancel this appointment"}
+                            ? t("publicBooking.actions.cancelling")
+                            : t("publicBooking.actions.cancelAppointment")}
                         </Button>
                       </div>
                     );
@@ -1834,10 +2005,12 @@ export default function PublicBookingFlow({
           {canSkipCustomerDetailsForm ? (
             <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/10 p-4">
               <div className="font-semibold text-gray-900 dark:text-white">
-                Confirm booking
+                {t("publicBooking.details.confirmBookingTitle")}
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                {selectedService?.name ? selectedService.name : "Appointment"}
+                {selectedService?.name
+                  ? selectedService.name
+                  : t("publicBooking.details.appointmentFallback")}
               </div>
               <div className="text-sm text-gray-700 dark:text-gray-200 mt-1">
                 {date}
@@ -1846,17 +2019,25 @@ export default function PublicBookingFlow({
               </div>
               {selectedService ? (
                 <div className="text-sm text-muted-foreground mt-1">
-                  {selectedService.durationMinutes} min • {formatPrice({ price: selectedService.price, currency: data.currency, locale })}
+                  {t("publicBooking.minutes", {
+                    count: selectedService.durationMinutes,
+                  })}{" "}
+                  •{" "}
+                  {formatPrice({
+                    price: selectedService.price,
+                    currency: data.currency,
+                    locale,
+                  })}
                 </div>
               ) : null}
             </div>
           ) : (
             <div className="rounded-2xl border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-950/10 p-4">
               <div className="font-semibold text-amber-900 dark:text-amber-200">
-                Please complete your details
+                {t("publicBooking.details.completeDetailsTitle")}
               </div>
               <div className="text-sm text-amber-800/90 dark:text-amber-200/80 mt-1">
-                We need your name, email, and phone number to book.
+                {t("publicBooking.details.completeDetailsDescription")}
               </div>
             </div>
           )}
@@ -1864,7 +2045,9 @@ export default function PublicBookingFlow({
           {!canSkipCustomerDetailsForm ? (
             <>
               <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name *</Label>
+                <Label htmlFor="fullName">
+                  {t("publicBooking.details.fullNameLabel")}
+                </Label>
                 <Input
                   id="fullName"
                   className="rounded-2xl"
@@ -1874,18 +2057,22 @@ export default function PublicBookingFlow({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email *</Label>
+                <Label htmlFor="email">
+                  {t("publicBooking.details.emailLabel")}
+                </Label>
                 <Input
                   id="email"
                   className="rounded-2xl"
                   value={customerEmail}
                   onChange={(e) => setCustomerEmail(e.target.value)}
-                  placeholder="name@example.com"
+                  placeholder={t("publicBooking.details.emailPlaceholder")}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone *</Label>
+                <Label htmlFor="phone">
+                  {t("publicBooking.details.phoneLabel")}
+                </Label>
                 <PhoneInput
                   id="phone"
                   className="rounded-2xl"
@@ -1895,17 +2082,19 @@ export default function PublicBookingFlow({
                   onValidityChange={setCustomerPhoneValid}
                   onBlur={() => setCustomerPhoneTouched(true)}
                   aria-invalid={customerPhoneTouched && !customerPhoneValid}
-                  placeholder="Phone number"
+                  placeholder={t("publicBooking.details.phonePlaceholder")}
                 />
                 {customerPhoneTouched && customerPhone.trim() && !customerPhoneValid ? (
                   <div className="text-xs text-red-600 dark:text-red-400">
-                    Please enter a valid phone number.
+                    {t("publicBooking.details.invalidPhone")}
                   </div>
                 ) : null}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="notes">Notes (optional)</Label>
+                <Label htmlFor="notes">
+                  {t("publicBooking.details.notesLabel")}
+                </Label>
                 <Textarea
                   id="notes"
                   className="rounded-2xl"
@@ -1917,57 +2106,24 @@ export default function PublicBookingFlow({
           ) : null}
 
           <Button
-            onClick={async () => {
-              setSubmitting(true);
-              setFormError(null);
-              try {
-                if (connected) {
-                  const r = await confirmBooking();
-                  setResult(r);
-                  setStep("success");
-                  setIdentified(true);
-                  setConnected(true);
-                  return;
-                }
-
-                await requestOtp();
-                setStep("verify");
-              } catch (e: any) {
-                if (
-                  String(e?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS" ||
-                  String(e?.code ?? "") === "SAME_SERVICE_SAME_DAY_EXISTS"
-                ) {
-                  // Business rule conflict: show conflict panel only.
-                  return;
-                }
-                setFormError(e?.message || "Failed");
-              } finally {
-                setSubmitting(false);
-              }
-            }}
-            disabled={
-              submitting ||
-              !customerFullName.trim() ||
-              !customerEmail.trim() ||
-              !customerPhone.trim() ||
-              !customerPhoneValid
-            }
+            onClick={handleDetailsConfirm}
+            disabled={!canSubmitDetails}
             className="rounded-2xl w-full"
           >
             {submitting
               ? connected
-                ? "Confirming…"
-                : "Sending code…"
+                ? t("publicBooking.actions.confirming")
+                : t("publicBooking.actions.sendingCode")
               : connected
-                ? "Confirm booking"
-                : "Verify email"}
+                ? t("publicBooking.details.confirmBookingAction")
+                : t("publicBooking.details.verifyEmailAction")}
           </Button>
         </div>
       ) : null}
 
       {/* Verify */}
       {step === "verify" ? (
-        <div className="space-y-4">
+        <div className="space-y-4" onKeyDown={handleConfirmKeyDown}>
           {formError ? (
             <div className="text-sm text-red-600 dark:text-red-400">
               {formError}
@@ -1978,13 +2134,13 @@ export default function PublicBookingFlow({
             <div className="rounded-2xl border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/70 dark:bg-amber-950/20 p-4">
               <div className="font-semibold text-amber-900 dark:text-amber-200">
                 {activeConflict.code === "SAME_SERVICE_SAME_DAY_EXISTS"
-                  ? "You already booked this service on this day"
-                  : "You already have an upcoming appointment"}
+                  ? t("publicBooking.conflict.sameServiceTitle")
+                  : t("publicBooking.conflict.upcomingTitle")}
               </div>
               <div className="text-sm text-amber-800/90 dark:text-amber-200/80 mt-1">
                 {activeConflict.code === "SAME_SERVICE_SAME_DAY_EXISTS"
-                  ? "Please cancel it first to book the same service again."
-                  : "Please cancel it first to book a new one."}
+                  ? t("publicBooking.conflict.sameServiceDescription")
+                  : t("publicBooking.conflict.upcomingDescription")}
               </div>
 
               <div className="mt-2 space-y-2">
@@ -2039,15 +2195,17 @@ export default function PublicBookingFlow({
                               ) {
                                 return;
                               }
-                              setFormError(e?.message || "Failed");
+                              setFormError(
+                                e?.message || t("publicBooking.errors.failed")
+                              );
                             } finally {
                               setCancellingConflictId(null);
                             }
                           }}
                         >
                           {cancellingConflictId === apptId
-                            ? "Cancelling…"
-                            : "Cancel this appointment"}
+                            ? t("publicBooking.actions.cancelling")
+                            : t("publicBooking.actions.cancelAppointment")}
                         </Button>
                       </div>
                     );
@@ -2077,48 +2235,24 @@ export default function PublicBookingFlow({
                 try {
                   await requestOtp();
                 } catch (e: any) {
-                  setFormError(e?.message || "Failed");
+                  setFormError(e?.message || t("publicBooking.errors.failed"));
                 } finally {
                   setSubmitting(false);
                 }
               }}
               disabled={submitting || cancellingConflictId !== null}
             >
-              Resend
+              {t("publicBooking.verify.resend")}
             </Button>
 
             <Button
               className="rounded-2xl flex-1"
-              onClick={async () => {
-                setSubmitting(true);
-                setFormError(null);
-                try {
-                  const sessionId = await verifyBookingSession();
-                  const r = await confirmBooking(sessionId);
-                  setResult(r);
-                  setStep("success");
-                  setIdentified(true);
-                  setConnected(true);
-                } catch (e: any) {
-                  if (
-                    String(e?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS" ||
-                    String(e?.code ?? "") === "SAME_SERVICE_SAME_DAY_EXISTS"
-                  ) {
-                    // Business rule violation; show conflict UI, not an OTP error.
-                    return;
-                  }
-                  setFormError(e?.message || "Failed");
-                } finally {
-                  setSubmitting(false);
-                }
-              }}
-              disabled={
-                submitting ||
-                cancellingConflictId !== null ||
-                otpCode.replace(/\D/g, "").length < 6
-              }
+              onClick={handleVerifyConfirm}
+              disabled={!canSubmitVerify}
             >
-              {submitting ? "Confirming…" : "Confirm booking"}
+              {submitting
+                ? t("publicBooking.actions.confirming")
+                : t("publicBooking.verify.confirmBooking")}
             </Button>
           </div>
         </div>
@@ -2151,10 +2285,12 @@ export default function PublicBookingFlow({
             result.sameDayAppointments.length > 1 ? (
             <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4 shadow-sm">
               <div className="font-semibold text-gray-900 dark:text-white">
-                Your appointments on {result.appointment.date}
+                {t("publicBooking.success.appointmentsOn", {
+                  date: result.appointment.date,
+                })}
               </div>
               <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                You can cancel any of them below.
+                {t("publicBooking.success.canCancelBelow")}
               </div>
 
               <div className="mt-3 space-y-2">
@@ -2193,15 +2329,17 @@ export default function PublicBookingFlow({
                             };
                           });
                         } catch (e: any) {
-                          setCancelError(e?.message || "Failed");
+                          setCancelError(
+                            e?.message || t("publicBooking.errors.failed")
+                          );
                         } finally {
                           setCancellingSameDayId(null);
                         }
                       }}
                     >
                       {cancellingSameDayId === a.id
-                        ? "Cancelling…"
-                        : "Cancel this appointment"}
+                        ? t("publicBooking.actions.cancelling")
+                        : t("publicBooking.actions.cancelAppointment")}
                     </Button>
                   </div>
                 ))}
@@ -2213,7 +2351,7 @@ export default function PublicBookingFlow({
             <div className="flex flex-wrap gap-3">
               {!limitCustomerToOneUpcomingAppointment ? (
                 <Button className="rounded-2xl" onClick={() => resetBookingOnly()}>
-                  Book another appointment
+                  {t("publicBooking.success.bookAnother")}
                 </Button>
               ) : null}
 
@@ -2232,7 +2370,7 @@ export default function PublicBookingFlow({
                   )
                 }
               >
-                Add to Google Calendar
+                {t("publicBooking.success.addToGoogle")}
               </Button>
 
               <Button
@@ -2245,14 +2383,16 @@ export default function PublicBookingFlow({
                     await cancelBooking();
                     resetFlow();
                   } catch (e: any) {
-                    setCancelError(e?.message || "Failed");
+                    setCancelError(e?.message || t("publicBooking.errors.failed"));
                   } finally {
                     setCancelling(false);
                   }
                 }}
                 disabled={cancelling}
               >
-                {cancelling ? "Cancelling…" : "Cancel booking"}
+                {cancelling
+                  ? t("publicBooking.actions.cancelling")
+                  : t("publicBooking.success.cancelBooking")}
               </Button>
             </div>
 
@@ -2269,14 +2409,18 @@ export default function PublicBookingFlow({
                       setConnected(false);
                       resetFlow();
                     } catch (e: any) {
-                      setCancelError(e?.message || "Failed");
+                      setCancelError(
+                        e?.message || t("publicBooking.errors.failed")
+                      );
                     } finally {
                       setCancelling(false);
                     }
                   }}
                   disabled={cancelling}
                 >
-                  {cancelling ? "Disconnecting…" : "Not you? Disconnect"}
+                  {cancelling
+                    ? t("publicBooking.success.disconnecting")
+                    : t("publicBooking.success.notYouDisconnect")}
                 </Button>
               </div>
             ) : null}
@@ -2286,7 +2430,7 @@ export default function PublicBookingFlow({
 
       {step === "success" && !result?.appointment ? (
         <div className="text-sm text-gray-600 dark:text-gray-300">
-          No booking found.
+          {t("publicBooking.errors.noBookingFound")}
         </div>
       ) : null}
     </PublicBookingShell>

@@ -12,8 +12,10 @@ import {
   Phone,
 } from "lucide-react";
 
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { useI18n } from "@/i18n/useI18n";
 import { cn } from "@/lib/utils";
 import type { PublicBusiness } from "@/lib/public-booking";
 
@@ -36,6 +38,7 @@ export default function PublicBookingShell({
   showGallery?: boolean;
   children: React.ReactNode;
 }) {
+  const { t } = useI18n();
   const [previewSrc, setPreviewSrc] = React.useState<string | null>(null);
 
   const logoUrl = String(business?.branding?.logoUrl ?? "").trim();
@@ -114,8 +117,8 @@ export default function PublicBookingShell({
 
   const wazeHref = businessAddress
     ? `https://waze.com/ul?q=${encodeURIComponent(
-        businessAddress,
-      )}&navigate=yes`
+      businessAddress,
+    )}&navigate=yes`
     : "";
 
   const telHref = businessPhone ? `tel:${businessPhone}` : "";
@@ -135,29 +138,29 @@ export default function PublicBookingShell({
   const quickActions = [
     {
       key: "whatsapp",
-      label: "WhatsApp",
-      aria: "Message on WhatsApp",
+      label: t("publicBooking.quickActions.whatsapp"),
+      aria: t("publicBooking.quickActions.whatsappAria"),
       href: whatsappHref,
       Icon: MessageCircle,
     },
     {
       key: "call",
-      label: "Call",
-      aria: "Call the business",
+      label: t("publicBooking.quickActions.call"),
+      aria: t("publicBooking.quickActions.callAria"),
       href: telHref,
       Icon: Phone,
     },
     {
       key: "instagram",
-      label: "Instagram",
-      aria: "Open Instagram",
+      label: t("publicBooking.quickActions.instagram"),
+      aria: t("publicBooking.quickActions.instagramAria"),
       href: instagramHref,
       Icon: Instagram,
     },
     {
       key: "waze",
-      label: "Waze",
-      aria: "Open Waze navigation",
+      label: t("publicBooking.quickActions.waze"),
+      aria: t("publicBooking.quickActions.wazeAria"),
       href: wazeHref,
       Icon: Navigation,
     },
@@ -177,12 +180,14 @@ export default function PublicBookingShell({
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
           {/* A11y: DialogContent requires a DialogTitle */}
-          <DialogTitle className="sr-only">Image preview</DialogTitle>
+          <DialogTitle className="sr-only">
+            {t("publicBooking.imagePreviewTitle")}
+          </DialogTitle>
           {previewSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={previewSrc}
-              alt="Gallery image"
+              alt={t("publicBooking.galleryImageAlt", { index: 1 })}
               className="w-full max-h-[80vh] object-contain bg-black"
               draggable={false}
             />
@@ -195,16 +200,19 @@ export default function PublicBookingShell({
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={bannerUrl}
-            alt="Business banner"
+            alt={t("publicBooking.businessBannerAlt")}
             className="absolute inset-0 h-full w-full object-cover"
           />
         ) : null}
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/15 to-transparent" />
         <div className="absolute inset-0 opacity-20 mix-blend-overlay" />
+        <div className="absolute top-4 inset-x-0 z-20 flex justify-center">
+          <LanguageSwitcher variant="dark" />
+        </div>
       </div>
 
       <div className="flex-1 -mt-16 bg-gray-50 dark:bg-zinc-900 rounded-t-[40px] relative z-10 flex flex-col items-center shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
-        <div className="w-full max-w-md px-6 relative">
+        <div className="flex-1 px-6 pt-4 pb-24 w-full max-w-md mx-auto relative">
           {onBack ? (
             <Button
               type="button"
@@ -217,7 +225,7 @@ export default function PublicBookingShell({
                 "dark:text-white dark:hover:bg-white/10",
                 "start-6",
               )}
-              aria-label="Back"
+              aria-label={t("common.back")}
             >
               <ArrowLeft className="h-5 w-5 rtl:rotate-180" />
             </Button>
@@ -228,19 +236,20 @@ export default function PublicBookingShell({
               {/* Back button is rendered in the top header for consistent placement */}
             </div>
 
+            {/*
             <div className="p-1.5 rounded-full bg-transparent">
               <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center overflow-hidden border-2 border-gray-100 dark:border-gray-800 shadow-xl">
                 {logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={logoUrl}
-                    alt="Business logo"
+                    alt={t("publicBooking.businessLogoAlt")}
                     className="w-full h-full object-cover"
                   />
                 ) : (
                   <Image
                     src="/logo.png"
-                    alt="Progrr"
+                    alt={t("common.appName")}
                     width={48}
                     height={48}
                     className="object-contain"
@@ -248,6 +257,7 @@ export default function PublicBookingShell({
                 )}
               </div>
             </div>
+            */}
 
             <div className="w-10" />
           </div>
@@ -301,7 +311,11 @@ export default function PublicBookingShell({
                       <button
                         type="button"
                         key={`${src}-${idx}`}
-                        aria-label={`Open gallery image ${idx + 1}`}
+                        aria-label={
+                          t("publicBooking.openGalleryImage", {
+                            index: idx + 1,
+                          })
+                        }
                         onClick={() => setPreviewSrc(src)}
                         className={cn(
                           "group relative overflow-hidden",
@@ -321,7 +335,11 @@ export default function PublicBookingShell({
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={src}
-                          alt={`Gallery image ${idx + 1}`}
+                          alt={
+                            t("publicBooking.galleryImageAlt", {
+                              index: idx + 1,
+                            })
+                          }
                           className={cn(
                             "h-full w-full object-cover",
                             "transition duration-300",
@@ -364,7 +382,11 @@ export default function PublicBookingShell({
                             <button
                               type="button"
                               key={`${src}-${pageIdx}-${idx}`}
-                              aria-label={`Open gallery image ${pageIdx * galleryMaxVisible + idx + 1}`}
+                              aria-label={
+                                t("publicBooking.openGalleryImage", {
+                                  index: pageIdx * galleryMaxVisible + idx + 1,
+                                })
+                              }
                               onClick={() => setPreviewSrc(src)}
                               className={cn(
                                 "group relative overflow-hidden",
@@ -381,7 +403,11 @@ export default function PublicBookingShell({
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
                                 src={src}
-                                alt={`Gallery image ${pageIdx * galleryMaxVisible + idx + 1}`}
+                                alt={
+                                  t("publicBooking.galleryImageAlt", {
+                                    index: pageIdx * galleryMaxVisible + idx + 1,
+                                  })
+                                }
                                 className={cn(
                                   "h-full w-full object-cover",
                                   "transition duration-300",
@@ -421,7 +447,7 @@ export default function PublicBookingShell({
                           "shadow-sm",
                           "ms-1",
                         )}
-                        aria-label="Previous gallery images"
+                        aria-label={t("publicBooking.galleryPrev")}
                       >
                         <ChevronLeft className="h-5 w-5 rtl:rotate-180" />
                       </Button>
@@ -443,7 +469,7 @@ export default function PublicBookingShell({
                           "shadow-sm",
                           "me-1",
                         )}
-                        aria-label="Next gallery images"
+                        aria-label={t("publicBooking.galleryNext")}
                       >
                         <ChevronRight className="h-5 w-5 rtl:rotate-180" />
                       </Button>
@@ -456,7 +482,9 @@ export default function PublicBookingShell({
                         key={i}
                         type="button"
                         onClick={() => scrollGalleryToPage(i)}
-                        aria-label={`Go to gallery page ${i + 1}`}
+                        aria-label={
+                          t("publicBooking.galleryGoTo", { index: i + 1 })
+                        }
                         className={cn(
                           "h-1.5 rounded-full transition",
                           i === galleryPage
