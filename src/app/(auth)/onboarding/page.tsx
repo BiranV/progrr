@@ -29,6 +29,7 @@ import { BUSINESS_TYPES, SERVICE_PRESETS } from "@/lib/onboardingPresets";
 import ImageCropperModal, {
   type ImageCropperMode,
 } from "@/components/ImageCropper";
+import { useI18n } from "@/i18n/useI18n";
 
 type OnboardingData = {
   businessTypes?: string[];
@@ -123,12 +124,12 @@ function effectiveCurrencySymbol(data: OnboardingData): string {
   return currencySymbol(code);
 }
 
-function currencyLabel(data: OnboardingData): string {
+function currencyLabel(data: OnboardingData, otherLabel: string): string {
   const code = normalizeCurrency(data.currency);
   if (code === OTHER_CURRENCY_CODE) {
     const name = String(data.customCurrency?.name ?? "").trim();
     const symbol = String(data.customCurrency?.symbol ?? "").trim();
-    const left = name || "Other";
+    const left = name || otherLabel;
     return symbol ? `${left} (${symbol})` : left;
   }
   return CURRENCIES.find((c) => c.code === code)?.label ?? code;
@@ -136,7 +137,7 @@ function currencyLabel(data: OnboardingData): string {
 
 const BUSINESS_TYPE_OPTIONS = BUSINESS_TYPES;
 
-const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
 function newId() {
   if (
@@ -206,7 +207,7 @@ function normalizeRangesForUi(
 }
 
 function defaultDays() {
-  return DAY_LABELS.map((_, day) => ({
+  return DAY_KEYS.map((_, day) => ({
     day,
     // Default: Sun-Thu enabled, Fri-Sat disabled
     enabled: day >= 0 && day <= 4,
@@ -243,10 +244,10 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!res.ok) {
-    let message = `Request failed (${res.status})`;
+    let message = String(res.status);
     try {
       const body = await res.json();
-      if (body?.error) message = body.error;
+      if (body?.error) message = String(body.error);
     } catch {
       // ignore
     }
@@ -310,6 +311,17 @@ export default function OnboardingPage() {
 
   const [businessPhoneValid, setBusinessPhoneValid] = useState(true);
   const { dir } = useLocale();
+  const { t, dict } = useI18n();
+  const dayLabels = dict.onboarding.dayLabels || [];
+  const dayShortLabels = dict.onboarding.dayShortLabels || dayLabels;
+  const getDayLabel = React.useCallback(
+    (day: number) => dayLabels[day] || "",
+    [dayLabels]
+  );
+  const getDayShortLabel = React.useCallback(
+    (day: number) => dayShortLabels[day] || getDayLabel(day),
+    [dayShortLabels, getDayLabel]
+  );
   const initialTimeZone = React.useMemo(() => detectTimeZone(), []);
   const supportedTimeZones = React.useMemo(() => {
     let zones: string[] = [];
@@ -547,13 +559,17 @@ export default function OnboardingPage() {
           : 17 * 60;
         const startMin = Math.max(0, Math.min(23 * 60 + 59, lastEnd));
         if (startMin >= 23 * 60 + 59) {
-          toastOnce(`No room to add another range on ${DAY_LABELS[day]}.`);
+          toastOnce(
+            t("onboarding.errors.noRoomForRange", { day: getDayLabel(day) })
+          );
           return d;
         }
 
         const endMin = Math.min(23 * 60 + 59, startMin + 60);
         if (endMin <= startMin) {
-          toastOnce(`No room to add another range on ${DAY_LABELS[day]}.`);
+          toastOnce(
+            t("onboarding.errors.noRoomForRange", { day: getDayLabel(day) })
+          );
           return d;
         }
 
@@ -566,7 +582,9 @@ export default function OnboardingPage() {
           overlaps(r.startMin, r.endMin, startMin, endMin)
         );
         if (collides) {
-          toastOnce(`Overlapping time ranges for ${DAY_LABELS[day]}.`);
+          toastOnce(
+            t("onboarding.errors.overlappingRanges", { day: getDayLabel(day) })
+          );
           return d;
         }
 
@@ -793,7 +811,7 @@ export default function OnboardingPage() {
           return merged;
         });
       } catch (e: any) {
-        if (!cancelled) setError(e?.message || "Failed to load onboarding");
+        if (!cancelled) setError(t("onboarding.errors.loadFailed"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -831,13 +849,10 @@ export default function OnboardingPage() {
       }));
     } catch (e: any) {
       if (e?.status === 409) {
-        window.alert(
-          e?.message ||
-          "You can’t change the working hours because there are already scheduled appointments outside the new hours. Please cancel or reschedule those appointments first."
-        );
+        window.alert(t("onboarding.errors.hoursConflict"));
         return;
       }
-      setError(e?.message || "Failed to save onboarding changes");
+      setError(t("onboarding.errors.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -857,7 +872,9 @@ export default function OnboardingPage() {
       });
       const json = await res.json().catch(() => null);
       if (!res.ok)
-        throw new Error(json?.error || `Request failed (${res.status})`);
+        throw new Error(
+          json?.error || t("errors.requestFailed", { status: res.status })
+        );
 
       const url = String(json?.logo?.url ?? json?.url ?? "").trim();
       const publicId = String(json?.logo?.publicId ?? "").trim();
@@ -884,7 +901,9 @@ export default function OnboardingPage() {
       });
       const json = await res.json().catch(() => null);
       if (!res.ok)
-        throw new Error(json?.error || `Request failed (${res.status})`);
+        throw new Error(
+          json?.error || t("errors.requestFailed", { status: res.status })
+        );
 
       setData((d) => ({
         ...d,
@@ -913,7 +932,9 @@ export default function OnboardingPage() {
       });
       const json = await res.json().catch(() => null);
       if (!res.ok)
-        throw new Error(json?.error || `Request failed (${res.status})`);
+        throw new Error(
+          json?.error || t("errors.requestFailed", { status: res.status })
+        );
 
       const url = String(json?.banner?.url ?? json?.url ?? "").trim();
       const publicId = String(json?.banner?.publicId ?? "").trim();
@@ -954,7 +975,9 @@ export default function OnboardingPage() {
       });
       const json = await res.json().catch(() => null);
       if (!res.ok)
-        throw new Error(json?.error || `Request failed (${res.status})`);
+        throw new Error(
+          json?.error || t("errors.requestFailed", { status: res.status })
+        );
 
       setData((d) => ({
         ...d,
@@ -979,7 +1002,8 @@ export default function OnboardingPage() {
     try {
       const current = (data.branding?.gallery || []).length;
       const remaining = Math.max(0, 10 - current);
-      if (remaining <= 0) throw new Error("Gallery limit reached (max 10)");
+      if (remaining <= 0)
+        throw new Error(t("onboarding.errors.galleryLimit", { max: 10 }));
 
       const selected = files.slice(0, remaining);
 
@@ -989,27 +1013,36 @@ export default function OnboardingPage() {
       const skipped: string[] = [];
 
       for (const f of selected) {
-        const t = String(f.type || "").toLowerCase();
-        if (t && !allowed.has(t)) {
-          skipped.push(`${f.name || "image"} (unsupported format)`);
+        const fileType = String(f.type || "").toLowerCase();
+        if (fileType && !allowed.has(fileType)) {
+          skipped.push(
+            `${f.name || t("onboarding.errors.filePlaceholder")} (${t(
+              "onboarding.errors.unsupportedFormat"
+            )})`
+          );
           continue;
         }
         if (f.size > maxBytes) {
-          skipped.push(`${f.name || "image"} (too large)`);
+          skipped.push(
+            `${f.name || t("onboarding.errors.filePlaceholder")} (${t(
+              "onboarding.errors.tooLarge"
+            )})`
+          );
           continue;
         }
         valid.push(f);
       }
 
       if (!valid.length) {
-        throw new Error(
-          "Please upload JPG, PNG, or WEBP images (max 5MB each)"
-        );
+        throw new Error(t("onboarding.errors.invalidImageType"));
       }
       if (skipped.length) {
+        const preview = skipped.slice(0, 3).join(", ");
+        const suffix = skipped.length > 3 ? "…" : "";
         setError(
-          `Some files were skipped: ${skipped.slice(0, 3).join(", ")}${skipped.length > 3 ? "…" : ""
-          }`
+          t("onboarding.errors.skippedFiles", {
+            files: `${preview}${suffix}`,
+          })
         );
       }
 
@@ -1043,7 +1076,9 @@ export default function OnboardingPage() {
       }
 
       if (!res.ok)
-        throw new Error(json?.error || `Request failed (${res.status})`);
+        throw new Error(
+          json?.error || t("errors.requestFailed", { status: res.status })
+        );
 
       const gallery = Array.isArray(json?.gallery)
         ? json.gallery
@@ -1077,7 +1112,8 @@ export default function OnboardingPage() {
     } catch (e) {
       // Failure: keep previews visible briefly so it doesn't feel like "nothing happened".
       clearPreviewsDelayMs = 2500;
-      const msg = (e as any)?.message || "Failed to upload images";
+      const msg =
+        (e as any)?.message || t("onboarding.errors.uploadImagesFailed");
       setGalleryError(msg);
       setError(msg);
       throw e;
@@ -1118,7 +1154,9 @@ export default function OnboardingPage() {
       });
       const json = await res.json().catch(() => null);
       if (!res.ok)
-        throw new Error(json?.error || `Request failed (${res.status})`);
+        throw new Error(
+          json?.error || t("errors.requestFailed", { status: res.status })
+        );
 
       const gallery = Array.isArray(json?.gallery)
         ? json.gallery
@@ -1157,7 +1195,7 @@ export default function OnboardingPage() {
     try {
       const before = [...(data.branding?.gallery || [])];
       const target = before[index];
-      if (!target) throw new Error("Image not found");
+      if (!target) throw new Error(t("onboarding.errors.imageNotFound"));
 
       // Upload new (server appends)
       const fd = new FormData();
@@ -1169,7 +1207,9 @@ export default function OnboardingPage() {
       });
       const upJson = await upRes.json().catch(() => null);
       if (!upRes.ok)
-        throw new Error(upJson?.error || `Request failed (${upRes.status})`);
+        throw new Error(
+          upJson?.error || t("errors.requestFailed", { status: upRes.status })
+        );
 
       const added = Array.isArray(upJson?.added) ? upJson.added : [];
       const first = added?.[0];
@@ -1181,7 +1221,7 @@ export default function OnboardingPage() {
         typeof first === "string"
           ? ""
           : String(first?.publicId ?? first?.public_id ?? "").trim();
-      if (!newUrl) throw new Error("Upload failed");
+      if (!newUrl) throw new Error(t("onboarding.errors.uploadFailed"));
 
       // Remove old
       await removeGalleryImage({
@@ -1217,15 +1257,15 @@ export default function OnboardingPage() {
       }
       if (step === 1) {
         if (!data.business?.name?.trim())
-          newErrors.businessName = "Business name is required";
+          newErrors.businessName = t("onboarding.errors.businessNameRequired");
         if (!data.business?.phone?.trim())
-          newErrors.businessPhone = "Phone number is required";
+          newErrors.businessPhone = t("onboarding.errors.businessPhoneRequired");
         if (data.business?.phone?.trim() && !businessPhoneValid)
-          newErrors.businessPhone = "Please enter a valid phone number";
+          newErrors.businessPhone = t("onboarding.errors.businessPhoneInvalid");
         if (!data.business?.address?.trim())
-          newErrors.businessAddress = "Address is required";
+          newErrors.businessAddress = t("onboarding.errors.businessAddressRequired");
         if (!String(data.availability?.timezone ?? "").trim())
-          newErrors.businessTimezone = "Timezone is required";
+          newErrors.businessTimezone = t("onboarding.errors.businessTimezoneRequired");
 
         if (Object.keys(newErrors).length > 0) {
           setFieldErrors(newErrors);
@@ -1243,22 +1283,22 @@ export default function OnboardingPage() {
         const currency = normalizeCurrency(data.currency);
         if (currency === OTHER_CURRENCY_CODE) {
           if (!data.customCurrency?.name?.trim())
-            newErrors.currencyName = "Currency name is required";
+            newErrors.currencyName = t("onboarding.errors.currencyNameRequired");
           if (!data.customCurrency?.symbol?.trim())
-            newErrors.currencySymbol = "Symbol is required";
+            newErrors.currencySymbol = t("onboarding.errors.currencySymbolRequired");
         }
 
         const services = data.services || [];
         if (services.length === 0) {
-          setError("At least one service is required");
+          setError(t("onboarding.errors.atLeastOneService"));
           return;
         }
 
         services.forEach((s) => {
           if (!s.name?.trim())
-            newErrors[`serviceName_${s.id}`] = "Service name is required";
+            newErrors[`serviceName_${s.id}`] = t("onboarding.errors.serviceNameRequired");
           if (!s.durationMinutes || s.durationMinutes <= 0)
-            newErrors[`serviceDuration_${s.id}`] = "Duration is required";
+            newErrors[`serviceDuration_${s.id}`] = t("onboarding.errors.serviceDurationRequired");
         });
 
         if (Object.keys(newErrors).length > 0) {
@@ -1287,7 +1327,9 @@ export default function OnboardingPage() {
 
             const ranges = normalizeRangesForUi((d as any).ranges);
             if (!ranges.length) {
-              return `Please set valid hours for ${DAY_LABELS[d.day]}.`;
+              return t("onboarding.errors.invalidHours", {
+                day: getDayLabel(d.day),
+              });
             }
 
             const parsed = ranges
@@ -1300,7 +1342,9 @@ export default function OnboardingPage() {
               .filter((x) => x.start || x.end);
 
             if (!parsed.length) {
-              return `Please set valid hours for ${DAY_LABELS[d.day]}.`;
+              return t("onboarding.errors.invalidHours", {
+                day: getDayLabel(d.day),
+              });
             }
 
             for (const r of parsed) {
@@ -1310,11 +1354,14 @@ export default function OnboardingPage() {
                 !Number.isFinite(r.startMin) ||
                 !Number.isFinite(r.endMin)
               ) {
-                return `Please set valid hours for ${DAY_LABELS[d.day]}.`;
+                return t("onboarding.errors.invalidHours", {
+                  day: getDayLabel(d.day),
+                });
               }
               if (r.endMin <= r.startMin) {
-                return `End time must be after start time for ${DAY_LABELS[d.day]
-                  }.`;
+                return t("onboarding.errors.endAfterStart", {
+                  day: getDayLabel(d.day),
+                });
               }
             }
 
@@ -1325,7 +1372,9 @@ export default function OnboardingPage() {
               if (
                 overlaps(prev.startMin, prev.endMin, curr.startMin, curr.endMin)
               ) {
-                return `Overlapping time ranges for ${DAY_LABELS[d.day]}.`;
+                return t("onboarding.errors.overlappingRanges", {
+                  day: getDayLabel(d.day),
+                });
               }
             }
           }
@@ -1362,7 +1411,7 @@ export default function OnboardingPage() {
       if (step === 4) {
         const gallery = data.branding?.gallery || [];
         if (gallery.length > 10) {
-          setError("Gallery limit reached (max 10 images)");
+          setError(t("onboarding.errors.galleryLimit", { max: 10 }));
           return;
         }
         await savePartial({ branding: data.branding });
@@ -1370,7 +1419,7 @@ export default function OnboardingPage() {
 
       setStep((s) => Math.min(s + 1, totalSteps - 1));
     } catch (e: any) {
-      setError(e?.message || "Failed to save");
+      setError(e?.message || t("onboarding.errors.saveFailed"));
     }
   };
 
@@ -1404,7 +1453,7 @@ export default function OnboardingPage() {
       }
       router.replace("/dashboard");
     } catch (e: any) {
-      setError(e?.message || "Failed to finish onboarding");
+      setError(t("onboarding.errors.finishFailed"));
     } finally {
       setSaving(false);
     }
@@ -1417,15 +1466,15 @@ export default function OnboardingPage() {
           <div className="space-y-4">
             <div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Business type
+                {t("onboarding.businessTypeTitle")}
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-300">
-                Choose what best describes you.
+                {t("onboarding.businessTypeSubtitle")}
               </p>
             </div>
 
             <div className="space-y-2">
-              <Label>Select one *</Label>
+              <Label>{t("onboarding.selectOne")}</Label>
               <div className="flex flex-wrap justify-center gap-3">
                 {BUSINESS_TYPE_OPTIONS.map((opt) => {
                   const selected = (data.businessTypes || []).includes(opt.key);
@@ -1482,16 +1531,16 @@ export default function OnboardingPage() {
           <div className="space-y-4">
             <div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Business details
+                {t("onboarding.businessDetailsTitle")}
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-300">
-                Basic info your clients will see.
+                {t("onboarding.businessDetailsSubtitle")}
               </p>
             </div>
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Business name *</Label>
+                <Label>{t("onboarding.businessName")}</Label>
                 <Input
                   className={fieldErrors.businessName ? inputErrorClass : ""}
                   value={data.business?.name || ""}
@@ -1501,12 +1550,12 @@ export default function OnboardingPage() {
                       business: { ...(d.business || {}), name: e.target.value },
                     }))
                   }
-                  placeholder="Acme Studio"
+                  placeholder={t("onboarding.businessNamePlaceholder")}
                 />
                 <InlineError message={fieldErrors.businessName} />
               </div>
               <div className="space-y-2">
-                <Label>Business phone *</Label>
+                <Label>{t("onboarding.businessPhone")}</Label>
                 <PhoneInput
                   value={data.business?.phone || ""}
                   onChange={(v) =>
@@ -1521,12 +1570,12 @@ export default function OnboardingPage() {
                   onValidityChange={setBusinessPhoneValid}
                   inputClassName={fieldErrors.businessPhone ? inputErrorClass : ""}
                   aria-invalid={Boolean(fieldErrors.businessPhone)}
-                  placeholder="Phone number"
+                  placeholder={t("onboarding.businessPhonePlaceholder")}
                 />
                 <InlineError message={fieldErrors.businessPhone} />
               </div>
               <div className="space-y-2">
-                <Label>Business address *</Label>
+                <Label>{t("onboarding.businessAddress")}</Label>
                 <Input
                   className={fieldErrors.businessAddress ? inputErrorClass : ""}
                   value={data.business?.address || ""}
@@ -1539,13 +1588,13 @@ export default function OnboardingPage() {
                       },
                     }))
                   }
-                  placeholder="123 Main St, City"
+                  placeholder={t("onboarding.businessAddressPlaceholder")}
                 />
                 <InlineError message={fieldErrors.businessAddress} />
               </div>
 
               <div className="space-y-2">
-                <Label>Timezone *</Label>
+                <Label>{t("onboarding.timezone")}</Label>
                 <Select
                   value={String(data.availability?.timezone || "").trim() || DEFAULT_TIMEZONE}
                   onValueChange={(v) =>
@@ -1561,7 +1610,7 @@ export default function OnboardingPage() {
                   <SelectTrigger
                     className={(fieldErrors.businessTimezone ? inputErrorClass : "") + " w-full"}
                   >
-                    <SelectValue placeholder="Select timezone" />
+                    <SelectValue placeholder={t("onboarding.selectTimezone")} />
                   </SelectTrigger>
                   <SelectContent className="max-h-80">
                     {uiTimeZones.map((tz) => (
@@ -1582,10 +1631,10 @@ export default function OnboardingPage() {
           <div className="space-y-5">
             <div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Business branding
+                {t("onboarding.brandingTitle")}
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-300">
-                Add a logo and a few photos — these will be visible to clients.
+                {t("onboarding.brandingSubtitle")}
               </p>
             </div>
 
@@ -1593,10 +1642,10 @@ export default function OnboardingPage() {
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="font-semibold text-gray-900 dark:text-white">
-                    Business logo
+                    {t("onboarding.businessLogo")}
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-300">
-                    Recommended: square image (will display as a circle)
+                    {t("onboarding.businessLogoHint")}
                   </div>
                 </div>
               </div>
@@ -1625,12 +1674,12 @@ export default function OnboardingPage() {
                       src={String(
                         data.branding?.logo?.url || data.branding?.logoUrl
                       ).trim()}
-                      alt="Business logo"
+                      alt={t("onboarding.businessLogoAlt")}
                       className="h-full w-full object-cover"
                     />
                   ) : (
                     <span className="text-xs font-medium text-gray-500 dark:text-gray-300">
-                      No logo
+                      {t("onboarding.noLogo")}
                     </span>
                   )}
                 </div>
@@ -1650,8 +1699,8 @@ export default function OnboardingPage() {
                         ) : null}
                         <span>
                           {data.branding?.logo?.url || data.branding?.logoUrl
-                            ? "Replace logo"
-                            : "Upload logo"}
+                            ? t("onboarding.replaceLogo")
+                            : t("onboarding.uploadLogo")}
                         </span>
                       </span>
                     </label>
@@ -1665,11 +1714,11 @@ export default function OnboardingPage() {
                       className="rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
                       onClick={() =>
                         removeLogo().catch((err) =>
-                          setError(err?.message || "Failed to remove logo")
+                          setError(err?.message || t("onboarding.removeLogoFailed"))
                         )
                       }
                     >
-                      Remove
+                      {t("onboarding.removeLogo")}
                     </Button>
                   ) : null}
                 </div>
@@ -1680,10 +1729,10 @@ export default function OnboardingPage() {
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="font-semibold text-gray-900 dark:text-white">
-                    Business banner
+                    {t("onboarding.businessBanner")}
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-300">
-                    This image appears at the top of your app and booking page.
+                    {t("onboarding.businessBannerHint")}
                   </div>
                 </div>
               </div>
@@ -1710,7 +1759,7 @@ export default function OnboardingPage() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={String(data.branding.banner.url).trim()}
-                      alt="Business banner"
+                      alt={t("onboarding.businessBannerAlt")}
                       className="absolute inset-0 w-full h-full object-cover"
                     />
                   ) : null}
@@ -1719,7 +1768,7 @@ export default function OnboardingPage() {
                   {!data.branding?.banner?.url ? (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="text-xs font-medium text-white/80">
-                        No banner
+                        {t("onboarding.noBanner")}
                       </div>
                     </div>
                   ) : null}
@@ -1740,8 +1789,8 @@ export default function OnboardingPage() {
                         ) : null}
                         <span>
                           {data.branding?.banner?.url
-                            ? "Replace banner"
-                            : "Upload banner"}
+                            ? t("onboarding.replaceBanner")
+                            : t("onboarding.uploadBanner")}
                         </span>
                       </span>
                     </label>
@@ -1755,11 +1804,11 @@ export default function OnboardingPage() {
                       className="rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
                       onClick={() =>
                         removeBanner().catch((err) =>
-                          setError(err?.message || "Failed to remove banner")
+                          setError(err?.message || t("onboarding.removeBannerFailed"))
                         )
                       }
                     >
-                      Remove
+                      {t("onboarding.removeBanner")}
                     </Button>
                   ) : null}
                 </div>
@@ -1770,10 +1819,10 @@ export default function OnboardingPage() {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="font-semibold text-gray-900 dark:text-white">
-                    Business gallery
+                    {t("onboarding.businessGallery")}
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-300">
-                    Up to 10 images of your space, work, products, or services.
+                    {t("onboarding.businessGalleryHint")}
                   </div>
                 </div>
                 <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 shrink-0">
@@ -1794,7 +1843,9 @@ export default function OnboardingPage() {
                   const picked = Array.from(e.target.files ?? []);
                   e.target.value = "";
                   uploadGalleryFiles(picked).catch((err) =>
-                    setError(err?.message || "Failed to upload images")
+                    setError(
+                      err?.message || t("onboarding.errors.uploadImagesFailed")
+                    )
                   );
                 }}
               />
@@ -1807,7 +1858,7 @@ export default function OnboardingPage() {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={url}
-                      alt="Uploading"
+                      alt={t("onboarding.uploading")}
                       className="h-full w-full object-cover opacity-70"
                     />
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -1844,7 +1895,10 @@ export default function OnboardingPage() {
                           e.target.value = "";
                           if (!file) return;
                           replaceGalleryImage(idx, file).catch((err) =>
-                            setError(err?.message || "Failed to replace image")
+                            setError(
+                              err?.message ||
+                              t("onboarding.errors.replaceImageFailed")
+                            )
                           );
                         }}
                       />
@@ -1852,7 +1906,7 @@ export default function OnboardingPage() {
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={url}
-                        alt={`Gallery image ${idx + 1}`}
+                        alt={t("onboarding.galleryImageAlt", { index: idx + 1 })}
                         className="h-full w-full object-cover"
                         loading="lazy"
                       />
@@ -1869,7 +1923,7 @@ export default function OnboardingPage() {
                               : "cursor-pointer")
                           }
                         >
-                          {replacingIndex === idx ? "…" : "Replace"}
+                          {replacingIndex === idx ? "…" : t("onboarding.replace")}
                         </label>
 
                         <button
@@ -1877,11 +1931,11 @@ export default function OnboardingPage() {
                           disabled={uploadingGallery || saving}
                           onClick={() =>
                             removeGalleryImage({ url, publicId }).catch((err) =>
-                              setError(err?.message || "Failed to remove image")
+                              setError(err?.message || t("onboarding.removeImageFailed"))
                             )
                           }
                           className="rounded-lg bg-black/45 text-white p-1.5 backdrop-blur-sm hover:bg-black/55 transition disabled:opacity-60"
-                          aria-label="Remove image"
+                          aria-label={t("onboarding.removeImage")}
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -1910,7 +1964,7 @@ export default function OnboardingPage() {
                           <Loader2 className="h-5 w-5 animate-spin text-gray-500 dark:text-gray-300" />
                         ) : null}
                         <div className="text-xs text-gray-600 dark:text-gray-300">
-                          Add images
+                          {t("onboarding.addImages")}
                         </div>
                       </div>
                     </label>
@@ -1919,7 +1973,7 @@ export default function OnboardingPage() {
               </div>
 
               <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-                These photos appear on your public booking page.
+                {t("onboarding.galleryPublicNote")}
               </div>
 
               {galleryError ? (
@@ -1936,23 +1990,23 @@ export default function OnboardingPage() {
           <div className="space-y-4">
             <div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Services
+                {t("onboarding.servicesTitle")}
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-300">
-                Add at least one service.
+                {t("onboarding.servicesSubtitle")}
               </p>
               {servicesAutoGenerated ? (
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  We added suggested services — edit them anytime.
+                  {t("onboarding.servicesAutoGenerated")}
                 </p>
               ) : null}
             </div>
 
             <div className="space-y-4">
               <div className="flex items-center gap-2 px-1">
-                <Label className="flex-1">Service name *</Label>
-                <Label className="w-[70px] shrink-0 text-center">Time</Label>
-                <Label className="w-[70px] shrink-0 text-center">Price</Label>
+                <Label className="flex-1">{t("onboarding.serviceName")}</Label>
+                <Label className="w-[70px] shrink-0 text-center">{t("onboarding.time")}</Label>
+                <Label className="w-[70px] shrink-0 text-center">{t("onboarding.price")}</Label>
                 <div className="w-8 shrink-0"></div>
               </div>
 
@@ -1979,7 +2033,7 @@ export default function OnboardingPage() {
                               ),
                             }));
                           }}
-                          placeholder="Service"
+                          placeholder={t("onboarding.servicePlaceholder")}
                         />
                       </div>
 
@@ -2048,7 +2102,7 @@ export default function OnboardingPage() {
                           size="icon"
                           className="h-8 w-8 text-gray-400 hover:text-red-500"
                           disabled={(data.services || []).length <= 1}
-                          aria-label="Remove service"
+                          aria-label={t("onboarding.removeService")}
                           onClick={() => {
                             setServicesAutoGenerated(false);
                             setData((d) => ({
@@ -2095,7 +2149,7 @@ export default function OnboardingPage() {
                     }));
                   }}
                 >
-                  Add service
+                  {t("onboarding.addService")}
                 </Button>
               </div>
             </div>
@@ -2107,10 +2161,10 @@ export default function OnboardingPage() {
           <div className="space-y-4">
             <div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Booking & hours
+                {t("onboarding.bookingHoursTitle")}
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-300">
-                Set your working days and booking rules.
+                {t("onboarding.bookingHoursSubtitle")}
               </p>
             </div>
 
@@ -2118,10 +2172,10 @@ export default function OnboardingPage() {
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0">
                   <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                    Limit customers to 1 upcoming appointment
+                    {t("onboarding.limitCustomersTitle")}
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Default is off (customers can book multiple). Same service on the same day is always blocked.
+                    {t("onboarding.limitCustomersSubtitle")}
                   </div>
                 </div>
                 <UISwitch
@@ -2175,14 +2229,16 @@ export default function OnboardingPage() {
                               };
                             })
                           }
-                          aria-label={`Toggle ${DAY_LABELS[d.day]}`}
+                          aria-label={t("onboarding.toggleDay", {
+                            day: getDayLabel(d.day),
+                          })}
                           disabled={loading || saving}
                         />
                       </div>
 
                       <div className="h-8 flex items-center text-sm font-medium text-gray-900 dark:text-white select-none">
                         <span className="w-8">
-                          {DAY_LABELS[d.day].substring(0, 3)}
+                          {getDayShortLabel(d.day)}
                         </span>
                       </div>
 
@@ -2204,8 +2260,10 @@ export default function OnboardingPage() {
                               }
                               disabled={loading || saving || !d.enabled}
                               className="h-8 w-[78px] min-w-[78px] px-1.5 text-[13px] shrink-0"
-                              aria-label={`${DAY_LABELS[d.day]} ${idx === 0 ? "start" : "additional start"
-                                } time`}
+                              aria-label={t("onboarding.timeRangeStartAria", {
+                                day: getDayLabel(d.day),
+                                index: idx + 1,
+                              })}
                             />
                             <span className="text-gray-400 shrink-0">–</span>
                             <TimePicker
@@ -2220,8 +2278,10 @@ export default function OnboardingPage() {
                               }
                               disabled={loading || saving || !d.enabled}
                               className="h-8 w-[78px] min-w-[78px] px-1.5 text-[13px] shrink-0"
-                              aria-label={`${DAY_LABELS[d.day]} ${idx === 0 ? "end" : "additional end"
-                                } time`}
+                              aria-label={t("onboarding.timeRangeEndAria", {
+                                day: getDayLabel(d.day),
+                                index: idx + 1,
+                              })}
                             />
                           </div>
                         ))}
@@ -2240,8 +2300,9 @@ export default function OnboardingPage() {
                                 size="icon-sm"
                                 onClick={() => addAvailabilityRange(d.day)}
                                 disabled={loading || saving || !d.enabled}
-                                aria-label={`Add time range for ${DAY_LABELS[d.day]
-                                  }`}
+                                aria-label={t("onboarding.addTimeRange", {
+                                  day: getDayLabel(d.day),
+                                })}
                               >
                                 <Plus className="h-4 w-4 ms-4" />
                               </Button>
@@ -2259,8 +2320,9 @@ export default function OnboardingPage() {
                                   !d.enabled ||
                                   ranges.length <= 1
                                 }
-                                aria-label={`Delete time range for ${DAY_LABELS[d.day]
-                                  }`}
+                                aria-label={t("onboarding.deleteTimeRange", {
+                                  day: getDayLabel(d.day),
+                                })}
                               >
                                 <Trash2 className="h-4 w-4 ms-4" />
                               </Button>
@@ -2281,17 +2343,17 @@ export default function OnboardingPage() {
           <div className="space-y-4">
             <div>
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Finish
+                {t("onboarding.finishTitle")}
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-300">
-                Review and complete onboarding.
+                {t("onboarding.finishSubtitle")}
               </p>
             </div>
 
             <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-4 space-y-5">
               <div className="space-y-2">
                 <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                  Business type
+                  {t("onboarding.businessTypeTitle")}
                 </div>
                 <div className="text-sm text-gray-700 dark:text-gray-200">
                   {data.businessTypes && data.businessTypes.length > 0
@@ -2302,7 +2364,7 @@ export default function OnboardingPage() {
                             ?.title ?? v
                       )
                       .join(", ")
-                    : "—"}
+                    : t("common.emptyDash")}
                 </div>
               </div>
 
@@ -2310,7 +2372,7 @@ export default function OnboardingPage() {
 
               <div className="space-y-2">
                 <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                  Branding
+                  {t("onboarding.brandingTitle")}
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -2321,7 +2383,7 @@ export default function OnboardingPage() {
                         src={String(
                           data.branding?.logo?.url || data.branding?.logoUrl
                         ).trim()}
-                        alt="Business logo"
+                        alt={t("onboarding.businessLogoAlt")}
                         className="h-full w-full object-cover"
                       />
                     ) : (
@@ -2332,14 +2394,16 @@ export default function OnboardingPage() {
                   </div>
                   <div className="text-sm text-gray-700 dark:text-gray-200">
                     <div>
-                      <span className="font-medium">Logo:</span>{" "}
+                      <span className="font-medium">{t("onboarding.logoLabel")}</span>{" "}
                       {data.branding?.logo?.url || data.branding?.logoUrl
-                        ? "Uploaded"
-                        : "Not set"}
+                        ? t("onboarding.uploaded")
+                        : t("onboarding.notSet")}
                     </div>
                     <div>
-                      <span className="font-medium">Gallery:</span>{" "}
-                      {(data.branding?.gallery || []).length} image(s)
+                      <span className="font-medium">{t("onboarding.galleryLabel")}</span>{" "}
+                      {t("onboarding.galleryImagesCount", {
+                        count: (data.branding?.gallery || []).length,
+                      })}
                     </div>
                   </div>
                 </div>
@@ -2360,7 +2424,9 @@ export default function OnboardingPage() {
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={url}
-                            alt={`Gallery image ${idx + 1}`}
+                            alt={t("onboarding.galleryImageAlt", {
+                              index: idx + 1,
+                            })}
                             className="h-full w-full object-cover"
                             loading="lazy"
                           />
@@ -2370,7 +2436,7 @@ export default function OnboardingPage() {
                   </div>
                 ) : (
                   <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                    No gallery images yet.
+                    {t("onboarding.noGalleryImages")}
                   </div>
                 )}
               </div>
@@ -2379,20 +2445,20 @@ export default function OnboardingPage() {
 
               <div className="space-y-2">
                 <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                  Business details
+                  {t("onboarding.businessDetailsTitle")}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-700 dark:text-gray-200">
                   <div>
-                    <span className="font-medium">Name:</span>{" "}
-                    {data.business?.name || "—"}
+                    <span className="font-medium">{t("onboarding.nameLabel")}</span>{" "}
+                    {data.business?.name || t("common.emptyDash")}
                   </div>
                   <div>
-                    <span className="font-medium">Phone:</span>{" "}
-                    {data.business?.phone || "—"}
+                    <span className="font-medium">{t("onboarding.phoneLabel")}</span>{" "}
+                    {data.business?.phone || t("common.emptyDash")}
                   </div>
                   <div className="sm:col-span-2">
-                    <span className="font-medium">Address:</span>{" "}
-                    {data.business?.address || "—"}
+                    <span className="font-medium">{t("onboarding.addressLabel")}</span>{" "}
+                    {data.business?.address || t("common.emptyDash")}
                   </div>
                 </div>
               </div>
@@ -2401,12 +2467,12 @@ export default function OnboardingPage() {
 
               <div className="space-y-2">
                 <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                  Services
+                  {t("onboarding.servicesTitle")}
                 </div>
 
                 <div className="text-sm text-gray-700 dark:text-gray-200">
-                  <span className="font-medium">Currency:</span>{" "}
-                  {currencyLabel(data)}
+                  <span className="font-medium">{t("onboarding.currencyLabel")}</span>{" "}
+                  {currencyLabel(data, t("onboarding.otherCurrency"))}
                 </div>
 
                 <div className="space-y-2">
@@ -2419,27 +2485,27 @@ export default function OnboardingPage() {
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                              {String(s.name || "").trim() || "—"}
+                              {String(s.name || "").trim() || t("common.emptyDash")}
                             </div>
                             <div className="text-xs text-gray-600 dark:text-gray-300">
-                              Duration:{" "}
+                              {t("onboarding.durationLabel")}{" "}
                               {Number.isFinite(s.durationMinutes)
                                 ? s.durationMinutes
-                                : "—"}{" "}
-                              min
+                                : t("common.emptyDash")}{" "}
+                              {t("onboarding.minutesShort")}
                             </div>
                           </div>
                           <div className="text-sm font-semibold text-gray-900 dark:text-white shrink-0">
                             {Number.isFinite(s.price)
                               ? `${effectiveCurrencySymbol(data)}${s.price}`
-                              : "—"}
+                              : t("common.emptyDash")}
                           </div>
                         </div>
                       </div>
                     ))
                   ) : (
                     <div className="text-sm text-gray-700 dark:text-gray-200">
-                      —
+                      {t("common.emptyDash")}
                     </div>
                   )}
                 </div>
@@ -2449,10 +2515,11 @@ export default function OnboardingPage() {
 
               <div className="space-y-2">
                 <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                  Booking & hours
+                  {t("onboarding.bookingHoursTitle")}
                 </div>
                 <div className="text-sm text-gray-700 dark:text-gray-200">
-                  <span className="font-medium">Week starts:</span> Sunday
+                  <span className="font-medium">{t("onboarding.weekStartsOn")}</span>{" "}
+                  {getDayLabel(0)}
                 </div>
 
                 <div className="space-y-2">
@@ -2479,7 +2546,7 @@ export default function OnboardingPage() {
                         className="flex items-center justify-between gap-3 rounded-md border border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-950/20 px-3 py-2"
                       >
                         <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {DAY_LABELS[d.day]}
+                          {getDayLabel(d.day)}
                         </div>
                         <div className="text-sm text-gray-700 dark:text-gray-200">
                           {d.enabled
@@ -2493,13 +2560,13 @@ export default function OnboardingPage() {
                               return ranges
                                 .map(
                                   (r) =>
-                                    `${String(r.start || "—")} – ${String(
-                                      r.end || "—"
+                                    `${String(r.start || t("common.emptyDash"))} – ${String(
+                                      r.end || t("common.emptyDash")
                                     )}`
                                 )
                                 .join(", ");
                             })()
-                            : "Closed"}
+                            : t("onboarding.closed")}
                         </div>
                       </div>
                     ));
@@ -2527,27 +2594,29 @@ export default function OnboardingPage() {
         {/* User & Step Info */}
         <div className="text-center space-y-1 mt-6 mb-6 px-6 w-full max-w-md">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
-            {user?.full_name ? `Welcome, ${user.full_name}` : "Welcome"}
+            {user?.full_name
+              ? t("onboarding.welcomeUser", { name: user.full_name })
+              : t("onboarding.welcome")}
           </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
             {step === 0
-              ? "Select Business Type"
+              ? t("onboarding.stepBusinessType")
               : step === 1
-                ? "Business Details"
+                ? t("onboarding.stepBusinessDetails")
                 : step === 2
-                  ? "Setup Services"
+                  ? t("onboarding.stepServices")
                   : step === 3
-                    ? "Set Booking & hours"
+                    ? t("onboarding.stepBookingHours")
                     : step === 4
-                      ? "Business Branding"
-                      : "Review & Finish"}
+                      ? t("onboarding.stepBranding")
+                      : t("onboarding.stepReview")}
           </p>
 
           {/* Progress Bar */}
           <div className="pt-4 max-w-xs mx-auto w-full">
             <div className="flex justify-between text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 px-1">
               <span>
-                Step {step + 1} of {totalSteps}
+                {t("onboarding.stepCount", { current: step + 1, total: totalSteps })}
               </span>
               <span>{Math.round(progress)}%</span>
             </div>
@@ -2568,7 +2637,7 @@ export default function OnboardingPage() {
             {loading ? (
               <div className="py-20 text-center text-muted-foreground flex flex-col items-center">
                 <Loader2 className="w-8 h-8 animate-spin mb-3 text-neutral-900 dark:text-white" />
-                <p>Loading details...</p>
+                <p>{t("onboarding.loadingDetails")}</p>
               </div>
             ) : (
               <motion.div
@@ -2597,7 +2666,7 @@ export default function OnboardingPage() {
               disabled={saving}
               className="h-14 flex-1 rounded-2xl text-lg font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
             >
-              Back
+              {t("common.back")}
             </Button>
           )}
           {step < totalSteps - 1 ? (
@@ -2611,7 +2680,7 @@ export default function OnboardingPage() {
               }
               className="h-14 flex-[2] rounded-2xl text-lg font-bold bg-neutral-900 hover:bg-neutral-800 text-white shadow-lg shadow-black/10 dark:shadow-none transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
-              {saving ? <Loader2 className="h-6 w-6 animate-spin" /> : "Next"}
+              {saving ? <Loader2 className="h-6 w-6 animate-spin" /> : t("common.next")}
             </Button>
           ) : (
             <Button
@@ -2623,7 +2692,7 @@ export default function OnboardingPage() {
               {saving ? (
                 <Loader2 className="h-6 w-6 animate-spin" />
               ) : (
-                "Finish Setup"
+                t("onboarding.finishButton")
               )}
             </Button>
           )}
@@ -2648,7 +2717,9 @@ export default function OnboardingPage() {
             setCropOpen(false);
             setCropFile(null);
           } catch (err: any) {
-            setError(err?.message || "Failed to upload image");
+            setError(
+              err?.message || t("onboarding.errors.uploadImageFailed")
+            );
             throw err;
           }
         }}

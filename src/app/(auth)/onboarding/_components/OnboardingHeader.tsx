@@ -3,6 +3,7 @@
 import { useAuth } from "@/context/AuthContext";
 import ClientAvatar from "@/components/ClientAvatar";
 import { ArrowLeft } from "lucide-react";
+import { useI18n } from "@/i18n/useI18n";
 
 export default function OnboardingHeader({
   title,
@@ -14,6 +15,7 @@ export default function OnboardingHeader({
   showBack: boolean;
 }) {
   const { user } = useAuth();
+  const { t } = useI18n();
 
   return (
     <div className="relative mb-2 w-[120%] -ml-[10%]">
@@ -48,14 +50,14 @@ export default function OnboardingHeader({
           <div className="p-1.5 bg-white/20 backdrop-blur-sm rounded-full mb-3">
             <div className="p-1 bg-white rounded-full shadow-xl">
               <ClientAvatar
-                name={user?.full_name || user?.email || "User"}
+                name={user?.full_name || user?.email || t("onboarding.userFallback")}
                 src={user?.image}
                 className="w-24 h-24 text-3xl font-bold bg-gray-100 text-emerald-600"
               />
             </div>
           </div>
           <h2 className="text-xl font-bold text-white tracking-wide">
-            {user?.full_name || user?.email?.split("@")[0] || "Welcome"}
+            {user?.full_name || user?.email?.split("@")[0] || t("onboarding.welcome")}
           </h2>
         </div>
       </div>

@@ -7,5 +7,5 @@ export function useI18n() {
     const { language } = useLocale();
     const dict = getDictionary(language);
     const t = createTranslator(dict);
-    return { t, language };
+    return { t, language, dict };
 }
