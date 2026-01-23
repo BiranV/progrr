@@ -91,7 +91,7 @@ const he = {
         businessGalleryHint: "עד 10 תמונות של המקום, עבודות, מוצרים או שירותים.",
         addImages: "הוספת תמונות",
         finishTitle: "סיום",
-        finishSubtitle: "סקירה והשלמת האונבורדינג.",
+        finishSubtitle: "סקירה והשלמת ההרשמה.",
         currencyLabel: "מטבע:",
         finishButton: "סיים הגדרה",
         reviewFinish: "סקירה וסיום",
