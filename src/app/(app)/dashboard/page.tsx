@@ -57,6 +57,7 @@ export default function DashboardPage() {
   const [origin, setOrigin] = React.useState("");
   const PrevChevron = dir === "rtl" ? ChevronRight : ChevronLeft;
   const NextChevron = dir === "rtl" ? ChevronLeft : ChevronRight;
+  const rangeArrow = dir === "rtl" ? "←" : "→";
 
   React.useEffect(() => {
     setOrigin(window.location.origin);
@@ -313,7 +314,7 @@ export default function DashboardPage() {
             </div>
             <div className="text-xs text-muted-foreground">
               {weekSeriesQuery.data
-                ? `${weekSeriesQuery.data.from} → ${weekSeriesQuery.data.to}`
+                ? `${weekSeriesQuery.data.from} ${rangeArrow} ${weekSeriesQuery.data.to}`
                 : ""}
             </div>
           </CardHeader>
@@ -383,7 +384,7 @@ export default function DashboardPage() {
             </div>
             <div className="text-xs text-muted-foreground">
               {monthSeriesQuery.data
-                ? `${monthSeriesQuery.data.from} → ${monthSeriesQuery.data.to}`
+                ? `${monthSeriesQuery.data.from} ${rangeArrow} ${monthSeriesQuery.data.to}`
                 : ""}
             </div>
           </CardHeader>
