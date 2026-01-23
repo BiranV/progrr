@@ -4,6 +4,12 @@ import * as React from "react";
 
 import AppProviders from "@/components/providers";
 
-export function Providers({ children }: { children: React.ReactNode }) {
-    return <AppProviders>{children}</AppProviders>;
+export function Providers({
+    children,
+    initialLanguage,
+}: {
+    children: React.ReactNode;
+    initialLanguage: "en" | "he";
+}) {
+    return <AppProviders initialLanguage={initialLanguage}>{children}</AppProviders>;
 }

@@ -57,7 +57,7 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Providers>
+        <Providers initialLanguage={lang}>
           <PWARegister />
           {children}
         </Providers>

@@ -809,10 +809,7 @@ export default function CalendarClient() {
                                         setCreateServiceId(String(v || ""));
                                     }}
                                 >
-                                    <SelectTrigger className="
-    rounded-xl w-full flex items-center justify-between
-    ltr:flex-row rtl:flex-row-reverse
-  ">
+                                    <SelectTrigger className="rounded-xl w-full">
                                         <SelectValue placeholder={t("calendar.servicePlaceholder")} />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -820,7 +817,6 @@ export default function CalendarClient() {
                                             <SelectItem
                                                 key={s.id}
                                                 value={s.id}
-                                                className="justify-start text-start"
                                             >
                                                 {s.name}
                                             </SelectItem>
@@ -840,10 +836,7 @@ export default function CalendarClient() {
                                     }}
                                     disabled={!createServiceId || availableCreateSlotsQuery.isPending}
                                 >
-                                    <SelectTrigger className="
-    rounded-xl w-full flex items-center justify-between
-    ltr:flex-row rtl:flex-row-reverse
-  ">
+                                    <SelectTrigger className="rounded-xl w-full">
                                         <SelectValue
                                             placeholder={
                                                 !createServiceId
@@ -861,7 +854,6 @@ export default function CalendarClient() {
                                             <SelectItem
                                                 key={s.startTime}
                                                 value={s.startTime}
-                                                className="justify-start text-start"
                                             >
                                                 {s.startTime}–{s.endTime}
                                             </SelectItem>
@@ -1293,7 +1285,7 @@ export default function CalendarClient() {
                                 value={selectedStartTime}
                                 onValueChange={(v) => setSelectedStartTime(v)}
                             >
-                                <SelectTrigger className="rounded-xl">
+                                <SelectTrigger className="rounded-xl w-full">
                                     <SelectValue placeholder="Select time" />
                                 </SelectTrigger>
                                 <SelectContent>

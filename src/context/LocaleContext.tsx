@@ -25,16 +25,18 @@ function resolveLanguage(raw?: string | null): Language {
     return raw === "he" || raw === "en" ? raw : DEFAULT_LANGUAGE;
 }
 
-function detectBrowserLanguage(): Language {
-    if (typeof navigator === "undefined") return DEFAULT_LANGUAGE;
-    const raw = String(navigator.language || "").toLowerCase();
-    return raw.startsWith("he") ? "he" : "en";
-}
-
 const LocaleContext = React.createContext<LocaleContextValue | null>(null);
 
-export function LocaleProvider({ children }: { children: React.ReactNode }) {
-    const [language, setLanguageState] = React.useState<Language>(DEFAULT_LANGUAGE);
+export function LocaleProvider({
+    children,
+    initialLanguage = DEFAULT_LANGUAGE,
+}: {
+    children: React.ReactNode;
+    initialLanguage?: Language;
+}) {
+    const [language, setLanguageState] = React.useState<Language>(
+        resolveLanguage(initialLanguage)
+    );
 
     const updateUserLanguage = React.useCallback((next: Language) => {
         setLanguageState(next);
@@ -49,29 +51,14 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     React.useEffect(() => {
-        if (typeof window !== "undefined") {
-            try {
-                const stored = window.localStorage.getItem(LOCALE_STORAGE);
-                if (stored) {
-                    const next = resolveLanguage(stored || undefined);
-                    if (next !== language) updateUserLanguage(next);
-                    return;
-                }
-            } catch {
-                // ignore
-            }
-
-            const cookieRaw = getCookie(LOCALE_COOKIE);
-            if (cookieRaw) {
-                const next = resolveLanguage(cookieRaw);
-                if (next !== language) updateUserLanguage(next);
-                return;
-            }
-
-            const next = detectBrowserLanguage();
-            if (next !== language) updateUserLanguage(next);
+        if (typeof window === "undefined") return;
+        try {
+            window.localStorage.setItem(LOCALE_STORAGE, language);
+        } catch {
+            // ignore
         }
-    }, [language, updateUserLanguage]);
+        setCookie(LOCALE_COOKIE, language, { maxAgeSeconds: 60 * 60 * 24 * 365 });
+    }, [language]);
 
     React.useEffect(() => {
         const meta = LANG_META[language];
