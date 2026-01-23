@@ -48,12 +48,14 @@ type RevenueSeriesResponse = {
 
 export default function DashboardPage() {
   const businessQuery = useBusiness();
-  const { locale } = useLocale();
+  const { locale, dir } = useLocale();
   const { t } = useI18n();
   const business = businessQuery.data;
   const businessLoading = businessQuery.isPending && !businessQuery.data;
   const [copyStatus, setCopyStatus] = React.useState<"idle" | "copied">("idle");
   const copyTimeoutRef = React.useRef<number | null>(null);
+  const PrevChevron = dir === "rtl" ? ChevronRight : ChevronLeft;
+  const NextChevron = dir === "rtl" ? ChevronLeft : ChevronRight;
 
   const bookingLink = React.useMemo(() => {
     const publicId = String((business as any)?.publicId ?? "").trim();
@@ -291,7 +293,7 @@ export default function DashboardPage() {
                   disabled={weekSeriesQuery.isFetching}
                   aria-label={t("dashboard.previousWeek")}
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <PrevChevron className="h-4 w-4" />
                 </Button>
                 <Button
                   type="button"
@@ -303,7 +305,7 @@ export default function DashboardPage() {
                   title={weekOffset >= 0 ? t("dashboard.nextWeekDisabled") : t("dashboard.nextWeek")}
                   aria-label={weekOffset >= 0 ? t("dashboard.nextWeekDisabled") : t("dashboard.nextWeek")}
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <NextChevron className="h-4 w-4" />
                 </Button>
               </div>
             </div>
@@ -361,7 +363,7 @@ export default function DashboardPage() {
                   disabled={monthSeriesQuery.isFetching}
                   aria-label={t("dashboard.previousMonth")}
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <PrevChevron className="h-4 w-4" />
                 </Button>
                 <Button
                   type="button"
@@ -373,7 +375,7 @@ export default function DashboardPage() {
                   title={monthOffset >= 0 ? t("dashboard.nextMonthDisabled") : t("dashboard.nextMonth")}
                   aria-label={monthOffset >= 0 ? t("dashboard.nextMonthDisabled") : t("dashboard.nextMonth")}
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <NextChevron className="h-4 w-4" />
                 </Button>
               </div>
             </div>
