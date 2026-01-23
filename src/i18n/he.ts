@@ -148,6 +148,7 @@ const he = {
         timeRangeEndAria: "שעת סיום ל{{day}} (טווח {{index}})",
         addTimeRange: "הוספת טווח שעות ל{{day}}",
         deleteTimeRange: "מחיקת טווח שעות ל{{day}}",
+        closed: "סגור",
         stepBusinessType: "סוג עסק",
         stepBusinessDetails: "פרטי העסק",
         stepServices: "שירותים",

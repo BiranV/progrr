@@ -148,6 +148,7 @@ const en = {
         timeRangeEndAria: "End time for {{day}} (range {{index}})",
         addTimeRange: "Add time range for {{day}}",
         deleteTimeRange: "Delete time range for {{day}}",
+        closed: "Closed",
         stepBusinessType: "Business type",
         stepBusinessDetails: "Business details",
         stepServices: "Services",
