@@ -4,6 +4,7 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useI18n } from "@/i18n/useI18n";
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,6 +34,7 @@ type Customer = {
 
 export default function CustomersPage() {
   const router = useRouter();
+  const { t } = useI18n();
 
   const customersQuery = useQuery({
     queryKey: ["customers"],
@@ -52,7 +54,7 @@ export default function CustomersPage() {
 
   const loading = customersQuery.isPending;
   const error = customersQuery.isError
-    ? (customersQuery.error as any)?.message || "Failed to load customers"
+    ? (customersQuery.error as any)?.message || t("errors.somethingWentWrong")
     : null;
   const customers = React.useMemo(
     () => customersQuery.data ?? [],
@@ -168,10 +170,10 @@ export default function CustomersPage() {
     <div className="space-y-6">
       <div className="space-y-2">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Customers
+          {t("customers.title")}
         </h1>
         <p className="text-sm text-gray-600 dark:text-gray-300">
-          Customers from public bookings.
+          {t("customers.subtitle")}
         </p>
       </div>
 
@@ -187,10 +189,10 @@ export default function CustomersPage() {
             <div className="min-h-[52vh] flex flex-col items-center justify-center text-center px-4">
               <Users className="h-7 w-7 text-muted-foreground" />
               <div className="mt-3 text-base font-semibold text-gray-900 dark:text-white">
-                No customers yet
+                {t("customers.emptyTitle")}
               </div>
               <div className="mt-1 text-sm text-muted-foreground">
-                Customers will appear here once bookings start.
+                {t("customers.emptyDescription")}
               </div>
             </div>
           </CardContent>

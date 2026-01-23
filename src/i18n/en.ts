@@ -30,6 +30,18 @@ const en = {
         appLogoAlt: "Logo",
         redirecting: "Redirecting...",
     },
+    nav: {
+        settings: "Settings",
+        customers: "Customers",
+        calendar: "Calendar",
+        dashboard: "Dashboard",
+    },
+    customers: {
+        title: "Customers",
+        subtitle: "Customers from public bookings.",
+        emptyTitle: "No customers yet",
+        emptyDescription: "Customers will appear here once bookings start.",
+    },
     auth: {
         welcomeBack: "Welcome Back",
         verifyLogin: "Verify Login",

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Calendar, LayoutDashboard, Settings, Users } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useI18n } from "@/i18n/useI18n";
 
 import { ONBOARDING_QUERY_KEY } from "@/hooks/useOnboardingSettings";
 import { cn } from "@/lib/utils";
@@ -12,6 +13,7 @@ import { cn } from "@/lib/utils";
 export default function BottomNav() {
   const pathname = usePathname();
   const queryClient = useQueryClient();
+  const { t } = useI18n();
 
   const refreshForHref = React.useCallback(
     (href: string) => {
@@ -41,10 +43,10 @@ export default function BottomNav() {
   );
 
   const navItems = [
-    { name: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-    { name: "Calendar", icon: Calendar, href: "/calendar" },
-    { name: "Customers", icon: Users, href: "/customers" },
-    { name: "Settings", icon: Settings, href: "/settings" },
+    { label: t("nav.dashboard"), icon: LayoutDashboard, href: "/dashboard" },
+    { label: t("nav.calendar"), icon: Calendar, href: "/calendar" },
+    { label: t("nav.customers"), icon: Users, href: "/customers" },
+    { label: t("nav.settings"), icon: Settings, href: "/settings" },
   ];
 
   return (
@@ -72,7 +74,7 @@ export default function BottomNav() {
                 strokeWidth={isActive ? 2.5 : 2}
                 aria-hidden="true"
               />
-              <span className="text-[10px] sm:text-xs">{item.name}</span>
+              <span className="text-[10px] sm:text-xs">{item.label}</span>
             </Link>
           );
         })}

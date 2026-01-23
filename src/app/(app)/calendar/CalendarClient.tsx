@@ -62,8 +62,14 @@ function formatDateForDisplay(date: string): string {
     return `${match[3]}-${match[2]}-${match[1]}`;
 }
 
+function wrapRtlSegment(value: string): string {
+    const text = String(value ?? "");
+    if (!text) return text;
+    return `\u2067${text}\u2069`;
+}
+
 export default function CalendarClient() {
-    const { t } = useI18n();
+    const { t, language } = useI18n();
     const searchParams = useSearchParams();
     const queryClient = useQueryClient();
     const { user } = useAuth();
@@ -238,27 +244,40 @@ export default function CalendarClient() {
         return serviceOk && startOk && customerOk;
     }, [createServiceId, createStartTime, selectedCustomerForPicker]);
 
-    const [docDir, setDocDir] = React.useState<"ltr" | "rtl">("ltr");
-    const [docLang, setDocLang] = React.useState("");
+    const isRtl = React.useMemo(
+        () => /^he(\b|-)|^ar(\b|-)/i.test(String(language || "")),
+        [language],
+    );
 
-    React.useEffect(() => {
-        const nextDir = String(
-            document.documentElement.getAttribute("dir") || "ltr",
-        ).toLowerCase();
-        const nextLang = String(
-            document.documentElement.getAttribute("lang") || "",
-        ).toLowerCase();
-        setDocDir(nextDir === "rtl" ? "rtl" : "ltr");
-        setDocLang(nextLang);
-    }, []);
+    const resolvedLocale = React.useMemo(() => {
+        const lang = String(language || "").toLowerCase();
+        if (lang.startsWith("he")) {
+            return {
+                ...Hebrew,
+                rtl: true,
+                months: {
+                    shorthand: Hebrew.months.shorthand.map(wrapRtlSegment),
+                    longhand: Hebrew.months.longhand.map(wrapRtlSegment),
+                },
+            };
+        }
+        if (lang.startsWith("ar")) {
+            return {
+                ...Arabic,
+                rtl: true,
+                months: {
+                    shorthand: Arabic.months.shorthand.map(wrapRtlSegment),
+                    longhand: Arabic.months.longhand.map(wrapRtlSegment),
+                },
+            };
+        }
+        return { ...english };
+    }, [language]);
 
-    const fpLocale = React.useMemo(() => {
-        if (docDir !== "rtl") return undefined;
-        if (docLang.startsWith("he")) return { ...Hebrew, rtl: true };
-        return { ...Arabic, rtl: true };
-    }, [docDir, docLang]);
-
-    const resolvedLocale = React.useMemo(() => fpLocale ?? english, [fpLocale]);
+    const flatpickrKey = React.useMemo(
+        () => `${language || ""}-${isRtl ? "rtl" : "ltr"}`,
+        [isRtl, language],
+    );
 
     const isCanceledStatus = React.useCallback((status: unknown) => {
         const s = String(status ?? "").toUpperCase();
@@ -710,6 +729,7 @@ export default function CalendarClient() {
 
             <div className="w-full">
                 <Flatpickr
+                    key={flatpickrKey}
                     options={flatpickrOptions as any}
                     value={date}
                     onChange={(_selectedDates: Date[], dateStr: string) => {

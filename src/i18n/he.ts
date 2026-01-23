@@ -30,6 +30,18 @@ const he = {
         appLogoAlt: "לוגו",
         redirecting: "מעביר...",
     },
+    nav: {
+        settings: "הגדרות",
+        customers: "לקוחות",
+        calendar: "יומן",
+        dashboard: "דשבורד",
+    },
+    customers: {
+        title: "לקוחות",
+        subtitle: "לקוחות שהוזמנו דרך קביעת תורים.",
+        emptyTitle: "עדיין אין לקוחות",
+        emptyDescription: "לקוחות יופיעו כאן לאחר שיתחילו קביעות תורים.",
+    },
     auth: {
         welcomeBack: "ברוכים השבים",
         verifyLogin: "אימות התחברות",
