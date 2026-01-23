@@ -14,15 +14,15 @@ import {
 type LanguageOption = {
     code: string;
     labelKey: string;
-    flag: string;
+    flagSrc: string;
     disabled?: boolean;
 };
 
 const LANGUAGE_OPTIONS: LanguageOption[] = [
-    { code: "he", labelKey: "common.languageHebrew", flag: "🇮🇱" },
-    { code: "en", labelKey: "common.languageEnglish", flag: "🇺🇸" },
-    { code: "ru", labelKey: "common.languageRussian", flag: "🇷🇺", disabled: true },
-    { code: "ar", labelKey: "common.languageArabic", flag: "🇸🇦", disabled: true },
+    { code: "he", labelKey: "common.languageHebrew", flagSrc: "/flags/il.svg" },
+    { code: "en", labelKey: "common.languageEnglish", flagSrc: "/flags/us.svg" },
+    { code: "ru", labelKey: "common.languageRussian", flagSrc: "/flags/ru.svg", disabled: true },
+    { code: "ar", labelKey: "common.languageArabic", flagSrc: "/flags/sa.svg", disabled: true },
 ];
 
 export default function LanguageSwitcher({
@@ -53,17 +53,12 @@ export default function LanguageSwitcher({
                         (dir === "rtl" ? " flex-row-reverse" : "")
                     }
                 >
-                    <span
-                        className="text-sm"
-                        style={{
-                            fontVariantEmoji: "emoji",
-                            fontFamily:
-                                '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif',
-                        }}
+                    <img
+                        src={current.flagSrc}
+                        alt=""
+                        className="h-4 w-4 rounded-[2px] object-cover"
                         aria-hidden="true"
-                    >
-                        {current.flag}
-                    </span>
+                    />
                     <span className={dir === "rtl" ? "text-right" : "text-left"}>
                         {t(current.labelKey)}
                     </span>
@@ -105,16 +100,12 @@ export default function LanguageSwitcher({
                                 (dir === "rtl" ? "flex-row-reverse" : "")
                             }
                         >
-                            <span
-                                className="text-sm"
-                                style={{
-                                    fontFamily:
-                                        '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "EmojiOne Color", sans-serif',
-                                }}
+                            <img
+                                src={option.flagSrc}
+                                alt=""
+                                className="h-4 w-4 rounded-[2px] object-cover"
                                 aria-hidden="true"
-                            >
-                                {option.flag}
-                            </span>
+                            />
                             <span className="flex-1 text-sm">{t(option.labelKey)}</span>
                             {isSelected ? <Check className="h-4 w-4" /> : null}
                         </DropdownMenuItem>
