@@ -308,6 +308,16 @@ export default function CalendarClient() {
         return t("calendar.status.booked");
     }, [t]);
 
+    const translateCalendarError = React.useCallback(
+        (message: string) => {
+            if (message === "Cannot change status of a canceled appointment") {
+                return t("calendar.errors.cannotChangeCanceled");
+            }
+            return message;
+        },
+        [t],
+    );
+
     const updateStatus = React.useCallback(
         async (
             appointmentId: string,
@@ -348,14 +358,15 @@ export default function CalendarClient() {
                     queryKey: ["dashboardRevenueSeries"],
                 });
             } catch (e: any) {
-                const msg = String(e?.message || t("errors.failedToSave"));
+                const raw = String(e?.message || t("errors.failedToSave"));
+                const msg = translateCalendarError(raw);
                 setError(msg);
                 toast.error(msg);
             } finally {
                 setStatusUpdatingId(null);
             }
         },
-        [date, queryClient, t],
+        [date, queryClient, t, translateCalendarError],
     );
 
     const services = React.useMemo(() => {
@@ -843,7 +854,11 @@ export default function CalendarClient() {
             </div>
 
             {error ? (
-                <div className="text-sm text-red-600 dark:text-red-400">{error}</div>
+                <div className="flex justify-center">
+                    <div className="w-full max-w-md rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-3 py-2 text-sm text-red-700 dark:text-red-200 text-center">
+                        {error}
+                    </div>
+                </div>
             ) : null}
 
             <Dialog
@@ -1306,6 +1321,8 @@ export default function CalendarClient() {
                 title={t("calendar.cancelModal.title")}
                 description={t("calendar.cancelModal.description")}
                 confirmText={t("calendar.cancelModal.confirm")}
+                loadingText={t("common.loading")}
+                cancelText={t("common.cancel")}
                 confirmVariant="default"
                 loading={cancelling}
                 onConfirm={async () => {
@@ -1340,7 +1357,9 @@ export default function CalendarClient() {
                                 </span>
                             ) : null}
                             <span className="block">
-                                {t("calendar.reschedule.chooseTimeForDate", { date })}
+                                {t("calendar.reschedule.chooseTimeForDate", {
+                                    date: formatDateForDisplay(date),
+                                })}
                             </span>
                         </DialogDescription>
                     </DialogHeader>

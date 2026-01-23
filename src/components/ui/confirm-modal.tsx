@@ -18,6 +18,7 @@ export type ConfirmModalProps = {
   title: React.ReactNode;
   description?: React.ReactNode;
   confirmText?: string;
+  loadingText?: string;
   cancelText?: string;
   confirmVariant?: "default" | "destructive";
   confirmDisabled?: boolean;
@@ -31,6 +32,7 @@ export default function ConfirmModal({
   title,
   description,
   confirmText = "Confirm",
+  loadingText,
   cancelText = "Cancel",
   confirmVariant = "destructive",
   confirmDisabled,
@@ -82,7 +84,7 @@ export default function ConfirmModal({
               }
             }}
           >
-            {isBusy ? "Working..." : confirmText}
+            {isBusy ? loadingText ?? confirmText : confirmText}
           </Button>
         </DialogFooter>
       </DialogContent>

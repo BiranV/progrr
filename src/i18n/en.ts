@@ -689,6 +689,7 @@ const en = {
                 "Canceled, but failed to email the customer",
             failedToEmailCustomerReschedule:
                 "Rescheduled, but failed to email the customer",
+            cannotChangeCanceled: "Cannot change status of a canceled appointment",
         },
     },
     errors: {

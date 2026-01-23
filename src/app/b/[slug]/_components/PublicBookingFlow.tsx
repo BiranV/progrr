@@ -792,65 +792,67 @@ export default function PublicBookingFlow({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {connected ? (
-              <>
+            <div className="flex flex-col w-full items-stretch">
+              {connected ? (
+                <>
+                  <DropdownMenuItem
+                    className="w-full rtl:flex-row-reverse rtl:justify-end rtl:text-right"
+                    onClick={() => {
+                      setMyAppointmentsScope("all");
+                      setMyAppointmentsDate(dateForMy);
+                      setMyAppointmentsOpen(true);
+                    }}
+                  >
+                    <CalendarDays className="h-4 w-4" />
+                    {t("publicBooking.header.myAppointments")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="w-full rtl:flex-row-reverse rtl:justify-end rtl:text-right"
+                    onClick={openProfileEditor}
+                  >
+                    <User className="h-4 w-4" />
+                    {t("publicBooking.header.updateDetails")}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="w-full rtl:flex-row-reverse rtl:justify-end rtl:text-right"
+                    onClick={async () => {
+                      setLoggingOut(true);
+                      try {
+                        await disconnectCustomer();
+                        setConnected(false);
+                        setMyAppointmentsOpen(false);
+                        setMyAppointments([]);
+                        resetFlow();
+                      } finally {
+                        setLoggingOut(false);
+                      }
+                    }}
+                  >
+                    <LogOut className="h-4 w-4 rtl:rotate-180" />
+                    {loggingOut
+                      ? t("publicBooking.header.loggingOut")
+                      : t("publicBooking.header.logout")}
+                  </DropdownMenuItem>
+                </>
+              ) : (
                 <DropdownMenuItem
-                  className="rtl:flex-row-reverse rtl:justify-end"
+                  className="w-full rtl:flex-row-reverse rtl:justify-end rtl:text-right"
                   onClick={() => {
-                    setMyAppointmentsScope("all");
-                    setMyAppointmentsDate(dateForMy);
-                    setMyAppointmentsOpen(true);
+                    setLoginEmail(customerEmail.trim());
+                    setLoginStep("email");
+                    setLoginCode("");
+                    setLoginError(null);
+                    setLoginPurpose("appointments");
+                    setLoginRequiresDetails(false);
+                    setLoginOpen(true);
                   }}
                 >
-                  <CalendarDays className="h-4 w-4" />
-                  {t("publicBooking.header.myAppointments")}
+                  <LogIn className="h-4 w-4" />
+                  {t("publicBooking.header.login")}
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="rtl:flex-row-reverse rtl:justify-end"
-                  onClick={openProfileEditor}
-                >
-                  <User className="h-4 w-4" />
-                  {t("publicBooking.header.updateDetails")}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="rtl:flex-row-reverse rtl:justify-end"
-                  onClick={async () => {
-                    setLoggingOut(true);
-                    try {
-                      await disconnectCustomer();
-                      setConnected(false);
-                      setMyAppointmentsOpen(false);
-                      setMyAppointments([]);
-                      resetFlow();
-                    } finally {
-                      setLoggingOut(false);
-                    }
-                  }}
-                >
-                  <LogOut className="h-4 w-4 rtl:rotate-180" />
-                  {loggingOut
-                    ? t("publicBooking.header.loggingOut")
-                    : t("publicBooking.header.logout")}
-                </DropdownMenuItem>
-              </>
-            ) : (
-              <DropdownMenuItem
-                className="rtl:flex-row-reverse rtl:justify-end"
-                onClick={() => {
-                  setLoginEmail(customerEmail.trim());
-                  setLoginStep("email");
-                  setLoginCode("");
-                  setLoginError(null);
-                  setLoginPurpose("appointments");
-                  setLoginRequiresDetails(false);
-                  setLoginOpen(true);
-                }}
-              >
-                <LogIn className="h-4 w-4" />
-                {t("publicBooking.header.login")}
-              </DropdownMenuItem>
-            )}
+              )}
+            </div>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

@@ -681,6 +681,7 @@ const he = {
             failedToEmailCustomerCreate: "שליחת המייל נכשלה",
             failedToEmailCustomerCancel: "בוטל, אך שליחת המייל ללקוח נכשלה",
             failedToEmailCustomerReschedule: "השעה שונתה, אך שליחת המייל ללקוח נכשלה",
+            cannotChangeCanceled: "לא ניתן לשנות סטטוס של תור שבוטל",
         },
     },
     errors: {
