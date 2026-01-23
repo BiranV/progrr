@@ -102,7 +102,7 @@ function SettingsActionRow({
       type="button"
       onClick={onActivate}
       className={
-        "flex w-full items-center justify-between gap-4 py-3 focus:outline-none cursor-pointer hover:bg-muted" +
+        "flex w-full items-start justify-between gap-4 py-3 text-left focus:outline-none cursor-pointer hover:bg-muted" +
         (destructive ? "" : "")
       }
     >
