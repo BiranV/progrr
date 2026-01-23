@@ -3,6 +3,8 @@ import { ObjectId } from "mongodb";
 
 import { requireAppUser } from "@/server/auth";
 import { collections } from "@/server/collections";
+import { formatDateInTimeZone } from "@/lib/public-booking";
+import { weekdayForDateInTimeZone } from "@/server/booking/slots";
 import {
   ensureBusinessPublicIdForUser,
   isValidBusinessPublicId,
@@ -23,6 +25,16 @@ const ALLOWED_CURRENCIES = new Set([
   "CHF",
   OTHER_CURRENCY_CODE,
 ]);
+
+function formatTimeInTimeZone(date: Date, timeZone: string): string {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  return formatter.format(date);
+}
 
 function asString(v: unknown, maxLen = 200): string | undefined {
   const s = String(v ?? "").trim();
@@ -361,6 +373,14 @@ export async function PATCH(req: Request) {
   try {
     const appUser = await requireAppUser();
     const body = await req.json().catch(() => ({}));
+    const c = await collections();
+
+    const user = await c.users.findOne({ _id: new ObjectId(appUser.id) });
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const isOnboardingCompleted = Boolean((user as any)?.onboardingCompleted);
 
     const isValidTimeZone = (tz: string): boolean => {
       const candidate = String(tz ?? "").trim();
@@ -520,6 +540,80 @@ export async function PATCH(req: Request) {
           { status: 400 }
         );
       }
+
+      const currentServices = Array.isArray((user as any)?.onboarding?.services)
+        ? ((user as any).onboarding.services as any[])
+        : [];
+      const currentById = new Map(
+        currentServices.map((s) => [String(s?.id ?? "").trim(), s] as const)
+      );
+
+      const durationChangedIds = normalized
+        .map((s) => {
+          const id = String(s?.id ?? "").trim();
+          const current = currentById.get(id);
+          if (!id || !current) return null;
+          const prevDuration = Number((current as any)?.durationMinutes);
+          const nextDuration = Number((s as any)?.durationMinutes);
+          if (!Number.isFinite(prevDuration) || !Number.isFinite(nextDuration)) return null;
+          return prevDuration !== nextDuration ? id : null;
+        })
+        .filter(Boolean) as string[];
+
+      const priceChangedIds = normalized
+        .map((s) => {
+          const id = String(s?.id ?? "").trim();
+          const current = currentById.get(id);
+          if (!id || !current) return null;
+          const prevPrice = Number((current as any)?.price ?? 0);
+          const nextPrice = Number((s as any)?.price ?? 0);
+          if (!Number.isFinite(prevPrice) || !Number.isFinite(nextPrice)) return null;
+          return prevPrice !== nextPrice ? id : null;
+        })
+        .filter(Boolean) as string[];
+
+      if (isOnboardingCompleted && (durationChangedIds.length || priceChangedIds.length)) {
+        const effectiveTimeZone =
+          (timezone !== undefined
+            ? String(timezone ?? "").trim()
+            : String((user as any)?.onboarding?.availability?.timezone ?? "").trim()) ||
+          "UTC";
+
+        const todayStr = formatDateInTimeZone(new Date(), effectiveTimeZone);
+        const nowTimeStr = formatTimeInTimeZone(new Date(), effectiveTimeZone);
+
+        const changedIds = Array.from(new Set([...durationChangedIds, ...priceChangedIds]));
+
+        const futureAppointments = await c.appointments
+          .find({
+            businessUserId: new ObjectId(appUser.id),
+            status: "BOOKED",
+            serviceId: { $in: changedIds },
+            date: { $gte: todayStr },
+          } as any)
+          .toArray();
+
+        const hasFuture = futureAppointments.some((appt) => {
+          if (appt.date === todayStr && String(appt.startTime) <= nowTimeStr) {
+            return false;
+          }
+          return true;
+        });
+
+        if (hasFuture) {
+          const message = priceChangedIds.length && !durationChangedIds.length
+            ? "You can’t change the price of this service because there are already scheduled appointments."
+            : "You can’t change the duration of this service because there are already scheduled appointments.";
+          return NextResponse.json(
+            {
+              error: "SERVICE_HAS_FUTURE_APPOINTMENTS",
+              message,
+            },
+            { status: 409 }
+          );
+        }
+      }
+
       set["onboarding.services"] = normalized;
     }
 
@@ -531,6 +625,64 @@ export async function PATCH(req: Request) {
       const err = validateAvailabilityDays(normalized as any);
       if (err) {
         return NextResponse.json({ error: err }, { status: 400 });
+      }
+
+      const effectiveTimeZone =
+        (timezone !== undefined
+          ? String(timezone ?? "").trim()
+          : String((user as any)?.onboarding?.availability?.timezone ?? "").trim()) ||
+        "UTC";
+
+      const todayStr = formatDateInTimeZone(new Date(), effectiveTimeZone);
+      const nowTimeStr = formatTimeInTimeZone(new Date(), effectiveTimeZone);
+
+      const futureAppointments = await c.appointments
+        .find({
+          businessUserId: new ObjectId(appUser.id),
+          status: "BOOKED",
+          date: { $gte: todayStr },
+        } as any)
+        .toArray();
+
+      const hasConflict = futureAppointments.some((appt) => {
+        if (appt.date === todayStr && String(appt.startTime) <= nowTimeStr) {
+          return false;
+        }
+
+        const weekday = weekdayForDateInTimeZone({
+          date: String(appt.date),
+          timeZone: effectiveTimeZone,
+        });
+        if (!Number.isFinite(weekday)) return true;
+
+        const day = normalized.find((d) => Number(d?.day) === weekday);
+        if (!day || !day.enabled) return true;
+
+        const ranges = Array.isArray(day.ranges) ? day.ranges : [];
+        const apptStart = parseTimeToMinutes(String(appt.startTime));
+        const apptEnd = parseTimeToMinutes(String(appt.endTime));
+        if (!Number.isFinite(apptStart) || !Number.isFinite(apptEnd)) return true;
+
+        const within = ranges.some((r: { start?: string; end?: string }) => {
+          const rangeStart = parseTimeToMinutes(String(r?.start ?? ""));
+          const rangeEnd = parseTimeToMinutes(String(r?.end ?? ""));
+          if (!Number.isFinite(rangeStart) || !Number.isFinite(rangeEnd)) return false;
+          if (rangeEnd <= rangeStart) return false;
+          return apptStart >= rangeStart && apptEnd <= rangeEnd;
+        });
+
+        return !within;
+      });
+
+      if (hasConflict) {
+        return NextResponse.json(
+          {
+            error:
+              "You can’t change the working hours because there are already scheduled appointments outside the new hours. Please cancel or reschedule those appointments first.",
+            code: "WORKING_HOURS_CONFLICT",
+          },
+          { status: 409 }
+        );
       }
 
       set["onboarding.availability.days"] = normalized;
@@ -569,7 +721,6 @@ export async function PATCH(req: Request) {
 
     set["onboarding.updatedAt"] = new Date();
 
-    const c = await collections();
     const update: any = {
       $set: set,
       $setOnInsert: { onboardingCompleted: false },

@@ -101,11 +101,14 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
         let message = `Request failed (${res.status})`;
         try {
             const body = await res.json();
-            if (body?.error) message = body.error;
+            if (body?.message) message = body.message;
+            else if (body?.error) message = body.error;
         } catch {
             // ignore
         }
-        throw new Error(message);
+        const err: any = new Error(message);
+        err.status = res.status;
+        throw err;
     }
 
     return (await res.json()) as T;
@@ -355,6 +358,13 @@ export default function ServicesSettingsPage() {
 
             toast.success("Changes saved");
         } catch (e: any) {
+            if (e?.status === 409) {
+                setGlobalError(
+                    e?.message ||
+                    "You can’t change the duration of this service because there are already scheduled appointments. Please cancel or reschedule those appointments first."
+                );
+                return;
+            }
             toast.error(e?.message || "Failed to save changes");
         } finally {
             setIsSaving(false);
@@ -424,6 +434,9 @@ export default function ServicesSettingsPage() {
                     </Label>
                     <div className="w-8 shrink-0"></div>
                 </div>
+                <p className="px-1 text-xs text-gray-500 dark:text-gray-400">
+                    Price changes apply only to new bookings. Existing appointments will keep their original price.
+                </p>
 
                 <div className="space-y-3">
                     {activeServices.length === 0 ? (

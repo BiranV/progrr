@@ -792,6 +792,15 @@ export default function OnboardingPage() {
         },
         services: res.onboarding?.services ?? prev.services,
       }));
+    } catch (e: any) {
+      if (e?.status === 409) {
+        window.alert(
+          e?.message ||
+          "You can’t change the working hours because there are already scheduled appointments outside the new hours. Please cancel or reschedule those appointments first."
+        );
+        return;
+      }
+      setError(e?.message || "Failed to save onboarding changes");
     } finally {
       setSaving(false);
     }
