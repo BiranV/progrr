@@ -32,18 +32,9 @@ function detectBrowserLanguage(): Language {
 }
 
 function getInitialLanguage(): Language {
-    if (typeof window !== "undefined") {
-        try {
-            const stored = window.localStorage.getItem(LOCALE_STORAGE);
-            if (stored) return resolveLanguage(stored);
-        } catch {
-            // ignore
-        }
-    }
-
     const cookieRaw = getCookie(LOCALE_COOKIE);
     if (cookieRaw) return resolveLanguage(cookieRaw);
-    return detectBrowserLanguage();
+    return DEFAULT_LANGUAGE;
 }
 
 const LocaleContext = React.createContext<LocaleContextValue | null>(null);
@@ -71,7 +62,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
                 const stored = window.localStorage.getItem(LOCALE_STORAGE);
                 if (stored) {
                     const next = resolveLanguage(stored || undefined);
-                    if (next !== language) setLanguageState(next);
+                    if (next !== language) updateUserLanguage(next);
                     return;
                 }
             } catch {

@@ -25,6 +25,8 @@ const en = {
         languageSwitcher: "Language switcher",
         languageHebrew: "Hebrew",
         languageEnglish: "English",
+        languageRussian: "Russian",
+        languageArabic: "Arabic",
         appLogoAlt: "Logo",
         redirecting: "Redirecting...",
     },
@@ -156,10 +158,6 @@ const en = {
         dayLabels: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
         dayShortLabels: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
         businessTypes: {
-            barbershop: {
-                title: "Barbershop",
-                description: "Men’s haircuts & grooming",
-            },
             hair_salon: {
                 title: "Hair salon",
                 description: "Cuts, color & styling",
@@ -180,9 +178,13 @@ const en = {
                 title: "Spa & massage",
                 description: "Massage & body treatments",
             },
-            fitness_coaching: {
-                title: "Fitness & coaching",
-                description: "Training, coaching sessions",
+            fitness_coach: {
+                title: "Personal fitness coaching",
+                description: "Personal training, fitness coaching, training plans",
+            },
+            nutrition_clinic: {
+                title: "Nutrition & diet",
+                description: "Nutrition counseling, dietitians, nutrition support",
             },
             other: {
                 title: "Other",
@@ -239,13 +241,17 @@ const en = {
                 bodyScrub: "Body scrub",
                 aromatherapyMassage: "Aromatherapy massage",
             },
-            fitness_coaching: {
+            fitness_coach: {
                 introSession: "Intro session",
                 personalTraining: "Personal training",
                 strengthTraining: "Strength training",
-                mobilitySession: "Mobility session",
-                nutritionCheckIn: "Nutrition check-in",
                 progressReview: "Progress review",
+            },
+            nutrition_clinic: {
+                initialConsultation: "Initial nutrition consultation",
+                personalPlan: "Personal meal plan",
+                followUp: "Follow-up session",
+                planAdjustment: "Plan adjustment",
             },
         },
         errors: {

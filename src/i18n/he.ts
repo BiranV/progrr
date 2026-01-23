@@ -25,6 +25,8 @@ const he = {
         languageSwitcher: "בחירת שפה",
         languageHebrew: "עברית",
         languageEnglish: "English",
+        languageRussian: "Русский",
+        languageArabic: "العربية",
         appLogoAlt: "לוגו",
         redirecting: "מעביר...",
     },
