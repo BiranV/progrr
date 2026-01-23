@@ -500,8 +500,11 @@ const he = {
         languageRegion: "שפה ואזור",
         language: "שפה",
         languageHelp: "שפת ברירת מחדל וכיוון הטקסט באפליקציה.",
-        languageHebrew: "עברית (RTL)",
-        languageEnglish: "אנגלית (LTR)",
+        languageHebrew: "עברית",
+        languageEnglish: "אנגלית",
+        timeZoneTitle: "אזור זמן",
+        timeZoneSubtitle: "משמש לחישוב שעות פתיחה והצגת “פתוח/סגור”.",
+        timeZoneSelect: "בחירת אזור זמן",
     },
     services: {
         title: "שירותים",

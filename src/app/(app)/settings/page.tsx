@@ -30,6 +30,41 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useLocale } from "@/context/LocaleContext";
 import { useI18n } from "@/i18n/useI18n";
+import { ONBOARDING_QUERY_KEY, useOnboardingSettings } from "@/hooks/useOnboardingSettings";
+
+const DEFAULT_TIMEZONE = "Asia/Jerusalem";
+
+const LANGUAGE_OPTIONS = [
+  { code: "he", labelKey: "settings.languageHebrew", flagSrc: "/flags/il.svg" },
+  { code: "en", labelKey: "settings.languageEnglish", flagSrc: "/flags/us.svg" },
+] as const;
+
+async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, {
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers || {}),
+    },
+    ...init,
+  });
+
+  if (!res.ok) {
+    let message = `Request failed (${res.status})`;
+    try {
+      const body = await res.json();
+      if (body?.error) message = body.error;
+    } catch {
+      // ignore
+    }
+
+    const err: any = new Error(message);
+    err.status = res.status;
+    throw err;
+  }
+
+  return (await res.json()) as T;
+}
 
 function SettingsRowContent({
   title,
@@ -137,6 +172,88 @@ export default function SettingsPage() {
   const [deletePending, setDeletePending] = React.useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = React.useState("");
   const [exportPending, setExportPending] = React.useState(false);
+  const {
+    data: onboardingRes,
+    isPending: onboardingPending,
+    isError: onboardingError,
+    error: onboardingErrorValue,
+  } = useOnboardingSettings();
+  const [timeZone, setTimeZone] = React.useState(DEFAULT_TIMEZONE);
+  const [savingTimeZone, setSavingTimeZone] = React.useState(false);
+
+  const supportedTimeZones = React.useMemo(() => {
+    try {
+      const fn = (Intl as any)?.supportedValuesOf;
+      if (typeof fn === "function") {
+        const values = fn("timeZone") as unknown;
+        if (Array.isArray(values)) {
+          return values.map((v) => String(v)).filter(Boolean);
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return [] as string[];
+  }, []);
+
+  const uiTimeZones = React.useMemo(
+    () => (supportedTimeZones.length ? supportedTimeZones : [DEFAULT_TIMEZONE]),
+    [supportedTimeZones]
+  );
+
+  const currentLanguageOption =
+    LANGUAGE_OPTIONS.find((opt) => opt.code === language) || LANGUAGE_OPTIONS[1];
+
+  React.useEffect(() => {
+    if (!onboardingRes) return;
+    const rawTz = String(
+      (onboardingRes as any)?.onboarding?.availability?.timezone ?? ""
+    ).trim();
+    setTimeZone(rawTz || DEFAULT_TIMEZONE);
+  }, [onboardingRes]);
+
+  React.useEffect(() => {
+    if (!onboardingError) return;
+    toast.error((onboardingErrorValue as any)?.message || t("errors.failedToLoad"));
+  }, [onboardingError, onboardingErrorValue, t]);
+
+  const onTimeZoneChange = React.useCallback(
+    async (value: string) => {
+      const next = String(value || DEFAULT_TIMEZONE).trim() || DEFAULT_TIMEZONE;
+      if (next === timeZone) return;
+      const prev = timeZone;
+
+      setTimeZone(next);
+      setSavingTimeZone(true);
+      try {
+        await apiFetch("/api/onboarding", {
+          method: "PATCH",
+          body: JSON.stringify({
+            availability: {
+              timezone: next,
+            },
+          }),
+        });
+        queryClient.setQueryData(ONBOARDING_QUERY_KEY, (prevData: any) => ({
+          ...(prevData || {}),
+          onboarding: {
+            ...((prevData as any)?.onboarding || {}),
+            availability: {
+              ...((prevData as any)?.onboarding?.availability || {}),
+              timezone: next,
+            },
+          },
+        }));
+        toast.success(t("common.done"));
+      } catch (e: any) {
+        setTimeZone(prev);
+        toast.error(e?.message || t("errors.failedToSave"));
+      } finally {
+        setSavingTimeZone(false);
+      }
+    },
+    [queryClient, t, timeZone]
+  );
 
   const onLogout = async () => {
     if (isLoggingOutRef.current) return;
@@ -335,24 +452,69 @@ export default function SettingsPage() {
           <CardTitle className="text-base">{t("settings.languageRegion")}</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
-          <div className="space-y-2">
-            <Label>{t("settings.language")}</Label>
-            <Select
-              value={language}
-              onValueChange={(value) =>
-                updateUserLanguage(value === "en" ? "en" : "he")
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={t("settings.language")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="he">{t("settings.languageHebrew")}</SelectItem>
-                <SelectItem value="en">{t("settings.languageEnglish")}</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="text-xs text-gray-600 dark:text-gray-300">
-              {t("settings.languageHelp")}
+          <div className="divide-y">
+            <div className="py-3 space-y-2">
+              <Label>{t("settings.language")}</Label>
+              <Select
+                value={language}
+                onValueChange={(value) =>
+                  updateUserLanguage(value === "en" ? "en" : "he")
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue asChild>
+                    <span className="flex items-center gap-2 min-w-0">
+                      <img
+                        src={currentLanguageOption.flagSrc}
+                        alt=""
+                        className="h-3 w-5 rounded-[2px] object-cover"
+                        aria-hidden="true"
+                      />
+                      <span className="truncate">
+                        {t(currentLanguageOption.labelKey)}
+                      </span>
+                    </span>
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {LANGUAGE_OPTIONS.map((option) => (
+                    <SelectItem key={option.code} value={option.code}>
+                      <img
+                        src={option.flagSrc}
+                        alt=""
+                        className="h-3 w-5 rounded-[2px] object-cover"
+                        aria-hidden="true"
+                      />
+                      <span>{t(option.labelKey)}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="text-xs text-gray-600 dark:text-gray-300">
+                {t("settings.languageHelp")}
+              </div>
+            </div>
+            <div className="py-3 space-y-2">
+              <Label>{t("settings.timeZoneTitle")}</Label>
+              <Select
+                value={timeZone}
+                onValueChange={onTimeZoneChange}
+                disabled={savingTimeZone || onboardingPending}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={t("settings.timeZoneSelect")} />
+                </SelectTrigger>
+                <SelectContent className="max-h-80">
+                  {uiTimeZones.map((tz) => (
+                    <SelectItem key={tz} value={tz}>
+                      {tz}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="text-xs text-gray-600 dark:text-gray-300">
+                {t("settings.timeZoneSubtitle")}
+              </div>
             </div>
           </div>
         </CardContent>

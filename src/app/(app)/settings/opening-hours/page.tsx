@@ -6,14 +6,6 @@ import { Loader2, Plus, Trash2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { TimePicker } from "@/components/ui/time-picker";
 import { Switch } from "@/components/ui/switch";
 import { CenteredSpinner } from "@/components/CenteredSpinner";
@@ -182,25 +174,6 @@ export default function OpeningHoursPage() {
         limitCustomerToOneUpcomingAppointment: false,
     });
 
-    const browserTimeZone = DEFAULT_TIMEZONE;
-
-    const supportedTimeZones = React.useMemo(() => {
-        try {
-            const fn = (Intl as any)?.supportedValuesOf;
-            if (typeof fn === "function") {
-                const values = fn("timeZone") as unknown;
-                if (Array.isArray(values)) {
-                    return values.map((v) => String(v)).filter(Boolean);
-                }
-            }
-        } catch {
-            // ignore
-        }
-        return [] as string[];
-    }, []);
-
-    const uiTimeZones = React.useMemo(() => [DEFAULT_TIMEZONE], [supportedTimeZones]);
-
     React.useEffect(() => {
         if (isError) {
             toast.error((error as any)?.message || "Failed to load opening hours");
@@ -223,9 +196,7 @@ export default function OpeningHoursPage() {
         const av = (onboardingRes as any)?.onboarding?.availability ?? {};
         const business = (onboardingRes as any)?.onboarding?.business ?? {};
         const rawTz = String((av as any)?.timezone ?? "").trim();
-        const timezone = uiTimeZones.includes(rawTz)
-            ? rawTz
-            : DEFAULT_TIMEZONE;
+        const timezone = rawTz || DEFAULT_TIMEZONE;
         const days = normalizeDays((av as any)?.days);
         const next: AvailabilityState = { timezone, days };
 
@@ -242,7 +213,7 @@ export default function OpeningHoursPage() {
             initialBookingRulesRef.current = nextBookingRules;
             setBookingRules(nextBookingRules);
         }
-    }, [onboardingRes, isDirty, isSaving, browserTimeZone]);
+    }, [onboardingRes, isDirty, isSaving]);
 
     React.useEffect(() => {
         // Background refresh if cached data is older than 2 minutes.
@@ -463,56 +434,6 @@ export default function OpeningHoursPage() {
             </div>
 
             <div className="space-y-5">
-                <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4">
-                    <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                            <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                                Time zone
-                            </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                Used to evaluate your opening hours and show “Open/Closed”.
-                            </div>
-                        </div>
-
-                        {uiTimeZones.length ? (
-                            <Select
-                                value={availability.timezone}
-                                onValueChange={(v) =>
-                                    setAvailability((prev) => ({
-                                        ...prev,
-                                        timezone: String(v || DEFAULT_TIMEZONE).trim() || DEFAULT_TIMEZONE,
-                                    }))
-                                }
-                                disabled={isSaving || (isPending && !initialRef.current)}
-                            >
-                                <SelectTrigger size="sm" className="w-[240px]">
-                                    <SelectValue placeholder="Select time zone" />
-                                </SelectTrigger>
-                                <SelectContent className="max-h-80">
-                                    {uiTimeZones.map((tz) => (
-                                        <SelectItem key={tz} value={tz}>
-                                            {tz}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        ) : (
-                            <Input
-                                value={availability.timezone}
-                                onChange={(e) =>
-                                    setAvailability((prev) => ({
-                                        ...prev,
-                                        timezone: String(e.target.value || "").trim() || DEFAULT_TIMEZONE,
-                                    }))
-                                }
-                                disabled={isSaving || (isPending && !initialRef.current)}
-                                className="h-9 w-[240px]"
-                                placeholder={browserTimeZone}
-                            />
-                        )}
-                    </div>
-                </div>
-
                 <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4">
                     <div className="flex items-center justify-between gap-4">
                         <div className="min-w-0">

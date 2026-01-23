@@ -502,8 +502,11 @@ const en = {
         languageRegion: "Language & region",
         language: "Language",
         languageHelp: "Default language and text direction for the app.",
-        languageHebrew: "Hebrew (RTL)",
-        languageEnglish: "English (LTR)",
+        languageHebrew: "Hebrew",
+        languageEnglish: "English",
+        timeZoneTitle: "Time zone",
+        timeZoneSubtitle: "Used to evaluate your opening hours and show “Open/Closed”.",
+        timeZoneSelect: "Select time zone",
     },
     services: {
         title: "Services",

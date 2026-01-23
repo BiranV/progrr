@@ -12,17 +12,22 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { PhoneInput } from "@/components/ui/phone-input";
 
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 import OtpInput from "@/components/OtpInput";
+import ProgressBar from "@/components/onboarding/ProgressBar";
+import DateStep from "@/components/public-booking/steps/DateStep";
+import DetailsStep from "@/components/public-booking/steps/DetailsStep";
+import ServiceStep from "@/components/public-booking/steps/ServiceStep";
+import SuccessStep from "@/components/public-booking/steps/SuccessStep";
+import TimeStep from "@/components/public-booking/steps/TimeStep";
+import VerifyStep from "@/components/public-booking/steps/VerifyStep";
 import PublicBookingShell from "./PublicBookingShell";
 import { usePublicBusiness } from "./usePublicBusiness";
 import { formatDateInTimeZone, formatPrice } from "@/lib/public-booking";
 import { useLocale } from "@/context/LocaleContext";
 import { useI18n } from "@/i18n/useI18n";
-import Flatpickr from "react-flatpickr";
 import { english } from "flatpickr/dist/l10n/default";
 import { Arabic } from "flatpickr/dist/l10n/ar";
 import { Hebrew } from "flatpickr/dist/l10n/he";
@@ -211,6 +216,20 @@ export default function PublicBookingFlow({
   }, [raw, resolvedPublicId]);
 
   const [step, setStep] = React.useState<Step>("service");
+
+  const stepsOrder = React.useMemo<Step[]>(
+    () => ["service", "date", "time", "details", "verify", "success"],
+    []
+  );
+  const stepIndex = React.useMemo(
+    () => Math.max(0, stepsOrder.indexOf(step)),
+    [step, stepsOrder]
+  );
+  const totalSteps = stepsOrder.length;
+  const progress = React.useMemo(
+    () => Math.round(((stepIndex + 1) / totalSteps) * 100),
+    [stepIndex, totalSteps]
+  );
 
   const [serviceId, setServiceId] = React.useState<string>("");
   const [date, setDate] = React.useState<string>("");
@@ -886,24 +905,50 @@ export default function PublicBookingFlow({
     };
   }, [slots, startTime]);
 
-  const canSkipCustomerDetailsForm =
+  const durationLabel = React.useMemo(() => {
+    if (!selectedService) return undefined;
+    return t("publicBooking.minutes", {
+      count: selectedService.durationMinutes,
+    });
+  }, [selectedService, t]);
+
+  const priceLabel = React.useMemo(() => {
+    if (!selectedService || !data?.currency) return undefined;
+    return formatPrice({
+      price: selectedService.price,
+      currency: data.currency,
+      locale,
+    });
+  }, [data?.currency, locale, selectedService]);
+
+  const canSkipCustomerDetailsForm = Boolean(
     connected &&
     customerFullName.trim() &&
     customerEmail.trim() &&
     customerPhone.trim() &&
-    customerPhoneValid;
+    customerPhoneValid
+  );
 
-  const canSubmitDetails =
+  const canSubmitDetails = Boolean(
     !submitting &&
     customerFullName.trim() &&
     customerEmail.trim() &&
     customerPhone.trim() &&
-    customerPhoneValid;
+    customerPhoneValid
+  );
 
   const canSubmitVerify =
     !submitting &&
     cancellingConflictId === null &&
     otpCode.replace(/\D/g, "").length >= 6;
+
+  const detailsConfirmLabel = connected
+    ? t("publicBooking.details.confirmBookingAction")
+    : t("publicBooking.details.verifyEmailAction");
+
+  const detailsSubmittingLabel = connected
+    ? t("publicBooking.actions.confirming")
+    : t("publicBooking.actions.sendingCode");
 
   const showGallery = step === "service";
 
@@ -968,6 +1013,18 @@ export default function PublicBookingFlow({
     if (!res.ok)
       throw new Error(json?.error || requestFailed(res.status));
   };
+
+  const handleResendOtp = React.useCallback(async () => {
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      await requestOtp();
+    } catch (e: any) {
+      setFormError(e?.message || t("publicBooking.errors.failed"));
+    } finally {
+      setSubmitting(false);
+    }
+  }, [requestOtp, t]);
 
   const requestLoginOtp = async () => {
     if (!publicId) throw new Error(t("publicBooking.errors.businessNotFound"));
@@ -1322,6 +1379,41 @@ export default function PublicBookingFlow({
       throw new Error(json?.error || requestFailed(res.status));
   };
 
+  const handleCancelConflictAppointment = React.useCallback(
+    async (appointmentId: string) => {
+      setFormError(null);
+      setCancellingConflictId(appointmentId);
+      try {
+        await cancelExistingAppointment(appointmentId);
+        setActiveConflict((prev) => {
+          if (!prev) return prev;
+          const list = Array.isArray(prev.existingAppointments)
+            ? prev.existingAppointments
+            : [];
+          const nextList = list.filter(
+            (x: any) => String(x?.id ?? "").trim() !== appointmentId
+          );
+
+          // If we only had a single fallback appointment, clear conflict after cancel.
+          if (list.length === 0) return null;
+          if (nextList.length === 0) return null;
+          return { ...prev, existingAppointments: nextList };
+        });
+      } catch (e: any) {
+        if (
+          String(e?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS" ||
+          String(e?.code ?? "") === "SAME_SERVICE_SAME_DAY_EXISTS"
+        ) {
+          return;
+        }
+        setFormError(e?.message || t("publicBooking.errors.failed"));
+      } finally {
+        setCancellingConflictId(null);
+      }
+    },
+    [cancelExistingAppointment, t]
+  );
+
   const cancelBooking = async () => {
     const cancelToken = String(result?.cancelToken ?? "").trim();
     if (!cancelToken) throw new Error(t("publicBooking.errors.cancelTokenMissing"));
@@ -1350,6 +1442,71 @@ export default function PublicBookingFlow({
     const json = await res.json().catch(() => null);
     if (!res.ok) throw new Error(json?.error || requestFailed(res.status));
   };
+
+  const handleCancelSameDay = React.useCallback(
+    async (appointmentId: string) => {
+      setCancelError(null);
+      setCancellingSameDayId(appointmentId);
+      try {
+        await cancelSameDayAppointment(appointmentId);
+        setResult((prev) => {
+          if (!prev) return prev;
+          const list = Array.isArray(prev.sameDayAppointments)
+            ? prev.sameDayAppointments
+            : [];
+          return {
+            ...prev,
+            sameDayAppointments: list.filter((x) => x.id !== appointmentId),
+          };
+        });
+      } catch (e: any) {
+        setCancelError(e?.message || t("publicBooking.errors.failed"));
+      } finally {
+        setCancellingSameDayId(null);
+      }
+    },
+    [cancelSameDayAppointment, t]
+  );
+
+  const handleAddToGoogle = React.useCallback(() => {
+    if (!result?.appointment) return;
+    window.open(
+      googleCalendarUrl({
+        title: result.appointment.serviceName,
+        date: result.appointment.date,
+        startTime: result.appointment.startTime,
+        endTime: result.appointment.endTime,
+      }),
+      "_blank"
+    );
+  }, [result]);
+
+  const handleCancelBooking = React.useCallback(async () => {
+    setCancelling(true);
+    setCancelError(null);
+    try {
+      await cancelBooking();
+      resetFlow();
+    } catch (e: any) {
+      setCancelError(e?.message || t("publicBooking.errors.failed"));
+    } finally {
+      setCancelling(false);
+    }
+  }, [cancelBooking, resetFlow, t]);
+
+  const handleDisconnect = React.useCallback(async () => {
+    setCancelling(true);
+    setCancelError(null);
+    try {
+      await disconnectCustomer();
+      setConnected(false);
+      resetFlow();
+    } catch (e: any) {
+      setCancelError(e?.message || t("publicBooking.errors.failed"));
+    } finally {
+      setCancelling(false);
+    }
+  }, [disconnectCustomer, resetFlow, t]);
 
   if (loading && !data) {
     return (
@@ -1387,7 +1544,7 @@ export default function PublicBookingFlow({
       subtitle={shellSubtitle}
       subtitleRight={shellSubtitleRight}
       headerRight={shellHeaderRight}
-      onBack={onBack}
+      onBack={step === "service" ? undefined : onBack}
       showGallery={showGallery}
     >
       <Dialog
@@ -1772,660 +1929,138 @@ export default function PublicBookingFlow({
         </DialogContent>
       </Dialog>
 
+      <ProgressBar
+        progress={progress}
+        stepCountLabel={t("onboarding.stepCount", {
+          current: stepIndex + 1,
+          total: totalSteps,
+        })}
+      />
+
       {/* Service selection */}
       {step === "service" ? (
-        <div className="space-y-3">
-          {data.services.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => {
-                setServiceId(s.id);
-                setDate("");
-                setStartTime("");
-                setFormError(null);
-                setStep("date");
-              }}
-              className={
-                "w-full text-start rounded-2xl border border-gray-200 dark:border-gray-800 " +
-                "bg-white/70 dark:bg-gray-950/20 p-4 shadow-sm " +
-                "transition cursor-pointer " +
-                "hover:bg-white hover:shadow-md hover:-translate-y-[1px] " +
-                "dark:hover:bg-gray-900/30 " +
-                "active:translate-y-0 active:shadow-sm"
-              }
-            >
-              <div className="flex items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="font-semibold text-gray-900 dark:text-white truncate">
-                    {s.name}
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-300">
-                    {t("publicBooking.minutes", { count: s.durationMinutes })}
-                  </div>
-                </div>
-                <div className="font-semibold text-gray-900 dark:text-white shrink-0">
-                  {formatPrice({ price: s.price, currency: data.currency, locale })}
-                </div>
-              </div>
-            </button>
-          ))}
-
-          {!data.services.length && (
-            <div className="text-sm text-gray-600 dark:text-gray-300">
-              {t("publicBooking.errors.noServices")}
-            </div>
-          )}
-        </div>
+        <ServiceStep
+          services={data.services}
+          currency={data.currency}
+          locale={locale}
+          formatPrice={formatPrice}
+          t={t}
+          onSelect={(serviceId) => {
+            setServiceId(serviceId);
+            setDate("");
+            setStartTime("");
+            setFormError(null);
+            setStep("date");
+          }}
+        />
       ) : null}
 
       {/* Date selection */}
       {step === "date" ? (
-        <div className="space-y-4">
-          <div className="flex justify-center">
-            <div className="w-full">
-              <Flatpickr
-                key={flatpickrKey}
-                options={flatpickrOptions as any}
-                value={date || undefined}
-                onChange={(_selectedDates: Date[], dateStr: string) => {
-                  const next = String(dateStr || "").trim();
-                  if (!next) return;
-                  if (isDisabledYmd(next)) return;
-                  setDate(next);
-                  setStartTime("");
-                  setFormError(null);
-                  setStep("time");
-                }}
-                render={(_props: any, ref: any) => (
-                  <input
-                    ref={ref as any}
-                    type="text"
-                    aria-label={t("publicBooking.date.selectDateAria")}
-                    className="sr-only"
-                  />
-                )}
-              />
-            </div>
-          </div>
-        </div>
+        <DateStep
+          flatpickrKey={flatpickrKey}
+          options={flatpickrOptions as any}
+          value={date || undefined}
+          selectDateAria={t("publicBooking.date.selectDateAria")}
+          onSelectDate={(next) => {
+            if (isDisabledYmd(next)) return;
+            setDate(next);
+            setStartTime("");
+            setFormError(null);
+            setStep("time");
+          }}
+        />
       ) : null}
 
       {/* Time selection */}
       {step === "time" ? (
-        <div className="space-y-4">
-          <div className="space-y-3">
-            {slotsLoading ? (
-              <CenteredSpinner className="min-h-[40vh] items-center" />
-            ) : slotsError ? (
-              <div className="text-sm text-red-600 dark:text-red-400">
-                {slotsError}
-              </div>
-            ) : slots ? (
-              <>
-                {slots.slots.length ? (
-                  <div className="grid grid-cols-3 gap-2">
-                    {slots.slots.map((s) => (
-                      <button
-                        key={s.startTime}
-                        className={
-                          "w-full h-16 rounded-2xl border border-gray-200 dark:border-gray-800 " +
-                          "bg-white/70 dark:bg-gray-950/20 shadow-sm " +
-                          "transition cursor-pointer " +
-                          "hover:bg-white hover:shadow-md hover:-translate-y-[1px] " +
-                          "dark:hover:bg-gray-900/30 " +
-                          "active:translate-y-0 active:shadow-sm " +
-                          "flex flex-col items-center justify-center text-center"
-                        }
-                        onClick={() => {
-                          setStartTime(s.startTime);
-                          setFormError(null);
-                          setStep("details");
-                        }}
-                      >
-                        <div className="font-semibold text-gray-900 dark:text-white leading-none">
-                          {s.startTime}
-                        </div>
-                        <div className="text-[11px] text-gray-600 dark:text-gray-300 leading-none mt-1">
-                          {s.endTime}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-
-                {!slots.slots.length ? (
-                  <div className="text-sm text-gray-600 dark:text-gray-300">
-                    {t("publicBooking.errors.noTimes")}
-                  </div>
-                ) : null}
-              </>
-            ) : (
-              <div className="text-sm text-gray-600 dark:text-gray-300">
-                {t("publicBooking.errors.selectDateToSeeTimes")}
-              </div>
-            )}
-          </div>
-        </div>
+        <TimeStep
+          loading={slotsLoading}
+          error={slotsError}
+          slots={slots}
+          selectedTime={startTime}
+          t={t}
+          onSelectTime={(start) => {
+            setStartTime(start);
+            setFormError(null);
+          }}
+          onConfirm={() => setStep("details")}
+        />
       ) : null}
 
       {/* Details */}
       {step === "details" ? (
-        <div className="space-y-4" onKeyDown={handleConfirmKeyDown}>
-          {formError ? (
-            <div className="text-sm text-red-600 dark:text-red-400">
-              {formError}
-            </div>
-          ) : null}
-
-          {activeConflict ? (
-            <div className="rounded-2xl border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/70 dark:bg-amber-950/20 p-4">
-              <div className="font-semibold text-amber-900 dark:text-amber-200">
-                {activeConflict.code === "SAME_SERVICE_SAME_DAY_EXISTS"
-                  ? t("publicBooking.conflict.sameServiceTitle")
-                  : t("publicBooking.conflict.upcomingTitle")}
-              </div>
-              <div className="text-sm text-amber-800/90 dark:text-amber-200/80 mt-1">
-                {activeConflict.code === "SAME_SERVICE_SAME_DAY_EXISTS"
-                  ? t("publicBooking.conflict.sameServiceDescription")
-                  : t("publicBooking.conflict.upcomingDescription")}
-              </div>
-
-              <div className="mt-2 space-y-2">
-                {(Array.isArray(activeConflict.existingAppointments)
-                  ? activeConflict.existingAppointments
-                  : activeConflict.existingAppointment
-                    ? [activeConflict.existingAppointment]
-                    : []
-                )
-                  .filter((x: any) => String(x?.id ?? "").trim())
-                  .map((appt: any) => {
-                    const apptId = String(appt?.id ?? "").trim();
-                    const label = `${appt?.serviceName ? `${appt.serviceName} • ` : ""}${appt?.date || ""
-                      }${appt?.startTime ? ` • ${appt.startTime}` : ""}`;
-
-                    return (
-                      <div
-                        key={apptId}
-                        className="rounded-xl border border-amber-200/70 dark:border-amber-900/40 bg-white/60 dark:bg-black/10 p-3"
-                      >
-                        <div className="text-sm text-amber-900/90 dark:text-amber-200/90">
-                          {label}
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="rounded-2xl w-full mt-2"
-                          disabled={submitting || cancellingConflictId === apptId}
-                          onClick={async () => {
-                            setFormError(null);
-                            setCancellingConflictId(apptId);
-                            try {
-                              await cancelExistingAppointment(apptId);
-                              setActiveConflict((prev) => {
-                                if (!prev) return prev;
-                                const list = Array.isArray(prev.existingAppointments)
-                                  ? prev.existingAppointments
-                                  : [];
-                                const nextList = list.filter(
-                                  (x: any) => String(x?.id ?? "").trim() !== apptId
-                                );
-
-                                // If we only had a single fallback appointment, clear conflict after cancel.
-                                if (list.length === 0) return null;
-                                if (nextList.length === 0) return null;
-                                return { ...prev, existingAppointments: nextList };
-                              });
-                            } catch (e: any) {
-                              if (
-                                String(e?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS" ||
-                                String(e?.code ?? "") ===
-                                "SAME_SERVICE_SAME_DAY_EXISTS"
-                              ) {
-                                return;
-                              }
-                              setFormError(
-                                e?.message || t("publicBooking.errors.failed")
-                              );
-                            } finally {
-                              setCancellingConflictId(null);
-                            }
-                          }}
-                        >
-                          {cancellingConflictId === apptId
-                            ? t("publicBooking.actions.cancelling")
-                            : t("publicBooking.actions.cancelAppointment")}
-                        </Button>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          ) : null}
-
-          {canSkipCustomerDetailsForm ? (
-            <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/10 p-4">
-              <div className="font-semibold text-gray-900 dark:text-white">
-                {t("publicBooking.details.confirmBookingTitle")}
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                {selectedService?.name
-                  ? selectedService.name
-                  : t("publicBooking.details.appointmentFallback")}
-              </div>
-              <div className="text-sm text-gray-700 dark:text-gray-200 mt-1">
-                {date}
-                {startTime ? ` • ${startTime}` : ""}
-                {selectedSlot?.endTime ? `–${selectedSlot.endTime}` : ""}
-              </div>
-              {selectedService ? (
-                <div className="text-sm text-muted-foreground mt-1">
-                  {t("publicBooking.minutes", {
-                    count: selectedService.durationMinutes,
-                  })}{" "}
-                  •{" "}
-                  {formatPrice({
-                    price: selectedService.price,
-                    currency: data.currency,
-                    locale,
-                  })}
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-950/10 p-4">
-              <div className="font-semibold text-amber-900 dark:text-amber-200">
-                {t("publicBooking.details.completeDetailsTitle")}
-              </div>
-              <div className="text-sm text-amber-800/90 dark:text-amber-200/80 mt-1">
-                {t("publicBooking.details.completeDetailsDescription")}
-              </div>
-            </div>
-          )}
-
-          {!canSkipCustomerDetailsForm ? (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="fullName">
-                  {t("publicBooking.details.fullNameLabel")}
-                </Label>
-                <Input
-                  id="fullName"
-                  className="rounded-2xl"
-                  value={customerFullName}
-                  onChange={(e) => setCustomerFullName(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">
-                  {t("publicBooking.details.emailLabel")}
-                </Label>
-                <Input
-                  id="email"
-                  className="rounded-2xl"
-                  value={customerEmail}
-                  onChange={(e) => setCustomerEmail(e.target.value)}
-                  placeholder={t("publicBooking.details.emailPlaceholder")}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phone">
-                  {t("publicBooking.details.phoneLabel")}
-                </Label>
-                <PhoneInput
-                  id="phone"
-                  className="rounded-2xl"
-                  inputClassName="rounded-2xl"
-                  value={customerPhone}
-                  onChange={(v) => setCustomerPhone(v)}
-                  onValidityChange={setCustomerPhoneValid}
-                  onBlur={() => setCustomerPhoneTouched(true)}
-                  aria-invalid={customerPhoneTouched && !customerPhoneValid}
-                  placeholder={t("publicBooking.details.phonePlaceholder")}
-                />
-                {customerPhoneTouched && customerPhone.trim() && !customerPhoneValid ? (
-                  <div className="text-xs text-red-600 dark:text-red-400">
-                    {t("publicBooking.details.invalidPhone")}
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="notes">
-                  {t("publicBooking.details.notesLabel")}
-                </Label>
-                <Textarea
-                  id="notes"
-                  className="rounded-2xl"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-              </div>
-            </>
-          ) : null}
-
-          <Button
-            onClick={handleDetailsConfirm}
-            disabled={!canSubmitDetails}
-            className="rounded-2xl w-full"
-          >
-            {submitting
-              ? connected
-                ? t("publicBooking.actions.confirming")
-                : t("publicBooking.actions.sendingCode")
-              : connected
-                ? t("publicBooking.details.confirmBookingAction")
-                : t("publicBooking.details.verifyEmailAction")}
-          </Button>
-        </div>
+        <DetailsStep
+          formError={formError}
+          activeConflict={activeConflict}
+          cancellingConflictId={cancellingConflictId}
+          submitting={submitting}
+          onCancelConflictAppointment={handleCancelConflictAppointment}
+          canSkipCustomerDetailsForm={canSkipCustomerDetailsForm}
+          selectedServiceName={selectedService?.name}
+          durationLabel={durationLabel}
+          priceLabel={priceLabel}
+          date={date}
+          startTime={startTime}
+          endTime={selectedSlot?.endTime}
+          customerFullName={customerFullName}
+          customerEmail={customerEmail}
+          customerPhone={customerPhone}
+          customerPhoneValid={customerPhoneValid}
+          customerPhoneTouched={customerPhoneTouched}
+          onCustomerFullNameChange={setCustomerFullName}
+          onCustomerEmailChange={setCustomerEmail}
+          onCustomerPhoneChange={setCustomerPhone}
+          onCustomerPhoneValidityChange={setCustomerPhoneValid}
+          onCustomerPhoneBlur={() => setCustomerPhoneTouched(true)}
+          notes={notes}
+          onNotesChange={setNotes}
+          onConfirm={handleDetailsConfirm}
+          confirmDisabled={!canSubmitDetails}
+          confirmLabel={detailsConfirmLabel}
+          submittingLabel={detailsSubmittingLabel}
+          onKeyDown={handleConfirmKeyDown}
+          t={t}
+        />
       ) : null}
 
       {/* Verify */}
       {step === "verify" ? (
-        <div className="space-y-4" onKeyDown={handleConfirmKeyDown}>
-          {formError ? (
-            <div className="text-sm text-red-600 dark:text-red-400">
-              {formError}
-            </div>
-          ) : null}
-
-          {activeConflict ? (
-            <div className="rounded-2xl border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/70 dark:bg-amber-950/20 p-4">
-              <div className="font-semibold text-amber-900 dark:text-amber-200">
-                {activeConflict.code === "SAME_SERVICE_SAME_DAY_EXISTS"
-                  ? t("publicBooking.conflict.sameServiceTitle")
-                  : t("publicBooking.conflict.upcomingTitle")}
-              </div>
-              <div className="text-sm text-amber-800/90 dark:text-amber-200/80 mt-1">
-                {activeConflict.code === "SAME_SERVICE_SAME_DAY_EXISTS"
-                  ? t("publicBooking.conflict.sameServiceDescription")
-                  : t("publicBooking.conflict.upcomingDescription")}
-              </div>
-
-              <div className="mt-2 space-y-2">
-                {(Array.isArray(activeConflict.existingAppointments)
-                  ? activeConflict.existingAppointments
-                  : activeConflict.existingAppointment
-                    ? [activeConflict.existingAppointment]
-                    : []
-                )
-                  .filter((x: any) => String(x?.id ?? "").trim())
-                  .map((appt: any) => {
-                    const apptId = String(appt?.id ?? "").trim();
-                    const label = `${appt?.serviceName ? `${appt.serviceName} • ` : ""}${appt?.date || ""
-                      }${appt?.startTime ? ` • ${appt.startTime}` : ""}`;
-
-                    return (
-                      <div
-                        key={apptId}
-                        className="rounded-xl border border-amber-200/70 dark:border-amber-900/40 bg-white/60 dark:bg-black/10 p-3"
-                      >
-                        <div className="text-sm text-amber-900/90 dark:text-amber-200/90">
-                          {label}
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="rounded-2xl w-full mt-2"
-                          disabled={submitting || cancellingConflictId === apptId}
-                          onClick={async () => {
-                            setFormError(null);
-                            setCancellingConflictId(apptId);
-                            try {
-                              await cancelExistingAppointment(apptId);
-                              setActiveConflict((prev) => {
-                                if (!prev) return prev;
-                                const list = Array.isArray(prev.existingAppointments)
-                                  ? prev.existingAppointments
-                                  : [];
-                                const nextList = list.filter(
-                                  (x: any) => String(x?.id ?? "").trim() !== apptId
-                                );
-
-                                // If we only had a single fallback appointment, clear conflict after cancel.
-                                if (list.length === 0) return null;
-                                if (nextList.length === 0) return null;
-                                return { ...prev, existingAppointments: nextList };
-                              });
-                            } catch (e: any) {
-                              if (
-                                String(e?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS" ||
-                                String(e?.code ?? "") === "SAME_SERVICE_SAME_DAY_EXISTS"
-                              ) {
-                                return;
-                              }
-                              setFormError(
-                                e?.message || t("publicBooking.errors.failed")
-                              );
-                            } finally {
-                              setCancellingConflictId(null);
-                            }
-                          }}
-                        >
-                          {cancellingConflictId === apptId
-                            ? t("publicBooking.actions.cancelling")
-                            : t("publicBooking.actions.cancelAppointment")}
-                        </Button>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          ) : null}
-
-          <div className="flex justify-center">
-            <OtpInput
-              id="booking-otp"
-              name="code"
-              length={6}
-              value={otpCode}
-              onChange={setOtpCode}
-              disabled={submitting}
-            />
-          </div>
-
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="rounded-2xl"
-              onClick={async () => {
-                setSubmitting(true);
-                setFormError(null);
-                try {
-                  await requestOtp();
-                } catch (e: any) {
-                  setFormError(e?.message || t("publicBooking.errors.failed"));
-                } finally {
-                  setSubmitting(false);
-                }
-              }}
-              disabled={submitting || cancellingConflictId !== null}
-            >
-              {t("publicBooking.verify.resend")}
-            </Button>
-
-            <Button
-              className="rounded-2xl flex-1"
-              onClick={handleVerifyConfirm}
-              disabled={!canSubmitVerify}
-            >
-              {submitting
-                ? t("publicBooking.actions.confirming")
-                : t("publicBooking.verify.confirmBooking")}
-            </Button>
-          </div>
-        </div>
+        <VerifyStep
+          formError={formError}
+          activeConflict={activeConflict}
+          cancellingConflictId={cancellingConflictId}
+          submitting={submitting}
+          otpCode={otpCode}
+          onOtpChange={setOtpCode}
+          onResend={handleResendOtp}
+          resendDisabled={submitting || cancellingConflictId !== null}
+          onConfirm={handleVerifyConfirm}
+          confirmDisabled={!canSubmitVerify}
+          onCancelConflictAppointment={handleCancelConflictAppointment}
+          onKeyDown={handleConfirmKeyDown}
+          t={t}
+        />
       ) : null}
 
       {/* Success */}
       {step === "success" && result?.appointment ? (
-        <div className="space-y-4">
-          {cancelError ? (
-            <div className="text-sm text-red-600 dark:text-red-400">
-              {cancelError}
-            </div>
-          ) : null}
-
-          <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4 shadow-sm">
-            <div className="font-semibold text-gray-900 dark:text-white">
-              {result.appointment.serviceName}
-            </div>
-            <div className="text-sm text-gray-600 dark:text-gray-300">
-              {result.appointment.customer.fullName}
-            </div>
-            {result.appointment.notes ? (
-              <div className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-                {result.appointment.notes}
-              </div>
-            ) : null}
-          </div>
-
-          {Array.isArray(result.sameDayAppointments) &&
-            result.sameDayAppointments.length > 1 ? (
-            <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4 shadow-sm">
-              <div className="font-semibold text-gray-900 dark:text-white">
-                {t("publicBooking.success.appointmentsOn", {
-                  date: result.appointment.date,
-                })}
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                {t("publicBooking.success.canCancelBelow")}
-              </div>
-
-              <div className="mt-3 space-y-2">
-                {result.sameDayAppointments.map((a) => (
-                  <div
-                    key={a.id}
-                    className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/10 p-3"
-                  >
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">
-                      {a.startTime}–{a.endTime}
-                    </div>
-                    <div className="text-sm text-gray-700 dark:text-gray-200">
-                      {a.serviceName}
-                    </div>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="rounded-2xl w-full mt-2"
-                      disabled={cancellingSameDayId === a.id || cancelling}
-                      onClick={async () => {
-                        setCancelError(null);
-                        setCancellingSameDayId(a.id);
-                        try {
-                          await cancelSameDayAppointment(a.id);
-                          setResult((prev) => {
-                            if (!prev) return prev;
-                            const list = Array.isArray(prev.sameDayAppointments)
-                              ? prev.sameDayAppointments
-                              : [];
-                            return {
-                              ...prev,
-                              sameDayAppointments: list.filter(
-                                (x) => x.id !== a.id
-                              ),
-                            };
-                          });
-                        } catch (e: any) {
-                          setCancelError(
-                            e?.message || t("publicBooking.errors.failed")
-                          );
-                        } finally {
-                          setCancellingSameDayId(null);
-                        }
-                      }}
-                    >
-                      {cancellingSameDayId === a.id
-                        ? t("publicBooking.actions.cancelling")
-                        : t("publicBooking.actions.cancelAppointment")}
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          <div className="space-y-2">
-            <div className="flex flex-wrap gap-3">
-              {!limitCustomerToOneUpcomingAppointment ? (
-                <Button className="rounded-2xl" onClick={() => resetBookingOnly()}>
-                  {t("publicBooking.success.bookAnother")}
-                </Button>
-              ) : null}
-
-              <Button
-                variant="outline"
-                className="rounded-2xl"
-                onClick={() =>
-                  window.open(
-                    googleCalendarUrl({
-                      title: result.appointment.serviceName,
-                      date: result.appointment.date,
-                      startTime: result.appointment.startTime,
-                      endTime: result.appointment.endTime,
-                    }),
-                    "_blank"
-                  )
-                }
-              >
-                {t("publicBooking.success.addToGoogle")}
-              </Button>
-
-              <Button
-                variant="outline"
-                className="rounded-2xl"
-                onClick={async () => {
-                  setCancelling(true);
-                  setCancelError(null);
-                  try {
-                    await cancelBooking();
-                    resetFlow();
-                  } catch (e: any) {
-                    setCancelError(e?.message || t("publicBooking.errors.failed"));
-                  } finally {
-                    setCancelling(false);
-                  }
-                }}
-                disabled={cancelling}
-              >
-                {cancelling
-                  ? t("publicBooking.actions.cancelling")
-                  : t("publicBooking.success.cancelBooking")}
-              </Button>
-            </div>
-
-            {identified ? (
-              <div className="flex justify-center">
-                <Button
-                  variant="ghost"
-                  className="rounded-2xl"
-                  onClick={async () => {
-                    setCancelling(true);
-                    setCancelError(null);
-                    try {
-                      await disconnectCustomer();
-                      setConnected(false);
-                      resetFlow();
-                    } catch (e: any) {
-                      setCancelError(
-                        e?.message || t("publicBooking.errors.failed")
-                      );
-                    } finally {
-                      setCancelling(false);
-                    }
-                  }}
-                  disabled={cancelling}
-                >
-                  {cancelling
-                    ? t("publicBooking.success.disconnecting")
-                    : t("publicBooking.success.notYouDisconnect")}
-                </Button>
-              </div>
-            ) : null}
-          </div>
-        </div>
+        <SuccessStep
+          result={result}
+          cancelError={cancelError}
+          cancelling={cancelling}
+          cancellingSameDayId={cancellingSameDayId}
+          limitCustomerToOneUpcomingAppointment={
+            limitCustomerToOneUpcomingAppointment
+          }
+          onCancelSameDay={handleCancelSameDay}
+          onBookAnother={resetBookingOnly}
+          onAddToGoogle={handleAddToGoogle}
+          onCancelBooking={handleCancelBooking}
+          identified={identified}
+          onDisconnect={handleDisconnect}
+          t={t}
+        />
       ) : null}
 
       {step === "success" && !result?.appointment ? (

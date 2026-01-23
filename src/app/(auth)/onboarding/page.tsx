@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { TimePicker } from "@/components/ui/time-picker";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
+import ProgressBar from "@/components/onboarding/ProgressBar";
 import { Switch as UISwitch } from "@/components/ui/switch";
 import {
   Select,
@@ -2310,18 +2310,13 @@ export default function OnboardingPage() {
           </p>
 
           {/* Progress Bar */}
-          <div className="pt-4 max-w-xs mx-auto w-full">
-            <div className="flex justify-between text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 px-1">
-              <span>
-                {t("onboarding.stepCount", { current: step + 1, total: totalSteps })}
-              </span>
-              <span>{Math.round(progress)}%</span>
-            </div>
-            <Progress
-              value={progress}
-              className="h-2.5 w-full bg-gray-200 dark:bg-gray-800 [&>div]:bg-neutral-900 rounded-full"
-            />
-          </div>
+          <ProgressBar
+            progress={progress}
+            stepCountLabel={t("onboarding.stepCount", {
+              current: step + 1,
+              total: totalSteps,
+            })}
+          />
         </div>
 
         <div className="flex-1 px-6 pb-28 w-full max-w-md mx-auto">
