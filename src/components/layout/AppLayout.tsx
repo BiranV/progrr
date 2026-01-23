@@ -7,6 +7,8 @@ import { useAuth } from "@/context/AuthContext";
 import BottomNav from "./BottomNav";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { useLocale } from "@/context/LocaleContext";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 function isPublicPath(pathname: string) {
   return (
@@ -18,6 +20,7 @@ function isPublicPath(pathname: string) {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoadingAuth: loading, updateUser, logout } = useAuth();
+  const { dir } = useLocale();
   const pathname = usePathname();
   const router = useRouter();
   const mainRef = React.useRef<HTMLElement | null>(null);
@@ -26,6 +29,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const isOnboardingPath =
     pathname === "/onboarding" || pathname.startsWith("/onboarding/");
   const onboardingCompleted = Boolean((user as any)?.onboardingCompleted);
+  const showLanguageSwitcher = pathname.startsWith("/dashboard");
 
   const didHydrateOnboardingRef = React.useRef(false);
 
@@ -174,8 +178,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   ).trim();
   const logoUrl = String(
     (user as any)?.onboarding?.branding?.logo?.url ??
-      (user as any)?.onboarding?.branding?.logoUrl ??
-      "",
+    (user as any)?.onboarding?.branding?.logoUrl ??
+    "",
   ).trim();
   const bannerUrl = String(
     (user as any)?.onboarding?.branding?.banner?.url ?? "",
@@ -192,6 +196,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             alt="Business banner"
             className="absolute inset-0 h-full w-full object-cover"
           />
+        ) : null}
+        {showLanguageSwitcher ? (
+          <div
+            className={
+              "absolute top-4 z-20 " + (dir === "rtl" ? "left-4" : "right-4")
+            }
+          >
+            <LanguageSwitcher variant="dark" />
+          </div>
         ) : null}
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/15 to-transparent" />
         <div className="absolute inset-0 opacity-20 mix-blend-overlay"></div>
