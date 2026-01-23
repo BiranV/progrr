@@ -47,11 +47,17 @@ export async function POST(
     const c = await collections();
     const businessUserId = new ObjectId(user.id);
 
-    const customer = await c.customers.findOne({
-      _id: new ObjectId(id),
+    const customerObjectId = new ObjectId(id);
+    const businessCustomer = await c.businessCustomers.findOne({
       businessUserId,
-    });
+      customerId: customerObjectId,
+    } as any);
 
+    if (!businessCustomer) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const customer = await c.customers.findOne({ _id: customerObjectId } as any);
     if (!customer) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }

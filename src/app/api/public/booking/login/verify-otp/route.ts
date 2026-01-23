@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
-import { ObjectId } from "mongodb";
-
 import { collections, ensureIndexes } from "@/server/collections";
 import { verifyOtp } from "@/server/otp";
 import { getDb } from "@/server/mongo";
 import { checkRateLimit } from "@/server/rate-limit";
 import { isValidBusinessPublicId } from "@/server/business-public-id";
 import { signCustomerAccessToken } from "@/server/jwt";
-import { customerIdFor } from "@/server/customer-id";
 import {
     CUSTOMER_ACCESS_COOKIE_NAME,
     customerAccessCookieOptions,
@@ -32,6 +29,8 @@ export async function POST(req: Request) {
         const businessPublicId = String(body?.businessPublicId ?? "").trim();
         const email = normalizeEmail(body?.email);
         const code = String(body?.code ?? "").trim();
+        const fullName = String(body?.fullName ?? "").trim();
+        const phone = String(body?.phone ?? "").trim();
 
         if (!email) {
             return NextResponse.json({ error: "Email is required" }, { status: 400 });
@@ -45,13 +44,7 @@ export async function POST(req: Request) {
         if (!code) {
             return NextResponse.json({ error: "Code is required" }, { status: 400 });
         }
-        if (!businessPublicId) {
-            return NextResponse.json(
-                { error: "businessPublicId is required" },
-                { status: 400 }
-            );
-        }
-        if (!isValidBusinessPublicId(businessPublicId)) {
+        if (businessPublicId && !isValidBusinessPublicId(businessPublicId)) {
             return NextResponse.json(
                 { error: "Invalid businessPublicId" },
                 { status: 400 }
@@ -98,62 +91,48 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Invalid code" }, { status: 401 });
         }
 
-        const user = await c.users.findOne({
-            "onboarding.business.publicId": businessPublicId,
-            onboardingCompleted: true,
-        } as any);
-
-        if (!user?._id) {
-            return NextResponse.json(
-                { error: "Business not found" },
-                { status: 404 }
-            );
-        }
-
-        const businessUserId = (user._id as ObjectId).toHexString();
-        const isOwnerBooking = normalizeEmail((user as any)?.email) === email;
-
-        const blocked = isOwnerBooking
-            ? null
-            : await c.customers.findOne({
-                businessUserId: user._id as ObjectId,
+        let customer = await c.customers.findOne({ email } as any);
+        if (!customer) {
+            const insert = await c.customers.insertOne({
                 email,
-                status: "BLOCKED",
+                fullName: fullName || email,
+                phone: phone || "",
+                createdAt: new Date(),
+                updatedAt: new Date(),
             } as any);
-
-        if (!isOwnerBooking && blocked) {
-            return NextResponse.json(
+            customer = await c.customers.findOne({ _id: insert.insertedId } as any);
+        } else if (fullName || phone) {
+            await c.customers.updateOne(
+                { _id: customer._id } as any,
                 {
-                    error: "You cannot book with this business.",
-                    code: "CUSTOMER_BLOCKED_FOR_THIS_BUSINESS",
-                },
-                { status: 403 }
+                    $set: {
+                        ...(fullName ? { fullName } : {}),
+                        ...(phone ? { phone } : {}),
+                        updatedAt: new Date(),
+                    },
+                } as any
             );
+            customer = await c.customers.findOne({ _id: customer._id } as any);
         }
 
-        const customerId = customerIdFor({ businessUserId, email });
+        const customerId = customer?._id?.toHexString?.() ?? "";
+        if (!customerId) {
+            return NextResponse.json({ error: "Failed to create customer" }, { status: 500 });
+        }
+
         const accessToken = await signCustomerAccessToken({
             customerId,
-            businessUserId,
         });
 
         // Consume OTP on successful login.
         await c.customerOtps.deleteOne({ key: email, purpose });
 
-        const existingCustomer = await c.customers.findOne(
-            {
-                businessUserId: user._id as ObjectId,
-                email,
-            } as any,
-            { projection: { fullName: 1, phone: 1, email: 1 } }
-        );
-
         const res = NextResponse.json({
             ok: true,
             customer: {
                 email,
-                fullName: String((existingCustomer as any)?.fullName ?? "") || undefined,
-                phone: String((existingCustomer as any)?.phone ?? "") || undefined,
+                fullName: String((customer as any)?.fullName ?? "") || undefined,
+                phone: String((customer as any)?.phone ?? "") || undefined,
             },
         });
 

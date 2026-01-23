@@ -80,17 +80,22 @@ export type AppointmentDoc = {
 
 export type CustomerDoc = {
   _id?: ObjectId;
-  businessUserId: ObjectId;
   fullName: string;
   phone: string;
   email?: string;
+  createdAt: Date;
+  updatedAt?: Date;
+  pendingEmail?: string;
+  pendingEmailRequestedAt?: Date;
+};
+
+export type BusinessCustomerDoc = {
+  _id?: ObjectId;
+  businessUserId: ObjectId;
+  customerId: ObjectId;
   status?: "ACTIVE" | "BLOCKED";
   isHidden?: boolean;
   createdAt: Date;
-  pendingEmail?: string;
-  pendingEmailRequestedAt?: Date;
-  // Legacy fields (no longer used for counts; counts are computed from appointments).
-  appointmentsCount?: number;
   lastAppointmentAt?: Date;
 };
 
@@ -138,6 +143,7 @@ export async function collections() {
     customerOtps: db.collection<CustomerOtpDoc>("customer_otps"),
     appointments: db.collection<AppointmentDoc>("appointments"),
     customers: db.collection<CustomerDoc>("customers"),
+    businessCustomers: db.collection<BusinessCustomerDoc>("business_customers"),
     rateLimits: db.collection<RateLimitDoc>("rate_limits"),
   };
 }
@@ -189,17 +195,17 @@ export async function ensureIndexes() {
     startTime: 1,
   });
 
-  await c.customers.createIndex(
-    { businessUserId: 1, phone: 1 },
+  await c.customers.createIndex({ email: 1 }, { unique: true, sparse: true });
+  await c.customers.createIndex({ phone: 1 }, { unique: true, sparse: true });
+  await c.customers.createIndex({ createdAt: -1 });
+
+  await c.businessCustomers.createIndex(
+    { businessUserId: 1, customerId: 1 },
     { unique: true }
   );
-  await c.customers.createIndex(
-    { businessUserId: 1, email: 1 },
-    { unique: true, sparse: true }
-  );
-  await c.customers.createIndex(
+  await c.businessCustomers.createIndex(
     { businessUserId: 1, createdAt: -1 },
-    { name: "customers_admin_list" }
+    { name: "business_customers_admin_list" }
   );
 
   await c.rateLimits.createIndex({ key: 1 }, { unique: true });

@@ -392,7 +392,7 @@ const en = {
                 description: "Massage & body treatments",
             },
             fitness_coach: {
-                title: "Personal fitness coaching",
+                title: "Fitness coaching",
                 description: "Personal training, fitness coaching, training plans",
             },
             nutrition_clinic: {

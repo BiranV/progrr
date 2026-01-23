@@ -6,7 +6,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
   Apple,
-  Check,
   Dumbbell,
   Hand,
   Loader2,
@@ -37,6 +36,7 @@ import {
 } from "@/components/ui/select";
 
 import AuthBanner from "../auth/_components/AuthBanner";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useAuth } from "@/context/AuthContext";
 import { BUSINESS_TYPES, SERVICE_PRESETS } from "@/lib/onboardingPresets";
 import ImageCropperModal, {
@@ -1180,24 +1180,13 @@ export default function OnboardingPage() {
                           : "border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/30 hover:border-gray-300 dark:hover:border-gray-700")
                       }
                     >
-                      <div className="flex items-start gap-3">
-                        <div
-                          className={
-                            "h-5 w-5 rounded-full border flex items-center justify-center shrink-0 " +
-                            (selected
-                              ? "border-neutral-900 bg-neutral-900 text-white"
-                              : "border-gray-300 dark:border-gray-700")
-                          }
-                          aria-hidden="true"
-                        >
-                          {selected ? <Check className="h-3.5 w-3.5" /> : null}
-                        </div>
+                      <div className="flex flex-col items-center justify-center gap-2 text-center">
                         {(() => {
                           const Icon = BUSINESS_TYPE_ICONS[opt.key];
                           return Icon ? (
                             <Icon
                               className={
-                                "h-5 w-5 shrink-0 " +
+                                "h-6 w-6 " +
                                 (selected
                                   ? "text-primary"
                                   : "text-muted-foreground")
@@ -2284,6 +2273,9 @@ export default function OnboardingPage() {
       {/* Header Container */}
       <div className="relative w-full z-0 h-[140px] bg-gradient-to-br from-neutral-950 via-zinc-900 to-zinc-800 shrink-0">
         <div className="absolute inset-0 opacity-20 mix-blend-overlay"></div>
+        <div className="absolute top-4 inset-x-0 z-20 flex justify-center">
+          <LanguageSwitcher variant="dark" />
+        </div>
       </div>
 
       {/* Main Content Area with Convex Curve (Sides lower than center) */}

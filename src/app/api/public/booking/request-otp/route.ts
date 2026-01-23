@@ -7,7 +7,6 @@ import { getDb } from "@/server/mongo";
 import { checkRateLimit } from "@/server/rate-limit";
 import { buildOtpEmail } from "@/server/emails/auth";
 import { isValidBusinessPublicId } from "@/server/business-public-id";
-import { ObjectId } from "mongodb";
 import crypto from "crypto";
 
 function normalizeEmail(input: unknown): string {
@@ -39,13 +38,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!businessPublicId) {
-      return NextResponse.json(
-        { error: "businessPublicId is required" },
-        { status: 400 }
-      );
-    }
-    if (!isValidBusinessPublicId(businessPublicId)) {
+    if (businessPublicId && !isValidBusinessPublicId(businessPublicId)) {
       return NextResponse.json(
         { error: "Invalid businessPublicId" },
         { status: 400 }
@@ -64,38 +57,10 @@ export async function POST(req: Request) {
       perEmail: { windowMs: 60_000, limit: 5 },
     });
 
-    const user = await c.users.findOne({
-      "onboarding.business.publicId": businessPublicId,
-      onboardingCompleted: true,
-    } as any);
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "Business not found" },
-        { status: 404 }
-      );
-    }
-
-    const isOwnerBooking = normalizeEmail((user as any)?.email) === email;
-
-    // Business-scoped customer block: do NOT send OTP if blocked for this business.
-    const blocked = isOwnerBooking
-      ? null
-      : await c.customers.findOne({
-        businessUserId: user._id as ObjectId,
-        email,
-        status: "BLOCKED",
-      } as any);
-
-    if (!isOwnerBooking && blocked) {
-      return NextResponse.json(
-        {
-          error: "You cannot book with this business.",
-          code: "CUSTOMER_BLOCKED_FOR_THIS_BUSINESS",
-        },
-        { status: 403 }
-      );
-    }
+    const existingCustomer = await c.customers.findOne(
+      { email } as any,
+      { projection: { fullName: 1, phone: 1, email: 1 } }
+    );
 
     const purpose = "booking_verify" as const;
 
@@ -132,7 +97,7 @@ export async function POST(req: Request) {
           purpose,
           codeHash: hash,
           verifyToken,
-          businessPublicId,
+          ...(businessPublicId ? { businessPublicId } : {}),
           expiresAt,
           attempts: 0,
           createdAt: new Date(),
@@ -156,7 +121,17 @@ export async function POST(req: Request) {
       html: emailContent.html,
     });
 
-    return NextResponse.json({ ok: true, verifyToken });
+    return NextResponse.json({
+      ok: true,
+      verifyToken,
+      customer: existingCustomer
+        ? {
+          fullName: String((existingCustomer as any)?.fullName ?? "") || undefined,
+          phone: String((existingCustomer as any)?.phone ?? "") || undefined,
+          email: String((existingCustomer as any)?.email ?? "") || undefined,
+        }
+        : undefined,
+    });
   } catch (error: any) {
     const status = typeof error?.status === "number" ? error.status : 500;
     return NextResponse.json(

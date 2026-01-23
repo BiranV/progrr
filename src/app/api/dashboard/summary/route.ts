@@ -199,7 +199,7 @@ export async function GET() {
                         endTime: { $gt: nowTimeStr },
                     } as any
                 ),
-                c.customers.countDocuments({
+                c.businessCustomers.countDocuments({
                     businessUserId,
                     isHidden: { $ne: true },
                 } as any),

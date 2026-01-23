@@ -67,11 +67,17 @@ export async function GET(
     const c = await collections();
     const businessUserId = new ObjectId(user.id);
 
-    const customer = await c.customers.findOne({
-      _id: new ObjectId(id),
+    const customerObjectId = new ObjectId(id);
+    const businessCustomer = await c.businessCustomers.findOne({
       businessUserId,
-    });
+      customerId: customerObjectId,
+    } as any);
 
+    if (!businessCustomer) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const customer = await c.customers.findOne({ _id: customerObjectId } as any);
     if (!customer) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
@@ -175,8 +181,8 @@ export async function GET(
         fullName: String((customer as any)?.fullName ?? ""),
         phone: String((customer as any)?.phone ?? ""),
         email: String((customer as any)?.email ?? "") || undefined,
-        status: String((customer as any)?.status ?? "ACTIVE"),
-        isHidden: Boolean((customer as any)?.isHidden ?? false),
+        status: String((businessCustomer as any)?.status ?? "ACTIVE"),
+        isHidden: Boolean((businessCustomer as any)?.isHidden ?? false),
       },
       activeBookingsCount,
       bookingsPagination: {
@@ -219,7 +225,10 @@ export async function PATCH(
     const businessUserId = new ObjectId(user.id);
     const _id = new ObjectId(id);
 
-    const customer = await c.customers.findOne({ _id, businessUserId } as any);
+    const customer = await c.businessCustomers.findOne({
+      businessUserId,
+      customerId: _id,
+    } as any);
     if (!customer) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
@@ -241,8 +250,8 @@ export async function PATCH(
       );
     }
 
-    const result = await c.customers.findOneAndUpdate(
-      { _id, businessUserId } as any,
+    const result = await c.businessCustomers.findOneAndUpdate(
+      { customerId: _id, businessUserId } as any,
       update,
       { returnDocument: "after" }
     );

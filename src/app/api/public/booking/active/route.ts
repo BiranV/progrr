@@ -10,7 +10,6 @@ import {
 } from "@/server/jwt";
 import { CUSTOMER_ACCESS_COOKIE_NAME } from "@/server/customer-access";
 import { formatDateInTimeZone } from "@/lib/public-booking";
-import { customerIdFor } from "@/server/customer-id";
 
 function normalizeEmail(input: unknown): string {
   return String(input ?? "")
@@ -88,8 +87,15 @@ export async function GET(req: Request) {
       );
     }
 
-    const businessUserId = (user._id as ObjectId).toHexString();
-    if (claims.businessUserId !== businessUserId) {
+    const customerObjectId = ObjectId.isValid(claims.customerId)
+      ? new ObjectId(claims.customerId)
+      : null;
+    if (!customerObjectId) {
+      return NextResponse.json({ ok: true, appointment: null });
+    }
+
+    const customer = await c.customers.findOne({ _id: customerObjectId } as any);
+    if (!customer) {
       return NextResponse.json({ ok: true, appointment: null });
     }
 
@@ -97,11 +103,9 @@ export async function GET(req: Request) {
     // they may have a customer access cookie from previous bookings.
     // Owner bookings should never be blocked by an "active appointment" banner.
     const ownerEmail = normalizeEmail((user as any)?.email);
-    if (ownerEmail) {
-      const ownerCustomerId = customerIdFor({ businessUserId, email: ownerEmail });
-      if (ownerCustomerId && claims.customerId === ownerCustomerId) {
-        return NextResponse.json({ ok: true, appointment: null });
-      }
+    const customerEmail = normalizeEmail((customer as any)?.email);
+    if (ownerEmail && customerEmail && ownerEmail === customerEmail) {
+      return NextResponse.json({ ok: true, appointment: null });
     }
 
     const onboarding = (user as any).onboarding ?? {};
@@ -127,7 +131,7 @@ export async function GET(req: Request) {
       {
         businessUserId: user._id as ObjectId,
         status: "BOOKED",
-        "customer.id": claims.customerId,
+        customerId: customerObjectId,
         $or: [
           { date: { $gt: todayStr } },
           { date: todayStr, startTime: { $gt: nowTimeStr } },

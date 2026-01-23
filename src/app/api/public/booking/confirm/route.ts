@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { ObjectId } from "mongodb";
 
 import { collections, ensureIndexes } from "@/server/collections";
@@ -11,11 +12,10 @@ import {
 import {
   signBookingCancelToken,
   signCustomerAccessToken,
-  verifyBookingVerifyToken,
+  verifyCustomerAccessToken,
 } from "@/server/jwt";
 import { isValidBusinessPublicId } from "@/server/business-public-id";
 import { formatDateInTimeZone } from "@/lib/public-booking";
-import { customerIdFor } from "@/server/customer-id";
 import {
   CUSTOMER_ACCESS_COOKIE_NAME,
   customerAccessCookieOptions,
@@ -84,9 +84,8 @@ export async function POST(req: Request) {
     const customerPhone = normalizePhone(body?.customerPhone);
     const notes = typeof body?.notes === "string" ? body.notes.trim() : "";
 
-    const bookingSessionId = String(body?.bookingSessionId ?? "").trim();
-    const hasOtp = Boolean(body?.otp || body?.code);
-    const hasVerifyToken = Boolean(body?.verifyToken);
+    const cookieStore = await cookies();
+    const accessToken = cookieStore.get(CUSTOMER_ACCESS_COOKIE_NAME)?.value;
 
     if (!businessPublicId) {
       return NextResponse.json(
@@ -112,39 +111,8 @@ export async function POST(req: Request) {
     if (!isValidTimeString(startTime)) {
       return NextResponse.json({ error: "Invalid startTime" }, { status: 400 });
     }
-    if (!customerFullName) {
-      return NextResponse.json(
-        { error: "Full Name is required" },
-        { status: 400 }
-      );
-    }
-    if (!customerEmail) {
-      return NextResponse.json({ error: "Email is required" }, { status: 400 });
-    }
-    if (!isValidEmail(customerEmail)) {
-      return NextResponse.json(
-        { error: "Please enter a valid email address" },
-        { status: 400 }
-      );
-    }
-    if (!customerPhone) {
-      return NextResponse.json({ error: "Phone is required" }, { status: 400 });
-    }
-    if (!isLikelyValidPhone(customerPhone)) {
-      return NextResponse.json(
-        { error: "Please enter a valid phone number" },
-        { status: 400 }
-      );
-    }
 
-    if (hasOtp || hasVerifyToken) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    if (!bookingSessionId) {
+    if (!accessToken) {
       return NextResponse.json(
         { error: "Unauthorized", code: "unauthorized" },
         { status: 401 }
@@ -152,18 +120,21 @@ export async function POST(req: Request) {
     }
 
     const c = await collections();
-    let sessionEmail = "";
+    let customerIdFromToken = "";
     try {
-      const claims = await verifyBookingVerifyToken(bookingSessionId);
-      sessionEmail = normalizeEmail(claims.email);
-    } catch (error: any) {
-      const code = String(error?.code ?? error?.name ?? "");
-      if (code === "ERR_JWT_EXPIRED" || code === "JWTExpired") {
-        return NextResponse.json(
-          { error: "Session expired", code: "session_expired" },
-          { status: 401 }
-        );
-      }
+      const claims = await verifyCustomerAccessToken(accessToken);
+      customerIdFromToken = String(claims.customerId ?? "").trim();
+    } catch {
+      return NextResponse.json(
+        { error: "Unauthorized", code: "unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const customerObjectId = ObjectId.isValid(customerIdFromToken)
+      ? new ObjectId(customerIdFromToken)
+      : null;
+    if (!customerObjectId) {
       return NextResponse.json(
         { error: "Unauthorized", code: "unauthorized" },
         { status: 401 }
@@ -183,13 +154,73 @@ export async function POST(req: Request) {
     }
 
     const businessUserId = (user._id as ObjectId).toHexString();
-    if (!sessionEmail || sessionEmail !== customerEmail) {
+
+    const customer = await c.customers.findOne({ _id: customerObjectId } as any);
+    if (!customer) {
       return NextResponse.json(
         { error: "Unauthorized", code: "unauthorized" },
         { status: 401 }
       );
     }
-    const isOwnerBooking = normalizeEmail((user as any)?.email) === customerEmail;
+
+    const customerEmailFromSession = normalizeEmail((customer as any)?.email);
+    const customerPhoneFromSession = String((customer as any)?.phone ?? "").trim();
+    const customerFullNameFromSession = String((customer as any)?.fullName ?? "").trim();
+
+    if (customerEmailFromSession && customerEmail && customerEmailFromSession !== customerEmail) {
+      return NextResponse.json(
+        { error: "Unauthorized", code: "unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const effectiveEmail = customerEmailFromSession || customerEmail;
+    const effectivePhone = customerPhoneFromSession || customerPhone;
+    const effectiveFullName = customerFullNameFromSession || customerFullName;
+
+    if (!effectiveFullName) {
+      return NextResponse.json(
+        { error: "Full Name is required" },
+        { status: 400 }
+      );
+    }
+    if (!effectiveEmail) {
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
+    if (!isValidEmail(effectiveEmail)) {
+      return NextResponse.json(
+        { error: "Please enter a valid email address" },
+        { status: 400 }
+      );
+    }
+    if (!effectivePhone) {
+      return NextResponse.json({ error: "Phone is required" }, { status: 400 });
+    }
+    if (!isLikelyValidPhone(effectivePhone)) {
+      return NextResponse.json(
+        { error: "Please enter a valid phone number" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      effectiveFullName !== customerFullNameFromSession ||
+      effectivePhone !== customerPhoneFromSession
+    ) {
+      await c.customers.updateOne(
+        { _id: customerObjectId } as any,
+        {
+          $set: {
+            fullName: effectiveFullName,
+            phone: effectivePhone,
+            email: effectiveEmail,
+            updatedAt: new Date(),
+          },
+        } as any
+      );
+    }
+    const isOwnerBooking =
+      normalizeEmail((user as any)?.email) === customerEmailFromSession;
 
     const onboarding = (user as any).onboarding ?? {};
     const services: any[] = Array.isArray(onboarding.services)
@@ -232,15 +263,15 @@ export async function POST(req: Request) {
     const todayStr = formatDateInTimeZone(new Date(), timeZone);
     const nowTimeStr = formatTimeInTimeZone(new Date(), timeZone);
 
-    const customerId = customerIdFor({ businessUserId, email: customerEmail });
+    const customerId = customerObjectId;
 
     // Business-scoped customer block: do not allow booking for this business.
     const existingCustomerForBusiness = isOwnerBooking
       ? null
-      : await c.customers.findOne(
+      : await c.businessCustomers.findOne(
         {
           businessUserId: user._id as ObjectId,
-          $or: [{ phone: customerPhone }, { email: customerEmail }],
+          customerId,
         } as any,
         { projection: { status: 1 } }
       );
@@ -264,7 +295,7 @@ export async function POST(req: Request) {
         {
           businessUserId: user._id as ObjectId,
           status: "BOOKED",
-          "customer.id": customerId,
+          customerId,
           date,
           serviceId,
         } as any,
@@ -277,7 +308,7 @@ export async function POST(req: Request) {
             {
               businessUserId: user._id as ObjectId,
               status: "BOOKED",
-              "customer.id": customerId,
+              customerId,
               date,
             } as any,
             { projection: { date: 1, startTime: 1, endTime: 1, serviceName: 1 } }
@@ -305,7 +336,6 @@ export async function POST(req: Request) {
               endTime: String(a?.endTime ?? ""),
               serviceName: String(a?.serviceName ?? ""),
             })),
-            ...(bookingSessionId ? { bookingSessionId } : {}),
           },
           { status: 409 }
         );
@@ -318,7 +348,7 @@ export async function POST(req: Request) {
         {
           businessUserId: user._id as ObjectId,
           status: "BOOKED",
-          "customer.id": customerId,
+          customerId,
           $or: [
             { date: { $gt: todayStr } },
             { date: todayStr, endTime: { $gt: nowTimeStr } },
@@ -333,7 +363,7 @@ export async function POST(req: Request) {
             {
               businessUserId: user._id as ObjectId,
               status: "BOOKED",
-              "customer.id": customerId,
+              customerId,
               $or: [
                 { date: { $gt: todayStr } },
                 { date: todayStr, endTime: { $gt: nowTimeStr } },
@@ -364,7 +394,6 @@ export async function POST(req: Request) {
               endTime: String(a?.endTime ?? ""),
               serviceName: String(a?.serviceName ?? ""),
             })),
-            ...(bookingSessionId ? { bookingSessionId } : {}),
           },
           { status: 409 }
         );
@@ -404,55 +433,32 @@ export async function POST(req: Request) {
       "ILS";
 
     try {
-      // Create/reuse a business-scoped customer record.
-      // Customers are server-side only and used by the Admin → Customers screen.
-      let customerDocId: ObjectId | null = null;
-      try {
-        const upsertedCustomer = await c.customers.findOneAndUpdate(
-          {
+      const customerIdHex = customerObjectId.toHexString();
+
+      // Create/reuse a business-scoped profile for admin views (block/hide/status).
+      await c.businessCustomers.updateOne(
+        {
+          businessUserId: user._id as ObjectId,
+          customerId: customerObjectId,
+        } as any,
+        {
+          $setOnInsert: {
             businessUserId: user._id as ObjectId,
-            $or: [{ phone: customerPhone }, { email: customerEmail }],
-          } as any,
-          {
-            $setOnInsert: {
-              businessUserId: user._id as ObjectId,
-              createdAt: new Date(),
-              status: "ACTIVE",
-            },
-            $set: {
-              fullName: customerFullName,
-              phone: customerPhone,
-              email: customerEmail,
-              isHidden: false,
-            },
+            customerId: customerObjectId,
+            createdAt: new Date(),
+            status: "ACTIVE",
+            isHidden: false,
           },
-          { upsert: true, returnDocument: "after" }
-        );
-
-        customerDocId = upsertedCustomer?._id ?? null;
-      } catch (e: any) {
-        // Handle unique index races.
-        if (e?.code === 11000) {
-          const existingCustomer = await c.customers.findOne({
-            businessUserId: user._id as ObjectId,
-            $or: [{ phone: customerPhone }, { email: customerEmail }],
-          } as any);
-          customerDocId = existingCustomer?._id ?? null;
-        } else {
-          throw e;
-        }
-      }
-
-      if (!customerDocId) {
-        return NextResponse.json(
-          { error: "Failed to create customer" },
-          { status: 500 }
-        );
-      }
+          $set: {
+            lastAppointmentAt: new Date(),
+          },
+        } as any,
+        { upsert: true }
+      );
 
       const insert = await c.appointments.insertOne({
         businessUserId: user._id as ObjectId,
-        customerId: customerDocId,
+        customerId: customerObjectId,
         serviceId,
         serviceName: String(service?.name ?? "").trim(),
         durationMinutes,
@@ -462,10 +468,10 @@ export async function POST(req: Request) {
         startTime,
         endTime,
         customer: {
-          id: customerId,
-          fullName: customerFullName,
-          phone: customerPhone,
-          email: customerEmail,
+          id: customerIdHex,
+          fullName: effectiveFullName,
+          phone: effectivePhone,
+          email: effectiveEmail,
         },
         ...(notes ? { notes } : {}),
         status: "BOOKED",
@@ -476,7 +482,7 @@ export async function POST(req: Request) {
       const appointmentId = insert.insertedId.toHexString();
 
       // Send confirmation email (best-effort).
-      const canEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail);
+      const canEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(effectiveEmail);
       if (canEmail) {
         try {
           const content = buildAppointmentBookedEmail({
@@ -488,7 +494,7 @@ export async function POST(req: Request) {
           });
 
           await sendEmail({
-            to: customerEmail,
+            to: effectiveEmail,
             subject: content.subject,
             text: content.text,
             html: content.html,
@@ -498,19 +504,13 @@ export async function POST(req: Request) {
         }
       }
 
-      await c.customers.updateOne(
-        { _id: customerDocId },
-        { $set: { lastAppointmentAt: new Date() } }
-      );
-
       const cancelToken = await signBookingCancelToken({
         appointmentId,
-        phone: customerPhone,
+        phone: effectivePhone,
       });
 
       const accessToken = await signCustomerAccessToken({
-        customerId,
-        businessUserId,
+        customerId: customerIdHex,
       });
 
       const includeSameDayAppointments =
@@ -522,7 +522,7 @@ export async function POST(req: Request) {
             {
               businessUserId: user._id as ObjectId,
               status: "BOOKED",
-              "customer.id": customerId,
+              customerId,
               date,
             } as any,
             {
@@ -552,9 +552,9 @@ export async function POST(req: Request) {
           startTime,
           endTime,
           customer: {
-            fullName: customerFullName,
-            phone: customerPhone,
-            email: customerEmail,
+            fullName: effectiveFullName,
+            phone: effectivePhone,
+            email: effectiveEmail,
           },
           notes: notes || undefined,
           status: "BOOKED",
@@ -569,7 +569,6 @@ export async function POST(req: Request) {
           }))
           : undefined,
         cancelToken,
-        ...(bookingSessionId ? { bookingSessionId } : {}),
       });
 
       res.cookies.set(

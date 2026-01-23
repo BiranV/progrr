@@ -388,7 +388,7 @@ const he = {
                 description: "עיסויים וטיפולי גוף",
             },
             fitness_coach: {
-                title: "אימון כושר אישי",
+                title: "כושר ואימונים",
                 description: "אימונים אישיים, ליווי כושר ותוכניות אימון",
             },
             nutrition_clinic: {

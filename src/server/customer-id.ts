@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 
 export function customerIdFor(args: {
-  businessUserId: string;
+  businessUserId?: string;
   email: string;
 }): string {
   const normalizedEmail = String(args.email ?? "")
@@ -9,6 +9,6 @@ export function customerIdFor(args: {
     .trim()
     .toLowerCase();
 
-  const input = `${args.businessUserId}:${normalizedEmail}`;
+  const input = normalizedEmail;
   return crypto.createHash("sha256").update(input).digest("hex");
 }

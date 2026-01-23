@@ -6,7 +6,6 @@ import { collections, ensureIndexes } from "@/server/collections";
 import { isValidBusinessPublicId } from "@/server/business-public-id";
 import { CUSTOMER_ACCESS_COOKIE_NAME, customerAccessCookieOptions } from "@/server/customer-access";
 import { verifyCustomerAccessToken, signCustomerAccessToken } from "@/server/jwt";
-import { customerIdFor } from "@/server/customer-id";
 import { verifyOtp } from "@/server/otp";
 import { getDb } from "@/server/mongo";
 import { checkRateLimit } from "@/server/rate-limit";
@@ -32,13 +31,7 @@ export async function POST(req: Request) {
         const newEmail = normalizeEmail(body?.newEmail);
         const code = String(body?.code ?? "").trim();
 
-        if (!businessPublicId) {
-            return NextResponse.json(
-                { error: "businessPublicId is required" },
-                { status: 400 }
-            );
-        }
-        if (!isValidBusinessPublicId(businessPublicId)) {
+        if (businessPublicId && !isValidBusinessPublicId(businessPublicId)) {
             return NextResponse.json({ error: "Invalid businessPublicId" }, { status: 400 });
         }
 
@@ -48,10 +41,10 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Not logged in" }, { status: 401 });
         }
 
-        let claims: { customerId: string; businessUserId: string };
+        let claims: { customerId: string };
         try {
             const parsed = await verifyCustomerAccessToken(token);
-            claims = { customerId: parsed.customerId, businessUserId: parsed.businessUserId };
+            claims = { customerId: parsed.customerId };
         } catch {
             return NextResponse.json({ error: "Not logged in" }, { status: 401 });
         }
@@ -72,29 +65,11 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Code is required" }, { status: 400 });
         }
 
-        const expectedCustomerId = customerIdFor({
-            businessUserId: claims.businessUserId,
-            email: currentEmail,
-        });
-        if (!expectedCustomerId || expectedCustomerId !== claims.customerId) {
+        if (!claims.customerId) {
             return NextResponse.json({ error: "Not authorized" }, { status: 403 });
         }
 
         const c = await collections();
-
-        const user = await c.users.findOne({
-            "onboarding.business.publicId": businessPublicId,
-            onboardingCompleted: true,
-        } as any);
-
-        if (!user?._id) {
-            return NextResponse.json({ error: "Business not found" }, { status: 404 });
-        }
-
-        const businessUserId = (user._id as ObjectId).toHexString();
-        if (claims.businessUserId !== businessUserId) {
-            return NextResponse.json({ error: "Not logged in" }, { status: 401 });
-        }
 
         const db = await getDb();
         await checkRateLimit({
@@ -106,13 +81,15 @@ export async function POST(req: Request) {
             perEmail: { windowMs: 10 * 60_000, limit: 10 },
         });
 
-        const customer = await c.customers.findOne({
-            businessUserId: user._id as ObjectId,
-            email: currentEmail,
-        } as any);
+        const customer = await c.customers.findOne({ _id: new ObjectId(claims.customerId) } as any);
 
         if (!customer?._id) {
             return NextResponse.json({ error: "Customer not found" }, { status: 404 });
+        }
+
+        const sessionEmail = normalizeEmail((customer as any)?.email);
+        if (sessionEmail && sessionEmail !== currentEmail) {
+            return NextResponse.json({ error: "Not authorized" }, { status: 403 });
         }
 
         if (normalizeEmail((customer as any)?.pendingEmail) !== newEmail) {
@@ -123,10 +100,7 @@ export async function POST(req: Request) {
         }
 
         // Ensure new email isn't already used by another customer.
-        const existingWithNewEmail = await c.customers.findOne({
-            businessUserId: user._id as ObjectId,
-            email: newEmail,
-        } as any);
+        const existingWithNewEmail = await c.customers.findOne({ email: newEmail } as any);
 
         if (existingWithNewEmail?._id && String(existingWithNewEmail._id) !== String(customer._id)) {
             return NextResponse.json(
@@ -162,24 +136,13 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Invalid code" }, { status: 401 });
         }
 
-        const customerIdOld = claims.customerId;
-        const customerIdNew = customerIdFor({ businessUserId: claims.businessUserId, email: newEmail });
-        if (!customerIdNew) {
-            return NextResponse.json({ error: "Invalid new email" }, { status: 400 });
-        }
-
         const fullName = String((customer as any)?.fullName ?? "").trim();
         const phone = String((customer as any)?.phone ?? "").trim();
 
         await c.appointments.updateMany(
-            {
-                businessUserId: user._id as ObjectId,
-                "customer.id": customerIdOld,
-            } as any,
+            { customerId: customer._id as ObjectId } as any,
             {
                 $set: {
-                    customerId: customer._id as ObjectId,
-                    "customer.id": customerIdNew,
                     "customer.email": newEmail,
                     "customer.fullName": fullName,
                     "customer.phone": phone,
@@ -199,8 +162,7 @@ export async function POST(req: Request) {
         await c.customerOtps.deleteOne({ key: newEmail, purpose: "profile_email_change" });
 
         const accessToken = await signCustomerAccessToken({
-            customerId: customerIdNew,
-            businessUserId: claims.businessUserId,
+            customerId: customer._id?.toHexString?.() ?? "",
         });
 
         const res = NextResponse.json({

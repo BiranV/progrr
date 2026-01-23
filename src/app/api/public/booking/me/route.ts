@@ -48,14 +48,15 @@ export async function GET(req: Request) {
         ).trim();
         const dateParam = String(url.searchParams.get("date") ?? "").trim();
         const scope = String(url.searchParams.get("scope") ?? "").trim().toLowerCase();
+        const isAllScope = scope === "all";
 
-        if (!businessPublicId) {
+        if (!businessPublicId && !isAllScope) {
             return NextResponse.json(
                 { error: "businessPublicId is required" },
                 { status: 400 }
             );
         }
-        if (!isValidBusinessPublicId(businessPublicId)) {
+        if (businessPublicId && !isValidBusinessPublicId(businessPublicId)) {
             return NextResponse.json(
                 { error: "Invalid businessPublicId" },
                 { status: 400 }
@@ -68,18 +69,110 @@ export async function GET(req: Request) {
             return NextResponse.json({ ok: true, loggedIn: false });
         }
 
-        let claims: { customerId: string; businessUserId: string };
+        let claims: { customerId: string };
         try {
             const parsed = await verifyCustomerAccessToken(token);
             claims = {
                 customerId: parsed.customerId,
-                businessUserId: parsed.businessUserId,
             };
         } catch {
             return NextResponse.json({ ok: true, loggedIn: false });
         }
 
         const c = await collections();
+        const customerObjectId = ObjectId.isValid(claims.customerId)
+            ? new ObjectId(claims.customerId)
+            : null;
+        if (!customerObjectId) {
+            return NextResponse.json({ ok: true, loggedIn: false });
+        }
+
+        const customer = await c.customers.findOne({ _id: customerObjectId } as any);
+        if (!customer) {
+            return NextResponse.json({ ok: true, loggedIn: false });
+        }
+
+        const isFutureScope = scope === "future";
+
+        if (isAllScope) {
+            const appointments = await c.appointments
+                .find(
+                    isFutureScope
+                        ? {
+                            status: "BOOKED",
+                            customerId: customerObjectId,
+                        }
+                        : {
+                            status: { $in: ["BOOKED", "COMPLETED", "NO_SHOW"] },
+                            customerId: customerObjectId,
+                        },
+                    {
+                        projection: {
+                            businessUserId: 1,
+                            date: 1,
+                            startTime: 1,
+                            endTime: 1,
+                            serviceName: 1,
+                            status: 1,
+                            cancelledBy: 1,
+                        },
+                    }
+                )
+                .sort({ date: 1, startTime: 1 })
+                .limit(100)
+                .toArray();
+
+            const businessIds = Array.from(
+                new Set(
+                    appointments
+                        .map((a: any) => a?.businessUserId)
+                        .filter((id: any) => id && ObjectId.isValid(id))
+                        .map((id: any) => String(id))
+                )
+            );
+
+            const businesses = businessIds.length
+                ? await c.users
+                    .find(
+                        { _id: { $in: businessIds.map((id) => new ObjectId(id)) } } as any,
+                        { projection: { "onboarding.business.name": 1 } }
+                    )
+                    .toArray()
+                : [];
+
+            const businessNameById = new Map<string, string>();
+            for (const b of businesses as any[]) {
+                const id = b?._id?.toHexString?.() ?? "";
+                if (!id) continue;
+                const name = String((b as any)?.onboarding?.business?.name ?? "").trim();
+                if (name) businessNameById.set(id, name);
+            }
+
+            return NextResponse.json({
+                ok: true,
+                loggedIn: true,
+                scope: "all",
+                customer: {
+                    email: typeof (customer as any)?.email === "string" ? (customer as any).email : undefined,
+                    fullName: typeof (customer as any)?.fullName === "string" ? (customer as any).fullName : undefined,
+                    phone: typeof (customer as any)?.phone === "string" ? (customer as any).phone : undefined,
+                },
+                appointments: appointments.map((a: any) => ({
+                    id: a?._id?.toHexString?.() ?? "",
+                    businessUserId: a?.businessUserId?.toHexString?.() ?? "",
+                    businessName: businessNameById.get(
+                        a?.businessUserId?.toHexString?.() ?? ""
+                    ),
+                    date: String(a?.date ?? ""),
+                    startTime: String(a?.startTime ?? ""),
+                    endTime: String(a?.endTime ?? ""),
+                    serviceName: String(a?.serviceName ?? ""),
+                    status: String(a?.status ?? ""),
+                    cancelledBy: a?.cancelledBy,
+                })),
+            });
+        }
+
         const user = await c.users.findOne({
             "onboarding.business.publicId": businessPublicId,
             onboardingCompleted: true,
@@ -92,11 +185,6 @@ export async function GET(req: Request) {
             );
         }
 
-        const businessUserId = (user._id as ObjectId).toHexString();
-        if (claims.businessUserId !== businessUserId) {
-            return NextResponse.json({ ok: true, loggedIn: false });
-        }
-
         const onboarding = (user as any).onboarding ?? {};
         const timeZone =
             String((onboarding as any)?.availability?.timezone ?? "").trim() || "UTC";
@@ -104,24 +192,9 @@ export async function GET(req: Request) {
         const todayStr = formatDateInTimeZone(new Date(), timeZone);
         const nowTimeStr = formatTimeInTimeZone(new Date(), timeZone);
 
-        const isFutureScope = scope === "future";
-
         const date = isValidDateString(dateParam)
             ? dateParam
             : todayStr;
-
-        const lastAppointment = await c.appointments.findOne(
-            {
-                businessUserId: user._id as ObjectId,
-                "customer.id": claims.customerId,
-            } as any,
-            {
-                sort: { date: -1, startTime: -1 },
-                projection: { customer: 1 },
-            }
-        );
-
-        const lastCustomer = (lastAppointment as any)?.customer ?? null;
 
         const appointments = await c.appointments
             .find(
@@ -129,7 +202,7 @@ export async function GET(req: Request) {
                     ? {
                         businessUserId: user._id as ObjectId,
                         status: "BOOKED",
-                        "customer.id": claims.customerId,
+                        customerId: customerObjectId,
                         $or: [
                             { date: { $gt: todayStr } },
                             { date: todayStr, endTime: { $gt: nowTimeStr } },
@@ -139,7 +212,7 @@ export async function GET(req: Request) {
                         businessUserId: user._id as ObjectId,
                         date,
                         status: { $in: ["BOOKED", "COMPLETED", "NO_SHOW"] },
-                        "customer.id": claims.customerId,
+                        customerId: customerObjectId,
                     }) as any,
                 {
                     projection: {
@@ -162,12 +235,12 @@ export async function GET(req: Request) {
             date: isFutureScope ? todayStr : date,
             scope: isFutureScope ? "future" : "day",
             customer: {
-                email: typeof lastCustomer?.email === "string" ? lastCustomer.email : undefined,
+                email: typeof (customer as any)?.email === "string" ? (customer as any).email : undefined,
                 fullName:
-                    typeof lastCustomer?.fullName === "string"
-                        ? lastCustomer.fullName
+                    typeof (customer as any)?.fullName === "string"
+                        ? (customer as any).fullName
                         : undefined,
-                phone: typeof lastCustomer?.phone === "string" ? lastCustomer.phone : undefined,
+                phone: typeof (customer as any)?.phone === "string" ? (customer as any).phone : undefined,
             },
             appointments: appointments.map((a: any) => ({
                 id: a?._id?.toHexString?.() ?? "",

@@ -22,7 +22,6 @@ export type BookingCancelClaims = {
 export type CustomerAccessClaims = {
   purpose: "customer_access";
   customerId: string;
-  businessUserId: string;
   iat?: number;
 };
 
@@ -154,13 +153,11 @@ export async function verifyBookingCancelToken(
 
 export async function signCustomerAccessToken(args: {
   customerId: string;
-  businessUserId: string;
 }) {
   const key = getSecretKey();
   return await new SignJWT({
     purpose: "customer_access",
     customerId: args.customerId,
-    businessUserId: args.businessUserId,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -176,13 +173,10 @@ export async function verifyCustomerAccessToken(
 
   const purpose = (payload as any)?.purpose;
   const customerId = (payload as any)?.customerId;
-  const businessUserId = (payload as any)?.businessUserId;
   if (
     purpose !== "customer_access" ||
     typeof customerId !== "string" ||
-    !customerId.trim() ||
-    typeof businessUserId !== "string" ||
-    !businessUserId.trim()
+    !customerId.trim()
   ) {
     throw Object.assign(new Error("Invalid token"), { status: 401 });
   }
@@ -191,7 +185,6 @@ export async function verifyCustomerAccessToken(
   return {
     purpose: "customer_access",
     customerId: String(customerId).trim(),
-    businessUserId: String(businessUserId).trim(),
     iat,
   };
 }

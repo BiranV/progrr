@@ -46,12 +46,10 @@ export async function GET() {
     const todayStr = formatDateInTimeZone(new Date(), timeZone);
     const nowTimeStr = formatTimeInTimeZone(new Date(), timeZone);
 
-    const customers = await c.customers
+    const businessCustomers = await c.businessCustomers
       .find({ businessUserId, isHidden: { $ne: true } } as any, {
         projection: {
-          fullName: 1,
-          phone: 1,
-          email: 1,
+          customerId: 1,
           status: 1,
           isHidden: 1,
           lastAppointmentAt: 1,
@@ -61,6 +59,30 @@ export async function GET() {
       .sort({ lastAppointmentAt: -1, createdAt: -1 })
       .limit(1000)
       .toArray();
+
+    const customerIds = businessCustomers
+      .map((row: any) => row?.customerId)
+      .filter((id: any) => id && ObjectId.isValid(id));
+
+    const customers = customerIds.length
+      ? await c.customers
+        .find({ _id: { $in: customerIds } } as any, {
+          projection: {
+            fullName: 1,
+            phone: 1,
+            email: 1,
+            createdAt: 1,
+          },
+        })
+        .toArray()
+      : [];
+
+    const customerById = new Map<string, any>();
+    for (const cust of customers) {
+      const id = cust?._id?.toHexString?.();
+      if (!id) continue;
+      customerById.set(id, cust);
+    }
 
     const activeCounts = await c.appointments
       .aggregate([
@@ -85,17 +107,18 @@ export async function GET() {
       countByCustomerId.set(id, Number(row?.count) || 0);
     }
 
-    const payload = customers.map((cust: any) => {
-      const id = cust?._id?.toHexString?.() ?? "";
+    const payload = businessCustomers.map((row: any) => {
+      const id = row?.customerId?.toHexString?.() ?? "";
+      const cust = id ? customerById.get(id) : null;
       return {
         _id: id,
         fullName: String(cust?.fullName ?? ""),
         phone: String(cust?.phone ?? ""),
         email: String(cust?.email ?? "") || undefined,
-        status: String(cust?.status ?? "ACTIVE"),
+        status: String(row?.status ?? "ACTIVE"),
         activeBookingsCount: countByCustomerId.get(id) ?? 0,
-        lastAppointmentAt: cust?.lastAppointmentAt,
-        createdAt: cust?.createdAt,
+        lastAppointmentAt: row?.lastAppointmentAt,
+        createdAt: row?.createdAt ?? cust?.createdAt,
       };
     });
 

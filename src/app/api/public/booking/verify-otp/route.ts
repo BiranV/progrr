@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 
 import { collections, ensureIndexes } from "@/server/collections";
 import { verifyOtp } from "@/server/otp";
-import { signBookingVerifyToken } from "@/server/jwt";
+import { signCustomerAccessToken } from "@/server/jwt";
 import { getDb } from "@/server/mongo";
 import { checkRateLimit } from "@/server/rate-limit";
 import { isValidBusinessPublicId } from "@/server/business-public-id";
-import { formatDateInTimeZone } from "@/lib/public-booking";
-import { ObjectId } from "mongodb";
+import {
+  CUSTOMER_ACCESS_COOKIE_NAME,
+  customerAccessCookieOptions,
+} from "@/server/customer-access";
 
 function normalizeEmail(input: unknown): string {
   return String(input ?? "")
@@ -20,32 +22,6 @@ function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-function formatTimeInTimeZone(date: Date, timeZone: string): string {
-  const tz = String(timeZone || "UTC").trim() || "UTC";
-  let parts: Intl.DateTimeFormatPart[];
-  try {
-    parts = new Intl.DateTimeFormat("en-GB", {
-      timeZone: tz,
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).formatToParts(date);
-  } catch {
-    parts = new Intl.DateTimeFormat("en-GB", {
-      timeZone: "UTC",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).formatToParts(date);
-  }
-
-  const get = (type: string) => parts.find((p) => p.type === type)?.value;
-  const h = get("hour");
-  const m = get("minute");
-  if (!h || !m) return "";
-  return `${h}:${m}`;
-}
-
 export async function POST(req: Request) {
   try {
     await ensureIndexes();
@@ -54,6 +30,8 @@ export async function POST(req: Request) {
     const businessPublicId = String(body?.businessPublicId ?? "").trim();
     const verifyToken = String(body?.verifyToken ?? "").trim();
     const code = String(body?.otp ?? body?.code ?? "").trim();
+    const fullName = String(body?.fullName ?? "").trim();
+    const phone = String(body?.phone ?? "").trim();
 
     if (!verifyToken) {
       return NextResponse.json(
@@ -67,13 +45,7 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    if (!businessPublicId) {
-      return NextResponse.json(
-        { error: "businessPublicId is required" },
-        { status: 400 }
-      );
-    }
-    if (!isValidBusinessPublicId(businessPublicId)) {
+    if (businessPublicId && !isValidBusinessPublicId(businessPublicId)) {
       return NextResponse.json(
         { error: "Invalid businessPublicId" },
         { status: 400 }
@@ -147,118 +119,55 @@ export async function POST(req: Request) {
     // Consume OTP immediately after successful verification (single-use).
     await c.customerOtps.deleteOne({ _id: otp._id });
 
-    // After successful OTP verification, check business rules (block list + active appointment conflict).
-    const user = await c.users.findOne({
-      "onboarding.business.publicId": businessPublicId,
-      onboardingCompleted: true,
-    } as any);
-
-    if (!user) {
-      return NextResponse.json(
-        { error: "Business not found" },
-        { status: 404 }
-      );
-    }
-
-    const isOwnerBooking = normalizeEmail((user as any)?.email) === email;
-
-    // Business-scoped customer block: prevent booking for this business.
-    const blocked = isOwnerBooking
-      ? null
-      : await c.customers.findOne({
-        businessUserId: user._id as ObjectId,
+    let customer = await c.customers.findOne({ email } as any);
+    if (!customer) {
+      const insert = await c.customers.insertOne({
         email,
-        status: "BLOCKED",
+        fullName: fullName || email,
+        phone: phone || "",
+        createdAt: new Date(),
+        updatedAt: new Date(),
       } as any);
-
-    if (!isOwnerBooking && blocked) {
-      return NextResponse.json(
+      customer = await c.customers.findOne({ _id: insert.insertedId } as any);
+    } else if (fullName || phone) {
+      await c.customers.updateOne(
+        { _id: customer._id } as any,
         {
-          error: "You cannot book with this business.",
-          code: "CUSTOMER_BLOCKED_FOR_THIS_BUSINESS",
-        },
-        { status: 403 }
-      );
-    }
-
-    // Identity verified: issue a short-lived booking session token.
-    // IMPORTANT: Do NOT consume/invalidate the OTP here.
-    const bookingSessionId = await signBookingVerifyToken({ email });
-
-    const onboarding = (user as any).onboarding ?? {};
-    const businessSettings = (onboarding as any)?.business ?? {};
-    const limitCustomerToOneUpcomingAppointment = Boolean(
-      (businessSettings as any).limitCustomerToOneUpcomingAppointment
-    );
-
-    if (isOwnerBooking || !limitCustomerToOneUpcomingAppointment) {
-      return NextResponse.json({ ok: true, bookingSessionId });
-    }
-
-    const timeZone =
-      String((onboarding as any)?.availability?.timezone ?? "").trim() || "UTC";
-
-    const todayStr = formatDateInTimeZone(new Date(), timeZone);
-    const nowTimeStr = formatTimeInTimeZone(new Date(), timeZone);
-
-    // Conflict check MUST use verified identity only (email), never cookies/session.
-    const existing = await c.appointments.findOne(
-      {
-        businessUserId: user._id as ObjectId,
-        status: "BOOKED",
-        "customer.email": email,
-        $or: [
-          { date: { $gt: todayStr } },
-          { date: todayStr, endTime: { $gt: nowTimeStr } },
-        ],
-      } as any,
-      { sort: { date: 1, startTime: 1 } }
-    );
-
-    if (existing) {
-      const existingList = await c.appointments
-        .find(
-          {
-            businessUserId: user._id as ObjectId,
-            status: "BOOKED",
-            "customer.email": email,
-            $or: [
-              { date: { $gt: todayStr } },
-              { date: todayStr, endTime: { $gt: nowTimeStr } },
-            ],
-          } as any,
-          { projection: { date: 1, startTime: 1, endTime: 1, serviceName: 1 } }
-        )
-        .sort({ date: 1, startTime: 1 })
-        .limit(50)
-        .toArray();
-
-      return NextResponse.json(
-        {
-          error:
-            "You already have an active upcoming appointment. Please cancel it first.",
-          code: "ACTIVE_APPOINTMENT_EXISTS",
-          bookingSessionId,
-          existingAppointment: {
-            id: (existing as any)?._id?.toHexString?.() ?? undefined,
-            date: (existing as any)?.date,
-            startTime: (existing as any)?.startTime,
-            endTime: (existing as any)?.endTime,
-            serviceName: (existing as any)?.serviceName,
+          $set: {
+            ...(fullName ? { fullName } : {}),
+            ...(phone ? { phone } : {}),
+            updatedAt: new Date(),
           },
-          existingAppointments: existingList.map((a: any) => ({
-            id: a?._id?.toHexString?.() ?? "",
-            date: String(a?.date ?? ""),
-            startTime: String(a?.startTime ?? ""),
-            endTime: String(a?.endTime ?? ""),
-            serviceName: String(a?.serviceName ?? ""),
-          })),
-        },
-        { status: 409 }
+        } as any
+      );
+      customer = await c.customers.findOne({ _id: customer._id } as any);
+    }
+
+    const customerId = customer?._id?.toHexString?.() ?? "";
+    if (!customerId) {
+      return NextResponse.json(
+        { error: "Failed to create customer" },
+        { status: 500 }
       );
     }
 
-    return NextResponse.json({ ok: true, bookingSessionId });
+    const accessToken = await signCustomerAccessToken({ customerId });
+    const res = NextResponse.json({
+      ok: true,
+      customer: {
+        email,
+        fullName: String((customer as any)?.fullName ?? "") || undefined,
+        phone: String((customer as any)?.phone ?? "") || undefined,
+      },
+    });
+
+    res.cookies.set(
+      CUSTOMER_ACCESS_COOKIE_NAME,
+      accessToken,
+      customerAccessCookieOptions()
+    );
+
+    return res;
   } catch (error: any) {
     const status = typeof error?.status === "number" ? error.status : 500;
     return NextResponse.json(

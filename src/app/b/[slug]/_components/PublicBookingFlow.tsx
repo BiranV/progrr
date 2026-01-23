@@ -114,6 +114,7 @@ type MyAppointmentsItem = {
   serviceName: string;
   status: string;
   cancelledBy?: any;
+  businessName?: string;
 };
 
 type BookingMeResponse =
@@ -256,90 +257,8 @@ export default function PublicBookingFlow({
   const [customerPhoneTouched, setCustomerPhoneTouched] = React.useState(false);
   const [notes, setNotes] = React.useState<string>("");
 
-  const [verifyToken, setVerifyToken] = React.useState<string>("");
-  const [bookingSessionId, setBookingSessionId] = React.useState<string>("");
   const [confirmBookingLoading, setConfirmBookingLoading] = React.useState(false);
   const [formError, setFormError] = React.useState<string | null>(null);
-
-  const verifyTokenStorageKey = React.useMemo(
-    () => (publicId ? `public-booking-verify-token:${publicId}` : ""),
-    [publicId]
-  );
-
-  const bookingSessionStorageKey = React.useMemo(
-    () => (publicId ? `public-booking-session:${publicId}` : ""),
-    [publicId]
-  );
-
-  const persistVerifyToken = React.useCallback(
-    (token: string) => {
-      const next = String(token ?? "").trim();
-      setVerifyToken(next);
-      if (typeof window === "undefined") return;
-      if (!verifyTokenStorageKey) return;
-      try {
-        if (next) {
-          window.localStorage.setItem(verifyTokenStorageKey, next);
-        } else {
-          window.localStorage.removeItem(verifyTokenStorageKey);
-        }
-      } catch {
-        // ignore
-      }
-    },
-    [verifyTokenStorageKey]
-  );
-
-  const persistBookingSession = React.useCallback(
-    (sessionId: string) => {
-      const next = String(sessionId ?? "").trim();
-      setBookingSessionId(next);
-      if (typeof window === "undefined") return;
-      if (!bookingSessionStorageKey) return;
-      try {
-        if (next) {
-          window.localStorage.setItem(bookingSessionStorageKey, next);
-        } else {
-          window.localStorage.removeItem(bookingSessionStorageKey);
-        }
-      } catch {
-        // ignore
-      }
-    },
-    [bookingSessionStorageKey]
-  );
-
-  const resolveVerifyToken = React.useCallback(() => {
-    const current = String(verifyToken ?? "").trim();
-    if (current) return current;
-    if (typeof window === "undefined") return "";
-    if (!verifyTokenStorageKey) return "";
-    try {
-      const stored = String(
-        window.localStorage.getItem(verifyTokenStorageKey) ?? ""
-      ).trim();
-      if (stored) setVerifyToken(stored);
-      return stored;
-    } catch {
-      return "";
-    }
-  }, [verifyToken, verifyTokenStorageKey]);
-
-  const resolveBookingSession = React.useCallback(() => {
-    const current = String(bookingSessionId ?? "").trim();
-    if (current) return current;
-    if (typeof window === "undefined") return "";
-    if (!bookingSessionStorageKey) return "";
-    try {
-      const stored = String(
-        window.localStorage.getItem(bookingSessionStorageKey) ?? ""
-      ).trim();
-      if (stored) setBookingSessionId(stored);
-      return stored;
-    } catch {
-      return "";
-    }
-  }, [bookingSessionId, bookingSessionStorageKey]);
 
   const slotsCacheRef = React.useRef<Map<string, SlotsResponse>>(new Map());
   const [slots, setSlots] = React.useState<SlotsResponse | null>(null);
@@ -413,6 +332,7 @@ export default function PublicBookingFlow({
         if (!res.ok || !json?.ok) return;
 
         if ((json as any)?.loggedIn) {
+          setConnected(true);
           const cust = (json as any)?.customer ?? {};
           if (!customerEmail.trim() && typeof cust?.email === "string") {
             setCustomerEmail(String(cust.email));
@@ -423,6 +343,8 @@ export default function PublicBookingFlow({
           if (!customerPhone.trim() && typeof cust?.phone === "string") {
             setCustomerPhone(String(cust.phone));
           }
+        } else {
+          setConnected(false);
         }
       } catch {
         // ignore
@@ -436,10 +358,6 @@ export default function PublicBookingFlow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, publicId]);
 
-  React.useEffect(() => {
-    const session = resolveBookingSession();
-    setConnected(Boolean(session));
-  }, [bookingSessionId, resolveBookingSession]);
 
   const [cancelError, setCancelError] = React.useState<string | null>(null);
   const [cancelling, setCancelling] = React.useState(false);
@@ -464,7 +382,7 @@ export default function PublicBookingFlow({
   const [myAppointmentsOpen, setMyAppointmentsOpen] = React.useState(false);
   const [myAppointmentsDate, setMyAppointmentsDate] = React.useState<string>("");
   const [myAppointmentsScope, setMyAppointmentsScope] = React.useState<
-    "day" | "future"
+    "day" | "future" | "all"
   >("future");
   const [myAppointments, setMyAppointments] = React.useState<MyAppointmentsItem[]>([]);
   const [myAppointmentsLoading, setMyAppointmentsLoading] = React.useState(false);
@@ -495,8 +413,6 @@ export default function PublicBookingFlow({
     setCancellingConflictId(null);
     setConfirmBookingLoading(false);
     setFormError(null);
-    persistBookingSession("");
-    persistVerifyToken("");
     setCustomerFullName("");
     setCustomerEmail("");
     setCustomerPhone("");
@@ -510,7 +426,7 @@ export default function PublicBookingFlow({
     slotsCacheRef.current.clear();
 
     setStep("service");
-  }, [persistBookingSession, persistVerifyToken]);
+  }, []);
 
   const resetBookingOnly = React.useCallback(() => {
     setResult(null);
@@ -522,8 +438,6 @@ export default function PublicBookingFlow({
     setCancellingSameDayId(null);
     setConfirmBookingLoading(false);
     setFormError(null);
-    persistBookingSession("");
-    persistVerifyToken("");
     setNotes("");
     setStartTime("");
     setDate("");
@@ -533,24 +447,8 @@ export default function PublicBookingFlow({
     setSlotsLoading(false);
     slotsCacheRef.current.clear();
     setStep("service");
-  }, [persistBookingSession, persistVerifyToken]);
+  }, []);
 
-  React.useEffect(() => {
-    if (!verifyTokenStorageKey) return;
-    if (verifyToken.trim()) return;
-    resolveVerifyToken();
-  }, [resolveVerifyToken, verifyToken, verifyTokenStorageKey]);
-
-  React.useEffect(() => {
-    if (!bookingSessionStorageKey) return;
-    if (bookingSessionId.trim()) return;
-    resolveBookingSession();
-  }, [bookingSessionId, bookingSessionStorageKey, resolveBookingSession]);
-
-  React.useEffect(() => {
-    const session = resolveBookingSession();
-    setConnected(Boolean(session));
-  }, [resolveBookingSession]);
 
   React.useEffect(() => {
     if (!myAppointmentsOpen) return;
@@ -567,13 +465,15 @@ export default function PublicBookingFlow({
       setMyAppointmentsError(null);
       try {
         const res = await fetch(
-          myAppointmentsScope === "future"
-            ? `/api/public/booking/me?businessPublicId=${encodeURIComponent(
-              publicId
-            )}&scope=future`
-            : `/api/public/booking/me?businessPublicId=${encodeURIComponent(
-              publicId
-            )}&date=${encodeURIComponent(target)}`
+          myAppointmentsScope === "all"
+            ? `/api/public/booking/me?scope=all`
+            : myAppointmentsScope === "future"
+              ? `/api/public/booking/me?businessPublicId=${encodeURIComponent(
+                publicId
+              )}&scope=future`
+              : `/api/public/booking/me?businessPublicId=${encodeURIComponent(
+                publicId
+              )}&date=${encodeURIComponent(target)}`
         );
         const json = (await res.json().catch(() => null)) as BookingMeResponse | null;
         if (!res.ok) {
@@ -595,7 +495,11 @@ export default function PublicBookingFlow({
           setCustomerPhone(String(cust.phone));
         }
 
-        setMyAppointmentsDate((json as any)?.date || target);
+        if (myAppointmentsScope !== "all") {
+          setMyAppointmentsDate((json as any)?.date || target);
+        } else {
+          setMyAppointmentsDate("");
+        }
         setMyAppointments(
           Array.isArray((json as any)?.appointments) ? (json as any).appointments : []
         );
@@ -646,8 +550,7 @@ export default function PublicBookingFlow({
     if (nextPhone && !customerPhone) setCustomerPhone(nextPhone);
 
     if (nextServiceId && nextDate && nextTime) {
-      const session = resolveBookingSession();
-      if (session) {
+      if (connected) {
         setStep("confirm");
       } else {
         setLoginEmail(nextEmail || customerEmail.trim());
@@ -674,7 +577,7 @@ export default function PublicBookingFlow({
     data,
     date,
     publicId,
-    resolveBookingSession,
+    connected,
     serviceId,
     startTime,
   ]);
@@ -921,7 +824,7 @@ export default function PublicBookingFlow({
             disabled={loggingOut}
             onClick={() => {
               if (connected) {
-                setMyAppointmentsScope("future");
+                setMyAppointmentsScope("all");
                 setMyAppointmentsDate(dateForMy);
                 setMyAppointmentsOpen(true);
               } else {
@@ -1036,7 +939,7 @@ export default function PublicBookingFlow({
   const canSubmitDetails = Boolean(
     !confirmBookingLoading &&
     !activeConflict &&
-    (bookingSessionId.trim() ? hasRequiredDetails : true)
+    (connected ? hasRequiredDetails : true)
   );
 
   const detailsConfirmLabel = t("publicBooking.details.confirmBookingAction");
@@ -1114,9 +1017,6 @@ export default function PublicBookingFlow({
     if (!res.ok) throw new Error(json?.error || requestFailed(res.status));
 
     if (loginPurpose === "booking") {
-      const token = String(json?.verifyToken ?? "").trim();
-      if (!token) throw new Error(t("publicBooking.errors.verificationFailed"));
-      persistVerifyToken(token);
       const customer = json?.customer ?? null;
       const fullName = String(customer?.fullName ?? "").trim();
       const phone = String(customer?.phone ?? "").trim();
@@ -1143,61 +1043,29 @@ export default function PublicBookingFlow({
           throw new Error(t("publicBooking.errors.invalidPhone"));
       }
 
-      const token = resolveVerifyToken();
-      if (!token) throw new Error(t("publicBooking.errors.verificationFailed"));
-
-      const res = await fetch("/api/public/booking/verify-otp", {
+      const res = await fetch("/api/public/booking/login/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           businessPublicId: publicId,
-          verifyToken: token,
-          otp: code,
+          email,
+          code,
+          fullName: loginRequiresDetails ? customerFullName.trim() : undefined,
+          phone: loginRequiresDetails ? customerPhone.trim() : undefined,
         }),
       });
       const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.error || requestFailed(res.status));
 
-      if (
-        res.status === 409 &&
-        String(json?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS"
-      ) {
-        const sessionId = String(json?.bookingSessionId ?? "").trim();
-        if (sessionId) persistBookingSession(sessionId);
-        setActiveConflict({
-          code: "ACTIVE_APPOINTMENT_EXISTS",
-          bookingSessionId: sessionId,
-          existingAppointment: json?.existingAppointment,
-          existingAppointments: Array.isArray(json?.existingAppointments)
-            ? json.existingAppointments
-            : undefined,
-        });
-        setConnected(true);
-        setLoginOpen(false);
-        setStep("confirm");
-        return;
-      }
-
-      if (!res.ok) {
-        const errCode = String(json?.code ?? "");
-        if (errCode === "invalid_code") {
-          throw new Error(t("publicBooking.errors.invalidCode"));
-        }
-        if (errCode === "expired_code") {
-          throw new Error(t("publicBooking.errors.codeExpired"));
-        }
-        if (errCode === "invalid_token") {
-          throw new Error(t("publicBooking.errors.verificationFailed"));
-        }
-        throw new Error(json?.error || requestFailed(res.status));
-      }
-
-      const sessionId = String(json?.bookingSessionId ?? "").trim();
-      if (!sessionId) throw new Error(t("publicBooking.errors.verificationFailed"));
-      persistBookingSession(sessionId);
-      persistVerifyToken("");
-      setCustomerEmail(email);
-      setLoginRequiresDetails(false);
       setConnected(true);
+      setCustomerEmail(email);
+      if (!customerFullName.trim() && typeof json?.customer?.fullName === "string") {
+        setCustomerFullName(String(json.customer.fullName));
+      }
+      if (!customerPhone.trim() && typeof json?.customer?.phone === "string") {
+        setCustomerPhone(String(json.customer.phone));
+      }
+      setLoginRequiresDetails(false);
       setLoginOpen(false);
       setStep("confirm");
       return;
@@ -1304,14 +1172,10 @@ export default function PublicBookingFlow({
     setProfileOpen(false);
   };
 
-  const confirmBooking = async (sessionId?: string) => {
+  const confirmBooking = async () => {
     if (!publicId) throw new Error(t("publicBooking.errors.businessNotFound"));
     if (!serviceId || !date || !startTime)
       throw new Error(t("publicBooking.errors.missingBookingDetails"));
-
-    const sid = String(sessionId ?? resolveBookingSession() ?? "").trim();
-    if (!sid)
-      throw new Error(t("publicBooking.errors.emailVerificationRequired"));
 
     const confirmRes = await fetch("/api/public/booking/confirm", {
       method: "POST",
@@ -1325,7 +1189,6 @@ export default function PublicBookingFlow({
         customerEmail: customerEmail.trim(),
         customerPhone: customerPhone.trim(),
         notes: notes.trim() || undefined,
-        bookingSessionId: sid,
       }),
     });
 
@@ -1350,14 +1213,12 @@ export default function PublicBookingFlow({
         (String(confirmJson?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS" ||
           String(confirmJson?.code ?? "") === "SAME_SERVICE_SAME_DAY_EXISTS")
       ) {
-        const conflictSessionId = String(sid ?? "").trim();
-        if (conflictSessionId) persistBookingSession(conflictSessionId);
         setActiveConflict({
           code:
             String(confirmJson?.code ?? "") === "SAME_SERVICE_SAME_DAY_EXISTS"
               ? "SAME_SERVICE_SAME_DAY_EXISTS"
               : "ACTIVE_APPOINTMENT_EXISTS",
-          bookingSessionId: conflictSessionId,
+          bookingSessionId: "",
           existingAppointment: confirmJson?.existingAppointment,
           existingAppointments: Array.isArray(confirmJson?.existingAppointments)
             ? confirmJson.existingAppointments
@@ -1390,8 +1251,7 @@ export default function PublicBookingFlow({
     setConfirmBookingLoading(true);
     setFormError(null);
     try {
-      const sessionId = bookingSessionId.trim();
-      if (!sessionId) {
+      if (!connected) {
         setLoginEmail(customerEmail.trim());
         setLoginStep("email");
         setLoginCode("");
@@ -1406,12 +1266,11 @@ export default function PublicBookingFlow({
         throw new Error(t("publicBooking.details.completeDetailsDescription"));
       }
 
-      const r = await confirmBooking(sessionId);
+      const r = await confirmBooking();
       setResult(r);
       setStep("success");
       setIdentified(true);
       setConnected(true);
-      persistVerifyToken("");
     } catch (e: any) {
       if (
         String(e?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS" ||
@@ -1426,11 +1285,10 @@ export default function PublicBookingFlow({
     }
   }, [
     canSubmitDetails,
-    bookingSessionId,
     confirmBooking,
+    connected,
     customerEmail,
     hasRequiredDetails,
-    persistVerifyToken,
     t,
   ]);
 
@@ -1455,9 +1313,6 @@ export default function PublicBookingFlow({
   }
 
   const cancelExistingAppointment = async (appointmentIdRaw: string) => {
-    const sessionId = String(
-      bookingSessionId || activeConflict?.bookingSessionId || ""
-    ).trim();
     const appointmentId = String(appointmentIdRaw ?? "").trim();
     if (!appointmentId)
       throw new Error(t("publicBooking.errors.appointmentNotFound"));
@@ -1466,13 +1321,7 @@ export default function PublicBookingFlow({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ...(sessionId
-          ? {
-            bookingSessionId: sessionId,
-            appointmentId,
-            customerEmail: customerEmail.trim(),
-          }
-          : { appointmentId }),
+        appointmentId,
       }),
     });
 
@@ -1612,13 +1461,9 @@ export default function PublicBookingFlow({
 
   if (loading && !data) {
     return (
-      <PublicBookingShell
-        business={null}
-        title={t("publicBooking.title")}
-        showGallery={false}
-      >
+      <div className="min-h-screen bg-gray-50 dark:bg-black">
         <CenteredSpinner fullPage />
-      </PublicBookingShell>
+      </div>
     );
   }
 
@@ -1630,7 +1475,7 @@ export default function PublicBookingFlow({
         subtitle=""
         showGallery={false}
       >
-        <div className="space-y-4">
+        <div className="space-y-4 text-center">
           <div className="text-sm text-red-600 dark:text-red-400">
             {error || t("publicBooking.errors.businessNotFound")}
           </div>
@@ -1828,12 +1673,12 @@ export default function PublicBookingFlow({
         <DialogContent className="sm:max-w-[520px]">
           <DialogHeader>
             <DialogTitle>
-              {myAppointmentsScope === "future"
+              {myAppointmentsScope === "future" || myAppointmentsScope === "all"
                 ? t("publicBooking.myAppointments.titleUpcoming")
                 : t("publicBooking.myAppointments.titleAll")}
             </DialogTitle>
             <DialogDescription>
-              {myAppointmentsScope === "future"
+              {myAppointmentsScope === "future" || myAppointmentsScope === "all"
                 ? t("publicBooking.myAppointments.subtitleUpcoming")
                 : myAppointmentsDate
                   ? t("publicBooking.myAppointments.subtitleForDate", {
@@ -1855,7 +1700,7 @@ export default function PublicBookingFlow({
             (a) => String(a.status || "").toUpperCase() === "BOOKED"
           ).length === 0 ? (
             <div className="text-sm text-muted-foreground">
-              {myAppointmentsScope === "future"
+              {myAppointmentsScope === "future" || myAppointmentsScope === "all"
                 ? t("publicBooking.myAppointments.emptyUpcoming")
                 : t("publicBooking.myAppointments.emptyForDay")}
             </div>
@@ -1872,7 +1717,12 @@ export default function PublicBookingFlow({
                       <div className="min-w-0">
                         {a.date ? (
                           <div className="text-xs text-muted-foreground">
-                            {a.date}
+                            {formatDateForDisplay(a.date)}
+                          </div>
+                        ) : null}
+                        {a.businessName ? (
+                          <div className="text-xs text-muted-foreground">
+                            {a.businessName}
                           </div>
                         ) : null}
                         <div className="text-sm font-medium text-gray-900 dark:text-white">
@@ -2202,7 +2052,7 @@ export default function PublicBookingFlow({
                           setStartTime(s.startTime);
                           setFormError(null);
 
-                          if (bookingSessionId.trim()) {
+                          if (connected) {
                             setStep("confirm");
                             return;
                           }

@@ -12,7 +12,6 @@ import {
 import { formatDateInTimeZone } from "@/lib/public-booking";
 import { sendEmail } from "@/server/email";
 import { buildAppointmentBookedEmail } from "@/server/emails/booking";
-import { customerIdFor } from "@/server/customer-id";
 
 function normalizeEmail(input: unknown): string {
     return String(input ?? "")
@@ -115,10 +114,6 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const publicCustomerId = customerIdFor({
-            businessUserId: businessUserId.toHexString(),
-            email: customerEmail,
-        });
 
         const onboarding = (owner as any)?.onboarding ?? {};
         const businessName = String(onboarding?.business?.name ?? "").trim() || "Progrr";
@@ -177,25 +172,20 @@ export async function POST(req: Request) {
         const endTime = minutesToTime(startMin + durationMinutes);
 
         try {
-            // Create/reuse a business-scoped customer record.
+            // Create/reuse a global customer record.
             let customerDocId: ObjectId | null = null;
             try {
                 const upsertedCustomer = await c.customers.findOneAndUpdate(
-                    {
-                        businessUserId,
-                        $or: [{ phone: customerPhone }, { email: customerEmail }],
-                    } as any,
+                    { email: customerEmail } as any,
                     {
                         $setOnInsert: {
-                            businessUserId,
                             createdAt: new Date(),
-                            status: "ACTIVE",
                         },
                         $set: {
                             fullName: customerFullName,
                             phone: customerPhone,
                             email: customerEmail,
-                            isHidden: false,
+                            updatedAt: new Date(),
                         },
                     },
                     { upsert: true, returnDocument: "after" }
@@ -203,10 +193,7 @@ export async function POST(req: Request) {
                 customerDocId = upsertedCustomer?._id ?? null;
             } catch (e: any) {
                 if (e?.code === 11000) {
-                    const existingCustomer = await c.customers.findOne({
-                        businessUserId,
-                        $or: [{ phone: customerPhone }, { email: customerEmail }],
-                    } as any);
+                    const existingCustomer = await c.customers.findOne({ email: customerEmail } as any);
                     customerDocId = existingCustomer?._id ?? null;
                 } else {
                     throw e;
@@ -216,6 +203,21 @@ export async function POST(req: Request) {
             if (!customerDocId) {
                 return NextResponse.json({ error: "Failed to create customer" }, { status: 500 });
             }
+
+            await c.businessCustomers.updateOne(
+                { businessUserId, customerId: customerDocId } as any,
+                {
+                    $setOnInsert: {
+                        businessUserId,
+                        customerId: customerDocId,
+                        createdAt: new Date(),
+                        status: "ACTIVE",
+                        isHidden: false,
+                    },
+                    $set: { lastAppointmentAt: new Date() },
+                } as any,
+                { upsert: true }
+            );
 
             const insert = await c.appointments.insertOne({
                 businessUserId,
@@ -229,7 +231,7 @@ export async function POST(req: Request) {
                 startTime,
                 endTime,
                 customer: {
-                    id: publicCustomerId,
+                    id: customerDocId.toHexString(),
                     fullName: customerFullName,
                     phone: customerPhone,
                     email: customerEmail,
@@ -242,8 +244,8 @@ export async function POST(req: Request) {
 
             const appointmentId = insert.insertedId.toHexString();
 
-            await c.customers.updateOne(
-                { _id: customerDocId } as any,
+            await c.businessCustomers.updateOne(
+                { businessUserId, customerId: customerDocId } as any,
                 { $set: { lastAppointmentAt: new Date() } } as any
             );
 
