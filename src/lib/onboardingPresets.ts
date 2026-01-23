@@ -1,119 +1,216 @@
 export type BusinessType = {
   key: string;
-  title: string;
-  description: string;
+  titleKey: string;
+  descriptionKey: string;
 };
 
 export type ServicePreset = {
-  name: string;
+  nameKey: string;
   durationMinutes?: number;
 };
 
 export const BUSINESS_TYPES: BusinessType[] = [
   {
-    key: "barbershop",
-    title: "Barbershop",
-    description: "Men’s haircuts & grooming",
-  },
-  {
     key: "hair_salon",
-    title: "Hair salon",
-    description: "Cuts, color & styling",
+    titleKey: "onboarding.businessTypes.hair_salon.title",
+    descriptionKey: "onboarding.businessTypes.hair_salon.description",
   },
   {
     key: "beauty_clinic",
-    title: "Beauty clinic",
-    description: "Skincare & aesthetic treatments",
+    titleKey: "onboarding.businessTypes.beauty_clinic.title",
+    descriptionKey: "onboarding.businessTypes.beauty_clinic.description",
   },
   {
     key: "nails",
-    title: "Nails studio",
-    description: "Manicure, pedicure & gel",
+    titleKey: "onboarding.businessTypes.nails.title",
+    descriptionKey: "onboarding.businessTypes.nails.description",
   },
   {
     key: "tattoo_piercing",
-    title: "Tattoo & piercing",
-    description: "Ink sessions & piercings",
+    titleKey: "onboarding.businessTypes.tattoo_piercing.title",
+    descriptionKey: "onboarding.businessTypes.tattoo_piercing.description",
   },
   {
     key: "spa_massage",
-    title: "Spa & massage",
-    description: "Massage & body treatments",
+    titleKey: "onboarding.businessTypes.spa_massage.title",
+    descriptionKey: "onboarding.businessTypes.spa_massage.description",
   },
   {
     key: "fitness_coaching",
-    title: "Fitness & coaching",
-    description: "Training, coaching sessions",
+    titleKey: "onboarding.businessTypes.fitness_coaching.title",
+    descriptionKey: "onboarding.businessTypes.fitness_coaching.description",
   },
   {
     key: "other",
-    title: "Other",
-    description: "Custom business",
+    titleKey: "onboarding.businessTypes.other.title",
+    descriptionKey: "onboarding.businessTypes.other.description",
   },
 ];
 
 export const SERVICE_PRESETS: Record<string, ServicePreset[]> = {
-  barbershop: [
-    { name: "Men’s haircut", durationMinutes: 30 },
-    { name: "Beard trim", durationMinutes: 15 },
-    { name: "Haircut + beard", durationMinutes: 45 },
-    { name: "Kids haircut", durationMinutes: 20 },
-    { name: "Line-up / shape-up", durationMinutes: 15 },
-    { name: "Hot towel shave", durationMinutes: 30 },
-  ],
-
   hair_salon: [
-    { name: "Women’s haircut", durationMinutes: 45 },
-    { name: "Men’s haircut", durationMinutes: 30 },
-    { name: "Blow-dry & styling", durationMinutes: 45 },
-    { name: "Hair color", durationMinutes: 90 },
-    { name: "Highlights", durationMinutes: 120 },
-    { name: "Root touch-up", durationMinutes: 75 },
-    { name: "Hair treatment", durationMinutes: 45 },
+    {
+      nameKey: "onboarding.servicePresets.hair_salon.womensHaircut",
+      durationMinutes: 45,
+    },
+    {
+      nameKey: "onboarding.servicePresets.hair_salon.mensHaircut",
+      durationMinutes: 30,
+    },
+    {
+      nameKey: "onboarding.servicePresets.hair_salon.blowDryStyling",
+      durationMinutes: 45,
+    },
+    {
+      nameKey: "onboarding.servicePresets.hair_salon.hairColor",
+      durationMinutes: 90,
+    },
+    {
+      nameKey: "onboarding.servicePresets.hair_salon.highlights",
+      durationMinutes: 120,
+    },
+    {
+      nameKey: "onboarding.servicePresets.hair_salon.rootTouchUp",
+      durationMinutes: 75,
+    },
+    {
+      nameKey: "onboarding.servicePresets.hair_salon.hairTreatment",
+      durationMinutes: 45,
+    },
   ],
 
   beauty_clinic: [
-    { name: "Skin consultation", durationMinutes: 20 },
-    { name: "Classic facial", durationMinutes: 60 },
-    { name: "Deep cleansing facial", durationMinutes: 75 },
-    { name: "Chemical peel", durationMinutes: 45 },
-    { name: "Microneedling", durationMinutes: 60 },
-    { name: "LED light therapy", durationMinutes: 30 },
+    {
+      nameKey: "onboarding.servicePresets.beauty_clinic.skinConsultation",
+      durationMinutes: 20,
+    },
+    {
+      nameKey: "onboarding.servicePresets.beauty_clinic.classicFacial",
+      durationMinutes: 60,
+    },
+    {
+      nameKey: "onboarding.servicePresets.beauty_clinic.deepCleansingFacial",
+      durationMinutes: 75,
+    },
+    {
+      nameKey: "onboarding.servicePresets.beauty_clinic.chemicalPeel",
+      durationMinutes: 45,
+    },
+    {
+      nameKey: "onboarding.servicePresets.beauty_clinic.microneedling",
+      durationMinutes: 60,
+    },
+    {
+      nameKey: "onboarding.servicePresets.beauty_clinic.ledLightTherapy",
+      durationMinutes: 30,
+    },
   ],
 
   nails: [
-    { name: "Manicure", durationMinutes: 30 },
-    { name: "Gel manicure", durationMinutes: 45 },
-    { name: "Pedicure", durationMinutes: 45 },
-    { name: "Gel pedicure", durationMinutes: 60 },
-    { name: "Removal", durationMinutes: 15 },
-    { name: "Nail art add-on", durationMinutes: 15 },
+    {
+      nameKey: "onboarding.servicePresets.nails.manicure",
+      durationMinutes: 30,
+    },
+    {
+      nameKey: "onboarding.servicePresets.nails.gelManicure",
+      durationMinutes: 45,
+    },
+    {
+      nameKey: "onboarding.servicePresets.nails.pedicure",
+      durationMinutes: 45,
+    },
+    {
+      nameKey: "onboarding.servicePresets.nails.gelPedicure",
+      durationMinutes: 60,
+    },
+    {
+      nameKey: "onboarding.servicePresets.nails.removal",
+      durationMinutes: 15,
+    },
+    {
+      nameKey: "onboarding.servicePresets.nails.nailArtAddOn",
+      durationMinutes: 15,
+    },
   ],
 
   tattoo_piercing: [
-    { name: "Consultation", durationMinutes: 20 },
-    { name: "Small tattoo session", durationMinutes: 60 },
-    { name: "Medium tattoo session", durationMinutes: 120 },
-    { name: "Large tattoo session", durationMinutes: 180 },
-    { name: "Piercing", durationMinutes: 30 },
-    { name: "Jewelry change", durationMinutes: 15 },
+    {
+      nameKey: "onboarding.servicePresets.tattoo_piercing.consultation",
+      durationMinutes: 20,
+    },
+    {
+      nameKey: "onboarding.servicePresets.tattoo_piercing.smallTattooSession",
+      durationMinutes: 60,
+    },
+    {
+      nameKey: "onboarding.servicePresets.tattoo_piercing.mediumTattooSession",
+      durationMinutes: 120,
+    },
+    {
+      nameKey: "onboarding.servicePresets.tattoo_piercing.largeTattooSession",
+      durationMinutes: 180,
+    },
+    {
+      nameKey: "onboarding.servicePresets.tattoo_piercing.piercing",
+      durationMinutes: 30,
+    },
+    {
+      nameKey: "onboarding.servicePresets.tattoo_piercing.jewelryChange",
+      durationMinutes: 15,
+    },
   ],
 
   spa_massage: [
-    { name: "Relaxation massage", durationMinutes: 60 },
-    { name: "Deep tissue massage", durationMinutes: 60 },
-    { name: "Back & neck massage", durationMinutes: 30 },
-    { name: "Sports massage", durationMinutes: 60 },
-    { name: "Body scrub", durationMinutes: 45 },
-    { name: "Aromatherapy massage", durationMinutes: 60 },
+    {
+      nameKey: "onboarding.servicePresets.spa_massage.relaxationMassage",
+      durationMinutes: 60,
+    },
+    {
+      nameKey: "onboarding.servicePresets.spa_massage.deepTissueMassage",
+      durationMinutes: 60,
+    },
+    {
+      nameKey: "onboarding.servicePresets.spa_massage.backNeckMassage",
+      durationMinutes: 30,
+    },
+    {
+      nameKey: "onboarding.servicePresets.spa_massage.sportsMassage",
+      durationMinutes: 60,
+    },
+    {
+      nameKey: "onboarding.servicePresets.spa_massage.bodyScrub",
+      durationMinutes: 45,
+    },
+    {
+      nameKey: "onboarding.servicePresets.spa_massage.aromatherapyMassage",
+      durationMinutes: 60,
+    },
   ],
 
   fitness_coaching: [
-    { name: "Intro session", durationMinutes: 30 },
-    { name: "Personal training", durationMinutes: 60 },
-    { name: "Strength training", durationMinutes: 60 },
-    { name: "Mobility session", durationMinutes: 45 },
-    { name: "Nutrition check-in", durationMinutes: 30 },
-    { name: "Progress review", durationMinutes: 30 },
+    {
+      nameKey: "onboarding.servicePresets.fitness_coaching.introSession",
+      durationMinutes: 30,
+    },
+    {
+      nameKey: "onboarding.servicePresets.fitness_coaching.personalTraining",
+      durationMinutes: 60,
+    },
+    {
+      nameKey: "onboarding.servicePresets.fitness_coaching.strengthTraining",
+      durationMinutes: 60,
+    },
+    {
+      nameKey: "onboarding.servicePresets.fitness_coaching.mobilitySession",
+      durationMinutes: 45,
+    },
+    {
+      nameKey: "onboarding.servicePresets.fitness_coaching.nutritionCheckIn",
+      durationMinutes: 30,
+    },
+    {
+      nameKey: "onboarding.servicePresets.fitness_coaching.progressReview",
+      durationMinutes: 30,
+    },
   ],
 };

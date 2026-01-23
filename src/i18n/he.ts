@@ -1,6 +1,6 @@
 const he = {
     common: {
-        appName: "פרוגרר",
+        appName: "פרוגר",
         continue: "המשך",
         cancel: "ביטול",
         save: "שמירה",
@@ -146,6 +146,95 @@ const he = {
         userFallback: "משתמש",
         dayLabels: ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"],
         dayShortLabels: ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"],
+        businessTypes: {
+            hair_salon: {
+                title: "מספרה",
+                description: "תספורות, צבע ועיצוב",
+            },
+            beauty_clinic: {
+                title: "קליניקת יופי",
+                description: "טיפולי עור ואסתטיקה",
+            },
+            nails: {
+                title: "סטודיו ציפורניים",
+                description: "מניקור, פדיקור וג׳ל",
+            },
+            tattoo_piercing: {
+                title: "קעקועים ופירסינג",
+                description: "סשנים של קעקועים ופירסינג",
+            },
+            spa_massage: {
+                title: "ספא ועיסוי",
+                description: "עיסויים וטיפולי גוף",
+            },
+            fitness_coaching: {
+                title: "כושר ואימון",
+                description: "אימונים ומפגשי אימון אישי",
+            },
+            other: {
+                title: "אחר",
+                description: "עסק בהתאמה אישית",
+            },
+        },
+        servicePresets: {
+            barbershop: {
+                mensHaircut: "תספורת גברים",
+                beardTrim: "סידור זקן",
+                haircutBeard: "תספורת + זקן",
+                kidsHaircut: "תספורת ילדים",
+                lineUpShapeUp: "יישור/עיצוב קו",
+                hotTowelShave: "גילוח במגבת חמה",
+            },
+            hair_salon: {
+                womensHaircut: "תספורת נשים",
+                mensHaircut: "תספורת גברים",
+                blowDryStyling: "פאן ועיצוב",
+                hairColor: "צביעת שיער",
+                highlights: "היילייטס",
+                rootTouchUp: "חידוש שורשים",
+                hairTreatment: "טיפול שיער",
+            },
+            beauty_clinic: {
+                skinConsultation: "ייעוץ עור",
+                classicFacial: "טיפול פנים קלאסי",
+                deepCleansingFacial: "טיפול פנים ניקוי עמוק",
+                chemicalPeel: "פילינג כימי",
+                microneedling: "מיקרונידלינג",
+                ledLightTherapy: "טיפול באור LED",
+            },
+            nails: {
+                manicure: "מניקור",
+                gelManicure: "מניקור ג׳ל",
+                pedicure: "פדיקור",
+                gelPedicure: "פדיקור ג׳ל",
+                removal: "הסרה",
+                nailArtAddOn: "תוספת קישוטי ציפורניים",
+            },
+            tattoo_piercing: {
+                consultation: "פגישת ייעוץ",
+                smallTattooSession: "סשן קעקוע קטן",
+                mediumTattooSession: "סשן קעקוע בינוני",
+                largeTattooSession: "סשן קעקוע גדול",
+                piercing: "פירסינג",
+                jewelryChange: "החלפת תכשיט",
+            },
+            spa_massage: {
+                relaxationMassage: "עיסוי מרגיע",
+                deepTissueMassage: "עיסוי רקמות עמוק",
+                backNeckMassage: "עיסוי גב וצוואר",
+                sportsMassage: "עיסוי ספורטיבי",
+                bodyScrub: "פילינג גוף",
+                aromatherapyMassage: "עיסוי ארומתרפי",
+            },
+            fitness_coaching: {
+                introSession: "מפגש היכרות",
+                personalTraining: "אימון אישי",
+                strengthTraining: "אימון כוח",
+                mobilitySession: "מפגש מוביליטי",
+                nutritionCheckIn: "בדיקת תזונה",
+                progressReview: "בדיקת התקדמות",
+            },
+        },
         errors: {
             loadFailed: "טעינה נכשלה",
             saveFailed: "השמירה נכשלה",
@@ -176,6 +265,9 @@ const he = {
             replaceImageFailed: "החלפת התמונה נכשלה",
             imageNotFound: "התמונה לא נמצאה",
             uploadFailed: "העלאה נכשלה",
+            logoTooLarge: "הלוגו גדול מדי (מקסימום 2MB)",
+            bannerTooLarge: "הבאנר גדול מדי (מקסימום 5MB)",
+            galleryImageTooLarge: "התמונה גדולה מדי (מקסימום 5MB)",
         },
     },
     settings: {
