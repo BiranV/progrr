@@ -197,19 +197,8 @@ select:-webkit-autofill:focus {
   background-color: var(--muted-foreground);
 }
 
-/* Radix Select RTL overrides (dir-driven, no JS) */
-html[dir="rtl"] [data-radix-select-trigger] {
-  flex-direction: row-reverse;
-}
 
-html[dir="rtl"] [data-radix-select-trigger] [data-slot="select-value"] {
-  text-align: right;
-}
 
-html[dir="rtl"] [data-radix-select-content] {
-  direction: rtl;
-  translate: calc(var(--radix-select-trigger-width) - 100%) 0;
-}
 
 html[dir="rtl"] [data-radix-select-item] [data-slot="select-item-text"] {
   text-align: right;
@@ -334,26 +323,54 @@ html[dir="rtl"] [data-radix-select-trigger] {
   text-align: right;
 }
 
-/* Selected value inside trigger */
-html[dir="rtl"] [data-radix-select-trigger]>span {
-  text-align: right;
-}
+
 
 /* Dropdown content alignment */
 html[dir="rtl"] [data-radix-select-content] {
   text-align: right;
 }
 
-/* Select items text */
-html[dir="rtl"] [data-radix-select-item] {
-  justify-content: flex-end;
-  text-align: right;
-}
 
 /* Optional: icon spacing fix (Chevron) */
 html[dir="rtl"] [data-radix-select-trigger] svg {
   margin-left: 0;
   margin-right: 0.5rem;
+}
+
+
+html[dir="rtl"] [data-radix-select-trigger] {
+  direction: rtl;
+}
+
+html[dir="rtl"] [data-radix-select-trigger] [data-slot="select-value"] {
+  width: 100%;
+  text-align: right;
+  justify-content: flex-start;
+}
+
+html[dir="rtl"] [data-radix-select-trigger] [data-slot="select-value"]>span {
+  width: 100%;
+  text-align: right;
+}
+
+html[dir="rtl"] [data-radix-select-content] {
+  direction: rtl;
+  text-align: right;
+}
+
+html[dir="rtl"] [data-radix-select-item] {
+  justify-content: flex-end;
+}
+
+html[dir="rtl"] [data-radix-select-item] [data-slot="select-item-text"] {
+  width: 100%;
+  text-align: right;
+}
+
+/* check icon (✔) on the LEFT in RTL */
+html[dir="rtl"] [data-radix-select-item] [data-slot="select-item-indicator"] {
+  right: auto;
+  left: 0.5rem;
 }
 
 /* Auth logo click-to-glow */

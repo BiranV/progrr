@@ -56,6 +56,12 @@ function normalizeEmail(input: string): string {
         .toLowerCase();
 }
 
+function formatDateForDisplay(date: string): string {
+    const match = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(String(date ?? ""));
+    if (!match) return date;
+    return `${match[3]}-${match[2]}-${match[1]}`;
+}
+
 export default function CalendarClient() {
     const { t } = useI18n();
     const searchParams = useSearchParams();
@@ -719,7 +725,7 @@ export default function CalendarClient() {
 
             <div className="grid grid-cols-3 items-center gap-3">
                 <div className="min-w-0 text-sm font-semibold text-gray-900 dark:text-white truncate">
-                    {date}
+                    {formatDateForDisplay(date)}
                 </div>
 
                 <div className="flex items-center justify-self-center gap-2">
