@@ -46,61 +46,6 @@ export const BUSINESS_TYPES: BusinessType[] = [
     description: "Training, coaching sessions",
   },
   {
-    key: "therapy_wellness",
-    title: "Therapy & wellness",
-    description: "Therapy, wellness sessions",
-  },
-  {
-    key: "medical_clinic",
-    title: "Medical clinic",
-    description: "General appointments & checkups",
-  },
-  {
-    key: "dental",
-    title: "Dental clinic",
-    description: "Dental care & treatments",
-  },
-  {
-    key: "pet_grooming",
-    title: "Pet grooming",
-    description: "Bath, trim & grooming",
-  },
-  {
-    key: "education_tutoring",
-    title: "Education & tutoring",
-    description: "Lessons, tutoring sessions",
-  },
-  {
-    key: "photography",
-    title: "Photography",
-    description: "Photoshoots & studio sessions",
-  },
-  {
-    key: "home_services",
-    title: "Home services",
-    description: "Technician visits & repairs",
-  },
-  {
-    key: "auto_services",
-    title: "Automotive",
-    description: "Car services & inspections",
-  },
-  {
-    key: "cleaning",
-    title: "Cleaning services",
-    description: "Home/office cleaning",
-  },
-  {
-    key: "consulting",
-    title: "Consulting",
-    description: "Advisory sessions",
-  },
-  {
-    key: "events",
-    title: "Events",
-    description: "Event bookings & coordination",
-  },
-  {
     key: "other",
     title: "Other",
     description: "Custom business",
