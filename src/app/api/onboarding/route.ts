@@ -442,6 +442,16 @@ export async function PATCH(req: Request) {
     const set: any = {};
     const unset: any = {};
 
+    const existingTimeZone = String((user as any)?.onboarding?.availability?.timezone ?? "").trim();
+    if (
+      !isOnboardingCompleted &&
+      body?.business &&
+      timezone === undefined &&
+      !existingTimeZone
+    ) {
+      return NextResponse.json({ error: "Timezone is required" }, { status: 400 });
+    }
+
     if (timezone !== undefined) {
       const tz = String(timezone ?? "").trim();
       if (tz && !isValidTimeZone(tz)) {

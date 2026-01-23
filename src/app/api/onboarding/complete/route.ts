@@ -55,6 +55,7 @@ export async function POST() {
 
         const onboarding = (user as any).onboarding ?? {};
         const business = onboarding.business ?? {};
+        const availability = onboarding.availability ?? {};
 
         const currency = String(onboarding.currency ?? "").trim().toUpperCase();
         if (currency && !ALLOWED_CURRENCIES.has(currency)) {
@@ -80,17 +81,25 @@ export async function POST() {
         const name = String(business.name ?? "").trim();
         const phone = String(business.phone ?? "").trim();
         const address = String(business.address ?? "").trim();
+        const timezone = String(availability.timezone ?? "").trim();
 
         const missing: string[] = [];
         if (!name) missing.push("Name");
         if (!phone) missing.push("Phone");
         if (!address) missing.push("Address");
+        if (!timezone) missing.push("Timezone");
 
         if (missing.length > 0) {
             return NextResponse.json(
                 { error: `${missing[0]} is required` },
                 { status: 400 }
             );
+        }
+
+        try {
+            new Intl.DateTimeFormat("en-US", { timeZone: timezone }).format(new Date());
+        } catch {
+            return NextResponse.json({ error: "Invalid time zone" }, { status: 400 });
         }
 
         const servicesErr = firstServiceError(onboarding.services ?? []);

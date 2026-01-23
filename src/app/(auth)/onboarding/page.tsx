@@ -14,6 +14,13 @@ import { TimePicker } from "@/components/ui/time-picker";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Switch as UISwitch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import AuthBanner from "../auth/_components/AuthBanner";
 import { useAuth } from "@/context/AuthContext";
@@ -84,6 +91,7 @@ type OnboardingData = {
 };
 
 const OTHER_CURRENCY_CODE = "OTHER";
+const DEFAULT_TIMEZONE = "Asia/Jerusalem";
 
 const CURRENCIES: Array<{ code: string; label: string; symbol: string }> = [
   { code: "NIS", label: "NIS (₪)", symbol: "₪" },
@@ -141,6 +149,15 @@ function newId() {
     return crypto.randomUUID();
   }
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function detectTimeZone(): string {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return String(tz || "").trim() || DEFAULT_TIMEZONE;
+  } catch {
+    return DEFAULT_TIMEZONE;
+  }
 }
 
 function parseTimeToMinutes(hhmm: string): number {
@@ -300,6 +317,23 @@ export default function OnboardingPage() {
   const inputErrorClass = "border-rose-300 ring-1 ring-rose-300/20";
 
   const [businessPhoneValid, setBusinessPhoneValid] = useState(true);
+  const initialTimeZone = React.useMemo(() => detectTimeZone(), []);
+  const supportedTimeZones = React.useMemo(() => {
+    let zones: string[] = [];
+    try {
+      const fn = (Intl as any)?.supportedValuesOf;
+      if (typeof fn === "function") {
+        const values = fn("timeZone") as unknown;
+        if (Array.isArray(values)) {
+          zones = values.map((v) => String(v)).filter(Boolean);
+        }
+      }
+    } catch {
+      // ignore
+    }
+    const base = [DEFAULT_TIMEZONE, initialTimeZone].filter(Boolean);
+    return Array.from(new Set([...base, ...zones]));
+  }, [initialTimeZone]);
 
   const [data, setData] = useState<OnboardingData>({
     businessTypes: [],
@@ -315,6 +349,7 @@ export default function OnboardingPage() {
       },
     ],
     availability: {
+      timezone: initialTimeZone || DEFAULT_TIMEZONE,
       weekStartsOn: 0,
       days: defaultDays(),
     },
@@ -737,6 +772,13 @@ export default function OnboardingPage() {
             merged.services = [
               { id: crypto.randomUUID(), name: "", durationMinutes: 30 },
             ];
+          }
+
+          if (!String(merged.availability?.timezone ?? "").trim()) {
+            merged.availability = {
+              ...(merged.availability || {}),
+              timezone: initialTimeZone || DEFAULT_TIMEZONE,
+            };
           }
 
           if (!merged.businessTypes) {
@@ -1187,12 +1229,20 @@ export default function OnboardingPage() {
           newErrors.businessPhone = "Please enter a valid phone number";
         if (!data.business?.address?.trim())
           newErrors.businessAddress = "Address is required";
+        if (!String(data.availability?.timezone ?? "").trim())
+          newErrors.businessTimezone = "Timezone is required";
 
         if (Object.keys(newErrors).length > 0) {
           setFieldErrors(newErrors);
           return;
         }
-        await savePartial({ business: data.business });
+        await savePartial({
+          business: data.business,
+          availability: {
+            ...(data.availability || {}),
+            timezone: String(data.availability?.timezone ?? "").trim(),
+          },
+        });
       }
       if (step === 2) {
         const currency = normalizeCurrency(data.currency);
@@ -1500,6 +1550,34 @@ export default function OnboardingPage() {
                   placeholder="123 Main St, City"
                 />
                 <InlineError message={fieldErrors.businessAddress} />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Timezone *</Label>
+                <Select
+                  value={String(data.availability?.timezone || "").trim() || DEFAULT_TIMEZONE}
+                  onValueChange={(v) =>
+                    setData((d) => ({
+                      ...d,
+                      availability: {
+                        ...(d.availability || {}),
+                        timezone: String(v || "").trim(),
+                      },
+                    }))
+                  }
+                >
+                  <SelectTrigger className={fieldErrors.businessTimezone ? inputErrorClass : ""}>
+                    <SelectValue placeholder="Select timezone" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-80">
+                    {supportedTimeZones.map((tz) => (
+                      <SelectItem key={tz} value={tz}>
+                        {tz}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <InlineError message={fieldErrors.businessTimezone} />
               </div>
             </div>
           </div>
