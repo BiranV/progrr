@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import { useLocale } from "@/context/LocaleContext";
 
 export type AuthBannerState =
   | { type: "error"; text: string }
@@ -17,11 +18,12 @@ export default function AuthBanner({
   if (!banner) return null;
 
   const isError = banner.type === "error";
+  const { dir } = useLocale();
 
   return (
     <div
       className={`
-                flex items-center gap-3 rounded-xl border px-4 py-3 shadow-sm mb-4 text-left
+                flex items-center gap-3 rounded-xl border px-4 py-3 shadow-sm mb-4 ${dir === "rtl" ? "text-right" : "text-left"}
                 ${isError
           ? "bg-[#FDE8EC] border-[#FDE8EC] text-[#B42318]"
           : "bg-emerald-500/10 border-emerald-500/20 text-white backdrop-blur-md"
@@ -36,9 +38,10 @@ export default function AuthBanner({
           onClick={onClose}
           aria-label="Dismiss alert"
           className={
-            isError
+            (isError
               ? "-m-1 rounded-md p-1 text-[#B42318]/70 hover:text-[#B42318] hover:bg-[#B42318]/10"
-              : "-m-1 rounded-md p-1 text-white/70 hover:text-white hover:bg-white/10"
+              : "-m-1 rounded-md p-1 text-white/70 hover:text-white hover:bg-white/10") +
+            " ms-auto"
           }
         >
           <X className="h-4 w-4" />

@@ -31,24 +31,18 @@ type Service = {
 
 const CURRENCIES: Array<{ code: string; symbol: string; label: string }> = [
     { code: "ILS", symbol: "₪", label: "ILS (₪)" },
-    { code: "USD", symbol: "$", label: "USD ($)" },
-    { code: "EUR", symbol: "€", label: "EUR (€)" },
-    { code: "GBP", symbol: "£", label: "GBP (£)" },
-    { code: "AUD", symbol: "$", label: "AUD ($)" },
-    { code: "CAD", symbol: "$", label: "CAD ($)" },
-    { code: "CHF", symbol: "CHF", label: "CHF" },
 ];
 
 const UI_CURRENCIES = CURRENCIES.filter((c) => c.code === "ILS");
 
-const ALLOWED_CURRENCY_CODES = new Set(CURRENCIES.map((c) => c.code).concat(["NIS"]));
+const ALLOWED_CURRENCY_CODES = new Set(["ILS"]);
 
 function normalizeCurrency(v: unknown): string {
     const code = String(v ?? "")
         .trim()
         .toUpperCase();
-    if (!ALLOWED_CURRENCY_CODES.has(code)) return "ILS";
     if (code === "NIS") return "ILS";
+    if (!ALLOWED_CURRENCY_CODES.has(code)) return "ILS";
     return code;
 }
 

@@ -24,6 +24,7 @@ import {
 
 import AuthBanner from "../auth/_components/AuthBanner";
 import { useAuth } from "@/context/AuthContext";
+import { useLocale } from "@/context/LocaleContext";
 import { BUSINESS_TYPES, SERVICE_PRESETS } from "@/lib/onboardingPresets";
 import ImageCropperModal, {
   type ImageCropperMode,
@@ -95,16 +96,9 @@ const DEFAULT_TIMEZONE = "Asia/Jerusalem";
 
 const CURRENCIES: Array<{ code: string; label: string; symbol: string }> = [
   { code: "ILS", label: "ILS (₪)", symbol: "₪" },
-  { code: "USD", label: "USD ($)", symbol: "$" },
-  { code: "EUR", label: "EUR (€)", symbol: "€" },
-  { code: "GBP", label: "GBP (£)", symbol: "£" },
-  { code: "AUD", label: "AUD ($)", symbol: "$" },
-  { code: "CAD", label: "CAD ($)", symbol: "$" },
-  { code: "CHF", label: "CHF (CHF)", symbol: "CHF" },
-  { code: OTHER_CURRENCY_CODE, label: "Other", symbol: "" },
 ];
 
-const ALLOWED_CURRENCY_CODES = new Set(CURRENCIES.map((c) => c.code).concat(["NIS"]));
+const ALLOWED_CURRENCY_CODES = new Set(["ILS"]);
 const UI_TIMEZONES = [DEFAULT_TIMEZONE];
 
 function normalizeCurrency(v: unknown): string {
@@ -315,6 +309,7 @@ export default function OnboardingPage() {
   const inputErrorClass = "border-rose-300 ring-1 ring-rose-300/20";
 
   const [businessPhoneValid, setBusinessPhoneValid] = useState(true);
+  const { dir } = useLocale();
   const initialTimeZone = React.useMemo(() => detectTimeZone(), []);
   const supportedTimeZones = React.useMemo(() => {
     let zones: string[] = [];
@@ -1450,21 +1445,13 @@ export default function OnboardingPage() {
                         });
                       }}
                       className={
-                        "w-[160px] h-[90px] text-left rounded-xl border px-4 py-3 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-neutral-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 overflow-hidden " +
+                        `w-[160px] min-h-[90px] h-auto rounded-xl border px-4 py-3 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-neutral-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 overflow-hidden ${dir === "rtl" ? "text-right" : "text-left"} ` +
                         (selected
                           ? "border-neutral-900 bg-neutral-50/70 dark:bg-neutral-900/30 shadow-sm"
                           : "border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/30 hover:border-gray-300 dark:hover:border-gray-700")
                       }
                     >
-                      <div className="flex h-full items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="font-medium text-gray-900 dark:text-white truncate">
-                            {opt.title}
-                          </div>
-                          <div className="text-xs leading-snug text-gray-600 dark:text-gray-300">
-                            {opt.description}
-                          </div>
-                        </div>
+                      <div className="flex items-start gap-3">
                         <div
                           className={
                             "h-5 w-5 rounded-full border flex items-center justify-center shrink-0 " +
@@ -1475,6 +1462,11 @@ export default function OnboardingPage() {
                           aria-hidden="true"
                         >
                           {selected ? <Check className="h-3.5 w-3.5" /> : null}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-medium text-gray-900 dark:text-white whitespace-normal break-words [overflow-wrap:anywhere]">
+                            {opt.title}
+                          </div>
                         </div>
                       </div>
                     </button>

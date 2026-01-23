@@ -15,16 +15,7 @@ const ALLOWED_BUSINESS_TYPES = new Set(BUSINESS_TYPES.map((t) => t.key));
 
 const OTHER_CURRENCY_CODE = "OTHER";
 
-const ALLOWED_CURRENCIES = new Set([
-  "NIS",
-  "USD",
-  "EUR",
-  "GBP",
-  "AUD",
-  "CAD",
-  "CHF",
-  OTHER_CURRENCY_CODE,
-]);
+const ALLOWED_CURRENCIES = new Set(["ILS"]);
 
 function formatTimeInTimeZone(date: Date, timeZone: string): string {
   const formatter = new Intl.DateTimeFormat("en-US", {
@@ -397,7 +388,11 @@ export async function PATCH(req: Request) {
     };
 
     const currencyRaw = asString((body as any)?.currency, 8);
-    const currency = currencyRaw ? currencyRaw.toUpperCase() : undefined;
+    const currency = currencyRaw
+      ? currencyRaw.toUpperCase() === "NIS"
+        ? "ILS"
+        : currencyRaw.toUpperCase()
+      : undefined;
 
     const customCurrencyName = asString(
       (body as any)?.customCurrency?.name,
@@ -491,9 +486,8 @@ export async function PATCH(req: Request) {
       } else {
         unset["onboarding.customCurrency"] = "";
 
-        // Keep business-level currency in sync (normalize legacy NIS -> ILS).
-        set["onboarding.business.currency"] =
-          currency === "NIS" ? "ILS" : currency;
+        // Keep business-level currency in sync.
+        set["onboarding.business.currency"] = currency;
       }
 
       set["onboarding.currency"] = currency;

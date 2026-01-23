@@ -45,25 +45,16 @@ function asBoolean(v: unknown): boolean | undefined {
   return undefined;
 }
 
-const ALLOWED_CURRENCY_CODES = new Set([
-  "ILS",
-  "NIS",
-  "USD",
-  "EUR",
-  "GBP",
-  "AUD",
-  "CAD",
-  "CHF",
-]);
+const ALLOWED_CURRENCY_CODES = new Set(["ILS"]);
 
 function normalizeCurrencyCode(v: unknown): string | undefined {
   const raw = String(v ?? "")
     .trim()
     .toUpperCase();
   if (!raw) return undefined;
-  if (!ALLOWED_CURRENCY_CODES.has(raw)) return undefined;
   // Normalize legacy/alt spelling.
   if (raw === "NIS") return "ILS";
+  if (!ALLOWED_CURRENCY_CODES.has(raw)) return undefined;
   return raw;
 }
 

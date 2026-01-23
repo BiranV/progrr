@@ -14,16 +14,7 @@ export async function POST() {
         const c = await collections();
 
         const OTHER_CURRENCY_CODE = "OTHER";
-        const ALLOWED_CURRENCIES = new Set([
-            "NIS",
-            "USD",
-            "EUR",
-            "GBP",
-            "AUD",
-            "CAD",
-            "CHF",
-            OTHER_CURRENCY_CODE,
-        ]);
+        const ALLOWED_CURRENCIES = new Set(["ILS"]);
 
         const firstServiceError = (services: any[]): string | null => {
             if (!Array.isArray(services) || services.length === 0) return "Service is required";
@@ -57,7 +48,8 @@ export async function POST() {
         const business = onboarding.business ?? {};
         const availability = onboarding.availability ?? {};
 
-        const currency = String(onboarding.currency ?? "").trim().toUpperCase();
+        const currencyRaw = String(onboarding.currency ?? "").trim().toUpperCase();
+        const currency = currencyRaw === "NIS" ? "ILS" : currencyRaw;
         if (currency && !ALLOWED_CURRENCIES.has(currency)) {
             return NextResponse.json({ error: "Invalid currency" }, { status: 400 });
         }

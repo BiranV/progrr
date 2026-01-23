@@ -5,12 +5,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, ChevronLeft, Zap } from "lucide-react";
+import { ChevronLeft, ChevronRight, Zap } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useLocale } from "@/context/LocaleContext";
 
 import AuthBanner, { type AuthBannerState } from "./AuthBanner";
 import OtpInput from "@/components/OtpInput";
@@ -42,6 +43,8 @@ export default function AdminAuthStep({
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setSessionUser } = useAuth();
+  const { dir } = useLocale();
+  const BackIcon = dir === "rtl" ? ChevronRight : ChevronLeft;
 
   // State
   const [view, setView] = useState<ViewState>(() => {
@@ -164,8 +167,8 @@ export default function AdminAuthStep({
         typeof data?.redirectTo === "string"
           ? data.redirectTo
           : data?.onboardingCompleted
-          ? "/dashboard"
-          : "/onboarding";
+            ? "/dashboard"
+            : "/onboarding";
       router.replace(dest);
     } catch (err: any) {
       // Keep the field highlighted, but also show global banner like onboarding.
@@ -252,8 +255,8 @@ export default function AdminAuthStep({
         typeof data?.redirectTo === "string"
           ? data.redirectTo
           : data?.onboardingCompleted
-          ? "/dashboard"
-          : "/onboarding";
+            ? "/dashboard"
+            : "/onboarding";
       router.replace(dest);
     } catch (err: any) {
       setSignupCodeError(err?.message || "Verification failed");
@@ -274,8 +277,8 @@ export default function AdminAuthStep({
   const bannerState: AuthBannerState = globalError
     ? { type: "error", text: globalError }
     : info
-    ? { type: "message", text: info }
-    : null;
+      ? { type: "message", text: info }
+      : null;
 
   // For inputs
   const inputErrorClass = "border-red-300/50 ring-1 ring-red-300/20";
@@ -356,7 +359,7 @@ export default function AdminAuthStep({
                   onClick={handleBack}
                   aria-label="Back"
                 >
-                  <ChevronLeft className="w-6 h-6" />
+                  <BackIcon className="w-6 h-6" />
                 </Button>
                 <h2 className="text-xl font-bold text-white">
                   {view === "login" ? "Welcome Back" : "Verify Login"}
@@ -378,9 +381,8 @@ export default function AdminAuthStep({
                     <Input
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
-                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${
-                        loginError ? inputErrorClass : "border-white/20"
-                      }`}
+                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${loginError ? inputErrorClass : "border-white/20"
+                        }`}
                       placeholder="name@company.com"
                       autoFocus
                     />
@@ -404,9 +406,8 @@ export default function AdminAuthStep({
                       onChange={setLoginCode}
                       length={6}
                       disabled={loading}
-                      inputClassName={`bg-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent ${
-                        loginCodeError ? inputErrorClass : "border-white/20"
-                      }`}
+                      inputClassName={`bg-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent ${loginCodeError ? inputErrorClass : "border-white/20"
+                        }`}
                     />
                     <InlineError message={loginCodeError} />
                     <p className="text-xs text-white/60 ml-1 pt-1">
@@ -440,7 +441,7 @@ export default function AdminAuthStep({
                   onClick={handleBack}
                   aria-label="Back"
                 >
-                  <ChevronLeft className="w-6 h-6" />
+                  <BackIcon className="w-6 h-6" />
                 </Button>
                 <h2 className="text-xl font-bold text-white">Create Account</h2>
               </div>
@@ -498,7 +499,7 @@ export default function AdminAuthStep({
                   onClick={handleBack}
                   aria-label="Back"
                 >
-                  <ChevronLeft className="w-6 h-6" />
+                  <BackIcon className="w-6 h-6" />
                 </Button>
                 <h2 className="text-xl font-bold text-white">
                   {view === "signup" ? "Create Account" : "Verify Email"}
@@ -520,9 +521,8 @@ export default function AdminAuthStep({
                     <Input
                       value={signupName}
                       onChange={(e) => setSignupName(e.target.value)}
-                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${
-                        signupNameError ? inputErrorClass : "border-white/20"
-                      }`}
+                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${signupNameError ? inputErrorClass : "border-white/20"
+                        }`}
                       placeholder="Jane Doe"
                       autoFocus
                     />
@@ -533,9 +533,8 @@ export default function AdminAuthStep({
                     <Input
                       value={signupEmail}
                       onChange={(e) => setSignupEmail(e.target.value)}
-                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${
-                        signupEmailError ? inputErrorClass : "border-white/20"
-                      }`}
+                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${signupEmailError ? inputErrorClass : "border-white/20"
+                        }`}
                       placeholder="name@company.com"
                     />
                     <InlineError message={signupEmailError} />
@@ -558,9 +557,8 @@ export default function AdminAuthStep({
                       onChange={setSignupCode}
                       length={6}
                       disabled={loading}
-                      inputClassName={`bg-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent ${
-                        signupCodeError ? inputErrorClass : "border-white/20"
-                      }`}
+                      inputClassName={`bg-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent ${signupCodeError ? inputErrorClass : "border-white/20"
+                        }`}
                     />
                     <InlineError message={signupCodeError} />
                     <p className="text-xs text-white/60 ml-1 pt-1">

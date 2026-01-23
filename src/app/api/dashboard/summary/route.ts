@@ -146,31 +146,18 @@ export async function GET() {
 
         const onboarding = (owner as any)?.onboarding ?? {};
         const business = onboarding?.business ?? {};
-        const currencyCode =
+        const currencyCodeRaw =
             String(business.currency ?? "").trim() ||
             String(onboarding.currency ?? "").trim() ||
             "ILS";
+        const currencyCode =
+            currencyCodeRaw.toUpperCase() === "NIS" ? "ILS" : currencyCodeRaw;
         const customCurrency = onboarding.customCurrency ?? undefined;
 
         const currencySymbol = (code: string): string => {
-            switch (String(code || "").trim().toUpperCase()) {
-                case "ILS":
-                case "NIS":
-                    return "₪";
-                case "USD":
-                    return "$";
-                case "EUR":
-                    return "€";
-                case "GBP":
-                    return "£";
-                case "AUD":
-                case "CAD":
-                    return "$";
-                case "CHF":
-                    return "CHF";
-                default:
-                    return "";
-            }
+            const normalized = String(code || "").trim().toUpperCase();
+            const canonical = normalized === "NIS" ? "ILS" : normalized;
+            return canonical === "ILS" ? "₪" : "";
         };
 
         // Keep appointment statuses in sync: if a booked appointment has passed, mark it completed.

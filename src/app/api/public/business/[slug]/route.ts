@@ -69,28 +69,11 @@ export async function GET(
     const branding = onboarding.branding ?? {};
 
     const currencySymbol = (code: string): string => {
-      switch (
-      String(code || "")
+      const normalized = String(code || "")
         .trim()
-        .toUpperCase()
-      ) {
-        case "ILS":
-        case "NIS":
-          return "₪";
-        case "USD":
-          return "$";
-        case "EUR":
-          return "€";
-        case "GBP":
-          return "£";
-        case "AUD":
-        case "CAD":
-          return "$";
-        case "CHF":
-          return "CHF";
-        default:
-          return "";
-      }
+        .toUpperCase();
+      const canonical = normalized === "NIS" ? "ILS" : normalized;
+      return canonical === "ILS" ? "₪" : "";
     };
 
     const servicesRaw: any[] = Array.isArray(onboarding.services)
@@ -115,10 +98,12 @@ export async function GET(
           s.durationMinutes > 0
       );
 
-    const currencyCode =
+    const currencyCodeRaw =
       String(business.currency ?? "").trim() ||
       String(onboarding.currency ?? "").trim() ||
       "ILS";
+    const currencyCode =
+      currencyCodeRaw.toUpperCase() === "NIS" ? "ILS" : currencyCodeRaw;
     const customCurrency = onboarding.customCurrency ?? undefined;
 
     return NextResponse.json({

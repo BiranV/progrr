@@ -61,13 +61,17 @@ export default function OtpInput({
   );
 
   return (
-    <div className="flex w-full items-center justify-center gap-1.5 sm:gap-2">
+    <div
+      className="flex w-full items-center justify-center gap-1.5 sm:gap-2"
+      dir="ltr"
+    >
       <input type="hidden" id={id} name={name} value={digits.join("")} />
 
       {digits.map((digit, index) => (
         <Input
           key={index}
           aria-label={`Digit ${index + 1}`}
+          dir="ltr"
           inputMode="numeric"
           autoComplete={index === 0 ? "one-time-code" : "off"}
           disabled={disabled}
