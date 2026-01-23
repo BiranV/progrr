@@ -123,6 +123,7 @@ const he = {
             myAppointments: "התורים שלי",
             login: "כניסה",
             updateDetails: "עדכון פרטים",
+            menu: "תפריט",
         },
         login: {
             title: "כניסה",

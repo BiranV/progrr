@@ -274,7 +274,10 @@ export default function PublicBookingShell({
             </h1>
 
             {quickActions.length ? (
-              <div className="grid grid-cols-4 gap-0 pt-2 justify-items-center">
+              <div
+                className="grid gap-0 pt-2 justify-items-center"
+                style={{ gridTemplateColumns: `repeat(${quickActions.length}, minmax(0, 1fr))` }}
+              >
                 {quickActions.map(({ key, href, aria, label, Icon }) => (
                   <a
                     key={key}

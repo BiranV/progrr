@@ -125,6 +125,7 @@ const en = {
             myAppointments: "My appointments",
             login: "Log in",
             updateDetails: "Update details",
+            menu: "Menu",
         },
         login: {
             title: "Log in",

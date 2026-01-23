@@ -4,6 +4,13 @@ import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -28,7 +35,7 @@ import { useI18n } from "@/i18n/useI18n";
 import { english } from "flatpickr/dist/l10n/default";
 import { Arabic } from "flatpickr/dist/l10n/ar";
 import { Hebrew } from "flatpickr/dist/l10n/he";
-import { CalendarDays, LogIn, LogOut } from "lucide-react";
+import { CalendarDays, LogIn, LogOut, Menu, User } from "lucide-react";
 
 type Step = "service" | "date" | "time" | "confirm" | "success";
 
@@ -480,7 +487,7 @@ export default function PublicBookingFlow({
           throw new Error((json as any)?.error || requestFailed(res.status));
         }
         if (!json?.ok) throw new Error(t("publicBooking.errors.failed"));
-        if ((json as any)?.loggedIn) {
+        if (!(json as any)?.loggedIn) {
           throw new Error(t("publicBooking.errors.loginAgain"));
         }
 
@@ -770,103 +777,90 @@ export default function PublicBookingFlow({
     const dateForMy = date || result?.appointment?.date || todayStr;
 
     return (
-      <div className="flex w-full flex-col items-stretch gap-2">
-        {connected ? (
-          <div className="flex w-full items-center justify-between gap-2">
-            <div className="min-w-0 flex-1 text-xs text-muted-foreground truncate">
-              {customerEmail.trim()
-                ? t("publicBooking.header.loggedInAs", {
-                  email: customerEmail.trim(),
-                })
-                : ""}
-            </div>
+      <div className="flex items-center">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <Button
               type="button"
-              size="sm"
-              variant="default"
-              className="shrink-0 rounded-xl h-7 px-3 text-sm gap-2 border border-transparent"
+              size="icon"
+              variant="outline"
+              className="h-9 w-9 rounded-xl"
+              aria-label={t("publicBooking.header.menu")}
               disabled={loggingOut}
-              onClick={async () => {
-                setLoggingOut(true);
-                try {
-                  await disconnectCustomer();
-                  setConnected(false);
-                  setMyAppointmentsOpen(false);
-                  setMyAppointments([]);
-                  resetFlow();
-                } finally {
-                  setLoggingOut(false);
-                }
-              }}
             >
-              <LogOut className="h-4 w-4" />
-              <span>
-                {loggingOut
-                  ? t("publicBooking.header.loggingOut")
-                  : t("publicBooking.header.logout")}
-              </span>
+              <Menu className="h-4 w-4" />
             </Button>
-          </div>
-        ) : null}
-
-        <div
-          className={
-            connected
-              ? "flex w-full items-center justify-between gap-2"
-              : "flex w-full items-center justify-start gap-2"
-          }
-        >
-          <Button
-            type="button"
-            size="sm"
-            variant={connected ? "outline" : "default"}
-            className="shrink-0 rounded-xl h-7 px-3 text-sm gap-2"
-            disabled={loggingOut}
-            onClick={() => {
-              if (connected) {
-                setMyAppointmentsScope("all");
-                setMyAppointmentsDate(dateForMy);
-                setMyAppointmentsOpen(true);
-              } else {
-                setLoginEmail(customerEmail.trim());
-                setLoginStep("email");
-                setLoginCode("");
-                setLoginError(null);
-                setLoginPurpose("appointments");
-                setLoginRequiresDetails(false);
-                setLoginOpen(true);
-              }
-            }}
-          >
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
             {connected ? (
               <>
-                <CalendarDays className="h-4 w-4" />
-                <span>{t("publicBooking.header.myAppointments")}</span>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setMyAppointmentsScope("all");
+                    setMyAppointmentsDate(dateForMy);
+                    setMyAppointmentsOpen(true);
+                  }}
+                >
+                  <CalendarDays className="h-4 w-4" />
+                  {t("publicBooking.header.myAppointments")}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={openProfileEditor}>
+                  <User className="h-4 w-4" />
+                  {t("publicBooking.header.updateDetails")}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={async () => {
+                    setLoggingOut(true);
+                    try {
+                      await disconnectCustomer();
+                      setConnected(false);
+                      setMyAppointmentsOpen(false);
+                      setMyAppointments([]);
+                      resetFlow();
+                    } finally {
+                      setLoggingOut(false);
+                    }
+                  }}
+                >
+                  <LogOut className="h-4 w-4" />
+                  {loggingOut
+                    ? t("publicBooking.header.loggingOut")
+                    : t("publicBooking.header.logout")}
+                </DropdownMenuItem>
               </>
             ) : (
-              <>
+              <DropdownMenuItem
+                onClick={() => {
+                  setLoginEmail(customerEmail.trim());
+                  setLoginStep("email");
+                  setLoginCode("");
+                  setLoginError(null);
+                  setLoginPurpose("appointments");
+                  setLoginRequiresDetails(false);
+                  setLoginOpen(true);
+                }}
+              >
                 <LogIn className="h-4 w-4" />
-                <span>{t("publicBooking.header.login")}</span>
-              </>
+                {t("publicBooking.header.login")}
+              </DropdownMenuItem>
             )}
-          </Button>
-
-          {connected ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="shrink-0 rounded-xl h-7 px-3 text-sm gap-2"
-              disabled={loggingOut}
-              onClick={openProfileEditor}
-            >
-              {t("publicBooking.header.updateDetails")}
-            </Button>
-          ) : null}
-        </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     );
-  }, [connected, customerEmail, data, date, disconnectCustomer, loggingOut, openProfileEditor, resetFlow, result?.appointment?.date, t]);
+  }, [
+    connected,
+    customerEmail,
+    data,
+    date,
+    disconnectCustomer,
+    loggingOut,
+    openProfileEditor,
+    resetFlow,
+    result?.appointment?.date,
+    t,
+  ]);
 
   const selectedSlot = React.useMemo(() => {
     const list = Array.isArray((slots as any)?.slots) ? ((slots as any).slots as any[]) : [];
@@ -2173,9 +2167,6 @@ export default function PublicBookingFlow({
           ) : null}
 
           <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/10 p-4">
-            <div className="font-semibold text-gray-900 dark:text-white">
-              {t("publicBooking.details.confirmBookingTitle")}
-            </div>
             <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
               {selectedService?.name
                 ? selectedService.name
@@ -2210,15 +2201,6 @@ export default function PublicBookingFlow({
             </div>
           ) : null}
 
-          <div className="space-y-2">
-            <Label htmlFor="notes">{t("publicBooking.details.notesLabel")}</Label>
-            <Textarea
-              id="notes"
-              className="rounded-2xl"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
 
           <Button
             onClick={handleDetailsConfirm}
@@ -2242,23 +2224,14 @@ export default function PublicBookingFlow({
           ) : null}
 
           <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4 shadow-sm">
-            <div className="font-semibold text-gray-900 dark:text-white">
-              {t("publicBooking.success.appointmentsOn", {
-                date: result.appointment.date,
-              })}
-            </div>
-            <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-              {t("publicBooking.success.canCancelBelow")}
-            </div>
-
-            <div className="mt-3 divide-y divide-gray-200 dark:divide-gray-800">
+            <div className="divide-y divide-gray-200 dark:divide-gray-800">
               {bookedAppointments.map((a) => (
                 <div key={a.id} className="py-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       {a.date ? (
-                        <div className="text-xs text-muted-foreground">
-                          {a.date}
+                        <div className="text-xs text-muted-foreground" dir="ltr">
+                          {formatDateForDisplay(a.date)}
                         </div>
                       ) : null}
                       <div className="text-sm font-medium text-gray-900 dark:text-white">
@@ -2268,9 +2241,6 @@ export default function PublicBookingFlow({
                       </div>
                       <div className="text-sm text-gray-700 dark:text-gray-200">
                         {a.serviceName}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {t("publicBooking.status.booked")}
                       </div>
                     </div>
 
@@ -2292,7 +2262,7 @@ export default function PublicBookingFlow({
           </div>
 
           <div className="space-y-2">
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-nowrap gap-3">
               {!limitCustomerToOneUpcomingAppointment ? (
                 <Button className="rounded-2xl" onClick={resetBookingOnly}>
                   {t("publicBooking.success.bookAnother")}
@@ -2306,33 +2276,8 @@ export default function PublicBookingFlow({
               >
                 {t("publicBooking.success.addToGoogle")}
               </Button>
-
-              <Button
-                variant="outline"
-                className="rounded-2xl"
-                onClick={handleCancelBooking}
-                disabled={cancelling}
-              >
-                {cancelling
-                  ? t("publicBooking.actions.cancelling")
-                  : t("publicBooking.success.cancelBooking")}
-              </Button>
             </div>
 
-            {identified ? (
-              <div className="flex justify-center">
-                <Button
-                  variant="ghost"
-                  className="rounded-2xl"
-                  onClick={handleDisconnect}
-                  disabled={cancelling}
-                >
-                  {cancelling
-                    ? t("publicBooking.success.disconnecting")
-                    : t("publicBooking.success.notYouDisconnect")}
-                </Button>
-              </div>
-            ) : null}
           </div>
         </div>
       ) : null}
