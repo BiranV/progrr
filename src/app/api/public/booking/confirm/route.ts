@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { ObjectId } from "mongodb";
 
 import { collections, ensureIndexes } from "@/server/collections";
@@ -12,7 +11,6 @@ import {
 import {
   signBookingCancelToken,
   signCustomerAccessToken,
-  verifyCustomerAccessToken,
   verifyBookingVerifyToken,
 } from "@/server/jwt";
 import { isValidBusinessPublicId } from "@/server/business-public-id";
@@ -90,22 +88,6 @@ export async function POST(req: Request) {
     const hasOtp = Boolean(body?.otp || body?.code);
     const hasVerifyToken = Boolean(body?.verifyToken);
 
-    const cookieStore = await cookies();
-    const accessCookie = cookieStore.get(CUSTOMER_ACCESS_COOKIE_NAME)?.value;
-    const customerAccessClaims = accessCookie
-      ? await (async () => {
-        try {
-          const parsed = await verifyCustomerAccessToken(accessCookie);
-          return {
-            customerId: String(parsed.customerId ?? "").trim(),
-            businessUserId: String(parsed.businessUserId ?? "").trim(),
-          };
-        } catch {
-          return null;
-        }
-      })()
-      : null;
-
     if (!businessPublicId) {
       return NextResponse.json(
         { error: "businessPublicId is required" },
@@ -162,7 +144,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!bookingSessionId && !customerAccessClaims) {
+    if (!bookingSessionId) {
       return NextResponse.json(
         { error: "Unauthorized", code: "unauthorized" },
         { status: 401 }
@@ -171,23 +153,21 @@ export async function POST(req: Request) {
 
     const c = await collections();
     let sessionEmail = "";
-    if (bookingSessionId) {
-      try {
-        const claims = await verifyBookingVerifyToken(bookingSessionId);
-        sessionEmail = normalizeEmail(claims.email);
-      } catch (error: any) {
-        const code = String(error?.code ?? error?.name ?? "");
-        if (code === "ERR_JWT_EXPIRED" || code === "JWTExpired") {
-          return NextResponse.json(
-            { error: "Session expired", code: "session_expired" },
-            { status: 401 }
-          );
-        }
+    try {
+      const claims = await verifyBookingVerifyToken(bookingSessionId);
+      sessionEmail = normalizeEmail(claims.email);
+    } catch (error: any) {
+      const code = String(error?.code ?? error?.name ?? "");
+      if (code === "ERR_JWT_EXPIRED" || code === "JWTExpired") {
         return NextResponse.json(
-          { error: "Unauthorized", code: "unauthorized" },
+          { error: "Session expired", code: "session_expired" },
           { status: 401 }
         );
       }
+      return NextResponse.json(
+        { error: "Unauthorized", code: "unauthorized" },
+        { status: 401 }
+      );
     }
 
     const user = await c.users.findOne({
@@ -203,36 +183,11 @@ export async function POST(req: Request) {
     }
 
     const businessUserId = (user._id as ObjectId).toHexString();
-    if (bookingSessionId) {
-      if (!sessionEmail || sessionEmail !== customerEmail) {
-        return NextResponse.json(
-          { error: "Unauthorized", code: "unauthorized" },
-          { status: 401 }
-        );
-      }
-    } else {
-      if (!customerAccessClaims) {
-        return NextResponse.json(
-          { error: "Unauthorized", code: "unauthorized" },
-          { status: 401 }
-        );
-      }
-      if (customerAccessClaims.businessUserId !== businessUserId) {
-        return NextResponse.json(
-          { error: "Unauthorized", code: "unauthorized" },
-          { status: 401 }
-        );
-      }
-      const expectedCustomerId = customerIdFor({
-        businessUserId,
-        email: customerEmail,
-      });
-      if (expectedCustomerId !== customerAccessClaims.customerId) {
-        return NextResponse.json(
-          { error: "Unauthorized", code: "unauthorized" },
-          { status: 401 }
-        );
-      }
+    if (!sessionEmail || sessionEmail !== customerEmail) {
+      return NextResponse.json(
+        { error: "Unauthorized", code: "unauthorized" },
+        { status: 401 }
+      );
     }
     const isOwnerBooking = normalizeEmail((user as any)?.email) === customerEmail;
 

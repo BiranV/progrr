@@ -231,6 +231,12 @@ export default function PublicBookingShell({
             </Button>
           ) : null}
 
+          {headerRight ? (
+            <div className="absolute top-5 end-6 flex items-center justify-end">
+              {headerRight}
+            </div>
+          ) : null}
+
           <div className="flex items-center justify-between">
             <div className="w-10">
               {/* Back button is rendered in the top header for consistent placement */}
@@ -268,7 +274,7 @@ export default function PublicBookingShell({
             </h1>
 
             {quickActions.length ? (
-              <div className="grid grid-cols-2 gap-2 pt-1">
+              <div className="grid grid-cols-4 gap-0 pt-2 justify-items-center">
                 {quickActions.map(({ key, href, aria, label, Icon }) => (
                   <a
                     key={key}
@@ -277,19 +283,33 @@ export default function PublicBookingShell({
                     rel={key === "call" ? undefined : "noopener noreferrer"}
                     aria-label={aria}
                     className={cn(
-                      "w-full inline-flex items-center justify-center gap-2",
-                      "h-11 px-3 rounded-xl",
+                      "group relative inline-flex items-center justify-center",
+                      "h-11 w-11 rounded-xl aspect-square",
                       "border border-gray-200/70 dark:border-gray-800",
-                      "bg-white/70 dark:bg-gray-950/20",
-                      "text-gray-900 dark:text-white",
+                      "bg-white/60 dark:bg-gray-950/20",
+                      "text-gray-700 dark:text-gray-200",
                       "shadow-sm",
                       "transition",
-                      "hover:bg-white hover:shadow-md",
+                      "hover:bg-gray-100/80 hover:shadow-md",
+                      "active:scale-[0.98]",
                       "dark:hover:bg-gray-900/30",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/25 dark:focus-visible:ring-white/30",
                     )}
                   >
-                    <Icon className="h-4 w-4" />
-                    <span className="text-sm font-semibold">{label}</span>
+                    <Icon className="h-5 w-5" />
+                    <span
+                      className={cn(
+                        "hidden md:block",
+                        "pointer-events-none absolute -top-7 left-1/2 -translate-x-1/2",
+                        "rounded-md bg-gray-900/90 text-white",
+                        "px-2 py-1 text-[11px] font-medium",
+                        "opacity-0 transition-opacity",
+                        "group-hover:opacity-100",
+                        "shadow-sm",
+                      )}
+                    >
+                      {label}
+                    </span>
                   </a>
                 ))}
               </div>
@@ -496,18 +516,6 @@ export default function PublicBookingShell({
                   </div>
                 </div>
               )}
-            </div>
-          ) : null}
-
-          {headerRight ? (
-            <div
-              className={cn(
-                "flex justify-end",
-                showGallery && gallery.length > 0 ? "mt-5" : "mt-3",
-                subtitle || subtitleRight ? "mb-2" : "mb-3",
-              )}
-            >
-              {headerRight}
             </div>
           ) : null}
 

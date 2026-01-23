@@ -28,9 +28,9 @@ import { useI18n } from "@/i18n/useI18n";
 import { english } from "flatpickr/dist/l10n/default";
 import { Arabic } from "flatpickr/dist/l10n/ar";
 import { Hebrew } from "flatpickr/dist/l10n/he";
-import { CalendarDays, Loader2, LogIn, LogOut } from "lucide-react";
+import { CalendarDays, LogIn, LogOut } from "lucide-react";
 
-type Step = "service" | "date" | "time" | "details" | "verify" | "success";
+type Step = "service" | "date" | "time" | "confirm" | "success";
 
 type SlotsResponse = {
   ok: boolean;
@@ -133,6 +133,12 @@ function weekdayFromDateString(dateStr: string): number {
   return d.getUTCDay();
 }
 
+function formatDateForDisplay(date: string): string {
+  const match = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(String(date ?? ""));
+  if (!match) return String(date ?? "");
+  return `${match[3]}-${match[2]}-${match[1]}`;
+}
+
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
@@ -226,7 +232,7 @@ export default function PublicBookingFlow({
   const [step, setStep] = React.useState<Step>("service");
 
   const stepsOrder = React.useMemo<Step[]>(
-    () => ["service", "date", "time", "details", "verify", "success"],
+    () => ["service", "date", "time", "confirm", "success"],
     []
   );
   const stepIndex = React.useMemo(
@@ -250,11 +256,9 @@ export default function PublicBookingFlow({
   const [customerPhoneTouched, setCustomerPhoneTouched] = React.useState(false);
   const [notes, setNotes] = React.useState<string>("");
 
-  const [otpCode, setOtpCode] = React.useState<string>("");
   const [verifyToken, setVerifyToken] = React.useState<string>("");
   const [bookingSessionId, setBookingSessionId] = React.useState<string>("");
   const [confirmBookingLoading, setConfirmBookingLoading] = React.useState(false);
-  const [resendOtpLoading, setResendOtpLoading] = React.useState(false);
   const [formError, setFormError] = React.useState<string | null>(null);
 
   const verifyTokenStorageKey = React.useMemo(
@@ -389,8 +393,7 @@ export default function PublicBookingFlow({
     };
   }, [data, limitCustomerToOneUpcomingAppointment, publicId, result]);
 
-  // Cookie-based customer identification (server-side): detect connected customer even
-  // when there is no "active appointment" banner (e.g. multi-appointments allowed).
+  // Cookie-based customer identification (server-side): prefill customer fields.
   React.useEffect(() => {
     if (!publicId) return;
     if (!data) return;
@@ -410,7 +413,6 @@ export default function PublicBookingFlow({
         if (!res.ok || !json?.ok) return;
 
         if ((json as any)?.loggedIn) {
-          setConnected(true);
           const cust = (json as any)?.customer ?? {};
           if (!customerEmail.trim() && typeof cust?.email === "string") {
             setCustomerEmail(String(cust.email));
@@ -434,6 +436,11 @@ export default function PublicBookingFlow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, publicId]);
 
+  React.useEffect(() => {
+    const session = resolveBookingSession();
+    setConnected(Boolean(session));
+  }, [bookingSessionId, resolveBookingSession]);
+
   const [cancelError, setCancelError] = React.useState<string | null>(null);
   const [cancelling, setCancelling] = React.useState(false);
   const [cancellingConflictId, setCancellingConflictId] = React.useState<
@@ -447,6 +454,10 @@ export default function PublicBookingFlow({
   const [loginStep, setLoginStep] = React.useState<"email" | "code">("email");
   const [loginEmail, setLoginEmail] = React.useState("");
   const [loginCode, setLoginCode] = React.useState("");
+  const [loginRequiresDetails, setLoginRequiresDetails] = React.useState(false);
+  const [loginPurpose, setLoginPurpose] = React.useState<
+    "appointments" | "booking"
+  >("appointments");
   const [loginSubmitting, setLoginSubmitting] = React.useState(false);
   const [loginError, setLoginError] = React.useState<string | null>(null);
 
@@ -483,9 +494,7 @@ export default function PublicBookingFlow({
     setCancelling(false);
     setCancellingConflictId(null);
     setConfirmBookingLoading(false);
-    setResendOtpLoading(false);
     setFormError(null);
-    setOtpCode("");
     persistBookingSession("");
     persistVerifyToken("");
     setCustomerFullName("");
@@ -512,9 +521,7 @@ export default function PublicBookingFlow({
     setCancellingConflictId(null);
     setCancellingSameDayId(null);
     setConfirmBookingLoading(false);
-    setResendOtpLoading(false);
     setFormError(null);
-    setOtpCode("");
     persistBookingSession("");
     persistVerifyToken("");
     setNotes("");
@@ -542,10 +549,8 @@ export default function PublicBookingFlow({
 
   React.useEffect(() => {
     const session = resolveBookingSession();
-    if (!session) return;
-    if (connected) return;
-    setConnected(true);
-  }, [connected, resolveBookingSession]);
+    setConnected(Boolean(session));
+  }, [resolveBookingSession]);
 
   React.useEffect(() => {
     if (!myAppointmentsOpen) return;
@@ -575,8 +580,7 @@ export default function PublicBookingFlow({
           throw new Error((json as any)?.error || requestFailed(res.status));
         }
         if (!json?.ok) throw new Error(t("publicBooking.errors.failed"));
-        if (!(json as any).loggedIn) {
-          setConnected(false);
+        if ((json as any)?.loggedIn) {
           throw new Error(t("publicBooking.errors.loginAgain"));
         }
 
@@ -641,12 +645,19 @@ export default function PublicBookingFlow({
     if (nextEmail && !customerEmail) setCustomerEmail(nextEmail);
     if (nextPhone && !customerPhone) setCustomerPhone(nextPhone);
 
-    if (nextEmail && nextServiceId && nextDate && nextTime) {
-      setStep("verify");
-      return;
-    }
     if (nextServiceId && nextDate && nextTime) {
-      setStep("details");
+      const session = resolveBookingSession();
+      if (session) {
+        setStep("confirm");
+      } else {
+        setLoginEmail(nextEmail || customerEmail.trim());
+        setLoginStep("email");
+        setLoginCode("");
+        setLoginError(null);
+        setLoginPurpose("booking");
+        setLoginRequiresDetails(false);
+        setLoginOpen(true);
+      }
       return;
     }
     if (nextServiceId && nextDate) {
@@ -663,6 +674,7 @@ export default function PublicBookingFlow({
     data,
     date,
     publicId,
+    resolveBookingSession,
     serviceId,
     startTime,
   ]);
@@ -832,13 +844,6 @@ export default function PublicBookingFlow({
     };
   }, [date, publicId, serviceId, step]);
 
-  React.useEffect(() => {
-    if (step !== "verify") return;
-    if (!connected) return;
-    setOtpCode("");
-    setStep("details");
-  }, [connected, step]);
-
   const openProfileEditor = React.useCallback(() => {
     const email = customerEmail.trim();
     setProfileOpen(true);
@@ -924,6 +929,8 @@ export default function PublicBookingFlow({
                 setLoginStep("email");
                 setLoginCode("");
                 setLoginError(null);
+                setLoginPurpose("appointments");
+                setLoginRequiresDetails(false);
                 setLoginOpen(true);
               }
             }}
@@ -1019,8 +1026,7 @@ export default function PublicBookingFlow({
     return combined;
   }, [result]);
 
-  const canSkipCustomerDetailsForm = Boolean(
-    connected &&
+  const hasRequiredDetails = Boolean(
     customerFullName.trim() &&
     customerEmail.trim() &&
     customerPhone.trim() &&
@@ -1030,27 +1036,20 @@ export default function PublicBookingFlow({
   const canSubmitDetails = Boolean(
     !confirmBookingLoading &&
     !activeConflict &&
-    customerFullName.trim() &&
-    customerEmail.trim() &&
-    customerPhone.trim() &&
-    customerPhoneValid
+    (bookingSessionId.trim() ? hasRequiredDetails : true)
   );
 
-  const canSubmitVerify =
-    !confirmBookingLoading &&
-    !activeConflict &&
-    cancellingConflictId === null &&
-    normalizeOtpCode(otpCode).length >= 6;
+  const detailsConfirmLabel = t("publicBooking.details.confirmBookingAction");
 
-  const detailsConfirmLabel = connected
-    ? t("publicBooking.details.confirmBookingAction")
-    : t("publicBooking.details.verifyEmailAction");
-
-  const detailsSubmittingLabel = connected
-    ? t("publicBooking.actions.confirming")
-    : t("publicBooking.actions.sendingCode");
+  const detailsSubmittingLabel = t("publicBooking.actions.confirming");
 
   const showGallery = step === "service";
+
+  const loginDetailsMissing = Boolean(
+    loginPurpose === "booking" &&
+    loginRequiresDetails &&
+    (!customerFullName.trim() || !customerPhone.trim() || !customerPhoneValid)
+  );
 
   const renderStepHeader = React.useCallback(
     (title: string, subtitle?: string) => (
@@ -1075,13 +1074,8 @@ export default function PublicBookingFlow({
       return;
     }
 
-    if (step === "details") {
+    if (step === "confirm") {
       setStep("time");
-      return;
-    }
-
-    if (step === "verify") {
-      setStep("details");
       return;
     }
 
@@ -1103,49 +1097,6 @@ export default function PublicBookingFlow({
     }
   }, [connected, resetBookingOnly, resetFlow, step]);
 
-  const requestOtp = async () => {
-    if (!customerFullName.trim())
-      throw new Error(t("publicBooking.errors.fullNameRequired"));
-    if (!customerEmail.trim())
-      throw new Error(t("publicBooking.errors.emailRequired"));
-    if (!customerPhone.trim())
-      throw new Error(t("publicBooking.errors.phoneRequired"));
-    if (!customerPhoneValid)
-      throw new Error(t("publicBooking.errors.invalidPhone"));
-    if (!publicId) throw new Error(t("publicBooking.errors.businessNotFound"));
-    if (!serviceId || !date || !startTime)
-      throw new Error(t("publicBooking.errors.missingBookingDetails"));
-
-    const res = await fetch("/api/public/booking/request-otp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        businessPublicId: publicId,
-        email: customerEmail.trim(),
-      }),
-    });
-
-    const json = await res.json().catch(() => null);
-    if (!res.ok)
-      throw new Error(json?.error || requestFailed(res.status));
-    const token = String(json?.verifyToken ?? "").trim();
-    if (!token) throw new Error(t("publicBooking.errors.verificationFailed"));
-    persistBookingSession("");
-    persistVerifyToken(token);
-  };
-
-  const handleResendOtp = React.useCallback(async () => {
-    setResendOtpLoading(true);
-    setFormError(null);
-    try {
-      await requestOtp();
-    } catch (e: any) {
-      setFormError(e?.message || t("publicBooking.errors.failed"));
-    } finally {
-      setResendOtpLoading(false);
-    }
-  }, [requestOtp, t]);
-
   const requestLoginOtp = async () => {
     if (!publicId) throw new Error(t("publicBooking.errors.businessNotFound"));
     const email = loginEmail.trim();
@@ -1161,6 +1112,18 @@ export default function PublicBookingFlow({
 
     const json = await res.json().catch(() => null);
     if (!res.ok) throw new Error(json?.error || requestFailed(res.status));
+
+    if (loginPurpose === "booking") {
+      const token = String(json?.verifyToken ?? "").trim();
+      if (!token) throw new Error(t("publicBooking.errors.verificationFailed"));
+      persistVerifyToken(token);
+      const customer = json?.customer ?? null;
+      const fullName = String(customer?.fullName ?? "").trim();
+      const phone = String(customer?.phone ?? "").trim();
+      if (fullName) setCustomerFullName(fullName);
+      if (phone) setCustomerPhone(phone);
+      setLoginRequiresDetails(!fullName || !phone);
+    }
   };
 
   const verifyLoginOtp = async () => {
@@ -1169,6 +1132,76 @@ export default function PublicBookingFlow({
     const code = normalizeOtpCode(loginCode);
     if (!email) throw new Error(t("publicBooking.errors.emailRequired"));
     if (!code) throw new Error(t("publicBooking.errors.codeRequired"));
+
+    if (loginPurpose === "booking") {
+      if (loginRequiresDetails) {
+        if (!customerFullName.trim())
+          throw new Error(t("publicBooking.errors.fullNameRequired"));
+        if (!customerPhone.trim())
+          throw new Error(t("publicBooking.errors.phoneRequired"));
+        if (!customerPhoneValid)
+          throw new Error(t("publicBooking.errors.invalidPhone"));
+      }
+
+      const token = resolveVerifyToken();
+      if (!token) throw new Error(t("publicBooking.errors.verificationFailed"));
+
+      const res = await fetch("/api/public/booking/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          businessPublicId: publicId,
+          verifyToken: token,
+          otp: code,
+        }),
+      });
+      const json = await res.json().catch(() => null);
+
+      if (
+        res.status === 409 &&
+        String(json?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS"
+      ) {
+        const sessionId = String(json?.bookingSessionId ?? "").trim();
+        if (sessionId) persistBookingSession(sessionId);
+        setActiveConflict({
+          code: "ACTIVE_APPOINTMENT_EXISTS",
+          bookingSessionId: sessionId,
+          existingAppointment: json?.existingAppointment,
+          existingAppointments: Array.isArray(json?.existingAppointments)
+            ? json.existingAppointments
+            : undefined,
+        });
+        setConnected(true);
+        setLoginOpen(false);
+        setStep("confirm");
+        return;
+      }
+
+      if (!res.ok) {
+        const errCode = String(json?.code ?? "");
+        if (errCode === "invalid_code") {
+          throw new Error(t("publicBooking.errors.invalidCode"));
+        }
+        if (errCode === "expired_code") {
+          throw new Error(t("publicBooking.errors.codeExpired"));
+        }
+        if (errCode === "invalid_token") {
+          throw new Error(t("publicBooking.errors.verificationFailed"));
+        }
+        throw new Error(json?.error || requestFailed(res.status));
+      }
+
+      const sessionId = String(json?.bookingSessionId ?? "").trim();
+      if (!sessionId) throw new Error(t("publicBooking.errors.verificationFailed"));
+      persistBookingSession(sessionId);
+      persistVerifyToken("");
+      setCustomerEmail(email);
+      setLoginRequiresDetails(false);
+      setConnected(true);
+      setLoginOpen(false);
+      setStep("confirm");
+      return;
+    }
 
     const res = await fetch("/api/public/booking/login/verify-otp", {
       method: "POST",
@@ -1271,82 +1304,13 @@ export default function PublicBookingFlow({
     setProfileOpen(false);
   };
 
-  const verifyBookingSession = async (): Promise<string> => {
-    if (!publicId) throw new Error(t("publicBooking.errors.businessNotFound"));
-    if (!customerEmail.trim())
-      throw new Error(t("publicBooking.errors.emailRequired"));
-    const token = resolveVerifyToken();
-    if (!token) throw new Error(t("publicBooking.errors.verificationFailed"));
-    const code = normalizeOtpCode(otpCode);
-    if (!code) throw new Error(t("publicBooking.errors.codeRequired"));
-
-    const verifyRes = await fetch("/api/public/booking/verify-otp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        businessPublicId: publicId,
-        verifyToken: token,
-        otp: code,
-      }),
-    });
-
-    const verifyJson = await verifyRes.json().catch(() => null);
-
-    if (
-      verifyRes.status === 409 &&
-      String(verifyJson?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS"
-    ) {
-      const sessionId = String(verifyJson?.bookingSessionId ?? "").trim();
-      if (sessionId) {
-        persistBookingSession(sessionId);
-        setConnected(true);
-      }
-      setActiveConflict({
-        code: "ACTIVE_APPOINTMENT_EXISTS",
-        bookingSessionId: sessionId,
-        existingAppointment: verifyJson?.existingAppointment,
-        existingAppointments: Array.isArray(verifyJson?.existingAppointments)
-          ? verifyJson.existingAppointments
-          : undefined,
-      });
-      const err: any = new Error(
-        verifyJson?.error ||
-        t("publicBooking.errors.activeAppointmentExists")
-      );
-      err.code = "ACTIVE_APPOINTMENT_EXISTS";
-      throw err;
-    }
-
-    if (!verifyRes.ok) {
-      const errCode = String(verifyJson?.code ?? "");
-      if (errCode === "invalid_code") {
-        throw new Error(t("publicBooking.errors.invalidCode"));
-      }
-      if (errCode === "expired_code") {
-        throw new Error(t("publicBooking.errors.codeExpired"));
-      }
-      if (errCode === "invalid_token") {
-        throw new Error(t("publicBooking.errors.verificationFailed"));
-      }
-      throw new Error(verifyJson?.error || requestFailed(verifyRes.status));
-    }
-
-    const sessionId = String(verifyJson?.bookingSessionId ?? "").trim();
-    if (!sessionId) throw new Error(t("publicBooking.errors.verificationFailed"));
-    persistBookingSession(sessionId);
-    setActiveConflict(null);
-    setConnected(true);
-    persistVerifyToken("");
-    return sessionId;
-  };
-
   const confirmBooking = async (sessionId?: string) => {
     if (!publicId) throw new Error(t("publicBooking.errors.businessNotFound"));
     if (!serviceId || !date || !startTime)
       throw new Error(t("publicBooking.errors.missingBookingDetails"));
 
     const sid = String(sessionId ?? resolveBookingSession() ?? "").trim();
-    if (!sid && !connected)
+    if (!sid)
       throw new Error(t("publicBooking.errors.emailVerificationRequired"));
 
     const confirmRes = await fetch("/api/public/booking/confirm", {
@@ -1361,7 +1325,7 @@ export default function PublicBookingFlow({
         customerEmail: customerEmail.trim(),
         customerPhone: customerPhone.trim(),
         notes: notes.trim() || undefined,
-        ...(sid ? { bookingSessionId: sid } : {}),
+        bookingSessionId: sid,
       }),
     });
 
@@ -1426,19 +1390,28 @@ export default function PublicBookingFlow({
     setConfirmBookingLoading(true);
     setFormError(null);
     try {
-      if (connected) {
-        const r = await confirmBooking(resolveBookingSession());
-        setResult(r);
-        setStep("success");
-        setIdentified(true);
-        setConnected(true);
-        persistVerifyToken("");
-        setOtpCode("");
+      const sessionId = bookingSessionId.trim();
+      if (!sessionId) {
+        setLoginEmail(customerEmail.trim());
+        setLoginStep("email");
+        setLoginCode("");
+        setLoginError(null);
+        setLoginPurpose("booking");
+        setLoginRequiresDetails(false);
+        setLoginOpen(true);
         return;
       }
 
-      await requestOtp();
-      setStep("verify");
+      if (!hasRequiredDetails) {
+        throw new Error(t("publicBooking.details.completeDetailsDescription"));
+      }
+
+      const r = await confirmBooking(sessionId);
+      setResult(r);
+      setStep("success");
+      setIdentified(true);
+      setConnected(true);
+      persistVerifyToken("");
     } catch (e: any) {
       if (
         String(e?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS" ||
@@ -1453,40 +1426,13 @@ export default function PublicBookingFlow({
     }
   }, [
     canSubmitDetails,
+    bookingSessionId,
     confirmBooking,
-    connected,
+    customerEmail,
+    hasRequiredDetails,
     persistVerifyToken,
-    requestOtp,
-    resolveBookingSession,
     t,
   ]);
-
-  const handleVerifyConfirm = React.useCallback(async () => {
-    if (!canSubmitVerify) return;
-    setConfirmBookingLoading(true);
-    setFormError(null);
-    try {
-      const sessionId = await verifyBookingSession();
-      const r = await confirmBooking(sessionId);
-      setResult(r);
-      setStep("success");
-      setIdentified(true);
-      setConnected(true);
-      persistVerifyToken("");
-      setOtpCode("");
-    } catch (e: any) {
-      if (
-        String(e?.code ?? "") === "ACTIVE_APPOINTMENT_EXISTS" ||
-        String(e?.code ?? "") === "SAME_SERVICE_SAME_DAY_EXISTS"
-      ) {
-        // Business rule violation; show conflict UI, not an OTP error.
-        return;
-      }
-      setFormError(e?.message || t("publicBooking.errors.failed"));
-    } finally {
-      setConfirmBookingLoading(false);
-    }
-  }, [canSubmitVerify, confirmBooking, persistVerifyToken, t, verifyBookingSession]);
 
   const handleConfirmKeyDown = React.useCallback(
     (event: React.KeyboardEvent) => {
@@ -1497,15 +1443,11 @@ export default function PublicBookingFlow({
       if (target?.tagName === "TEXTAREA") return;
       event.preventDefault();
 
-      if (step === "details") {
+      if (step === "confirm") {
         void handleDetailsConfirm();
       }
-
-      if (step === "verify") {
-        void handleVerifyConfirm();
-      }
     },
-    [handleDetailsConfirm, handleVerifyConfirm, step],
+    [handleDetailsConfirm, step],
   );
 
   async function disconnectCustomer() {
@@ -1716,6 +1658,8 @@ export default function PublicBookingFlow({
             setLoginSubmitting(false);
             setLoginCode("");
             setLoginStep("email");
+            setLoginRequiresDetails(false);
+            setCustomerPhoneTouched(false);
           }
         }}
       >
@@ -1783,6 +1727,49 @@ export default function PublicBookingFlow({
                   inputClassName="h-10 w-10 sm:h-11 sm:w-11 text-base sm:text-lg"
                 />
               </div>
+              {loginPurpose === "booking" && loginRequiresDetails ? (
+                <div className="space-y-3">
+                  <div className="rounded-2xl border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-950/10 p-3">
+                    <div className="text-sm text-amber-900 dark:text-amber-200">
+                      {t("publicBooking.details.completeDetailsDescription")}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="loginFullName">
+                      {t("publicBooking.details.fullNameLabel")}
+                    </Label>
+                    <Input
+                      id="loginFullName"
+                      className="rounded-2xl"
+                      value={customerFullName}
+                      onChange={(e) => setCustomerFullName(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="loginPhone">
+                      {t("publicBooking.details.phoneLabel")}
+                    </Label>
+                    <PhoneInput
+                      id="loginPhone"
+                      className="rounded-2xl"
+                      inputClassName="rounded-2xl"
+                      value={customerPhone}
+                      onChange={(v) => setCustomerPhone(v)}
+                      onValidityChange={setCustomerPhoneValid}
+                      onBlur={() => setCustomerPhoneTouched(true)}
+                      aria-invalid={customerPhoneTouched && !customerPhoneValid}
+                      placeholder={t("publicBooking.details.phonePlaceholder")}
+                    />
+                    {customerPhoneTouched && customerPhone.trim() && !customerPhoneValid ? (
+                      <div className="text-xs text-red-600 dark:text-red-400">
+                        {t("publicBooking.details.invalidPhone")}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
               <div className="flex gap-2">
                 <Button
                   type="button"
@@ -1801,7 +1788,8 @@ export default function PublicBookingFlow({
                   className="rounded-2xl flex-1"
                   disabled={
                     loginSubmitting ||
-                    normalizeOtpCode(loginCode).length < 6
+                    normalizeOtpCode(loginCode).length < 6 ||
+                    loginDetailsMissing
                   }
                   onClick={async () => {
                     setLoginSubmitting(true);
@@ -2184,7 +2172,7 @@ export default function PublicBookingFlow({
         <div className="space-y-4">
           {renderStepHeader(
             t("publicBooking.steps.time"),
-            date || undefined
+            date ? formatDateForDisplay(date) : undefined
           )}
 
           <div className="space-y-3">
@@ -2213,6 +2201,19 @@ export default function PublicBookingFlow({
                         onClick={() => {
                           setStartTime(s.startTime);
                           setFormError(null);
+
+                          if (bookingSessionId.trim()) {
+                            setStep("confirm");
+                            return;
+                          }
+
+                          setLoginEmail(customerEmail.trim());
+                          setLoginStep("email");
+                          setLoginCode("");
+                          setLoginError(null);
+                          setLoginPurpose("booking");
+                          setLoginRequiresDetails(false);
+                          setLoginOpen(true);
                         }}
                       >
                         <div className="font-semibold text-gray-900 dark:text-white leading-none">
@@ -2239,21 +2240,14 @@ export default function PublicBookingFlow({
             )}
           </div>
 
-          <Button
-            onClick={() => setStep("details")}
-            className="rounded-2xl w-full"
-            disabled={!startTime}
-          >
-            {t("publicBooking.steps.details")}
-          </Button>
         </div>
       ) : null}
 
-      {/* Details */}
-      {step === "details" ? (
+      {/* Confirm */}
+      {step === "confirm" ? (
         <div className="space-y-4" onKeyDown={handleConfirmKeyDown}>
           {renderStepHeader(
-            t("publicBooking.steps.details"),
+            t("publicBooking.details.confirmBookingTitle"),
             date && startTime
               ? t("publicBooking.subtitle.detailsWithTime", {
                 date,
@@ -2328,34 +2322,34 @@ export default function PublicBookingFlow({
             </div>
           ) : null}
 
-          {canSkipCustomerDetailsForm ? (
-            <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/10 p-4">
-              <div className="font-semibold text-gray-900 dark:text-white">
-                {t("publicBooking.details.confirmBookingTitle")}
-              </div>
-              <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                {selectedService?.name
-                  ? selectedService.name
-                  : t("publicBooking.details.appointmentFallback")}
-              </div>
-              <div className="text-sm text-gray-700 dark:text-gray-200 mt-1">
-                {date}
-                {startTime ? (
-                  <>
-                    {" • "}
-                    <span dir="ltr">
-                      {formatTimeRange(startTime, selectedSlot?.endTime || "")}
-                    </span>
-                  </>
-                ) : null}
-              </div>
-              {durationLabel && priceLabel ? (
-                <div className="text-sm text-muted-foreground mt-1">
-                  {durationLabel} • {priceLabel}
-                </div>
+          <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/10 p-4">
+            <div className="font-semibold text-gray-900 dark:text-white">
+              {t("publicBooking.details.confirmBookingTitle")}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+              {selectedService?.name
+                ? selectedService.name
+                : t("publicBooking.details.appointmentFallback")}
+            </div>
+            <div className="text-sm text-gray-700 dark:text-gray-200 mt-1">
+              {date}
+              {startTime ? (
+                <>
+                  {" • "}
+                  <span dir="ltr">
+                    {formatTimeRange(startTime, selectedSlot?.endTime || "")}
+                  </span>
+                </>
               ) : null}
             </div>
-          ) : (
+            {durationLabel && priceLabel ? (
+              <div className="text-sm text-muted-foreground mt-1">
+                {durationLabel} • {priceLabel}
+              </div>
+            ) : null}
+          </div>
+
+          {!hasRequiredDetails ? (
             <div className="rounded-2xl border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-950/10 p-4">
               <div className="font-semibold text-amber-900 dark:text-amber-200">
                 {t("publicBooking.details.completeDetailsTitle")}
@@ -2364,64 +2358,17 @@ export default function PublicBookingFlow({
                 {t("publicBooking.details.completeDetailsDescription")}
               </div>
             </div>
-          )}
-
-          {!canSkipCustomerDetailsForm ? (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="fullName">
-                  {t("publicBooking.details.fullNameLabel")}
-                </Label>
-                <Input
-                  id="fullName"
-                  className="rounded-2xl"
-                  value={customerFullName}
-                  onChange={(e) => setCustomerFullName(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">{t("publicBooking.details.emailLabel")}</Label>
-                <Input
-                  id="email"
-                  className="rounded-2xl"
-                  value={customerEmail}
-                  onChange={(e) => setCustomerEmail(e.target.value)}
-                  placeholder={t("publicBooking.details.emailPlaceholder")}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phone">{t("publicBooking.details.phoneLabel")}</Label>
-                <PhoneInput
-                  id="phone"
-                  className="rounded-2xl"
-                  inputClassName="rounded-2xl"
-                  value={customerPhone}
-                  onChange={(v) => setCustomerPhone(v)}
-                  onValidityChange={setCustomerPhoneValid}
-                  onBlur={() => setCustomerPhoneTouched(true)}
-                  aria-invalid={customerPhoneTouched && !customerPhoneValid}
-                  placeholder={t("publicBooking.details.phonePlaceholder")}
-                />
-                {customerPhoneTouched && customerPhone.trim() && !customerPhoneValid ? (
-                  <div className="text-xs text-red-600 dark:text-red-400">
-                    {t("publicBooking.details.invalidPhone")}
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="notes">{t("publicBooking.details.notesLabel")}</Label>
-                <Textarea
-                  id="notes"
-                  className="rounded-2xl"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-              </div>
-            </>
           ) : null}
+
+          <div className="space-y-2">
+            <Label htmlFor="notes">{t("publicBooking.details.notesLabel")}</Label>
+            <Textarea
+              id="notes"
+              className="rounded-2xl"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </div>
 
           <Button
             onClick={handleDetailsConfirm}
@@ -2430,113 +2377,6 @@ export default function PublicBookingFlow({
           >
             {confirmBookingLoading ? detailsSubmittingLabel : detailsConfirmLabel}
           </Button>
-        </div>
-      ) : null}
-
-      {/* Verify */}
-      {step === "verify" ? (
-        <div className="space-y-4" onKeyDown={handleConfirmKeyDown}>
-          {renderStepHeader(
-            t("publicBooking.steps.verify"),
-            customerEmail
-              ? t("publicBooking.subtitle.codeSent", { email: customerEmail })
-              : undefined
-          )}
-
-          {formError ? (
-            <div className="text-sm text-red-600 dark:text-red-400">
-              {formError}
-            </div>
-          ) : null}
-
-          {activeConflict ? (
-            <div className="rounded-2xl border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/70 dark:bg-amber-950/20 p-4">
-              <div className="font-semibold text-amber-900 dark:text-amber-200">
-                {activeConflict.code === "SAME_SERVICE_SAME_DAY_EXISTS"
-                  ? t("publicBooking.conflict.sameServiceTitle")
-                  : t("publicBooking.conflict.upcomingTitle")}
-              </div>
-              <div className="text-sm text-amber-800/90 dark:text-amber-200/80 mt-1">
-                {activeConflict.code === "SAME_SERVICE_SAME_DAY_EXISTS"
-                  ? t("publicBooking.conflict.sameServiceDescription")
-                  : t("publicBooking.conflict.upcomingDescription")}
-              </div>
-
-              <div className="mt-2 space-y-2">
-                {(Array.isArray(activeConflict.existingAppointments)
-                  ? activeConflict.existingAppointments
-                  : activeConflict.existingAppointment
-                    ? [activeConflict.existingAppointment]
-                    : [])
-                  .filter((x: any) => String(x?.id ?? "").trim())
-                  .map((appt: any) => {
-                    const apptId = String(appt?.id ?? "").trim();
-                    const label = `${appt?.serviceName ? `${appt.serviceName} • ` : ""}${appt?.date || ""}${appt?.startTime ? ` • ${appt.startTime}` : ""}`;
-
-                    return (
-                      <div
-                        key={apptId}
-                        className="rounded-xl border border-amber-200/70 dark:border-amber-900/40 bg-white/60 dark:bg-black/10 p-3"
-                      >
-                        <div className="text-sm text-amber-900/90 dark:text-amber-200/90">
-                          {label}
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="rounded-2xl w-full mt-2"
-                          disabled={confirmBookingLoading || cancellingConflictId === apptId}
-                          onClick={() => handleCancelConflictAppointment(apptId)}
-                        >
-                          {cancellingConflictId === apptId
-                            ? t("publicBooking.actions.cancelling")
-                            : t("publicBooking.actions.cancelAppointment")}
-                        </Button>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          ) : null}
-
-          <div className="flex justify-center">
-            <OtpInput
-              id="booking-otp"
-              name="code"
-              length={6}
-              value={otpCode}
-              onChange={setOtpCode}
-              disabled={confirmBookingLoading}
-            />
-          </div>
-
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="rounded-2xl"
-              onClick={handleResendOtp}
-              disabled={resendOtpLoading || cancellingConflictId !== null}
-            >
-              {resendOtpLoading ? (
-                <span className="inline-flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  {t("publicBooking.actions.sendingCode")}
-                </span>
-              ) : (
-                t("publicBooking.verify.resend")
-              )}
-            </Button>
-
-            <Button
-              className="rounded-2xl flex-1"
-              onClick={handleVerifyConfirm}
-              disabled={!canSubmitVerify}
-            >
-              {confirmBookingLoading
-                ? t("publicBooking.actions.confirming")
-                : t("publicBooking.verify.confirmBooking")}
-            </Button>
-          </div>
         </div>
       ) : null}
 
