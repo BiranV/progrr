@@ -795,6 +795,7 @@ export default function PublicBookingFlow({
             {connected ? (
               <>
                 <DropdownMenuItem
+                  className="rtl:flex-row-reverse rtl:justify-end"
                   onClick={() => {
                     setMyAppointmentsScope("all");
                     setMyAppointmentsDate(dateForMy);
@@ -804,12 +805,16 @@ export default function PublicBookingFlow({
                   <CalendarDays className="h-4 w-4" />
                   {t("publicBooking.header.myAppointments")}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={openProfileEditor}>
+                <DropdownMenuItem
+                  className="rtl:flex-row-reverse rtl:justify-end"
+                  onClick={openProfileEditor}
+                >
                   <User className="h-4 w-4" />
                   {t("publicBooking.header.updateDetails")}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
+                  className="rtl:flex-row-reverse rtl:justify-end"
                   onClick={async () => {
                     setLoggingOut(true);
                     try {
@@ -823,7 +828,7 @@ export default function PublicBookingFlow({
                     }
                   }}
                 >
-                  <LogOut className="h-4 w-4" />
+                  <LogOut className="h-4 w-4 rtl:rotate-180" />
                   {loggingOut
                     ? t("publicBooking.header.loggingOut")
                     : t("publicBooking.header.logout")}
@@ -831,6 +836,7 @@ export default function PublicBookingFlow({
               </>
             ) : (
               <DropdownMenuItem
+                className="rtl:flex-row-reverse rtl:justify-end"
                 onClick={() => {
                   setLoginEmail(customerEmail.trim());
                   setLoginStep("email");
@@ -950,7 +956,7 @@ export default function PublicBookingFlow({
 
   const renderStepHeader = React.useCallback(
     (title: string, subtitle?: string) => (
-      <div className="space-y-1 mt-2">
+      <div className="space-y-1 mt-6">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
           {title}
         </h2>
@@ -2090,15 +2096,7 @@ export default function PublicBookingFlow({
       {/* Confirm */}
       {step === "confirm" ? (
         <div className="space-y-4" onKeyDown={handleConfirmKeyDown}>
-          {renderStepHeader(
-            t("publicBooking.details.confirmBookingTitle"),
-            date && startTime
-              ? t("publicBooking.subtitle.detailsWithTime", {
-                date,
-                time: startTime,
-              })
-              : undefined
-          )}
+          {renderStepHeader(t("publicBooking.details.confirmBookingTitle"))}
 
           {formError ? (
             <div className="text-sm text-red-600 dark:text-red-400">
@@ -2167,13 +2165,13 @@ export default function PublicBookingFlow({
           ) : null}
 
           <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/10 p-4">
-            <div className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+            <div className="text-sm text-gray-700 dark:text-gray-200 mt-1">
               {selectedService?.name
                 ? selectedService.name
                 : t("publicBooking.details.appointmentFallback")}
             </div>
             <div className="text-sm text-gray-700 dark:text-gray-200 mt-1">
-              {date}
+              {formatDateForDisplay(date)}
               {startTime ? (
                 <>
                   {" • "}
@@ -2230,7 +2228,7 @@ export default function PublicBookingFlow({
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       {a.date ? (
-                        <div className="text-xs text-muted-foreground" dir="ltr">
+                        <div className="text-xs text-muted-foreground text-start" dir="ltr">
                           {formatDateForDisplay(a.date)}
                         </div>
                       ) : null}
