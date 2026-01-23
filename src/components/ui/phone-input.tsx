@@ -202,7 +202,7 @@ function CountrySelect({
                                     role="option"
                                     aria-selected={isSelected}
                                     className={cn(
-                                        "w-full flex items-center justify-between gap-3 px-3 py-2 text-left text-sm",
+                                        "w-full flex items-center justify-between gap-3 px-3 py-2 text-start text-sm",
                                         "hover:bg-accent hover:text-accent-foreground",
                                         isActive ? "bg-accent text-accent-foreground" : "",
                                         isSelected ? "font-medium" : ""

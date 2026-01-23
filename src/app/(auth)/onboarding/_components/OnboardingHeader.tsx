@@ -18,7 +18,7 @@ export default function OnboardingHeader({
   const { t } = useI18n();
 
   return (
-    <div className="relative mb-2 w-[120%] -ml-[10%]">
+    <div className="relative mb-2 w-[120%] -ms-[10%]">
       {/* Curved Background */}
       <div
         className="absolute inset-x-0 top-0 h-[220px] bg-emerald-500 shadow-md -z-10"

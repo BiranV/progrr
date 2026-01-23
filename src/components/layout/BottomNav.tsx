@@ -50,7 +50,7 @@ export default function BottomNav() {
   return (
     <nav
       data-bottom-nav
-      className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background border-border pb-[env(safe-area-inset-bottom)]"
+      className="fixed bottom-0 inset-x-0 z-50 border-t bg-background border-border pb-[env(safe-area-inset-bottom)]"
     >
       <div className="mx-auto max-w-[480px] h-[72px] flex items-center justify-around px-2">
         {navItems.map((item) => {

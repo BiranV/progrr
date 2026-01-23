@@ -364,7 +364,7 @@ export default function CustomerDetailsPage() {
           {data.bookingsPagination ? (
             <div className="flex items-center gap-1">
               {isRefreshing ? (
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mr-1" />
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground me-1" />
               ) : null}
               <Button
                 type="button"

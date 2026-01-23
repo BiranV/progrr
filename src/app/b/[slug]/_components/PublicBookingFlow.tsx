@@ -1618,7 +1618,7 @@ export default function PublicBookingFlow({
                 setStep("date");
               }}
               className={
-                "w-full text-left rounded-2xl border border-gray-200 dark:border-gray-800 " +
+                "w-full text-start rounded-2xl border border-gray-200 dark:border-gray-800 " +
                 "bg-white/70 dark:bg-gray-950/20 p-4 shadow-sm " +
                 "transition cursor-pointer " +
                 "hover:bg-white hover:shadow-md hover:-translate-y-[1px] " +

@@ -4,7 +4,21 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { Check, Trash2, Loader2, Plus } from "lucide-react";
+import {
+  Apple,
+  Check,
+  Dumbbell,
+  Hand,
+  Loader2,
+  Flower2 as Lotus,
+  PenTool,
+  Plus,
+  Scissors,
+  Shapes,
+  Sparkles,
+  Trash2,
+  type LucideIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -24,7 +38,6 @@ import {
 
 import AuthBanner from "../auth/_components/AuthBanner";
 import { useAuth } from "@/context/AuthContext";
-import { useLocale } from "@/context/LocaleContext";
 import { BUSINESS_TYPES, SERVICE_PRESETS } from "@/lib/onboardingPresets";
 import ImageCropperModal, {
   type ImageCropperMode,
@@ -136,6 +149,16 @@ function currencyLabel(data: OnboardingData, otherLabel: string): string {
 }
 
 const BUSINESS_TYPE_OPTIONS = BUSINESS_TYPES;
+const BUSINESS_TYPE_ICONS: Record<string, LucideIcon> = {
+  hair_salon: Scissors,
+  beauty_clinic: Sparkles,
+  nails: Hand,
+  tattoo_piercing: PenTool,
+  spa_massage: Lotus,
+  fitness_coach: Dumbbell,
+  nutrition_clinic: Apple,
+  other: Shapes,
+};
 
 const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
@@ -293,7 +316,7 @@ export default function OnboardingPage() {
   const InlineError = ({ message }: { message?: string }) => {
     if (!message) return null;
     return (
-      <p className="text-[13px] text-rose-500 dark:text-rose-400 mt-0.5 ml-1">
+      <p className="text-[13px] text-rose-500 dark:text-rose-400 mt-0.5 ms-1">
         {message}
       </p>
     );
@@ -302,7 +325,6 @@ export default function OnboardingPage() {
   const inputErrorClass = "border-rose-300 ring-1 ring-rose-300/20";
 
   const [businessPhoneValid, setBusinessPhoneValid] = useState(true);
-  const { dir } = useLocale();
   const { t, dict } = useI18n();
   const dayLabels = dict.onboarding.dayLabels || [];
   const dayShortLabels = dict.onboarding.dayShortLabels || dayLabels;
@@ -1152,7 +1174,7 @@ export default function OnboardingPage() {
                         });
                       }}
                       className={
-                        `w-[160px] min-h-[90px] h-auto rounded-xl border px-4 py-3 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-neutral-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 overflow-hidden ${dir === "rtl" ? "text-right" : "text-left"} ` +
+                        "w-[160px] min-h-[90px] h-auto rounded-xl border px-4 py-3 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-neutral-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 overflow-hidden text-start " +
                         (selected
                           ? "border-neutral-900 bg-neutral-50/70 dark:bg-neutral-900/30 shadow-sm"
                           : "border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/30 hover:border-gray-300 dark:hover:border-gray-700")
@@ -1170,6 +1192,20 @@ export default function OnboardingPage() {
                         >
                           {selected ? <Check className="h-3.5 w-3.5" /> : null}
                         </div>
+                        {(() => {
+                          const Icon = BUSINESS_TYPE_ICONS[opt.key];
+                          return Icon ? (
+                            <Icon
+                              className={
+                                "h-5 w-5 shrink-0 " +
+                                (selected
+                                  ? "text-primary"
+                                  : "text-muted-foreground")
+                              }
+                              aria-hidden="true"
+                            />
+                          ) : null;
+                        })()}
                         <div className="min-w-0">
                           <div className="font-medium text-gray-900 dark:text-white whitespace-normal break-words [overflow-wrap:anywhere]">
                             {t(opt.titleKey)}
@@ -2317,7 +2353,7 @@ export default function OnboardingPage() {
       </div>
 
       {/* Sticky Bottom Actions */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-lg border-t border-gray-100 dark:border-gray-800 p-4 z-40 shadow-[0_-4px_8px_-1px_rgba(0,0,0,0.02)]">
+      <div className="fixed bottom-0 inset-x-0 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-lg border-t border-gray-100 dark:border-gray-800 p-4 z-40 shadow-[0_-4px_8px_-1px_rgba(0,0,0,0.02)]">
         <div className="max-w-[420px] mx-auto flex gap-3 w-full">
           {step > 0 && (
             <Button

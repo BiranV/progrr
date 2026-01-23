@@ -36,18 +36,7 @@ export default function PublicBookingShell({
   showGallery?: boolean;
   children: React.ReactNode;
 }) {
-  const [isRtl, setIsRtl] = React.useState(false);
   const [previewSrc, setPreviewSrc] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    const el = document?.documentElement;
-    if (!el) return;
-
-    const dirAttr = String(el.getAttribute("dir") ?? "").toLowerCase();
-    const computedDir =
-      typeof window !== "undefined" ? getComputedStyle(el).direction : "ltr";
-    setIsRtl(dirAttr === "rtl" || computedDir === "rtl");
-  }, []);
 
   const logoUrl = String(business?.branding?.logoUrl ?? "").trim();
   const bannerUrl = String(
@@ -226,11 +215,11 @@ export default function PublicBookingShell({
                 "absolute top-5 rounded-xl",
                 "text-gray-900 hover:bg-gray-100",
                 "dark:text-white dark:hover:bg-white/10",
-                isRtl ? "right-6" : "left-6",
+                "start-6",
               )}
               aria-label="Back"
             >
-              <ArrowLeft className={"h-5 w-5" + (isRtl ? " rotate-180" : "")} />
+              <ArrowLeft className="h-5 w-5 rtl:rotate-180" />
             </Button>
           ) : null}
 
@@ -415,7 +404,7 @@ export default function PublicBookingShell({
                     ))}
                   </div>
 
-                  <div className="pointer-events-none absolute inset-y-0 left-0 right-0 flex items-center justify-between">
+                  <div className="pointer-events-none absolute inset-y-0 inset-x-0 flex items-center justify-between">
                     <div className="pointer-events-auto">
                       <Button
                         type="button"
@@ -430,11 +419,11 @@ export default function PublicBookingShell({
                           "backdrop-blur",
                           "border border-gray-200/70 dark:border-gray-800",
                           "shadow-sm",
-                          "ml-1",
+                          "ms-1",
                         )}
                         aria-label="Previous gallery images"
                       >
-                        <ChevronLeft className="h-5 w-5" />
+                        <ChevronLeft className="h-5 w-5 rtl:rotate-180" />
                       </Button>
                     </div>
 
@@ -452,11 +441,11 @@ export default function PublicBookingShell({
                           "backdrop-blur",
                           "border border-gray-200/70 dark:border-gray-800",
                           "shadow-sm",
-                          "mr-1",
+                          "me-1",
                         )}
                         aria-label="Next gallery images"
                       >
-                        <ChevronRight className="h-5 w-5" />
+                        <ChevronRight className="h-5 w-5 rtl:rotate-180" />
                       </Button>
                     </div>
                   </div>
@@ -509,13 +498,13 @@ export default function PublicBookingShell({
             >
               <div className="min-w-0">
                 {subtitle ? (
-                  <div className="text-base font-semibold text-gray-900 dark:text-white text-left">
+                  <div className="text-base font-semibold text-gray-900 dark:text-white text-start">
                     {subtitle}
                   </div>
                 ) : null}
               </div>
               {subtitleRight ? (
-                <div className="text-xs text-gray-500 dark:text-gray-400 font-medium truncate whitespace-nowrap text-right">
+                <div className="text-xs text-gray-500 dark:text-gray-400 font-medium truncate whitespace-nowrap text-end">
                   {subtitleRight}
                 </div>
               ) : null}

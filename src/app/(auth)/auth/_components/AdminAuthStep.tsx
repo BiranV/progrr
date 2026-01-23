@@ -11,7 +11,6 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useLocale } from "@/context/LocaleContext";
 
 import AuthBanner, { type AuthBannerState } from "./AuthBanner";
 import OtpInput from "@/components/OtpInput";
@@ -59,8 +58,6 @@ export default function AdminAuthStep({
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setSessionUser } = useAuth();
-  const { dir } = useLocale();
-  const BackIcon = dir === "rtl" ? ChevronRight : ChevronLeft;
   const { t } = useI18n();
 
   // State
@@ -310,7 +307,7 @@ export default function AdminAuthStep({
   // Inline Helper using requested styles
   const InlineError = ({ message }: { message: string | null }) => {
     if (!message) return null;
-    return <p className="text-[13px] text-red-200/80 ml-1">{message}</p>;
+    return <p className="text-[13px] text-red-200/80 ms-1">{message}</p>;
   };
 
   // Only show global errors in banner, field errors are inline
@@ -349,7 +346,7 @@ export default function AdminAuthStep({
             />
           </div>
         </button>
-        <div className="progrr-auth-logo-aura absolute top-0 left-1/2 -translate-x-1/2 w-24 h-24 bg-white/20 blur-xl rounded-full -z-10" />
+        <div className="progrr-auth-logo-aura absolute top-0 start-1/2 -translate-x-1/2 w-24 h-24 bg-white/20 blur-xl rounded-full -z-10" />
 
         <h1 className="text-2xl font-bold text-white tracking-tight">
           {t("common.appName")}
@@ -397,11 +394,11 @@ export default function AdminAuthStep({
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="text-white hover:text-white hover:bg-white/10 -ml-2"
+                  className="text-white hover:text-white hover:bg-white/10 -ms-2"
                   onClick={handleBack}
                   aria-label={t("common.back")}
                 >
-                  <BackIcon className="w-6 h-6" />
+                  <ChevronLeft className="w-6 h-6 rtl:rotate-180" />
                 </Button>
                 <h2 className="text-xl font-bold text-white">
                   {view === "login"
@@ -421,7 +418,7 @@ export default function AdminAuthStep({
               {view === "login" ? (
                 <form onSubmit={sendLoginCode} className="space-y-6">
                   <div className="space-y-2">
-                    <Label className="text-white/80 ml-1">
+                    <Label className="text-white/80 ms-1">
                       {t("auth.emailAddress")}
                     </Label>
                     <Input
@@ -444,7 +441,7 @@ export default function AdminAuthStep({
               ) : (
                 <form onSubmit={verifyLoginCode} className="space-y-6">
                   <div className="space-y-2">
-                    <Label className="text-white/80 ml-1">
+                    <Label className="text-white/80 ms-1">
                       {t("auth.enterCode")}
                     </Label>
                     <OtpInput
@@ -458,7 +455,7 @@ export default function AdminAuthStep({
                         }`}
                     />
                     <InlineError message={loginCodeError} />
-                    <p className="text-xs text-white/60 ml-1 pt-1">
+                    <p className="text-xs text-white/60 ms-1 pt-1">
                       {t("auth.codeSentToEmail", { email: loginEmail })}
                     </p>
                   </div>
@@ -485,11 +482,11 @@ export default function AdminAuthStep({
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="text-white hover:text-white hover:bg-white/10 -ml-2"
+                  className="text-white hover:text-white hover:bg-white/10 -ms-2"
                   onClick={handleBack}
                   aria-label={t("common.back")}
                 >
-                  <BackIcon className="w-6 h-6" />
+                  <ChevronLeft className="w-6 h-6 rtl:rotate-180" />
                 </Button>
                 <h2 className="text-xl font-bold text-white">
                   {t("auth.createAccount")}
@@ -545,11 +542,11 @@ export default function AdminAuthStep({
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="text-white hover:text-white hover:bg-white/10 -ml-2"
+                  className="text-white hover:text-white hover:bg-white/10 -ms-2"
                   onClick={handleBack}
                   aria-label={t("common.back")}
                 >
-                  <BackIcon className="w-6 h-6" />
+                  <ChevronLeft className="w-6 h-6 rtl:rotate-180" />
                 </Button>
                 <h2 className="text-xl font-bold text-white">
                   {view === "signup"
@@ -569,7 +566,7 @@ export default function AdminAuthStep({
               {view === "signup" ? (
                 <form onSubmit={sendSignupCode} className="space-y-6">
                   <div className="space-y-2">
-                    <Label className="text-white/80 ml-1">
+                    <Label className="text-white/80 ms-1">
                       {t("auth.fullName")}
                     </Label>
                     <Input
@@ -583,7 +580,7 @@ export default function AdminAuthStep({
                     <InlineError message={signupNameError} />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-white/80 ml-1">
+                    <Label className="text-white/80 ms-1">
                       {t("auth.emailAddress")}
                     </Label>
                     <Input
@@ -605,7 +602,7 @@ export default function AdminAuthStep({
               ) : (
                 <form onSubmit={verifySignupCode} className="space-y-6">
                   <div className="space-y-2">
-                    <Label className="text-white/80 ml-1">
+                    <Label className="text-white/80 ms-1">
                       {t("auth.enterCode")}
                     </Label>
                     <OtpInput
@@ -619,7 +616,7 @@ export default function AdminAuthStep({
                         }`}
                     />
                     <InlineError message={signupCodeError} />
-                    <p className="text-xs text-white/60 ml-1 pt-1">
+                    <p className="text-xs text-white/60 ms-1 pt-1">
                       {t("auth.codeSentToEmail", { email: signupEmail })}
                     </p>
                   </div>

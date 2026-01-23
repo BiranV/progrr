@@ -19,7 +19,7 @@ export default function AuthGroupLayout({
         : "bg-gradient-to-br from-neutral-950 via-zinc-900 to-zinc-800"
         }`}
     >
-      <div className="absolute top-4 right-4 z-20">
+      <div className="absolute top-4 inset-x-0 z-20 flex justify-center">
         <LanguageSwitcher variant={isOnboarding ? "light" : "dark"} />
       </div>
       <main className="flex-1 w-full h-full flex flex-col">{children}</main>

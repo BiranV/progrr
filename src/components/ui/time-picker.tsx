@@ -119,7 +119,7 @@ export function TimePicker({
                 className={cn(
                     "p-3 gap-2",
                     // Always centered (mobile + desktop)
-                    "top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] rounded-lg",
+                    "top-1/2 start-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg",
                     "w-[calc(100%-2rem)] max-w-sm"
                 )}
             >

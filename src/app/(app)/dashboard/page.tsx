@@ -48,16 +48,14 @@ type RevenueSeriesResponse = {
 
 export default function DashboardPage() {
   const businessQuery = useBusiness();
-  const { locale, dir } = useLocale();
+  const { locale } = useLocale();
   const { t } = useI18n();
   const business = businessQuery.data;
   const businessLoading = businessQuery.isPending && !businessQuery.data;
   const [copyStatus, setCopyStatus] = React.useState<"idle" | "copied">("idle");
   const copyTimeoutRef = React.useRef<number | null>(null);
   const [origin, setOrigin] = React.useState("");
-  const PrevChevron = dir === "rtl" ? ChevronRight : ChevronLeft;
-  const NextChevron = dir === "rtl" ? ChevronLeft : ChevronRight;
-  const rangeArrow = dir === "rtl" ? "←" : "→";
+  const rangeArrow = "→";
 
   React.useEffect(() => {
     setOrigin(window.location.origin);
@@ -296,7 +294,7 @@ export default function DashboardPage() {
                   disabled={weekSeriesQuery.isFetching}
                   aria-label={t("dashboard.previousWeek")}
                 >
-                  <PrevChevron className="h-4 w-4" />
+                  <ChevronLeft className="h-4 w-4 rtl:rotate-180" />
                 </Button>
                 <Button
                   type="button"
@@ -308,14 +306,22 @@ export default function DashboardPage() {
                   title={weekOffset >= 0 ? t("dashboard.nextWeekDisabled") : t("dashboard.nextWeek")}
                   aria-label={weekOffset >= 0 ? t("dashboard.nextWeekDisabled") : t("dashboard.nextWeek")}
                 >
-                  <NextChevron className="h-4 w-4" />
+                  <ChevronRight className="h-4 w-4 rtl:rotate-180" />
                 </Button>
               </div>
             </div>
             <div className="text-xs text-muted-foreground">
-              {weekSeriesQuery.data
-                ? `${weekSeriesQuery.data.from} ${rangeArrow} ${weekSeriesQuery.data.to}`
-                : ""}
+              {weekSeriesQuery.data ? (
+                <>
+                  {weekSeriesQuery.data.from}{" "}
+                  <span className="inline-block rtl:-scale-x-100" aria-hidden="true">
+                    {rangeArrow}
+                  </span>{" "}
+                  {weekSeriesQuery.data.to}
+                </>
+              ) : (
+                ""
+              )}
             </div>
           </CardHeader>
           <CardContent className="pt-2">
@@ -366,7 +372,7 @@ export default function DashboardPage() {
                   disabled={monthSeriesQuery.isFetching}
                   aria-label={t("dashboard.previousMonth")}
                 >
-                  <PrevChevron className="h-4 w-4" />
+                  <ChevronLeft className="h-4 w-4 rtl:rotate-180" />
                 </Button>
                 <Button
                   type="button"
@@ -378,14 +384,22 @@ export default function DashboardPage() {
                   title={monthOffset >= 0 ? t("dashboard.nextMonthDisabled") : t("dashboard.nextMonth")}
                   aria-label={monthOffset >= 0 ? t("dashboard.nextMonthDisabled") : t("dashboard.nextMonth")}
                 >
-                  <NextChevron className="h-4 w-4" />
+                  <ChevronRight className="h-4 w-4 rtl:rotate-180" />
                 </Button>
               </div>
             </div>
             <div className="text-xs text-muted-foreground">
-              {monthSeriesQuery.data
-                ? `${monthSeriesQuery.data.from} ${rangeArrow} ${monthSeriesQuery.data.to}`
-                : ""}
+              {monthSeriesQuery.data ? (
+                <>
+                  {monthSeriesQuery.data.from}{" "}
+                  <span className="inline-block rtl:-scale-x-100" aria-hidden="true">
+                    {rangeArrow}
+                  </span>{" "}
+                  {monthSeriesQuery.data.to}
+                </>
+              ) : (
+                ""
+              )}
             </div>
           </CardHeader>
           <CardContent className="pt-2">

@@ -1,7 +1,6 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useLocale } from "@/context/LocaleContext";
 import { useI18n } from "@/i18n/useI18n";
 
 export type AuthBannerState =
@@ -19,13 +18,12 @@ export default function AuthBanner({
   if (!banner) return null;
 
   const isError = banner.type === "error";
-  const { dir } = useLocale();
   const { t } = useI18n();
 
   return (
     <div
       className={`
-                flex items-center gap-3 rounded-xl border px-4 py-3 shadow-sm mb-4 ${dir === "rtl" ? "text-right" : "text-left"}
+                flex items-center gap-3 rounded-xl border px-4 py-3 shadow-sm mb-4 text-start
                 ${isError
           ? "bg-[#FDE8EC] border-[#FDE8EC] text-[#B42318]"
           : "bg-emerald-500/10 border-emerald-500/20 text-white backdrop-blur-md"

@@ -10,6 +10,7 @@ import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronsUpDown, Loader2, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
+import { useI18n } from "@/i18n/useI18n";
 
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +57,7 @@ function normalizeEmail(input: string): string {
 }
 
 export default function CalendarClient() {
+    const { t } = useI18n();
     const searchParams = useSearchParams();
     const queryClient = useQueryClient();
     const { user } = useAuth();
@@ -230,8 +232,8 @@ export default function CalendarClient() {
         return serviceOk && startOk && customerOk;
     }, [createServiceId, createStartTime, selectedCustomerForPicker]);
 
-    const [dir, setDir] = React.useState<"ltr" | "rtl">("ltr");
-    const [lang, setLang] = React.useState("");
+    const [docDir, setDocDir] = React.useState<"ltr" | "rtl">("ltr");
+    const [docLang, setDocLang] = React.useState("");
 
     React.useEffect(() => {
         const nextDir = String(
@@ -240,15 +242,15 @@ export default function CalendarClient() {
         const nextLang = String(
             document.documentElement.getAttribute("lang") || "",
         ).toLowerCase();
-        setDir(nextDir === "rtl" ? "rtl" : "ltr");
-        setLang(nextLang);
+        setDocDir(nextDir === "rtl" ? "rtl" : "ltr");
+        setDocLang(nextLang);
     }, []);
 
     const fpLocale = React.useMemo(() => {
-        if (dir !== "rtl") return undefined;
-        if (lang.startsWith("he")) return { ...Hebrew, rtl: true };
+        if (docDir !== "rtl") return undefined;
+        if (docLang.startsWith("he")) return { ...Hebrew, rtl: true };
         return { ...Arabic, rtl: true };
-    }, [dir, lang]);
+    }, [docDir, docLang]);
 
     const resolvedLocale = React.useMemo(() => fpLocale ?? english, [fpLocale]);
 
@@ -370,7 +372,7 @@ export default function CalendarClient() {
 
     const createAppointment = React.useCallback(async () => {
         if (!canCreateAppointment) {
-            toast.error("Please fill all required fields");
+            toast.error(t("calendar.fillRequired"));
             return;
         }
 
@@ -402,7 +404,7 @@ export default function CalendarClient() {
                 throw new Error(json?.error || `Request failed (${res.status})`);
             }
 
-            toast.success("Appointment created");
+            toast.success(t("calendar.appointmentCreated"));
 
             if (json?.email?.sent === false) {
                 toast.error(String(json?.email?.error || "Failed to send email"));
@@ -418,7 +420,7 @@ export default function CalendarClient() {
                 queryKey: ["dashboardRevenueSeries"],
             });
         } catch (e: any) {
-            const msg = String(e?.message || "Failed");
+            const msg = String(e?.message || t("errors.somethingWentWrong"));
             toast.error(msg);
         } finally {
             setCreating(false);
@@ -693,10 +695,10 @@ export default function CalendarClient() {
         <div className="space-y-6">
             <div className="space-y-2">
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                    Calendar
+                    {t("calendar.title")}
                 </h1>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
-                    Tap a day to see appointments.
+                    {t("calendar.subtitle")}
                 </p>
             </div>
 
@@ -724,10 +726,10 @@ export default function CalendarClient() {
                     <Switch
                         checked={showAll}
                         onCheckedChange={setShowAll}
-                        aria-label="Show all appointments"
+                        aria-label={t("calendar.showAllAppointments")}
                     />
                     <span className="text-xs text-gray-600 dark:text-gray-300 select-none">
-                        Show all
+                        {t("calendar.showAll")}
                     </span>
                 </div>
 
@@ -748,7 +750,9 @@ export default function CalendarClient() {
                         disabled={showLoading || refreshing}
                     >
                         <span className="relative inline-flex items-center justify-center">
-                            <span className={refreshing ? "invisible" : ""}>Refresh</span>
+                            <span className={refreshing ? "invisible" : ""}>
+                                {t("calendar.refresh")}
+                            </span>
                             {refreshing ? (
                                 <span className="absolute inset-0 inline-flex items-center justify-center">
                                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -768,7 +772,7 @@ export default function CalendarClient() {
                         setCreateOpen(true);
                     }}
                 >
-                    New appointment
+                    {t("calendar.newAppointment")}
                 </Button>
             </div>
 
@@ -784,30 +788,40 @@ export default function CalendarClient() {
                 }}
             >
                 <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>New appointment</DialogTitle>
-                        <DialogDescription>
-                            Choose a service, pick an available hour, and enter customer
-                            details.
+                    <DialogHeader className="text-start items-start sm:text-start">
+                        <DialogTitle className="text-start">
+                            {t("calendar.newAppointmentTitle")}
+                        </DialogTitle>
+                        <DialogDescription className="text-start">
+                            {t("calendar.newAppointmentDescription")}
                         </DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-3">
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1 min-w-0">
-                                <div className="text-xs text-muted-foreground">Service *</div>
+                                <div className="text-xs text-muted-foreground">
+                                    {t("calendar.serviceLabel")}
+                                </div>
                                 <Select
                                     value={createServiceId}
                                     onValueChange={(v) => {
                                         setCreateServiceId(String(v || ""));
                                     }}
                                 >
-                                    <SelectTrigger className="rounded-xl w-full">
-                                        <SelectValue placeholder="Select service" />
+                                    <SelectTrigger className="
+    rounded-xl w-full flex items-center justify-between
+    ltr:flex-row rtl:flex-row-reverse
+  ">
+                                        <SelectValue placeholder={t("calendar.servicePlaceholder")} />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {services.map((s) => (
-                                            <SelectItem key={s.id} value={s.id}>
+                                            <SelectItem
+                                                key={s.id}
+                                                value={s.id}
+                                                className="justify-start text-start"
+                                            >
                                                 {s.name}
                                             </SelectItem>
                                         ))}
@@ -816,7 +830,9 @@ export default function CalendarClient() {
                             </div>
 
                             <div className="space-y-1 min-w-0">
-                                <div className="text-xs text-muted-foreground">Hour *</div>
+                                <div className="text-xs text-muted-foreground">
+                                    {t("calendar.hourLabel")}
+                                </div>
                                 <Select
                                     value={createStartTime}
                                     onValueChange={(v) => {
@@ -824,22 +840,29 @@ export default function CalendarClient() {
                                     }}
                                     disabled={!createServiceId || availableCreateSlotsQuery.isPending}
                                 >
-                                    <SelectTrigger className="rounded-xl w-full">
+                                    <SelectTrigger className="
+    rounded-xl w-full flex items-center justify-between
+    ltr:flex-row rtl:flex-row-reverse
+  ">
                                         <SelectValue
                                             placeholder={
                                                 !createServiceId
-                                                    ? "Select hour"
+                                                    ? t("calendar.hourPlaceholder")
                                                     : availableCreateSlotsQuery.isPending
-                                                        ? "Loading hours…"
+                                                        ? t("calendar.hourLoading")
                                                         : createSlots.length
-                                                            ? "Select hour"
-                                                            : "No available hours"
+                                                            ? t("calendar.hourPlaceholder")
+                                                            : t("calendar.hourUnavailable")
                                             }
                                         />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {createSlots.map((s) => (
-                                            <SelectItem key={s.startTime} value={s.startTime}>
+                                            <SelectItem
+                                                key={s.startTime}
+                                                value={s.startTime}
+                                                className="justify-start text-start"
+                                            >
                                                 {s.startTime}–{s.endTime}
                                             </SelectItem>
                                         ))}
@@ -848,13 +871,15 @@ export default function CalendarClient() {
                                 {availableCreateSlotsQuery.isError ? (
                                     <div className="text-xs text-red-600 dark:text-red-400">
                                         {(availableCreateSlotsQuery.error as any)?.message ||
-                                            "Failed to load available hours"}
+                                            t("calendar.hourLoadFailed")}
                                     </div>
                                 ) : null}
                             </div>
 
                             <div className="space-y-1 min-w-0 col-span-2">
-                                <div className="text-xs text-muted-foreground">Customer *</div>
+                                <div className="text-xs text-muted-foreground">
+                                    {t("calendar.customerLabel")}
+                                </div>
                                 <Popover
                                     open={createCustomerPickerOpen}
                                     onOpenChange={(next) => {
@@ -868,28 +893,28 @@ export default function CalendarClient() {
                                             type="button"
                                             variant="outline"
                                             disabled={customersPickerQuery.isPending}
-                                            className="rounded-xl w-full justify-between"
+                                            className="rounded-xl w-full justify-between text-start"
                                         >
-                                            <span className="truncate text-left">
+                                            <span className="truncate text-start">
                                                 {customersPickerQuery.isPending
-                                                    ? "Loading customers…"
+                                                    ? t("calendar.customersLoading")
                                                     : selectedCustomerForPicker
-                                                        ? `${selectedCustomerForPicker.fullName || "(No name)"} • ${selectedCustomerForPicker.phone}${selectedCustomerForPicker.email ? ` • ${selectedCustomerForPicker.email}` : ""}`
+                                                        ? `${selectedCustomerForPicker.fullName || t("calendar.noName")} • ${selectedCustomerForPicker.phone}${selectedCustomerForPicker.email ? ` • ${selectedCustomerForPicker.email}` : ""}`
                                                         : customersForPicker.length
-                                                            ? "Choose customer"
-                                                            : "No customers yet"}
+                                                            ? t("calendar.customerChoose")
+                                                            : t("calendar.customerNone")}
                                             </span>
-                                            <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                                            <ChevronsUpDown className="h-4 w-4 opacity-50 ms-2" />
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent
                                         align="start"
-                                        className="w-[var(--radix-popover-trigger-width)] p-2"
+                                        className="w-[var(--radix-popover-trigger-width)] p-2 text-start"
                                     >
                                         <Input
                                             value={createCustomerSearch}
                                             onChange={(e) => setCreateCustomerSearch(e.target.value)}
-                                            placeholder="Search by name, phone, or email…"
+                                            placeholder={t("calendar.customerSearchPlaceholder")}
                                             className="rounded-lg h-9"
                                         />
                                         <div className="mt-2 max-h-60 overflow-y-auto">
@@ -915,24 +940,24 @@ export default function CalendarClient() {
                                                                     setCreateCustomerSearch("");
                                                                 }}
                                                                 className={
-                                                                    "w-full rounded-md px-2 py-2 text-left text-sm transition-colors " +
+                                                                    "w-full rounded-md px-2 py-2 text-sm transition-colors text-start" +
                                                                     (disabled
-                                                                        ? "opacity-50 cursor-not-allowed"
-                                                                        : "hover:bg-muted") +
+                                                                        ? " opacity-50 cursor-not-allowed"
+                                                                        : " hover:bg-muted") +
                                                                     (isSelected ? " bg-muted" : "")
                                                                 }
                                                             >
                                                                 <div className="truncate">
-                                                                    {c.fullName || "(No name)"} • {c.phone}
+                                                                    {c.fullName || t("calendar.noName")} • {c.phone}
                                                                 </div>
                                                                 <div className="truncate text-xs text-muted-foreground">
-                                                                    {c.email ? c.email : "(missing email)"}
+                                                                    {c.email ? c.email : t("calendar.missingEmail")}
                                                                     {c.status === "BLOCKED"
-                                                                        ? " • BLOCKED"
+                                                                        ? ` • ${t("calendar.customerBlocked")}`
                                                                         : !c.fullName.trim() ||
                                                                             !c.phone.trim() ||
                                                                             !c.email
-                                                                            ? " • incomplete"
+                                                                            ? ` • ${t("calendar.customerIncomplete")}`
                                                                             : ""}
                                                                 </div>
                                                             </button>
@@ -941,31 +966,33 @@ export default function CalendarClient() {
                                                 </div>
                                             ) : (
                                                 <div className="p-2 text-sm text-muted-foreground">
-                                                    No customer found.
+                                                    {t("calendar.customerNoResults")}
                                                 </div>
                                             )}
                                         </div>
                                     </PopoverContent>
                                 </Popover>
                                 <div className="text-xs text-muted-foreground">
-                                    Customers appear here after they book or verify themselves.
+                                    {t("calendar.customerHelper")}
                                 </div>
                                 {customersPickerQuery.isError ? (
                                     <div className="text-xs text-red-600 dark:text-red-400">
                                         {(customersPickerQuery.error as any)?.message ||
-                                            "Failed to load customers"}
+                                            t("calendar.customersLoadFailed")}
                                     </div>
                                 ) : null}
                             </div>
                         </div>
 
                         <div className="space-y-1">
-                            <div className="text-xs text-muted-foreground">Notes (optional)</div>
+                            <div className="text-xs text-muted-foreground">
+                                {t("calendar.notesLabel")}
+                            </div>
                             <Textarea
                                 className="rounded-xl"
                                 value={createNotes}
                                 onChange={(e) => setCreateNotes(e.target.value)}
-                                placeholder="Notes"
+                                placeholder={t("calendar.notesPlaceholder")}
                             />
                         </div>
                     </div>
@@ -980,7 +1007,7 @@ export default function CalendarClient() {
                                 resetCreateForm();
                             }}
                         >
-                            Cancel
+                            {t("calendar.cancel")}
                         </Button>
                         <Button
                             type="button"
@@ -988,7 +1015,7 @@ export default function CalendarClient() {
                             onClick={createAppointment}
                             disabled={creating || !canCreateAppointment}
                         >
-                            {creating ? "Saving…" : "Save"}
+                            {creating ? t("calendar.saving") : t("calendar.save")}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -998,7 +1025,7 @@ export default function CalendarClient() {
                 <CenteredSpinner className="min-h-[20vh] items-center" />
             ) : visibleAppointments.length === 0 ? (
                 <div className="text-sm text-muted-foreground">
-                    No appointments for this day.
+                    {t("calendar.noAppointmentsForDay")}
                 </div>
             ) : (
                 <div className="space-y-2">
@@ -1018,7 +1045,7 @@ export default function CalendarClient() {
 
                                     {a.bookedByYou ? (
                                         <div className="text-xs text-muted-foreground mt-1">
-                                            Booked by you
+                                            {t("calendar.bookedByYou")}
                                         </div>
                                     ) : null}
 
@@ -1061,7 +1088,7 @@ export default function CalendarClient() {
                                                 type="button"
                                                 size="sm"
                                                 variant="ghost"
-                                                className="rounded-xl ml-auto text-gray-900 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-800"
+                                                className="rounded-xl ms-auto text-gray-900 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-800"
                                                 onClick={() => {
                                                     const incoming = isIncomingAppointment({
                                                         date: a.date,

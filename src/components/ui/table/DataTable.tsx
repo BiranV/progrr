@@ -79,7 +79,7 @@ export function DataTable<Row>({
                                     <th
                                         key={col.key}
                                         className={cn(
-                                            "px-4 py-3 text-left font-medium",
+                                            "px-4 py-3 text-start font-medium",
                                             isSortable
                                                 ? "cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
                                                 : undefined,

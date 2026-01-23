@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { Loader2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -40,8 +40,6 @@ function SettingsRowContent({
   description?: string;
   destructive?: boolean;
 }) {
-  const { dir } = useLocale();
-  const ChevronIcon = dir === "rtl" ? ChevronLeft : ChevronRight;
   return (
     <>
       <div className="min-w-0">
@@ -60,9 +58,9 @@ function SettingsRowContent({
         ) : null}
       </div>
 
-      <ChevronIcon
+      <ChevronRight
         className={
-          "h-4 w-4 shrink-0 text-muted-foreground" +
+          "h-4 w-4 shrink-0 text-muted-foreground rtl:rotate-180" +
           (destructive ? " opacity-70" : "")
         }
       />
@@ -109,15 +107,13 @@ function SettingsActionRow({
   description?: string;
   destructive?: boolean;
 }) {
-  const { dir } = useLocale();
   return (
     // A11y: use native button semantics instead of role="button".
     <button
       type="button"
       onClick={onActivate}
       className={
-        "flex w-full items-start justify-between gap-4 py-3 focus:outline-none cursor-pointer hover:bg-muted " +
-        (dir === "rtl" ? "text-right" : "text-left") +
+        "flex w-full items-start justify-between gap-4 py-3 focus:outline-none cursor-pointer hover:bg-muted text-start " +
         (destructive ? "" : "")
       }
     >

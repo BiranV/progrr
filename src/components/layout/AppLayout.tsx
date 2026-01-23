@@ -7,7 +7,6 @@ import { useAuth } from "@/context/AuthContext";
 import BottomNav from "./BottomNav";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { useLocale } from "@/context/LocaleContext";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 function isPublicPath(pathname: string) {
@@ -20,7 +19,6 @@ function isPublicPath(pathname: string) {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoadingAuth: loading, updateUser, logout } = useAuth();
-  const { dir } = useLocale();
   const pathname = usePathname();
   const router = useRouter();
   const mainRef = React.useRef<HTMLElement | null>(null);
@@ -29,7 +27,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const isOnboardingPath =
     pathname === "/onboarding" || pathname.startsWith("/onboarding/");
   const onboardingCompleted = Boolean((user as any)?.onboardingCompleted);
-  const showLanguageSwitcher = pathname.startsWith("/dashboard");
+  const showLanguageSwitcher = !isOnboardingPath;
 
   const didHydrateOnboardingRef = React.useRef(false);
 
@@ -198,11 +196,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           />
         ) : null}
         {showLanguageSwitcher ? (
-          <div
-            className={
-              "absolute top-4 z-20 " + (dir === "rtl" ? "left-4" : "right-4")
-            }
-          >
+          <div className="absolute top-4 inset-x-0 z-20 flex justify-center">
             <LanguageSwitcher variant="dark" />
           </div>
         ) : null}

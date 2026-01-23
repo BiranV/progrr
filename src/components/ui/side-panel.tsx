@@ -61,9 +61,9 @@ export default function SidePanel({
         role="dialog"
         aria-modal={false}
         className={cn(
-          "absolute inset-y-0 right-0 flex h-full max-h-[100dvh] flex-col border-l bg-background shadow-2xl",
+          "absolute inset-y-0 end-0 flex h-full max-h-[100dvh] flex-col border-s bg-background shadow-2xl",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
-          "data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right",
+          "data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right rtl:data-[state=open]:slide-in-from-left rtl:data-[state=closed]:slide-out-to-left",
           widthClassName ?? "w-full sm:w-[480px] lg:w-[560px]",
           "dark:bg-gray-900",
           contentClassName
