@@ -126,7 +126,7 @@ export default function SidePanel({
         role="dialog"
         aria-modal={false}
         className={cn(
-          "absolute inset-x-0 bottom-0 flex w-full flex-col rounded-t-2xl border-t bg-background shadow-2xl max-h-[90dvh]",
+          "absolute inset-x-0 bottom-0 flex w-full flex-col rounded-t-2xl border-t bg-background shadow-2xl max-h-[82dvh]",
           "sm:inset-y-0 sm:end-0 sm:inset-x-auto sm:h-full sm:max-h-[100dvh] sm:rounded-none sm:border-t-0 sm:border-s",
           "data-[state=open]:animate-in data-[state=closed]:animate-out duration-800 ease-out",
           "data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom",
