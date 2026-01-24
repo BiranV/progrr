@@ -38,11 +38,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_CACHE_KEY = "progrr:auth-cache:v1";
-const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION;
-
-if (!APP_VERSION) {
-  throw new Error("NEXT_PUBLIC_APP_VERSION is missing");
-}
+const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION?.trim() || undefined;
 const APP_VERSION_KEY = "progrr_app_version";
 
 function readAuthCache(): User | null {
@@ -170,9 +166,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const cached = readAuthCache();
-    if (!cached) return;
-    setUser(cached);
-    setAuthStatus("authenticated");
+    if (cached) {
+      setUser(cached);
+      setAuthStatus("authenticated");
+      setIsLoadingAuth(false);
+      return;
+    }
+    setAuthStatus("guest");
+    setIsLoadingAuth(false);
   }, []);
 
   useEffect(() => {
@@ -180,6 +181,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     versionCheckRef.current = true;
 
     if (typeof window === "undefined") {
+      setIsVersionReady(true);
+      return;
+    }
+    if (!APP_VERSION) {
       setIsVersionReady(true);
       return;
     }
@@ -210,8 +215,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
 
             try {
-              window.localStorage.removeItem(AUTH_CACHE_KEY);
-              window.localStorage.removeItem(APP_VERSION_KEY);
+              window.localStorage.clear();
+            } catch {
+              // ignore
+            }
+            try {
+              window.sessionStorage.clear();
             } catch {
               // ignore
             }
@@ -238,7 +247,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setIsVersionReady(true);
       }
     })();
-  }, [logout, router]);
+  }, []);
 
   useEffect(() => {
     writeAuthCache(user);
@@ -246,13 +255,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (!isVersionReady) return;
-    // Fully public booking pages must never call /api/me.
-    if (pathname.startsWith("/b")) {
-      queueMicrotask(() => {
-        if (!mountedRef.current) return;
-        setIsLoadingAuth(false);
-        setAuthStatus(user ? "authenticated" : "guest");
-      });
+    if (isPublicPath(pathname)) {
+      setIsLoadingAuth(false);
+      setAuthStatus(user ? "authenticated" : "guest");
       return;
     }
 
@@ -286,13 +291,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (!isVersionReady) return;
-    if (isLoadingAuth) return;
-    if (user) return;
-
+    if (authStatus !== "guest") return;
     if (!isPublicPath(pathname)) {
       router.replace("/auth");
     }
-  }, [isVersionReady, isLoadingAuth, pathname, router, user]);
+  }, [authStatus, isVersionReady, pathname, router]);
 
   return (
     <AuthContext.Provider
