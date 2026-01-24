@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Apple,
   Dumbbell,
@@ -264,6 +264,7 @@ function normalizeAvailabilityDaysForUi(input: any) {
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { updateUser, user } = useAuth();
 
 
@@ -359,7 +360,7 @@ export default function OnboardingPage() {
   const uiTimeZones = React.useMemo(() => UI_TIMEZONES, [supportedTimeZones]);
 
   const [data, setData] = useState<OnboardingData>({
-    businessTypes: [], 
+    businessTypes: [],
     business: { name: "", phone: "", address: "", description: "" },
     branding: { logo: undefined, banner: undefined, gallery: [] },
     currency: "ILS",
@@ -393,6 +394,16 @@ export default function OnboardingPage() {
     }
     return Math.max(MIN_SERVICE_DURATION, Math.floor(num));
   };
+
+  React.useEffect(() => {
+    const isDev = process.env.NODE_ENV === "development";
+    const devOnboarding = searchParams.get("devOnboarding") === "true";
+    if (!isDev || !devOnboarding) return;
+    const raw = Number(searchParams.get("step"));
+    if (!Number.isFinite(raw)) return;
+    const next = Math.max(0, Math.min(totalSteps - 1, Math.floor(raw)));
+    setStep(next);
+  }, [searchParams, totalSteps]);
 
   const generateServicePresetsForType = (typeKey: string | null) => {
     if (!typeKey) return [];

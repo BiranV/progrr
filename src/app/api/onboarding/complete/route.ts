@@ -449,10 +449,12 @@ export async function POST(req: Request) {
             branding.gallery = gallery;
         }
 
-        await ensureBusinessSlugForUser({
-            userId: new ObjectId(appUser.id),
-            businessName: name,
-        });
+        if (!appUser.isDevOnboarding) {
+            await ensureBusinessSlugForUser({
+                userId: new ObjectId(appUser.id),
+                businessName: name,
+            });
+        }
 
         const limitCustomer = asBoolean(business?.limitCustomerToOneUpcomingAppointment);
 
@@ -486,16 +488,27 @@ export async function POST(req: Request) {
             updatedAt: new Date(),
         };
 
-        await c.users.updateOne(
-            { _id: new ObjectId(appUser.id) },
-            {
-                $set: {
-                    onboarding: onboardingUpdate,
-                    onboardingCompleted: true,
-                    onboardingCompletedAt: new Date(),
-                },
-            }
-        );
+        if (!appUser.isDevOnboarding) {
+            await c.users.updateOne(
+                { _id: new ObjectId(appUser.id) },
+                {
+                    $set: {
+                        onboarding: onboardingUpdate,
+                        onboardingCompleted: true,
+                        onboardingCompletedAt: new Date(),
+                    },
+                }
+            );
+        }
+
+        if (appUser.isDevOnboarding) {
+            return NextResponse.json({
+                ok: true,
+                onboardingCompleted: false,
+                onboarding: onboardingUpdate,
+                devOnboarding: true,
+            });
+        }
 
         const token = await signAuthToken({
             sub: appUser.id,

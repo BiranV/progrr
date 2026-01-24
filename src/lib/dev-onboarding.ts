@@ -1,0 +1,2 @@
+export const DEV_ONBOARDING_COOKIE = "dev_onboarding";
+export const DEV_ONBOARDING_USER_ID = "000000000000000000000000";

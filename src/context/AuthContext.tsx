@@ -10,7 +10,8 @@ import React, {
   ReactNode,
 } from "react";
 import { db } from "@/lib/db";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { DEV_ONBOARDING_COOKIE, DEV_ONBOARDING_USER_ID } from "@/lib/dev-onboarding";
 
 interface User {
   id: string;
@@ -68,6 +69,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const isDevOnboarding =
+    process.env.NODE_ENV === "development" &&
+    (searchParams.get("devOnboarding") === "true" ||
+      typeof document !== "undefined" &&
+      document.cookie.includes(`${DEV_ONBOARDING_COOKIE}=1`)) &&
+    pathname.startsWith("/onboarding");
 
   const isAuthenticated = useMemo(() => Boolean(user), [user]);
 
@@ -114,6 +123,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (redirectingRef.current) return;
     if (meFetchedRef.current) return;
 
+    if (isDevOnboarding) {
+      const devUser: User = {
+        id: DEV_ONBOARDING_USER_ID,
+        email: "dev@local",
+        full_name: "Dev Onboarding",
+        onboardingCompleted: false,
+        role: "owner",
+      } as any;
+      setUser(devUser);
+      setIsLoadingAuth(false);
+      setAuthStatus("authenticated");
+      return;
+    }
+
     if (isPublicPath(pathname)) {
       setIsLoadingAuth(false);
       setAuthStatus(user ? "authenticated" : "guest");
@@ -152,10 +175,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (redirectingRef.current) return;
     if (isLoadingAuth) return;
 
+    if (isDevOnboarding) return;
+
     if (!user && !isPublicPath(pathname)) {
       router.replace("/auth");
     }
-  }, [isLoadingAuth, user, pathname, router]);
+  }, [isLoadingAuth, user, pathname, router, isDevOnboarding]);
 
   /* ======================
      ACTIONS

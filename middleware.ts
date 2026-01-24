@@ -1,6 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { verifyAuthToken } from "@/server/jwt";
 import { AUTH_COOKIE_NAME } from "@/server/auth-cookie";
+import {
+  DEV_ONBOARDING_COOKIE,
+  isDevOnboardingEnabled,
+  isDevOnboardingRequest,
+  isDevOnboardingPath,
+  isDevOnboardingStepPath,
+  readDevOnboardingCookieFromRequest,
+} from "@/server/dev-onboarding";
 
 function isSafeNextPath(next: string | null): next is string {
   if (!next) return false;
@@ -50,6 +58,40 @@ function isOnboardingPath(pathname: string) {
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+
+  const isDev = isDevOnboardingEnabled();
+  const isDevOnboardingQuery = isDev && isDevOnboardingRequest(request);
+  const hasDevCookie = isDev && readDevOnboardingCookieFromRequest(request);
+
+  if (isDev && isDevOnboardingStepPath(pathname)) {
+    const match = pathname.match(/^\/onboarding\/step-(\d+)\/?$/);
+    const step = match?.[1] ?? "0";
+    const url = request.nextUrl.clone();
+    url.pathname = "/onboarding";
+    url.searchParams.set("devOnboarding", "true");
+    url.searchParams.set("step", step);
+    const res = NextResponse.rewrite(url);
+    res.cookies.set({
+      name: DEV_ONBOARDING_COOKIE,
+      value: "1",
+      path: "/",
+      sameSite: "lax",
+      secure: false,
+    });
+    return res;
+  }
+
+  if (isDev && isDevOnboardingPath(pathname) && (isDevOnboardingQuery || hasDevCookie)) {
+    const res = NextResponse.next();
+    res.cookies.set({
+      name: DEV_ONBOARDING_COOKIE,
+      value: "1",
+      path: "/",
+      sameSite: "lax",
+      secure: false,
+    });
+    return res;
+  }
 
   if (isBypassPath(pathname)) {
     return NextResponse.next();
