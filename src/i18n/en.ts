@@ -798,6 +798,57 @@ const en = {
             },
         },
     },
+    accessibility: {
+        title: "Accessibility",
+        subtitle: "Progrr is designed to be accessible and easy to use for everyone.",
+        sections: {
+            commitment: {
+                title: "1. Accessibility Commitment",
+                body: "Progrr is committed to accessibility. We consider accessibility throughout design and development to provide an inclusive experience for all users.",
+            },
+            features: {
+                title: "2. Supported Accessibility Features",
+                items: {
+                    text: {
+                        title: "Text and Font Scaling",
+                        body: "The app supports system-level font size adjustments, and text scales properly across the interface.",
+                    },
+                    contrast: {
+                        title: "Contrast and Readability",
+                        body: "We use high-contrast color combinations, clear text hierarchy, and readable typography.",
+                    },
+                    keyboard: {
+                        title: "Keyboard Navigation",
+                        body: "The app can be navigated using a keyboard, and focus states are visible and consistent.",
+                    },
+                    screenReader: {
+                        title: "Screen Reader Support",
+                        body: "We use semantic HTML with proper labels and roles, compatible with common screen readers.",
+                    },
+                    responsive: {
+                        title: "Responsive Layout",
+                        body: "Progrr works across desktop, tablet, and mobile without loss of functionality at different sizes.",
+                    },
+                },
+            },
+            settings: {
+                title: "3. System & Browser Accessibility Settings",
+                body: "Progrr respects operating system accessibility settings and browser preferences. You can control accessibility using system font size, high contrast modes, and zoom or magnification tools. Accessibility customization is handled at the system level, not via an in-app widget.",
+            },
+            overlay: {
+                title: "4. No Accessibility Overlay",
+                body: "Progrr does not use third-party accessibility overlays. This is an intentional choice to avoid performance, usability, and compliance issues. We prefer native accessibility support.",
+            },
+            improvements: {
+                title: "5. Ongoing Improvements",
+                body: "Accessibility is continuously reviewed, and improvements are made as part of ongoing development. Feedback is always welcome.",
+            },
+            contact: {
+                title: "6. Contact for Accessibility Feedback",
+                body: "If you notice an accessibility issue or need assistance, email us at",
+            },
+        },
+    },
     businessDetails: {
         loadFailed: "Failed to load your business details.",
         requestFailed: "Request failed",

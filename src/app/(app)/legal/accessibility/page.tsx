@@ -1,6 +1,12 @@
+"use client";
+
 import SettingsBackHeader from "@/components/settings/SettingsBackHeader";
+import { useI18n } from "@/i18n/useI18n";
 
 export default function AccessibilityPage() {
+  const { t } = useI18n();
+  const supportEmail = "support@progrr.io";
+
   return (
     <div className="space-y-6">
       <div className="mb-2">
@@ -9,73 +15,66 @@ export default function AccessibilityPage() {
 
       <div className="space-y-1">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Accessibility
+          {t("accessibility.title")}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Progrr is designed to be accessible and easy to use for everyone.
+          {t("accessibility.subtitle")}
         </p>
       </div>
 
       <div className="space-y-6 text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            1. Accessibility Commitment
+            {t("accessibility.sections.commitment.title")}
           </h2>
           <p>
-            Progrr is committed to accessibility. We consider accessibility
-            throughout design and development to provide an inclusive experience
-            for all users.
+            {t("accessibility.sections.commitment.body")}
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            2. Supported Accessibility Features
+            {t("accessibility.sections.features.title")}
           </h2>
           <ul className="list-disc pl-5 space-y-3">
             <li>
               <span className="font-medium text-gray-900 dark:text-white">
-                Text and Font Scaling
+                {t("accessibility.sections.features.items.text.title")}
               </span>
               <div className="mt-1">
-                The app supports system-level font size adjustments, and text
-                scales properly across the interface.
+                {t("accessibility.sections.features.items.text.body")}
               </div>
             </li>
             <li>
               <span className="font-medium text-gray-900 dark:text-white">
-                Contrast and Readability
+                {t("accessibility.sections.features.items.contrast.title")}
               </span>
               <div className="mt-1">
-                We use high-contrast color combinations, clear text hierarchy,
-                and readable typography.
+                {t("accessibility.sections.features.items.contrast.body")}
               </div>
             </li>
             <li>
               <span className="font-medium text-gray-900 dark:text-white">
-                Keyboard Navigation
+                {t("accessibility.sections.features.items.keyboard.title")}
               </span>
               <div className="mt-1">
-                The app can be navigated using a keyboard, and focus states are
-                visible and consistent.
+                {t("accessibility.sections.features.items.keyboard.body")}
               </div>
             </li>
             <li>
               <span className="font-medium text-gray-900 dark:text-white">
-                Screen Reader Support
+                {t("accessibility.sections.features.items.screenReader.title")}
               </span>
               <div className="mt-1">
-                We use semantic HTML with proper labels and roles, compatible
-                with common screen readers.
+                {t("accessibility.sections.features.items.screenReader.body")}
               </div>
             </li>
             <li>
               <span className="font-medium text-gray-900 dark:text-white">
-                Responsive Layout
+                {t("accessibility.sections.features.items.responsive.title")}
               </span>
               <div className="mt-1">
-                Progrr works across desktop, tablet, and mobile without loss of
-                functionality at different sizes.
+                {t("accessibility.sections.features.items.responsive.body")}
               </div>
             </li>
           </ul>
@@ -83,49 +82,42 @@ export default function AccessibilityPage() {
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            3. System & Browser Accessibility Settings
+            {t("accessibility.sections.settings.title")}
           </h2>
           <p>
-            Progrr respects operating system accessibility settings and browser
-            preferences. You can control accessibility using system font size,
-            high contrast modes, and zoom or magnification tools. Accessibility
-            customization is handled at the system level, not via an in-app
-            widget.
+            {t("accessibility.sections.settings.body")}
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            4. No Accessibility Overlay
+            {t("accessibility.sections.overlay.title")}
           </h2>
           <p>
-            Progrr does not use third-party accessibility overlays. This is an
-            intentional choice to avoid performance, usability, and compliance
-            issues. We prefer native accessibility support.
+            {t("accessibility.sections.overlay.body")}
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            5. Ongoing Improvements
+            {t("accessibility.sections.improvements.title")}
           </h2>
           <p>
-            Accessibility is continuously reviewed, and improvements are made as
-            part of ongoing development. Feedback is always welcome.
+            {t("accessibility.sections.improvements.body")}
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            6. Contact for Accessibility Feedback
+            {t("accessibility.sections.contact.title")}
           </h2>
           <p>
-            If you notice an accessibility issue or need assistance, email us at{" "}
+            {t("accessibility.sections.contact.body")}{" "}
             <a
-              href="mailto:support@progrr.io"
+              href={`mailto:${supportEmail}`}
               className="text-primary underline-offset-4 hover:underline"
             >
-              support@progrr.io
+              {supportEmail}
             </a>
             .
           </p>
