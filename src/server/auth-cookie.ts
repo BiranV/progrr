@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-export const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || "progrr_token";
+export const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || "progrr_admin_token";
 
 const AUTH_COOKIE_OPTIONS = {
   httpOnly: true,

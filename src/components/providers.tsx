@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { persistQueryClient } from "@tanstack/react-query-persist-client";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import { AuthProvider } from "@/context/AuthContext";
-import { ThemeProvider } from "@/context/ThemeContext";
 import { LocaleProvider } from "@/context/LocaleContext";
 
 const queryClient = new QueryClient({
@@ -29,9 +28,17 @@ export default function Providers({
   React.useEffect(() => {
     if (typeof window === "undefined") return;
 
+    try {
+      window.localStorage.removeItem("progrr_dark_mode");
+      window.localStorage.removeItem("languageCode");
+      window.localStorage.removeItem("progrr:rq-cache:v1");
+    } catch {
+      // ignore
+    }
+
     const persister = createSyncStoragePersister({
       storage: window.localStorage,
-      key: "progrr:rq-cache:v1",
+      key: "progrr-rq-cache:v1",
     });
 
     persistQueryClient({
@@ -50,13 +57,11 @@ export default function Providers({
 
   return (
     <AuthProvider>
-      <ThemeProvider>
-        <LocaleProvider initialLanguage={initialLanguage}>
-          <QueryClientProvider client={queryClient}>
-            {children}
-          </QueryClientProvider>
-        </LocaleProvider>
-      </ThemeProvider>
+      <LocaleProvider initialLanguage={initialLanguage}>
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      </LocaleProvider>
     </AuthProvider>
   );
 }

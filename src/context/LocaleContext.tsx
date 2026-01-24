@@ -14,7 +14,6 @@ type LocaleContextValue = {
 
 const DEFAULT_LANGUAGE: Language = "en";
 const LOCALE_COOKIE = "progrr_lang";
-const LOCALE_STORAGE = "languageCode";
 
 const LANG_META: Record<Language, { locale: "he-IL" | "en-US"; dir: "rtl" | "ltr" }> = {
     he: { locale: "he-IL", dir: "rtl" },
@@ -41,22 +40,9 @@ export function LocaleProvider({
     const updateUserLanguage = React.useCallback((next: Language) => {
         setLanguageState(next);
         setCookie(LOCALE_COOKIE, next, { maxAgeSeconds: 60 * 60 * 24 * 365 });
-        if (typeof window !== "undefined") {
-            try {
-                window.localStorage.setItem(LOCALE_STORAGE, next);
-            } catch {
-                // ignore
-            }
-        }
     }, []);
 
     React.useEffect(() => {
-        if (typeof window === "undefined") return;
-        try {
-            window.localStorage.setItem(LOCALE_STORAGE, language);
-        } catch {
-            // ignore
-        }
         setCookie(LOCALE_COOKIE, language, { maxAgeSeconds: 60 * 60 * 24 * 365 });
     }, [language]);
 
