@@ -39,7 +39,7 @@ import {
   Calendar,
   CalendarDays,
   Clock,
-  CreditCard,
+  Banknote,
   LogIn,
   LogOut,
   Menu,
@@ -177,19 +177,20 @@ function SummaryRow({
   value: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-3 rtl:flex-row-reverse rtl:text-right ltr:flex-row ltr:text-left">
-      <div className="shrink-0 h-8 w-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center">
+    <div className="flex items-center gap-3 text-left">
+      <div className="h-8 w-8 shrink-0 rounded-full bg-muted text-muted-foreground flex items-center justify-center">
         <Icon className="h-4 w-4" />
       </div>
-      <div className="min-w-0 flex-1">
+
+      <div className="min-w-0 text-start">
         <div className="text-xs text-muted-foreground">{label}</div>
-        <div className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-          {value}
-        </div>
+        <div className="text-sm font-semibold truncate">{value}</div>
       </div>
     </div>
   );
 }
+
+
 
 type ActiveAppointmentConflict = {
   code: "ACTIVE_APPOINTMENT_EXISTS" | "SAME_SERVICE_SAME_DAY_EXISTS";
@@ -319,7 +320,7 @@ export default function PublicBookingFlow({
   publicIdOrSlug: string;
 }) {
   const raw = String(publicIdOrSlug ?? "").trim();
-  const { locale } = useLocale();
+  const { locale, dir } = useLocale();
   const { t, language } = useI18n();
 
   const { data, loading, error, resolvedPublicId } = usePublicBusiness(raw);
@@ -2237,17 +2238,20 @@ export default function PublicBookingFlow({
             </div>
           ) : null}
 
-          <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/10 p-4">
+          <div
+            className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/10 p-4"
+            dir={isRtl ? "rtl" : "ltr"}
+          >
             <div className="flex flex-col gap-3">
               <SummaryRow
                 icon={Briefcase}
                 label={t("publicBooking.details.serviceLabel")}
                 value={
-                  selectedService?.name
-                    ? selectedService.name
-                    : t("publicBooking.details.appointmentFallback")
+                  selectedService?.name ??
+                  t("publicBooking.details.appointmentFallback")
                 }
               />
+
               <div className="grid grid-cols-2 gap-3">
                 <SummaryRow
                   icon={Calendar}
@@ -2264,6 +2268,7 @@ export default function PublicBookingFlow({
                   }
                 />
               </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <SummaryRow
                   icon={Timer}
@@ -2271,13 +2276,15 @@ export default function PublicBookingFlow({
                   value={durationLabel ?? t("common.emptyDash")}
                 />
                 <SummaryRow
-                  icon={CreditCard}
+                  icon={Banknote}
                   label={t("publicBooking.details.priceLabel")}
                   value={priceLabel ?? t("common.emptyDash")}
                 />
               </div>
             </div>
           </div>
+
+
 
           {!hasRequiredDetails ? (
             <div className="rounded-2xl border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-950/10 p-4">
