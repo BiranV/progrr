@@ -94,7 +94,7 @@ export default function SidePanel({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+        <div className="flex-1 overflow-y-auto px-4 pt-4 pb-[calc(var(--bottom-nav-height)+16px+env(safe-area-inset-bottom))] sm:px-5">
           {children}
         </div>
 
