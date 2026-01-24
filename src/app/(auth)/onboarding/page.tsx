@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { TimePicker } from "@/components/ui/time-picker";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import ProgressBar from "@/components/onboarding/ProgressBar";
 import { Switch as UISwitch } from "@/components/ui/switch";
 import {
@@ -49,7 +50,8 @@ type OnboardingData = {
   business?: {
     name?: string;
     phone?: string;
-    address?: string;
+    address?: string | null;
+    description?: string | null;
     limitCustomerToOneUpcomingAppointment?: boolean;
   };
   branding?: {
@@ -358,7 +360,7 @@ export default function OnboardingPage() {
 
   const [data, setData] = useState<OnboardingData>({
     businessTypes: [],
-    business: { name: "", phone: "", address: "" },
+    business: { name: "", phone: "", address: "", description: "" },
     branding: { logo: undefined, banner: undefined, gallery: [] },
     currency: "ILS",
     services: [
@@ -939,8 +941,6 @@ export default function OnboardingPage() {
           newErrors.businessPhone = t("onboarding.errors.businessPhoneRequired");
         if (data.business?.phone?.trim() && !businessPhoneValid)
           newErrors.businessPhone = t("onboarding.errors.businessPhoneInvalid");
-        if (!data.business?.address?.trim())
-          newErrors.businessAddress = t("onboarding.errors.businessAddressRequired");
         if (!String(data.availability?.timezone ?? "").trim())
           newErrors.businessTimezone = t("onboarding.errors.businessTimezoneRequired");
 
@@ -1078,6 +1078,8 @@ export default function OnboardingPage() {
         businessTypes: normalizedBusinessTypes,
         business: {
           ...(data.business || {}),
+          address: String(data.business?.address ?? "").trim() || null,
+          description: String(data.business?.description ?? "").trim() || null,
           limitCustomerToOneUpcomingAppointment: Boolean(
             data.business?.limitCustomerToOneUpcomingAppointment
           ),
@@ -1258,7 +1260,7 @@ export default function OnboardingPage() {
                 <InlineError message={fieldErrors.businessPhone} />
               </div>
               <div className="space-y-2">
-                <Label>{t("onboarding.businessAddress")}</Label>
+                <Label>{t("onboarding.businessAddressOptional")}</Label>
                 <Input
                   className={fieldErrors.businessAddress ? inputErrorClass : ""}
                   value={data.business?.address || ""}
@@ -1273,7 +1275,28 @@ export default function OnboardingPage() {
                   }
                   placeholder={t("onboarding.businessAddressPlaceholder")}
                 />
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {t("onboarding.businessAddressHelp")}
+                </p>
                 <InlineError message={fieldErrors.businessAddress} />
+              </div>
+
+              <div className="space-y-2">
+                <Label>{t("onboarding.businessDescriptionLabel")}</Label>
+                <Textarea
+                  value={data.business?.description || ""}
+                  onChange={(e) =>
+                    setData((d) => ({
+                      ...d,
+                      business: {
+                        ...(d.business || {}),
+                        description: e.target.value,
+                      },
+                    }))
+                  }
+                  placeholder={t("onboarding.businessDescriptionPlaceholder")}
+                  maxLength={250}
+                />
               </div>
 
               <div className="space-y-2">
@@ -2142,10 +2165,22 @@ export default function OnboardingPage() {
                     <span className="font-medium">{t("onboarding.phoneLabel")}</span>{" "}
                     {data.business?.phone || t("common.emptyDash")}
                   </div>
-                  <div className="sm:col-span-2">
-                    <span className="font-medium">{t("onboarding.addressLabel")}</span>{" "}
-                    {data.business?.address || t("common.emptyDash")}
-                  </div>
+                  {data.business?.address ? (
+                    <div className="sm:col-span-2">
+                      <span className="font-medium">
+                        {t("onboarding.addressLabel")}
+                      </span>{" "}
+                      {data.business?.address}
+                    </div>
+                  ) : null}
+                  {data.business?.description ? (
+                    <div className="sm:col-span-2">
+                      <span className="font-medium">
+                        {t("onboarding.businessDescriptionLabel")}
+                      </span>{" "}
+                      {data.business?.description}
+                    </div>
+                  ) : null}
                 </div>
               </div>
 

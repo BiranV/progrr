@@ -177,10 +177,10 @@ export async function PATCH(req: Request) {
       (requestedPhoneRaw !== undefined
         ? normalizePhone(requestedPhoneRaw)
         : normalizePhone(currentPhone)) || currentPhone;
-    const address =
-      (Object.prototype.hasOwnProperty.call(body as any, "address")
-        ? asString((body as any)?.address, 200) ?? ""
-        : currentAddress) ?? "";
+    const addressRaw = Object.prototype.hasOwnProperty.call(body as any, "address")
+      ? asString((body as any)?.address, 200) ?? ""
+      : currentAddress;
+    const address = String(addressRaw ?? "").trim();
     const description =
       (Object.prototype.hasOwnProperty.call(body as any, "description")
         ? asString((body as any)?.description, 250) ?? ""
@@ -251,12 +251,7 @@ export async function PATCH(req: Request) {
       );
     }
 
-    if (!address.trim()) {
-      return NextResponse.json(
-        { error: "Address cannot be empty" },
-        { status: 400 }
-      );
-    }
+    const addressValue = address ? address : null;
 
     const result = await c.users.updateOne(
       { _id: new ObjectId(appUser.id) },
@@ -264,7 +259,7 @@ export async function PATCH(req: Request) {
         $set: {
           "onboarding.business.name": name,
           "onboarding.business.phone": phone,
-          "onboarding.business.address": address,
+          "onboarding.business.address": addressValue,
           "onboarding.business.description": description,
           "onboarding.business.instagram": instagram,
           "onboarding.business.whatsapp": whatsapp,

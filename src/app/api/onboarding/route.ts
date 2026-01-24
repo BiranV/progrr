@@ -411,6 +411,7 @@ export async function PATCH(req: Request) {
     const businessName = asString(body?.business?.name, 120);
     const businessPhone = asString(body?.business?.phone, 40);
     const businessAddress = asString(body?.business?.address, 200);
+    const businessDescription = asString(body?.business?.description, 250);
     const limitCustomerToOneUpcomingAppointment = asBoolean(
       (body as any)?.business?.limitCustomerToOneUpcomingAppointment
     );
@@ -518,7 +519,11 @@ export async function PATCH(req: Request) {
     if (businessPhone !== undefined)
       set["onboarding.business.phone"] = businessPhone;
     if (businessAddress !== undefined)
-      set["onboarding.business.address"] = businessAddress;
+      set["onboarding.business.address"] =
+        String(businessAddress ?? "").trim() || null;
+    if (businessDescription !== undefined)
+      set["onboarding.business.description"] =
+        String(businessDescription ?? "").trim() || null;
     if (limitCustomerToOneUpcomingAppointment !== undefined) {
       set["onboarding.business.limitCustomerToOneUpcomingAppointment"] =
         limitCustomerToOneUpcomingAppointment;

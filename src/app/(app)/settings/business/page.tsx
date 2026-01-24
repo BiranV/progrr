@@ -155,10 +155,6 @@ export default function BusinessDetailsPage() {
         nextErrors.whatsapp = t("businessDetails.errors.whatsappInvalid");
       }
 
-      if (!next.address.trim()) {
-        nextErrors.address = t("errors.businessAddressRequired");
-      }
-
       return nextErrors;
     },
     [isPhoneValid, isWhatsAppValid, t],
@@ -317,11 +313,13 @@ export default function BusinessDetailsPage() {
           <Input
             id="address"
             type="text"
-            required
             placeholder={t("businessDetails.addressPlaceholder")}
             value={form.address}
             onChange={(e) => updateField("address", e.target.value)}
           />
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            {t("businessDetails.addressHelp")}
+          </p>
           {errors.address ? (
             <p className="text-xs text-gray-500 dark:text-gray-400">
               {errors.address}

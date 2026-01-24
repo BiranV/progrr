@@ -271,12 +271,12 @@ export async function POST(req: Request) {
         const name = String(business.name ?? "").trim();
         const phone = String(business.phone ?? "").trim();
         const address = String(business.address ?? "").trim();
+        const description = asString((business as any)?.description, 250) ?? "";
         const timezone = String(availability.timezone ?? "").trim();
 
         const missing: string[] = [];
         if (!name) missing.push("Name");
         if (!phone) missing.push("Phone");
-        if (!address) missing.push("Address");
         if (!timezone) missing.push("Timezone");
 
         if (missing.length > 0) {
@@ -460,7 +460,8 @@ export async function POST(req: Request) {
             business: {
                 name,
                 phone,
-                address,
+            address: address ? address : null,
+            description: description.trim() || null,
                 limitCustomerToOneUpcomingAppointment: limitCustomer ?? false,
                 ...(currency && currency !== OTHER_CURRENCY_CODE
                     ? { currency }

@@ -4,7 +4,7 @@ export type Business = {
   publicId: string;
   name: string;
   phone: string;
-  address: string;
+  address: string | null;
   slug?: string;
   description: string;
   instagram?: string;
@@ -16,7 +16,7 @@ export type Business = {
 export type UpdateBusinessPayload = {
   name: string;
   phone: string;
-  address: string;
+  address?: string | null;
   description?: string;
   instagram?: string;
   whatsapp?: string;
@@ -64,10 +64,11 @@ export function useBusiness() {
 }
 
 export async function updateBusiness(payload: UpdateBusinessPayload) {
+  const normalizedAddress = String(payload.address ?? "").trim();
   const body = {
     name: payload.name,
     phone: payload.phone,
-    address: payload.address,
+    address: normalizedAddress ? normalizedAddress : null,
     description: payload.description ?? "",
     instagram: payload.instagram ?? "",
     whatsapp: payload.whatsapp ?? "",
