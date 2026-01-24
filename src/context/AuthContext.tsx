@@ -38,20 +38,11 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_CACHE_KEY = "progrr:auth-cache:v1";
-const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION?.trim() || undefined;
+const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION?.trim();
 const APP_VERSION_KEY = "progrr_app_version";
 
-function readAuthCache(): User | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(AUTH_CACHE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as { user?: User } | null;
-    if (!parsed || typeof parsed !== "object") return null;
-    return parsed.user ?? null;
-  } catch {
-    return null;
-  }
+if (!APP_VERSION) {
+  throw new Error("NEXT_PUBLIC_APP_VERSION is missing");
 }
 
 function writeAuthCache(user: User | null) {
@@ -70,9 +61,6 @@ function writeAuthCache(user: User | null) {
   }
 }
 
-type MeResult = { user: User | null; status?: number };
-
-let meResultPromise: Promise<MeResult> | null = null;
 
 function isPublicPath(pathname: string) {
   return (
@@ -84,34 +72,6 @@ function isPublicPath(pathname: string) {
   );
 }
 
-async function fetchMeOnce(): Promise<MeResult> {
-  if (!meResultPromise) {
-    meResultPromise = db.auth
-      .me()
-      .then((u) => {
-        if (u && typeof u === "object" && (u as any).user) {
-          const merged = {
-            ...((u as any).user as User),
-            business: (u as any).business,
-          } as User;
-          return { user: merged };
-        }
-        return { user: u as User };
-      })
-      .catch((err: any) => {
-        const status = typeof err?.status === "number" ? err.status : undefined;
-        const message = String(err?.message || "");
-        const inferred =
-          status ?? (message === "Unauthorized" ? 401 : undefined);
-        return { user: null, status: inferred };
-      });
-  }
-  return meResultPromise;
-}
-
-function setMeCache(user: User | null) {
-  meResultPromise = Promise.resolve({ user, status: user ? undefined : 401 });
-}
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -121,14 +81,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     "loading" | "guest" | "authenticated"
   >("loading");
   const didFetchMeRef = useRef(false);
-  const mountedRef = useRef(true);
   const versionCheckRef = useRef(false);
+  const redirectingRef = useRef(false);
   const router = useRouter();
   const pathname = usePathname();
   const isAuthenticated = useMemo(() => Boolean(user), [user]);
 
   const setSessionUser = (nextUser: User | null) => {
-    setMeCache(nextUser);
     setUser(nextUser);
     setIsLoadingAuth(false);
     setAuthStatus(nextUser ? "authenticated" : "guest");
@@ -138,7 +97,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser((prev) => {
       if (!prev) return prev;
       const next = { ...prev, ...patch };
-      setMeCache(next);
       return next;
     });
   };
@@ -149,31 +107,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (shouldRedirect) {
       db.auth.logout();
     } else {
-      // Clear cookie server-side without forcing a full page navigation.
       try {
         await fetch("/api/auth/logout", { method: "POST" });
       } catch {
         // Ignore.
       }
     }
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    const cached = readAuthCache();
-    if (cached) {
-      setUser(cached);
-      setAuthStatus("authenticated");
-      setIsLoadingAuth(false);
-      return;
-    }
-    setAuthStatus("guest");
-    setIsLoadingAuth(false);
   }, []);
 
   useEffect(() => {
@@ -184,69 +123,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsVersionReady(true);
       return;
     }
-    if (!APP_VERSION) {
-      setIsVersionReady(true);
+    const storedVersion = window.localStorage.getItem(APP_VERSION_KEY);
+    if (storedVersion && storedVersion !== APP_VERSION) {
+      redirectingRef.current = true;
+      fetch("/api/auth/logout", { method: "POST" }).catch(() => {
+        // ignore
+      });
+      try {
+        window.localStorage.clear();
+      } catch {
+        // ignore
+      }
+      try {
+        window.sessionStorage.clear();
+      } catch {
+        // ignore
+      }
+      try {
+        window.localStorage.setItem(APP_VERSION_KEY, APP_VERSION ?? "");
+      } catch {
+        // ignore
+      }
+      window.location.href = "/login";
       return;
     }
 
-    (async () => {
+    if (!storedVersion) {
       try {
-        const stored = window.localStorage.getItem(APP_VERSION_KEY);
-        const cachedUser = readAuthCache();
-        const hasSession = Boolean(cachedUser);
-
-        if (!stored) {
-          window.localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
-          setIsVersionReady(true);
-          return;
-        }
-
-        if (stored !== APP_VERSION) {
-          if (hasSession) {
-            setMeCache(null);
-            setUser(null);
-            setAuthStatus("guest");
-            setIsLoadingAuth(false);
-
-            try {
-              await fetch("/api/auth/logout", { method: "POST" });
-            } catch {
-              // ignore
-            }
-
-            try {
-              window.localStorage.clear();
-            } catch {
-              // ignore
-            }
-            try {
-              window.sessionStorage.clear();
-            } catch {
-              // ignore
-            }
-            try {
-              window.localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
-            } catch {
-              // ignore
-            }
-
-            setIsVersionReady(true);
-            window.location.href = "/login";
-            return;
-          }
-
-          try {
-            window.localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
-          } catch {
-            // ignore
-          }
-        }
-
-        setIsVersionReady(true);
+        window.localStorage.setItem(APP_VERSION_KEY, APP_VERSION ?? "");
       } catch {
-        setIsVersionReady(true);
+        // ignore
       }
-    })();
+    }
+    setIsVersionReady(true);
   }, []);
 
   useEffect(() => {
@@ -255,47 +164,54 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (!isVersionReady) return;
+    if (redirectingRef.current) return;
     if (isPublicPath(pathname)) {
       setIsLoadingAuth(false);
       setAuthStatus(user ? "authenticated" : "guest");
       return;
     }
-
-    // Fetch /api/me at most once per app session.
     if (didFetchMeRef.current) return;
     didFetchMeRef.current = true;
 
     (async () => {
       setIsLoadingAuth(true);
       setAuthStatus("loading");
-      const res = await fetchMeOnce();
-      if (!mountedRef.current) return;
-
-      if (res.status === 401) {
-        setMeCache(null);
-        setUser(null);
-        setIsLoadingAuth(false);
-        setAuthStatus("guest");
-
-        if (!isPublicPath(pathname)) {
-          router.replace("/auth");
+      try {
+        const res = await db.auth.me();
+        let nextUser: User | null = null;
+        if (res && typeof res === "object" && (res as any).user) {
+          nextUser = {
+            ...((res as any).user as User),
+            business: (res as any).business,
+          } as User;
+        } else {
+          nextUser = res as User | null;
         }
-        return;
-      }
 
-      setUser(res.user);
-      setIsLoadingAuth(false);
-      setAuthStatus(res.user ? "authenticated" : "guest");
+        setUser(nextUser);
+        setAuthStatus(nextUser ? "authenticated" : "guest");
+      } catch (err: any) {
+        const status = typeof err?.status === "number" ? err.status : undefined;
+        const message = String(err?.message || "");
+        const inferred =
+          status ?? (message === "Unauthorized" ? 401 : undefined);
+        const isUnauthorized = inferred === 401;
+
+        setUser(null);
+        setAuthStatus(isUnauthorized ? "guest" : "guest");
+      } finally {
+        setIsLoadingAuth(false);
+      }
     })();
-  }, [isVersionReady, pathname, router, user]);
+  }, [isVersionReady, pathname, user]);
 
   useEffect(() => {
     if (!isVersionReady) return;
-    if (authStatus !== "guest") return;
-    if (!isPublicPath(pathname)) {
+    if (redirectingRef.current) return;
+    if (!isLoadingAuth && !user && !isPublicPath(pathname)) {
       router.replace("/auth");
     }
-  }, [authStatus, isVersionReady, pathname, router]);
+  }, [isLoadingAuth, isVersionReady, pathname, router, user]);
 
   return (
     <AuthContext.Provider
