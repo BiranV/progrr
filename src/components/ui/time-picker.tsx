@@ -52,6 +52,7 @@ export function TimePicker({
     ...a11y
 }: TimePickerProps) {
     const [open, setOpen] = React.useState(false);
+    const isRtl = typeof document !== "undefined" && document.documentElement.dir === "rtl";
 
     const parsed = parseTime(value);
     const initialHour = parsed?.h ?? 9;
@@ -118,8 +119,10 @@ export function TimePicker({
             <DialogContent
                 className={cn(
                     "p-3 gap-2",
-                    // Always centered (mobile + desktop)
-                    "top-1/2 start-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg",
+                    // Always centered (mobile + desktop), with RTL-safe positioning
+                    isRtl
+                        ? "top-1/2 right-1/2 translate-x-1/2 -translate-y-1/2 rounded-lg"
+                        : "top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-lg",
                     "w-[calc(100%-2rem)] max-w-sm"
                 )}
             >
