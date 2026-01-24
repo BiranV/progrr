@@ -409,7 +409,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Section 1: Business */}
-      <Card>
+      <Card className="gap-0 py-4">
         <CardHeader className="pb-2">
           <CardTitle className="text-base">{t("settings.businessSection")}</CardTitle>
         </CardHeader>
@@ -440,7 +440,7 @@ export default function SettingsPage() {
       </Card>
 
       {/* Section 2: Subscription */}
-      <Card>
+      <Card className="gap-0 py-4">
         <CardHeader className="pb-2">
           <CardTitle className="text-base">{t("settings.languageRegion")}</CardTitle>
         </CardHeader>
@@ -514,7 +514,7 @@ export default function SettingsPage() {
       </Card>
 
       {/* Section 3: Subscription */}
-      <Card>
+      <Card className="gap-0 py-4">
         <CardHeader className="pb-2">
           <CardTitle className="text-base">{t("settings.subscriptionSection")}</CardTitle>
         </CardHeader>
@@ -535,7 +535,7 @@ export default function SettingsPage() {
       </Card>
 
       {/* Section 4: Support & Legal */}
-      <Card>
+      <Card className="gap-0 py-4">
         <CardHeader className="pb-2">
           <CardTitle className="text-base">{t("settings.supportSection")}</CardTitle>
         </CardHeader>
@@ -566,7 +566,7 @@ export default function SettingsPage() {
       </Card>
 
       {/* Section 5: Account */}
-      <Card>
+      <Card className="gap-0 py-4">
         <CardHeader className="pb-2">
           <CardTitle className="text-base">{t("settings.accountSection")}</CardTitle>
         </CardHeader>
