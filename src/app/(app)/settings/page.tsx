@@ -260,7 +260,7 @@ export default function SettingsPage() {
     isLoggingOutRef.current = true;
 
     try {
-      await logout(false);
+      await logout();
       await queryClient.cancelQueries();
       queryClient.clear();
     } finally {
