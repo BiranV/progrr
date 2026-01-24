@@ -77,6 +77,11 @@ const en = {
             newer: "Newer",
             older: "Older",
         },
+        serviceLabel: "Service",
+        dateLabel: "Date",
+        timeLabel: "Time",
+        durationLabel: "Duration",
+        priceLabel: "Price",
         details: {
             backToCustomers: "Back to customers",
             notFound: "Not found.",
@@ -233,6 +238,11 @@ const en = {
             notesLabel: "Notes (optional)",
             confirmBookingAction: "Confirm booking",
             verifyEmailAction: "Verify email",
+            serviceLabel: "Service",
+            dateLabel: "Date",
+            timeLabel: "Time",
+            durationLabel: "Duration",
+            priceLabel: "Price",
         },
         verify: {
             resend: "Resend",

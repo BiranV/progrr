@@ -34,7 +34,18 @@ import { useI18n } from "@/i18n/useI18n";
 import { english } from "flatpickr/dist/l10n/default";
 import { Arabic } from "flatpickr/dist/l10n/ar";
 import { Hebrew } from "flatpickr/dist/l10n/he";
-import { CalendarDays, LogIn, LogOut, Menu, User } from "lucide-react";
+import {
+  Briefcase,
+  Calendar,
+  CalendarDays,
+  Clock,
+  CreditCard,
+  LogIn,
+  LogOut,
+  Menu,
+  Timer,
+  User,
+} from "lucide-react";
 
 type Step = "service" | "date" | "time" | "confirm" | "success";
 
@@ -154,6 +165,30 @@ function ErrorAlert({
 
   if (!centered) return content;
   return <div className="flex justify-center">{content}</div>;
+}
+
+function SummaryRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-3 rtl:flex-row-reverse rtl:text-right ltr:flex-row ltr:text-left">
+      <div className="shrink-0 h-8 w-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center">
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="text-xs text-muted-foreground">{label}</div>
+        <div className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+          {value}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 type ActiveAppointmentConflict = {
@@ -2203,27 +2238,45 @@ export default function PublicBookingFlow({
           ) : null}
 
           <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/10 p-4">
-            <div className="text-sm text-gray-700 dark:text-gray-200 mt-1">
-              {selectedService?.name
-                ? selectedService.name
-                : t("publicBooking.details.appointmentFallback")}
-            </div>
-            <div className="text-sm text-gray-700 dark:text-gray-200 mt-1">
-              {formatDateForDisplay(date)}
-              {startTime ? (
-                <>
-                  {" • "}
-                  <span dir="ltr">
-                    {formatTimeRange(startTime, selectedSlot?.endTime || "")}
-                  </span>
-                </>
-              ) : null}
-            </div>
-            {durationLabel && priceLabel ? (
-              <div className="text-sm text-muted-foreground mt-1">
-                {durationLabel} • {priceLabel}
+            <div className="flex flex-col gap-3">
+              <SummaryRow
+                icon={Briefcase}
+                label={t("publicBooking.details.serviceLabel")}
+                value={
+                  selectedService?.name
+                    ? selectedService.name
+                    : t("publicBooking.details.appointmentFallback")
+                }
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <SummaryRow
+                  icon={Calendar}
+                  label={t("publicBooking.details.dateLabel")}
+                  value={date ? formatDateForDisplay(date) : t("common.emptyDash")}
+                />
+                <SummaryRow
+                  icon={Clock}
+                  label={t("publicBooking.details.timeLabel")}
+                  value={
+                    startTime
+                      ? formatTimeRange(startTime, selectedSlot?.endTime || "")
+                      : t("common.emptyDash")
+                  }
+                />
               </div>
-            ) : null}
+              <div className="grid grid-cols-2 gap-3">
+                <SummaryRow
+                  icon={Timer}
+                  label={t("publicBooking.details.durationLabel")}
+                  value={durationLabel ?? t("common.emptyDash")}
+                />
+                <SummaryRow
+                  icon={CreditCard}
+                  label={t("publicBooking.details.priceLabel")}
+                  value={priceLabel ?? t("common.emptyDash")}
+                />
+              </div>
+            </div>
           </div>
 
           {!hasRequiredDetails ? (

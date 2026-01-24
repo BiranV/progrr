@@ -77,6 +77,11 @@ const he = {
             newer: "חדשים יותר",
             older: "ישנים יותר",
         },
+        serviceLabel: "שירות",
+        dateLabel: "תאריך",
+        timeLabel: "שעה",
+        durationLabel: "משך",
+        priceLabel: "מחיר",
         details: {
             backToCustomers: "חזרה ללקוחות",
             notFound: "לא נמצא.",
@@ -229,6 +234,11 @@ const he = {
             notesLabel: "הערות (לא חובה)",
             confirmBookingAction: "אשר/י תור",
             verifyEmailAction: "אימות אימייל",
+            serviceLabel: "שירות",
+            dateLabel: "תאריך",
+            timeLabel: "שעה",
+            durationLabel: "משך",
+            priceLabel: "מחיר",
         },
         verify: {
             resend: "שליחה מחדש",
