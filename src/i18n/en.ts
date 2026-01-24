@@ -67,6 +67,8 @@ const en = {
             subtitle: "Customer details for this business",
             detailsTab: "Details",
             appointmentsTab: "Appointments",
+            messageTab: "Message",
+            nameLabel: "Name",
             phoneLabel: "Phone",
             emailLabel: "Email",
             activeBookingsLabel: "Active bookings",
@@ -76,6 +78,14 @@ const en = {
             appointmentsPagination: "Page {{page}} of {{total}}",
             newer: "Newer",
             older: "Older",
+        },
+        message: {
+            channelLabel: "Channel",
+            channelWhatsapp: "WhatsApp",
+            channelSms: "SMS",
+            channelEmail: "Email",
+            defaultSubject: "Message from {{name}}",
+            toastSent: "Message sent",
         },
         serviceLabel: "Service",
         dateLabel: "Date",
@@ -452,6 +462,8 @@ const en = {
                 title: "Other",
                 description: "Custom business",
             },
+            messageTab: "Message",
+            nameLabel: "Name",
         },
         servicePresets: {
             barbershop: {
@@ -461,6 +473,14 @@ const en = {
                 kidsHaircut: "Kids haircut",
                 lineUpShapeUp: "Line-up / shape-up",
                 hotTowelShave: "Hot towel shave",
+            },
+            message: {
+                channelLabel: "Channel",
+                channelWhatsapp: "WhatsApp",
+                channelSms: "SMS",
+                channelEmail: "Email",
+                defaultSubject: "Message from {{name}}",
+                toastSent: "Message sent",
             },
             hair_salon: {
                 womensHaircut: "Women’s haircut",

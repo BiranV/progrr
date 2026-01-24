@@ -67,6 +67,8 @@ const he = {
             subtitle: "פרטי לקוח לעסק זה",
             detailsTab: "פרטים",
             appointmentsTab: "תורים",
+            messageTab: "הודעה",
+            nameLabel: "שם",
             phoneLabel: "טלפון",
             emailLabel: "אימייל",
             activeBookingsLabel: "תורים פעילים",
@@ -76,6 +78,14 @@ const he = {
             appointmentsPagination: "עמוד {{page}} מתוך {{total}}",
             newer: "חדשים יותר",
             older: "ישנים יותר",
+        },
+        message: {
+            channelLabel: "ערוץ",
+            channelWhatsapp: "וואטסאפ",
+            channelSms: "SMS",
+            channelEmail: "אימייל",
+            defaultSubject: "הודעה מ־{{name}}",
+            toastSent: "ההודעה נשלחה",
         },
         serviceLabel: "שירות",
         dateLabel: "תאריך",
@@ -446,6 +456,8 @@ const he = {
                 title: "אחר",
                 description: "עסק בהתאמה אישית",
             },
+            messageTab: "הודעה",
+            nameLabel: "שם",
         },
         servicePresets: {
             barbershop: {
@@ -455,6 +467,14 @@ const he = {
                 kidsHaircut: "תספורת ילדים",
                 lineUpShapeUp: "יישור/עיצוב קו",
                 hotTowelShave: "גילוח במגבת חמה",
+            },
+            message: {
+                channelLabel: "ערוץ",
+                channelWhatsapp: "וואטסאפ",
+                channelSms: "SMS",
+                channelEmail: "אימייל",
+                defaultSubject: "הודעה מ־{{name}}",
+                toastSent: "ההודעה נשלחה",
             },
             hair_salon: {
                 womensHaircut: "תספורת נשים",

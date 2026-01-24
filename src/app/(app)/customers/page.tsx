@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -33,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import SidePanel from "@/components/ui/side-panel";
 import {
   DataTable,
@@ -107,7 +109,7 @@ export default function CustomersPage() {
 
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [drawerTab, setDrawerTab] = React.useState<
-    "details" | "appointments"
+    "details" | "appointments" | "message"
   >("details");
   const [selectedCustomer, setSelectedCustomer] =
     React.useState<Customer | null>(null);
@@ -119,6 +121,11 @@ export default function CustomersPage() {
   const [optimisticStatusById, setOptimisticStatusById] = React.useState<
     Record<string, "ACTIVE" | "BLOCKED">
   >({});
+  const [messageText, setMessageText] = React.useState("");
+  const [messageChannel, setMessageChannel] = React.useState<
+    "WHATSAPP" | "SMS" | "EMAIL"
+  >("EMAIL");
+  const [messageSending, setMessageSending] = React.useState(false);
 
   const [query, setQuery] = React.useState("");
   const [page, setPage] = React.useState(1);
@@ -173,6 +180,11 @@ export default function CustomersPage() {
   React.useEffect(() => {
     if (page !== safePage) setPage(safePage);
   }, [page, safePage]);
+
+  React.useEffect(() => {
+    setMessageText("");
+    setMessageChannel("EMAIL");
+  }, [selectedCustomer?._id]);
 
   const columns = React.useMemo(() => {
     const cols: Array<DataTableColumn<Customer>> = [
@@ -285,9 +297,12 @@ export default function CustomersPage() {
   w-full flex items-center gap-2
   rtl:flex-row-reverse rtl:justify-start rtl:text-right
   ltr:flex-row ltr:justify-start ltr:text-left
-"                  onClick={() =>
-                    toast.info(t("customers.menu.sendMessagePlaceholder"))
-                  }
+"                  onClick={() => {
+                    setSelectedCustomer(c);
+                    setAppointmentsPage(1);
+                    setDrawerTab("message");
+                    setDrawerOpen(true);
+                  }}
                 >
                   <MessageSquare className="h-4 w-4" />
                   {t("customers.menu.sendMessage")}
@@ -549,6 +564,8 @@ export default function CustomersPage() {
           if (!open) {
             setDrawerTab("details");
             setAppointmentsPage(1);
+            setMessageText("");
+            setMessageChannel("EMAIL");
           }
         }}
         title={
@@ -595,6 +612,15 @@ export default function CustomersPage() {
             >
               {t("customers.drawer.appointmentsTab")}
             </Button>
+            <Button
+              type="button"
+              variant={drawerTab === "message" ? "default" : "outline"}
+              size="sm"
+              className="rounded-full"
+              onClick={() => setDrawerTab("message")}
+            >
+              {t("customers.drawer.messageTab")}
+            </Button>
           </div>
 
           {drawerTab === "details" ? (
@@ -631,7 +657,7 @@ export default function CustomersPage() {
                 </div>
               </div>
             </div>
-          ) : (
+          ) : drawerTab === "appointments" ? (
             <div className="space-y-4">
               {appointmentsQuery.isPending ? (
                 <CenteredSpinner size="sm" className="py-6" />
@@ -737,6 +763,88 @@ export default function CustomersPage() {
                   ) : null}
                 </div>
               )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>{t("customers.message.channelLabel")}</Label>
+                <Select
+                  value={messageChannel}
+                  onValueChange={(v) =>
+                    setMessageChannel(v as "WHATSAPP" | "SMS" | "EMAIL")
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t("customers.message.channelLabel")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="WHATSAPP">
+                      {t("customers.message.channelWhatsapp")}
+                    </SelectItem>
+                    <SelectItem value="SMS">
+                      {t("customers.message.channelSms")}
+                    </SelectItem>
+                    <SelectItem value="EMAIL">
+                      {t("customers.message.channelEmail")}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>{t("customers.details.sendMessageTitle")}</Label>
+                <Textarea
+                  placeholder={t("customers.details.messagePlaceholder")}
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value)}
+                  rows={5}
+                />
+              </div>
+
+              <Button
+                type="button"
+                className="rounded-xl"
+                disabled={messageSending || !messageText.trim() || !selectedCustomer}
+                onClick={async () => {
+                  if (!selectedCustomer) return;
+                  setMessageSending(true);
+                  try {
+                    const subject = t("customers.message.defaultSubject", {
+                      name: selectedCustomer.fullName || t("customers.table.noName"),
+                    });
+                    const res = await fetch(
+                      `/api/customers/${encodeURIComponent(
+                        selectedCustomer._id
+                      )}/message`,
+                      {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          subject,
+                          message: messageText.trim(),
+                          channel: messageChannel,
+                        }),
+                      }
+                    );
+                    const json = await res.json().catch(() => null);
+                    if (!res.ok) {
+                      throw new Error(
+                        json?.error || t("errors.requestFailed", { status: res.status })
+                      );
+                    }
+                    toast.success(t("customers.message.toastSent"));
+                    setMessageText("");
+                  } catch (e: any) {
+                    toast.error(e?.message || t("errors.failedToSave"));
+                  } finally {
+                    setMessageSending(false);
+                  }
+                }}
+              >
+                {messageSending
+                  ? t("customers.details.sendingMessage")
+                  : t("customers.details.sendMessage")}
+              </Button>
             </div>
           )}
         </div>
