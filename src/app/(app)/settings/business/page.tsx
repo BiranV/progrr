@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { updateBusiness, useBusiness } from "@/hooks/useBusiness";
 import { CenteredSpinner } from "@/components/CenteredSpinner";
+import { useI18n } from "@/i18n/useI18n";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,7 @@ type BusinessDetailsForm = {
 };
 
 export default function BusinessDetailsPage() {
+  const { t } = useI18n();
   const {
     data: business,
     isPending,
@@ -140,26 +142,26 @@ export default function BusinessDetailsPage() {
       const nextErrors: Partial<Record<keyof BusinessDetailsForm, string>> = {};
 
       if (!next.name.trim()) {
-        nextErrors.name = "Business name cannot be empty.";
+        nextErrors.name = t("errors.businessNameRequired");
       }
 
       if (!next.phone.trim()) {
-        nextErrors.phone = "Phone number is required.";
+        nextErrors.phone = t("errors.businessPhoneRequired");
       } else if (!isPhoneValid) {
-        nextErrors.phone = "Please enter a valid phone number.";
+        nextErrors.phone = t("errors.businessPhoneInvalid");
       }
 
       if (next.whatsapp.trim() && !isWhatsAppValid) {
-        nextErrors.whatsapp = "WhatsApp number must be a valid mobile number.";
+        nextErrors.whatsapp = t("businessDetails.errors.whatsappInvalid");
       }
 
       if (!next.address.trim()) {
-        nextErrors.address = "Address cannot be empty.";
+        nextErrors.address = t("errors.businessAddressRequired");
       }
 
       return nextErrors;
     },
-    [isPhoneValid, isWhatsAppValid],
+    [isPhoneValid, isWhatsAppValid, t],
   );
 
   const onSave = async () => {
@@ -182,9 +184,9 @@ export default function BusinessDetailsPage() {
         instagram: form.instagram,
         whatsapp: form.whatsapp,
       }));
-      toast.success("Changes saved");
+      toast.success(t("businessDetails.toastSaved"));
     } catch (err: any) {
-      toast.error(err?.message || "Failed to save changes");
+      toast.error(err?.message || t("errors.failedToSave"));
     } finally {
       setIsSaving(false);
     }
@@ -194,7 +196,7 @@ export default function BusinessDetailsPage() {
     if (!bookingLink) return;
     try {
       await navigator.clipboard.writeText(bookingLink);
-      toast.success("Copied");
+      toast.success(t("businessDetails.toastCopy"));
 
       setCopyStatus("copied");
       if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
@@ -202,7 +204,7 @@ export default function BusinessDetailsPage() {
         setCopyStatus("idle");
       }, 3000);
     } catch {
-      toast.error("Failed to copy");
+      toast.error(t("businessDetails.toastCopyFailed"));
     }
   };
 
@@ -229,40 +231,40 @@ export default function BusinessDetailsPage() {
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Business details
+          {t("settings.businessDetails")}
         </h1>
         <p className="text-sm text-gray-600 dark:text-gray-300">
-          Failed to load your business details.
+          {t("businessDetails.loadFailed")}
         </p>
       </div>
 
       <div className="text-sm text-red-600 dark:text-red-400">
-        {String((error as any)?.message ?? "Request failed")}
+        {String((error as any)?.message ?? t("businessDetails.requestFailed"))}
       </div>
 
       <Button type="button" onClick={() => refetch()}>
-        Retry
+        {t("businessDetails.retry")}
       </Button>
     </div>
   ) : (
     <div className="space-y-6">
       <div className="space-y-2">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Business details
+          {t("settings.businessDetails")}
         </h1>
         <p className="text-sm text-gray-600 dark:text-gray-300">
-          Edit your business information.
+          {t("settings.businessDetailsDesc")}
         </p>
       </div>
 
       <div className="space-y-5">
         <div className="space-y-2">
-          <Label htmlFor="business-name">Business name</Label>
+          <Label htmlFor="business-name">{t("businessDetails.nameLabel")}</Label>
           <Input
             id="business-name"
             type="text"
             required
-            placeholder="Your business name"
+            placeholder={t("businessDetails.namePlaceholder")}
             value={form.name}
             onChange={(e) => updateField("name", e.target.value)}
           />
@@ -274,7 +276,7 @@ export default function BusinessDetailsPage() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="phone">Phone number</Label>
+          <Label htmlFor="phone">{t("businessDetails.phoneLabel")}</Label>
           <PhoneInput
             id="phone"
             required
@@ -291,7 +293,7 @@ export default function BusinessDetailsPage() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="whatsapp">WhatsApp number</Label>
+          <Label htmlFor="whatsapp">{t("businessDetails.whatsappLabel")}</Label>
           <PhoneInput
             id="whatsapp"
             value={form.whatsapp}
@@ -301,7 +303,7 @@ export default function BusinessDetailsPage() {
             aria-invalid={Boolean(errors.whatsapp)}
           />
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Used for the WhatsApp quick action on the public booking page.
+            {t("businessDetails.whatsappHelp")}
           </p>
           {errors.whatsapp ? (
             <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -311,12 +313,12 @@ export default function BusinessDetailsPage() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="address">Address</Label>
+          <Label htmlFor="address">{t("businessDetails.addressLabel")}</Label>
           <Input
             id="address"
             type="text"
             required
-            placeholder="City, street"
+            placeholder={t("businessDetails.addressPlaceholder")}
             value={form.address}
             onChange={(e) => updateField("address", e.target.value)}
           />
@@ -328,25 +330,27 @@ export default function BusinessDetailsPage() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="instagram">Instagram</Label>
+          <Label htmlFor="instagram">{t("businessDetails.instagramLabel")}</Label>
           <Input
             id="instagram"
             type="text"
-            placeholder="@yourbusiness"
+            placeholder={t("businessDetails.instagramPlaceholder")}
             // placeholder="@yourbusiness or https://instagram.com/yourbusiness"
             value={form.instagram}
             onChange={(e) => updateField("instagram", e.target.value)}
           />
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Shown on your public booking page.
+            {t("businessDetails.instagramHelp")}
           </p>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="description">Description</Label>
+          <Label htmlFor="description">
+            {t("businessDetails.descriptionLabel")}
+          </Label>
           <Textarea
             id="description"
-            placeholder="Short description of your business"
+            placeholder={t("businessDetails.descriptionPlaceholder")}
             maxLength={250}
             value={form.description}
             onChange={(e) => updateField("description", e.target.value)}
@@ -354,7 +358,9 @@ export default function BusinessDetailsPage() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="booking-link">Public booking link</Label>
+          <Label htmlFor="booking-link">
+            {t("businessDetails.bookingLinkLabel")}
+          </Label>
           <div className="flex gap-2">
             <Input id="booking-link" readOnly value={bookingLink} />
             <Button
@@ -363,7 +369,9 @@ export default function BusinessDetailsPage() {
               onClick={onCopy}
               disabled={!bookingLink}
             >
-              {copyStatus === "copied" ? "Copied!" : "Copy"}
+              {copyStatus === "copied"
+                ? t("businessDetails.copied")
+                : t("businessDetails.copy")}
             </Button>
           </div>
         </div>
@@ -378,7 +386,7 @@ export default function BusinessDetailsPage() {
             {isSaving ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
-              "Save changes"
+              t("businessDetails.saveChanges")
             )}
           </Button>
         </div>

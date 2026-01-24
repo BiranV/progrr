@@ -106,6 +106,9 @@ export default function PublicBookingShell({
   const businessName = String(business?.business?.name ?? title).trim();
   const businessPhone = String(business?.business?.phone ?? "").trim();
   const businessAddress = String(business?.business?.address ?? "").trim();
+  const businessDescription = String(
+    (business as any)?.business?.description ?? "",
+  ).trim();
   const instagramRaw = String(
     (business as any)?.business?.instagram ?? "",
   ).trim();
@@ -272,6 +275,12 @@ export default function PublicBookingShell({
             <h1 className="text-xl font-semibold text-gray-900 dark:text-white tracking-tight text-center w-full">
               {businessName}
             </h1>
+
+            {businessDescription ? (
+              <p className="text-sm text-gray-600 dark:text-gray-300 text-center">
+                {businessDescription}
+              </p>
+            ) : null}
 
             {quickActions.length ? (
               <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
