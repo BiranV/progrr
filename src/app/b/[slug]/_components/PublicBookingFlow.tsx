@@ -365,6 +365,10 @@ export default function PublicBookingFlow({
   const [identified, setIdentified] = React.useState(false);
   const [connected, setConnected] = React.useState(false);
 
+  React.useEffect(() => {
+    setActiveConflict(null);
+  }, [serviceId, date, startTime]);
+
   const limitCustomerToOneUpcomingAppointment = Boolean(
     (data as any)?.bookingRules?.limitCustomerToOneUpcomingAppointment
   );
@@ -1059,11 +1063,13 @@ export default function PublicBookingFlow({
   const onBack = React.useCallback(() => {
     if (step === "time") {
       setStartTime("");
+      setActiveConflict(null);
       setStep("date");
       return;
     }
 
     if (step === "confirm") {
+      setActiveConflict(null);
       setStep("time");
       return;
     }
@@ -1071,6 +1077,7 @@ export default function PublicBookingFlow({
     if (step === "date") {
       setDate("");
       setStartTime("");
+      setActiveConflict(null);
       setStep("service");
       return;
     }
@@ -2005,6 +2012,7 @@ export default function PublicBookingFlow({
                   setDate("");
                   setStartTime("");
                   setFormError(null);
+                  setActiveConflict(null);
                   setStep("date");
                 }}
                 className={
@@ -2059,6 +2067,7 @@ export default function PublicBookingFlow({
                   setDate(next);
                   setStartTime("");
                   setFormError(null);
+                  setActiveConflict(null);
                   setStep("time");
                 }}
                 render={(_props: any, ref: any) => (
@@ -2107,6 +2116,7 @@ export default function PublicBookingFlow({
                         onClick={() => {
                           setStartTime(s.startTime);
                           setFormError(null);
+                          setActiveConflict(null);
 
                           if (connected) {
                             setStep("confirm");
