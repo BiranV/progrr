@@ -650,6 +650,17 @@ const he = {
         timeZoneSubtitle: "משמש לחישוב שעות פתיחה והצגת “פתוח/סגור”.",
         timeZoneSelect: "בחירת אזור זמן",
     },
+    support: {
+        title: "תמיכה",
+        subtitle: "צריכים עזרה? אנחנו כאן כדי לסייע.",
+        contactTitle: "יצירת קשר עם התמיכה",
+        contactSubtitle: "שלחו הודעה לצוות התמיכה שלנו.",
+        contactEmail: "שליחת אימייל אל {{email}}",
+        infoTitle: "מידע על תמיכה",
+        responseTime: "בדרך כלל נחזור אליכם תוך 24 שעות עבודה.",
+        hours: "ראשון–חמישי, 09:00–18:00 (GMT+2)",
+        urgentNote: "אם זה דחוף, אנא ציינו בהודעה את שם העסק שלכם.",
+    },
     businessDetails: {
         loadFailed: "טעינת פרטי העסק נכשלה.",
         requestFailed: "הבקשה נכשלה",

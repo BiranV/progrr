@@ -1,10 +1,15 @@
+"use client";
+
 import { Mail } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import SettingsBackHeader from "@/components/settings/SettingsBackHeader";
+import { useI18n } from "@/i18n/useI18n";
 
 export default function SupportPage() {
+  const { t } = useI18n();
+
   return (
     <div className="space-y-6">
       <div className="mb-2">
@@ -12,10 +17,10 @@ export default function SupportPage() {
       </div>
       <div className="space-y-2">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Support
+          {t("support.title")}
         </h1>
         <p className="text-sm text-gray-600 dark:text-gray-300">
-          Need help? We’re here to assist you.
+          {t("support.subtitle")}
         </p>
       </div>
 
@@ -24,15 +29,17 @@ export default function SupportPage() {
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <Mail className="h-4 w-4 text-muted-foreground" />
-              Contact Support
+              {t("support.contactTitle")}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Send a message to our support team.
+              {t("support.contactSubtitle")}
             </p>
             <Button asChild className="rounded-2xl">
-              <a href="mailto:support@progrr.io">Email support@progrr.io</a>
+              <a href="mailto:support@progrr.io">
+                {t("support.contactEmail", { email: "support@progrr.io" })}
+              </a>
             </Button>
           </CardContent>
         </Card>
@@ -40,16 +47,16 @@ export default function SupportPage() {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Support information</CardTitle>
+          <CardTitle className="text-base">{t("support.infoTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-muted-foreground">
-          <div>We usually respond within 24 business hours.</div>
-          <div>Sunday–Thursday, 09:00–18:00 (GMT+2)</div>
+          <div>{t("support.responseTime")}</div>
+          <div>{t("support.hours")}</div>
         </CardContent>
       </Card>
 
       <div className="text-xs text-muted-foreground">
-        If this is urgent, please include your business name in the message.
+        {t("support.urgentNote")}
       </div>
     </div>
   );

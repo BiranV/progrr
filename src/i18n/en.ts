@@ -656,6 +656,17 @@ const en = {
         timeZoneSubtitle: "Used to evaluate your opening hours and show “Open/Closed”.",
         timeZoneSelect: "Select time zone",
     },
+    support: {
+        title: "Support",
+        subtitle: "Need help? We’re here to assist you.",
+        contactTitle: "Contact Support",
+        contactSubtitle: "Send a message to our support team.",
+        contactEmail: "Email {{email}}",
+        infoTitle: "Support information",
+        responseTime: "We usually respond within 24 business hours.",
+        hours: "Sunday–Thursday, 09:00–18:00 (GMT+2)",
+        urgentNote: "If this is urgent, please include your business name in the message.",
+    },
     businessDetails: {
         loadFailed: "Failed to load your business details.",
         requestFailed: "Request failed",
