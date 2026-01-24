@@ -362,7 +362,8 @@ const en = {
         bookingHoursTitle: "Booking & hours",
         bookingHoursSubtitle: "Set your working days and booking rules.",
         limitCustomersTitle: "Limit customers to 1 upcoming appointment",
-        limitCustomersSubtitle: "Default is off (customers can book multiple). Same service on the same day is always blocked.",
+        limitCustomersSubtitle:
+            "Customers only: when enabled, 1 upcoming appointment max; same service/day always blocked. Admins can override when creating appointments.",
         brandingTitle: "Business branding",
         brandingSubtitle: "Add a logo and a few photos — these will be visible to clients.",
         businessLogo: "Business logo",
@@ -675,7 +676,8 @@ const en = {
         timeZoneTitle: "Time zone",
         timeZoneSubtitle: "Used to evaluate your opening hours and show “Open/Closed”.",
         limitCustomersTitle: "Limit customers to 1 upcoming appointment",
-        limitCustomersSubtitle: "Default is off (customers can book multiple). Same service on the same day is always blocked.",
+        limitCustomersSubtitle:
+            "Customers only: when enabled, 1 upcoming appointment max; same service/day always blocked. Admins can override when creating appointments.",
         selectTimeZone: "Select time zone",
         saveChanges: "Save changes",
         toastSaved: "Changes saved",

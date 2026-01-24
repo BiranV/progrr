@@ -356,7 +356,8 @@ const he = {
         bookingHoursTitle: "הזמנות ושעות",
         bookingHoursSubtitle: "הגדר/י את ימי העבודה וחוקי ההזמנה.",
         limitCustomersTitle: "הגבלת לקוחות לתור עתידי אחד",
-        limitCustomersSubtitle: "ברירת מחדל כבוי (לקוחות יכולים להזמין מספר תורים). אותו שירות באותו יום תמיד נחסם.",
+        limitCustomersSubtitle:
+            "לקוחות בלבד: כשמופעל, תור עתידי אחד בלבד; אותו שירות באותו יום תמיד חסום. מנהלים יכולים לעקוף בעת יצירת תור.",
         brandingTitle: "מיתוג העסק",
         brandingSubtitle: "הוסף/י לוגו ומספר תמונות — יופיעו בפני הלקוחות.",
         businessLogo: "לוגו העסק",
@@ -669,7 +670,8 @@ const he = {
         timeZoneTitle: "אזור זמן",
         timeZoneSubtitle: "משמש לחישוב שעות פתיחה והצגת “פתוח/סגור”.",
         limitCustomersTitle: "הגבלת לקוחות לתור עתידי אחד",
-        limitCustomersSubtitle: "ברירת מחדל כבוי (לקוחות יכולים להזמין מספר תורים). אותו שירות באותו יום תמיד נחסם.",
+        limitCustomersSubtitle:
+            "לקוחות בלבד: כשמופעל, תור עתידי אחד בלבד; אותו שירות באותו יום תמיד חסום. מנהלים יכולים לעקוף בעת יצירת תור.",
         selectTimeZone: "בחר/י אזור זמן",
         saveChanges: "שמירת שינויים",
         toastSaved: "השינויים נשמרו",

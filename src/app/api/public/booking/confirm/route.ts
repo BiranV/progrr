@@ -256,8 +256,8 @@ export async function POST(req: Request) {
       (businessSettings as any).limitCustomerToOneUpcomingAppointment
     );
 
-    // Always enforce: same customer cannot book the same service on the same day.
-    // Additionally enforce: only one active future appointment per customer when enabled.
+    // Customer-only rules: block same service on the same day, and optionally
+    // restrict to a single upcoming appointment when enabled. Admin/owner bookings are exempt.
     const timeZone =
       String((onboarding as any)?.availability?.timezone ?? "").trim() || "UTC";
     const todayStr = formatDateInTimeZone(new Date(), timeZone);
