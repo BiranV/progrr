@@ -1,0 +1,27 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "scan-unused-files",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"scripts/scan-unused.js"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "none"
+		},
+		{
+			"label": "scan-unused-files",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"scripts/scan-unused.js"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "none"
+		}
+	]
+}

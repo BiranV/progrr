@@ -1,0 +1,116 @@
+[
+  {
+    "fullPath": "C:\\Users\\biran\\progrr\\src\\app\\(auth)\\auth\\_components\\OtpInput.tsx",
+    "relPath": "src/app/(auth)/auth/_components/OtpInput.tsx",
+    "isSpecial": false,
+    "isReferenced": false
+  },
+  {
+    "fullPath": "C:\\Users\\biran\\progrr\\src\\app\\(auth)\\onboarding\\_components\\OnboardingHeader.tsx",
+    "relPath": "src/app/(auth)/onboarding/_components/OnboardingHeader.tsx",
+    "isSpecial": false,
+    "isReferenced": false
+  },
+  {
+    "fullPath": "C:\\Users\\biran\\progrr\\src\\app\\actions\\auth.ts",
+    "relPath": "src/app/actions/auth.ts",
+    "isSpecial": false,
+    "isReferenced": false
+  },
+  {
+    "fullPath": "C:\\Users\\biran\\progrr\\src\\components\\public-booking\\steps\\DateStep.tsx",
+    "relPath": "src/components/public-booking/steps/DateStep.tsx",
+    "isSpecial": false,
+    "isReferenced": false
+  },
+  {
+    "fullPath": "C:\\Users\\biran\\progrr\\src\\components\\public-booking\\steps\\DetailsStep.tsx",
+    "relPath": "src/components/public-booking/steps/DetailsStep.tsx",
+    "isSpecial": false,
+    "isReferenced": false
+  },
+  {
+    "fullPath": "C:\\Users\\biran\\progrr\\src\\components\\public-booking\\steps\\ServiceStep.tsx",
+    "relPath": "src/components/public-booking/steps/ServiceStep.tsx",
+    "isSpecial": false,
+    "isReferenced": false
+  },
+  {
+    "fullPath": "C:\\Users\\biran\\progrr\\src\\components\\public-booking\\steps\\SuccessStep.tsx",
+    "relPath": "src/components/public-booking/steps/SuccessStep.tsx",
+    "isSpecial": false,
+    "isReferenced": false
+  },
+  {
+    "fullPath": "C:\\Users\\biran\\progrr\\src\\components\\public-booking\\steps\\TimeStep.tsx",
+    "relPath": "src/components/public-booking/steps/TimeStep.tsx",
+    "isSpecial": false,
+    "isReferenced": false
+  },
+  {
+    "fullPath": "C:\\Users\\biran\\progrr\\src\\components\\public-booking\\steps\\VerifyStep.tsx",
+    "relPath": "src/components/public-booking/steps/VerifyStep.tsx",
+    "isSpecial": false,
+    "isReferenced": false
+  },
+  {
+    "fullPath": "C:\\Users\\biran\\progrr\\src\\components\\ui\\checkbox.tsx",
+    "relPath": "src/components/ui/checkbox.tsx",
+    "isSpecial": false,
+    "isReferenced": false
+  },
+  {
+    "fullPath": "C:\\Users\\biran\\progrr\\src\\components\\ui\\sonner.tsx",
+    "relPath": "src/components/ui/sonner.tsx",
+    "isSpecial": false,
+    "isReferenced": false
+  },
+  {
+    "fullPath": "C:\\Users\\biran\\progrr\\src\\components\\ui\\tabs.tsx",
+    "relPath": "src/components/ui/tabs.tsx",
+    "isSpecial": false,
+    "isReferenced": false
+  },
+  {
+    "fullPath": "C:\\Users\\biran\\progrr\\src\\components\\ui\\tooltip.tsx",
+    "relPath": "src/components/ui/tooltip.tsx",
+    "isSpecial": false,
+    "isReferenced": false
+  },
+  {
+    "fullPath": "C:\\Users\\biran\\progrr\\src\\context\\ThemeContext.tsx",
+    "relPath": "src/context/ThemeContext.tsx",
+    "isSpecial": false,
+    "isReferenced": false
+  },
+  {
+    "fullPath": "C:\\Users\\biran\\progrr\\src\\lib\\NavigationTracker.tsx",
+    "relPath": "src/lib/NavigationTracker.tsx",
+    "isSpecial": false,
+    "isReferenced": false
+  },
+  {
+    "fullPath": "C:\\Users\\biran\\progrr\\src\\lib\\VisualEditAgent.tsx",
+    "relPath": "src/lib/VisualEditAgent.tsx",
+    "isSpecial": false,
+    "isReferenced": false
+  },
+  {
+    "fullPath": "C:\\Users\\biran\\progrr\\src\\server\\customer-id.ts",
+    "relPath": "src/server/customer-id.ts",
+    "isSpecial": false,
+    "isReferenced": false
+  },
+  {
+    "fullPath": "C:\\Users\\biran\\progrr\\src\\server\\sms.ts",
+    "relPath": "src/server/sms.ts",
+    "isSpecial": false,
+    "isReferenced": false
+  },
+  {
+    "fullPath": "C:\\Users\\biran\\progrr\\src\\types\\index.ts",
+    "relPath": "src/types/index.ts",
+    "isSpecial": false,
+    "isReferenced": false
+  }
+]
