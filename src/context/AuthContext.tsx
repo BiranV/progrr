@@ -38,8 +38,11 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_CACHE_KEY = "progrr:auth-cache:v1";
-const APP_VERSION =
-  process.env.NEXT_PUBLIC_APP_VERSION?.trim() || "2026.01.24";
+const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION;
+
+if (!APP_VERSION) {
+  throw new Error("NEXT_PUBLIC_APP_VERSION is missing");
+}
 const APP_VERSION_KEY = "progrr_app_version";
 
 function readAuthCache(): User | null {
@@ -207,12 +210,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
 
             try {
-              window.localStorage.clear();
-            } catch {
-              // ignore
-            }
-            try {
-              window.sessionStorage.clear();
+              window.localStorage.removeItem(AUTH_CACHE_KEY);
+              window.localStorage.removeItem(APP_VERSION_KEY);
             } catch {
               // ignore
             }
@@ -223,7 +222,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             }
 
             setIsVersionReady(true);
-            router.replace("/login");
+            window.location.href = "/login";
             return;
           }
 
