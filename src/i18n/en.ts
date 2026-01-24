@@ -667,6 +667,69 @@ const en = {
         hours: "Sunday–Thursday, 09:00–18:00 (GMT+2)",
         urgentNote: "If this is urgent, please include your business name in the message.",
     },
+    privacy: {
+        title: "Privacy Policy",
+        subtitle: "Your privacy is important to us.",
+        lastUpdated: "Last updated: {{date}}",
+        lastUpdatedDate: "January 2026",
+        sections: {
+            introduction: {
+                title: "1. Introduction",
+                body: "Progrr respects your privacy. This policy explains how we collect and use information when you use our service.",
+            },
+            information: {
+                title: "2. Information We Collect",
+                body: "We collect information you provide and basic technical data, such as:",
+                items: {
+                    account: "Account information (name, email, phone)",
+                    business: "Business-related data you enter into Progrr",
+                    technical: "Technical data (device, browser, basic analytics)",
+                },
+            },
+            usage: {
+                title: "3. How We Use Information",
+                items: {
+                    provide: "To provide and operate the service",
+                    improve: "To improve the product",
+                    updates: "To communicate important updates",
+                    support: "To provide support",
+                },
+            },
+            sharing: {
+                title: "4. Data Sharing",
+                body: "We do not sell personal data. We share data only with trusted services (such as hosting, analytics, and email) when required to operate the service.",
+            },
+            security: {
+                title: "5. Data Security",
+                body: "We use industry-standard security practices and reasonable measures to protect user data. No method of transmission or storage is 100% secure, so we cannot guarantee absolute security.",
+            },
+            retention: {
+                title: "6. Data Retention",
+                body: "We keep data only as long as your account is active. You can request deletion of your data at any time.",
+            },
+            rights: {
+                title: "7. User Rights",
+                body: "You have the right to:",
+                items: {
+                    access: "Access your data",
+                    correct: "Correct your data",
+                    delete: "Request deletion of your data",
+                },
+            },
+            thirdParty: {
+                title: "8. Third-Party Services",
+                body: "We use third-party services for hosting, analytics, and payments (if applicable). These services only receive the data needed to operate Progrr.",
+            },
+            changes: {
+                title: "9. Changes to This Policy",
+                body: "We may update this policy from time to time. Changes will be reflected on this page. Continued use of Progrr means you accept the updated policy.",
+            },
+            contact: {
+                title: "10. Contact Us",
+                body: "If you have questions about this policy, email us at",
+            },
+        },
+    },
     businessDetails: {
         loadFailed: "Failed to load your business details.",
         requestFailed: "Request failed",

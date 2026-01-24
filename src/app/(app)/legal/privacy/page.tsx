@@ -1,6 +1,12 @@
+"use client";
+
 import SettingsBackHeader from "@/components/settings/SettingsBackHeader";
+import { useI18n } from "@/i18n/useI18n";
 
 export default function PrivacyPolicyPage() {
+  const { t } = useI18n();
+  const supportEmail = "support@progrr.io";
+
   return (
     <div className="space-y-6">
       <div className="mb-2">
@@ -8,131 +14,120 @@ export default function PrivacyPolicyPage() {
       </div>
       <div className="space-y-1">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Privacy Policy
+          {t("privacy.title")}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Your privacy is important to us.
+          {t("privacy.subtitle")}
         </p>
         <p className="text-xs text-muted-foreground">
-          Last updated: January 2026
+          {t("privacy.lastUpdated", { date: t("privacy.lastUpdatedDate") })}
         </p>
       </div>
 
       <div className="space-y-6 text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            1. Introduction
+            {t("privacy.sections.introduction.title")}
           </h2>
           <p>
-            Progrr respects your privacy. This policy explains how we collect
-            and use information when you use our service.
+            {t("privacy.sections.introduction.body")}
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            2. Information We Collect
+            {t("privacy.sections.information.title")}
           </h2>
           <p>
-            We collect information you provide and basic technical data, such
-            as:
+            {t("privacy.sections.information.body")}
           </p>
           <ul className="list-disc pl-5 space-y-1">
-            <li>Account information (name, email, phone)</li>
-            <li>Business-related data you enter into Progrr</li>
-            <li>Technical data (device, browser, basic analytics)</li>
+            <li>{t("privacy.sections.information.items.account")}</li>
+            <li>{t("privacy.sections.information.items.business")}</li>
+            <li>{t("privacy.sections.information.items.technical")}</li>
           </ul>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            3. How We Use Information
+            {t("privacy.sections.usage.title")}
           </h2>
           <ul className="list-disc pl-5 space-y-1">
-            <li>To provide and operate the service</li>
-            <li>To improve the product</li>
-            <li>To communicate important updates</li>
-            <li>To provide support</li>
+            <li>{t("privacy.sections.usage.items.provide")}</li>
+            <li>{t("privacy.sections.usage.items.improve")}</li>
+            <li>{t("privacy.sections.usage.items.updates")}</li>
+            <li>{t("privacy.sections.usage.items.support")}</li>
           </ul>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            4. Data Sharing
+            {t("privacy.sections.sharing.title")}
           </h2>
           <p>
-            We do not sell personal data. We share data only with trusted
-            services (such as hosting, analytics, and email) when required to
-            operate the service.
+            {t("privacy.sections.sharing.body")}
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            5. Data Security
+            {t("privacy.sections.security.title")}
           </h2>
           <p>
-            We use industry-standard security practices and reasonable measures
-            to protect user data. No method of transmission or storage is 100%
-            secure, so we cannot guarantee absolute security.
+            {t("privacy.sections.security.body")}
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            6. Data Retention
+            {t("privacy.sections.retention.title")}
           </h2>
           <p>
-            We keep data only as long as your account is active. You can request
-            deletion of your data at any time.
+            {t("privacy.sections.retention.body")}
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            7. User Rights
+            {t("privacy.sections.rights.title")}
           </h2>
-          <p>You have the right to:</p>
+          <p>{t("privacy.sections.rights.body")}</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li>Access your data</li>
-            <li>Correct your data</li>
-            <li>Request deletion of your data</li>
+            <li>{t("privacy.sections.rights.items.access")}</li>
+            <li>{t("privacy.sections.rights.items.correct")}</li>
+            <li>{t("privacy.sections.rights.items.delete")}</li>
           </ul>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            8. Third-Party Services
+            {t("privacy.sections.thirdParty.title")}
           </h2>
           <p>
-            We use third-party services for hosting, analytics, and payments (if
-            applicable). These services only receive the data needed to operate
-            Progrr.
+            {t("privacy.sections.thirdParty.body")}
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            9. Changes to This Policy
+            {t("privacy.sections.changes.title")}
           </h2>
           <p>
-            We may update this policy from time to time. Changes will be
-            reflected on this page. Continued use of Progrr means you accept the
-            updated policy.
+            {t("privacy.sections.changes.body")}
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            10. Contact Us
+            {t("privacy.sections.contact.title")}
           </h2>
           <p>
-            If you have questions about this policy, email us at{" "}
+            {t("privacy.sections.contact.body")}{" "}
             <a
-              href="mailto:support@progrr.io"
+              href={`mailto:${supportEmail}`}
               className="text-primary underline-offset-4 hover:underline"
             >
-              support@progrr.io
+              {supportEmail}
             </a>
             .
           </p>
