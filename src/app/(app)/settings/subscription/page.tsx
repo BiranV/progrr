@@ -56,16 +56,7 @@ export default function SubscriptionPage() {
         </p>
       </div>
 
-      <Card>
-        <CardContent className="py-4 text-sm text-muted-foreground">
-          {t("subscription.trialNote")}
-        </CardContent>
-      </Card>
-
       <div className="space-y-3">
-        <div className="text-sm font-medium text-gray-900 dark:text-white">
-          {t("subscription.planTitle")}
-        </div>
         <div className="grid gap-3">
           {pricing.map((plan) => (
             <Card
