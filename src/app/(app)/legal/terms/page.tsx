@@ -1,6 +1,12 @@
+"use client";
+
 import SettingsBackHeader from "@/components/settings/SettingsBackHeader";
+import { useI18n } from "@/i18n/useI18n";
 
 export default function TermsOfServicePage() {
+  const { t } = useI18n();
+  const supportEmail = "support@progrr.io";
+
   return (
     <div className="space-y-6">
       <div className="mb-2">
@@ -8,159 +14,143 @@ export default function TermsOfServicePage() {
       </div>
       <div className="space-y-1">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Terms of Service
+          {t("terms.title")}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Please read these terms carefully before using Progrr.
+          {t("terms.subtitle")}
         </p>
         <p className="text-xs text-muted-foreground">
-          Last updated: January 2026
+          {t("terms.lastUpdated", { date: t("terms.lastUpdatedDate") })}
         </p>
       </div>
 
       <div className="space-y-6 text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            1. Acceptance of Terms
+            {t("terms.sections.acceptance.title")}
           </h2>
           <p>
-            By accessing or using Progrr, you agree to these terms. If you do
-            not agree, you should not use the service.
+            {t("terms.sections.acceptance.body")}
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            2. Description of Service
+            {t("terms.sections.description.title")}
           </h2>
           <p>
-            Progrr provides business management and scheduling tools. The
-            service may evolve over time, and features may be added, changed, or
-            removed.
+            {t("terms.sections.description.body")}
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            3. Eligibility
+            {t("terms.sections.eligibility.title")}
           </h2>
           <p>
-            You must be legally able to enter a binding agreement to use Progrr.
-            You are responsible for compliance with local laws.
+            {t("terms.sections.eligibility.body")}
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            4. User Accounts
+            {t("terms.sections.accounts.title")}
           </h2>
           <p>
-            You are responsible for maintaining the security of your account and
-            for all activity under it. Progrr is not liable for unauthorized
-            access caused by your negligence.
+            {t("terms.sections.accounts.body")}
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            5. Acceptable Use
+            {t("terms.sections.acceptableUse.title")}
           </h2>
           <ul className="list-disc pl-5 space-y-1">
-            <li>No illegal use of the service</li>
-            <li>No abuse, misuse, or disruption of the service</li>
-            <li>No attempts to access unauthorized systems or data</li>
+            <li>{t("terms.sections.acceptableUse.items.illegal")}</li>
+            <li>{t("terms.sections.acceptableUse.items.abuse")}</li>
+            <li>{t("terms.sections.acceptableUse.items.unauthorized")}</li>
           </ul>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            6. Payments and Subscriptions (If Applicable)
+            {t("terms.sections.payments.title")}
           </h2>
           <p>
-            Some features may require payment. Pricing and billing terms are
-            presented separately. Subscriptions may renew automatically unless
-            canceled.
+            {t("terms.sections.payments.body")}
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            7. Intellectual Property
+            {t("terms.sections.ip.title")}
           </h2>
           <p>
-            Progrr owns the platform, code, design, and branding. You retain
-            ownership of your business data. No rights are granted beyond using
-            the service.
+            {t("terms.sections.ip.body")}
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            8. Data and Privacy
+            {t("terms.sections.privacy.title")}
           </h2>
-          <p>Your use of Progrr is also governed by our Privacy Policy.</p>
+          <p>{t("terms.sections.privacy.body")}</p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            9. Service Availability
+            {t("terms.sections.availability.title")}
           </h2>
           <p>
-            The service is provided “as is” without guarantees of uninterrupted
-            or error-free operation. Maintenance or downtime may occur.
+            {t("terms.sections.availability.body")}
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            10. Limitation of Liability
+            {t("terms.sections.liability.title")}
           </h2>
           <p>
-            Progrr is not liable for indirect or consequential damages.
-            Liability is limited to the maximum extent permitted by law.
+            {t("terms.sections.liability.body")}
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            11. Termination
+            {t("terms.sections.termination.title")}
           </h2>
           <p>
-            You may stop using the service at any time. Progrr may suspend or
-            terminate accounts for violations. Termination does not affect
-            accrued rights or obligations.
+            {t("terms.sections.termination.body")}
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            12. Changes to Terms
+            {t("terms.sections.changes.title")}
           </h2>
           <p>
-            We may update these terms from time to time. Updates will be
-            reflected on this page. Continued use means you accept the updated
-            terms.
+            {t("terms.sections.changes.body")}
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            13. Governing Law
+            {t("terms.sections.law.title")}
           </h2>
-          <p>These terms are governed by applicable local law.</p>
+          <p>{t("terms.sections.law.body")}</p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            14. Contact Information
+            {t("terms.sections.contact.title")}
           </h2>
           <p>
-            For legal inquiries, email us at{" "}
+            {t("terms.sections.contact.body")}{" "}
             <a
-              href="mailto:support@progrr.io"
+              href={`mailto:${supportEmail}`}
               className="text-primary underline-offset-4 hover:underline"
             >
-              support@progrr.io
+              {supportEmail}
             </a>
             .
           </p>

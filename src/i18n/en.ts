@@ -730,6 +730,74 @@ const en = {
             },
         },
     },
+    terms: {
+        title: "Terms of Service",
+        subtitle: "Please read these terms carefully before using Progrr.",
+        lastUpdated: "Last updated: {{date}}",
+        lastUpdatedDate: "January 2026",
+        sections: {
+            acceptance: {
+                title: "1. Acceptance of Terms",
+                body: "By accessing or using Progrr, you agree to these terms. If you do not agree, you should not use the service.",
+            },
+            description: {
+                title: "2. Description of Service",
+                body: "Progrr provides business management and scheduling tools. The service may evolve over time, and features may be added, changed, or removed.",
+            },
+            eligibility: {
+                title: "3. Eligibility",
+                body: "You must be legally able to enter a binding agreement to use Progrr. You are responsible for compliance with local laws.",
+            },
+            accounts: {
+                title: "4. User Accounts",
+                body: "You are responsible for maintaining the security of your account and for all activity under it. Progrr is not liable for unauthorized access caused by your negligence.",
+            },
+            acceptableUse: {
+                title: "5. Acceptable Use",
+                items: {
+                    illegal: "No illegal use of the service",
+                    abuse: "No abuse, misuse, or disruption of the service",
+                    unauthorized: "No attempts to access unauthorized systems or data",
+                },
+            },
+            payments: {
+                title: "6. Payments and Subscriptions (If Applicable)",
+                body: "Some features may require payment. Pricing and billing terms are presented separately. Subscriptions may renew automatically unless canceled.",
+            },
+            ip: {
+                title: "7. Intellectual Property",
+                body: "Progrr owns the platform, code, design, and branding. You retain ownership of your business data. No rights are granted beyond using the service.",
+            },
+            privacy: {
+                title: "8. Data and Privacy",
+                body: "Your use of Progrr is also governed by our Privacy Policy.",
+            },
+            availability: {
+                title: "9. Service Availability",
+                body: "The service is provided “as is” without guarantees of uninterrupted or error-free operation. Maintenance or downtime may occur.",
+            },
+            liability: {
+                title: "10. Limitation of Liability",
+                body: "Progrr is not liable for indirect or consequential damages. Liability is limited to the maximum extent permitted by law.",
+            },
+            termination: {
+                title: "11. Termination",
+                body: "You may stop using the service at any time. Progrr may suspend or terminate accounts for violations. Termination does not affect accrued rights or obligations.",
+            },
+            changes: {
+                title: "12. Changes to Terms",
+                body: "We may update these terms from time to time. Updates will be reflected on this page. Continued use means you accept the updated terms.",
+            },
+            law: {
+                title: "13. Governing Law",
+                body: "These terms are governed by applicable local law.",
+            },
+            contact: {
+                title: "14. Contact Information",
+                body: "For legal inquiries, email us at",
+            },
+        },
+    },
     businessDetails: {
         loadFailed: "Failed to load your business details.",
         requestFailed: "Request failed",
