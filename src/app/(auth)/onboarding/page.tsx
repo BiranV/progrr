@@ -1994,6 +1994,7 @@ export default function OnboardingPage() {
                           <div
                             key={r.id}
                             className="h-8 flex items-center flex-nowrap gap-2 min-w-0"
+                            dir="ltr"
                           >
                             <TimePicker
                               value={String(r.start ?? "")}
@@ -2319,14 +2320,13 @@ export default function OnboardingPage() {
                                   end: (d as any).end,
                                 }
                               );
-                              return ranges
-                                .map(
-                                  (r) =>
-                                    `${String(r.start || t("common.emptyDash"))} – ${String(
-                                      r.end || t("common.emptyDash")
-                                    )}`
-                                )
-                                .join(", ");
+                              return ranges.map((r, idx) => (
+                                <span key={r.id || idx} dir="ltr">
+                                  {`${String(r.start || t("common.emptyDash"))} – ${String(
+                                    r.end || t("common.emptyDash")
+                                  )}${idx < ranges.length - 1 ? ", " : ""}`}
+                                </span>
+                              ));
                             })()
                             : t("onboarding.closed")}
                         </div>

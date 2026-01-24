@@ -115,7 +115,9 @@ export function TimePicker({
                 )}
                 {...a11y}
             >
-                <span className={cn(!display && "text-muted-foreground")}>{display || placeholder}</span>
+                <span dir="ltr" className={cn(!display && "text-muted-foreground")}>
+                    {display || placeholder}
+                </span>
             </button>
 
             <DialogContent
@@ -147,12 +149,15 @@ export function TimePicker({
                             }
                         }}
                         aria-label="Time value"
+                        dir="ltr"
                         className="h-9 text-sm"
                     />
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-2 gap-3" dir="ltr">
                         <div className="min-w-0">
-                            <div className="text-xs text-muted-foreground mb-1">{t("timePicker.hours")}</div>
+                            <div className={cn("text-xs text-muted-foreground mb-1", isRtl && "text-right")}>
+                                {t("timePicker.hours")}
+                            </div>
                             <div
                                 ref={hourListRef}
                                 className="max-h-40 overflow-y-auto rounded-md border border-border/60 bg-background/40 p-1 snap-y snap-mandatory"
@@ -186,7 +191,9 @@ export function TimePicker({
                         </div>
 
                         <div className="min-w-0">
-                            <div className="text-xs text-muted-foreground mb-1">{t("timePicker.minutes")}</div>
+                            <div className={cn("text-xs text-muted-foreground mb-1", isRtl && "text-right")}>
+                                {t("timePicker.minutes")}
+                            </div>
                             <div
                                 ref={minuteListRef}
                                 className="max-h-40 overflow-y-auto rounded-md border border-border/60 bg-background/40 p-1 snap-y snap-mandatory"
