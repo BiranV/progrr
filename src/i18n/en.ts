@@ -677,6 +677,20 @@ const en = {
         limitCustomersTitle: "Limit customers to 1 upcoming appointment",
         limitCustomersSubtitle: "Default is off (customers can book multiple). Same service on the same day is always blocked.",
         selectTimeZone: "Select time zone",
+        saveChanges: "Save changes",
+        toastSaved: "Changes saved",
+        failedToLoad: "Failed to load opening hours",
+        hoursConflictMessage:
+            "You can’t change the working hours because there are already scheduled appointments outside the new hours. Please cancel or reschedule those appointments first.",
+        aria: {
+            toggleDay: "Toggle {{day}}",
+            startTime: "{{day}} start time",
+            endTime: "{{day}} end time",
+            additionalStartTime: "{{day}} additional start time",
+            additionalEndTime: "{{day}} additional end time",
+            addRange: "Add time range for {{day}}",
+            deleteRange: "Delete time range for {{day}}",
+        },
     },
     dashboard: {
         title: "Dashboard",

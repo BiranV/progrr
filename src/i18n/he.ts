@@ -671,6 +671,20 @@ const he = {
         limitCustomersTitle: "הגבלת לקוחות לתור עתידי אחד",
         limitCustomersSubtitle: "ברירת מחדל כבוי (לקוחות יכולים להזמין מספר תורים). אותו שירות באותו יום תמיד נחסם.",
         selectTimeZone: "בחר/י אזור זמן",
+        saveChanges: "שמירת שינויים",
+        toastSaved: "השינויים נשמרו",
+        failedToLoad: "טעינת שעות הפעילות נכשלה",
+        hoursConflictMessage:
+            "לא ניתן לשנות את שעות העבודה כי יש כבר תורים מחוץ לשעות החדשות. יש לבטל או לקבוע מחדש את התורים האלה קודם.",
+        aria: {
+            toggleDay: "הפעל/כבה {{day}}",
+            startTime: "שעת התחלה ליום {{day}}",
+            endTime: "שעת סיום ליום {{day}}",
+            additionalStartTime: "שעת התחלה נוספת ליום {{day}}",
+            additionalEndTime: "שעת סיום נוספת ליום {{day}}",
+            addRange: "הוסף/י טווח שעות ליום {{day}}",
+            deleteRange: "מחק/י טווח שעות ליום {{day}}",
+        },
     },
     dashboard: {
         title: "דשבורד",

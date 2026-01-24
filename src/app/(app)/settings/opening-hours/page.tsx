@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 
 import { ONBOARDING_QUERY_KEY, useOnboardingSettings } from "@/hooks/useOnboardingSettings";
+import { useI18n } from "@/i18n/useI18n";
 
 type AvailabilityDay = {
     day: number; // 0..6 (Sun..Sat)
@@ -154,6 +155,17 @@ function stableStringifyAvailability(state: AvailabilityState): string {
 export default function OpeningHoursPage() {
     const [isSaving, setIsSaving] = React.useState(false);
     const queryClient = useQueryClient();
+    const { t, dict } = useI18n();
+    const dayLabels = React.useMemo(() => dict?.onboarding?.dayLabels || DAY_LABELS, [dict]);
+    const dayShortLabels = React.useMemo(
+        () => dict?.onboarding?.dayShortLabels || dayLabels,
+        [dict, dayLabels]
+    );
+    const getDayLabel = React.useCallback((day: number) => dayLabels[day] || "", [dayLabels]);
+    const getDayShortLabel = React.useCallback(
+        (day: number) => dayShortLabels[day] || getDayLabel(day),
+        [dayShortLabels, getDayLabel]
+    );
 
     const {
         data: onboardingRes,
@@ -176,9 +188,9 @@ export default function OpeningHoursPage() {
 
     React.useEffect(() => {
         if (isError) {
-            toast.error((error as any)?.message || "Failed to load opening hours");
+            toast.error((error as any)?.message || t("openingHours.failedToLoad"));
         }
-    }, [isError, error]);
+    }, [isError, error, t]);
 
     const isDirty = React.useMemo(() => {
         if (!initialRef.current || !initialBookingRulesRef.current) return false;
@@ -230,7 +242,7 @@ export default function OpeningHoursPage() {
 
             const ranges = Array.isArray(d.ranges) ? d.ranges : [];
             if (!ranges.length) {
-                return `Please set valid hours for ${DAY_LABELS[d.day]}.`;
+                return t("onboarding.errors.invalidHours", { day: getDayLabel(d.day) });
             }
 
             const parsed = ranges
@@ -244,10 +256,10 @@ export default function OpeningHoursPage() {
 
             for (const r of parsed) {
                 if (!r.start || !r.end || !Number.isFinite(r.startMin) || !Number.isFinite(r.endMin)) {
-                    return `Please set valid hours for ${DAY_LABELS[d.day]}.`;
+                    return t("onboarding.errors.invalidHours", { day: getDayLabel(d.day) });
                 }
                 if (r.endMin <= r.startMin) {
-                    return `End time must be after start time for ${DAY_LABELS[d.day]}.`;
+                    return t("onboarding.errors.endAfterStart", { day: getDayLabel(d.day) });
                 }
             }
 
@@ -256,13 +268,13 @@ export default function OpeningHoursPage() {
                 const prev = ordered[i - 1];
                 const curr = ordered[i];
                 if (overlaps(prev.startMin, prev.endMin, curr.startMin, curr.endMin)) {
-                    return `Overlapping time ranges for ${DAY_LABELS[d.day]}.`;
+                    return t("onboarding.errors.overlappingRanges", { day: getDayLabel(d.day) });
                 }
             }
         }
 
         return null;
-    }, [availability.days]);
+    }, [availability.days, getDayLabel, t]);
 
     const onSave = async () => {
         if (!initialRef.current || !initialBookingRulesRef.current) return;
@@ -312,16 +324,15 @@ export default function OpeningHoursPage() {
                     availability: payload.availability,
                 },
             }));
-            toast.success("Changes saved");
+            toast.success(t("openingHours.toastSaved"));
         } catch (e: any) {
             if (e?.status === 409) {
                 window.alert(
-                    e?.message ||
-                    "You can’t change the working hours because there are already scheduled appointments outside the new hours. Please cancel or reschedule those appointments first."
+                    e?.message || t("openingHours.hoursConflictMessage")
                 );
                 return;
             }
-            toast.error(e?.message || "Failed to save changes");
+            toast.error(e?.message || t("errors.failedToSave"));
         } finally {
             setIsSaving(false);
         }
@@ -378,13 +389,13 @@ export default function OpeningHoursPage() {
                 const lastEnd = complete.length ? complete[complete.length - 1].endMin : 17 * 60;
                 const startMin = Math.max(0, Math.min(23 * 60 + 59, lastEnd));
                 if (startMin >= 23 * 60 + 59) {
-                    toastOnce(`No room to add another range on ${DAY_LABELS[day]}.`);
+                    toastOnce(t("onboarding.errors.noRoomForRange", { day: getDayLabel(day) }));
                     return d;
                 }
 
                 const endMin = Math.min(23 * 60 + 59, startMin + 60);
                 if (endMin <= startMin) {
-                    toastOnce(`No room to add another range on ${DAY_LABELS[day]}.`);
+                    toastOnce(t("onboarding.errors.noRoomForRange", { day: getDayLabel(day) }));
                     return d;
                 }
 
@@ -393,7 +404,7 @@ export default function OpeningHoursPage() {
                 // Prevent overlap against existing complete ranges.
                 const collides = complete.some((r) => overlaps(r.startMin, r.endMin, startMin, endMin));
                 if (collides) {
-                    toastOnce(`Overlapping time ranges for ${DAY_LABELS[day]}.`);
+                    toastOnce(t("onboarding.errors.overlappingRanges", { day: getDayLabel(day) }));
                     return d;
                 }
 
@@ -423,13 +434,13 @@ export default function OpeningHoursPage() {
         <div className="space-y-6">
             <div className="space-y-2">
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                    Booking & hours
+                    {t("openingHours.title")}
                 </h1>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
-                    Set your working days and booking rules.
+                    {t("openingHours.subtitle")}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Tap a time to open the hour picker.
+                    {t("openingHours.tapTimeHint")}
                 </p>
             </div>
 
@@ -438,10 +449,10 @@ export default function OpeningHoursPage() {
                     <div className="flex items-center justify-between gap-4">
                         <div className="min-w-0">
                             <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                                Limit customers to 1 upcoming appointment
+                                {t("openingHours.limitCustomersTitle")}
                             </div>
                             <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                Default is off (customers can book multiple). Same service on the same day is always blocked.
+                                {t("openingHours.limitCustomersSubtitle")}
                             </div>
                         </div>
                         <Switch
@@ -469,13 +480,13 @@ export default function OpeningHoursPage() {
                                                 ),
                                             }))
                                         }
-                                        aria-label={`Toggle ${DAY_LABELS[d.day]}`}
+                                        aria-label={t("openingHours.aria.toggleDay", { day: getDayLabel(d.day) })}
                                         disabled={isSaving || (isPending && !initialRef.current)}
                                     />
                                 </div>
 
                                 <div className="h-8 flex items-center text-sm font-medium text-gray-900 dark:text-white select-none">
-                                    <span className="w-8">{DAY_LABELS[d.day].substring(0, 3)}</span>
+                                    <span className="w-8">{getDayShortLabel(d.day)}</span>
                                 </div>
 
                                 <div className="space-y-2 min-w-0">
@@ -486,7 +497,11 @@ export default function OpeningHoursPage() {
                                                 onChange={(v) => updateRangeTime(d.day, r.id, "start", v)}
                                                 disabled={isSaving || (isPending && !initialRef.current) || !d.enabled}
                                                 className="h-8 w-[78px] min-w-[78px] px-1.5 text-[13px] shrink-0 cursor-pointer hover:bg-muted/30"
-                                                aria-label={`${DAY_LABELS[d.day]} ${idx === 0 ? "start" : "additional start"} time`}
+                                                aria-label={
+                                                    idx === 0
+                                                        ? t("openingHours.aria.startTime", { day: getDayLabel(d.day) })
+                                                        : t("openingHours.aria.additionalStartTime", { day: getDayLabel(d.day) })
+                                                }
                                             />
                                             <span className="text-gray-400 shrink-0">–</span>
                                             <TimePicker
@@ -494,7 +509,11 @@ export default function OpeningHoursPage() {
                                                 onChange={(v) => updateRangeTime(d.day, r.id, "end", v)}
                                                 disabled={isSaving || (isPending && !initialRef.current) || !d.enabled}
                                                 className="h-8 w-[78px] min-w-[78px] px-1.5 text-[13px] shrink-0 cursor-pointer hover:bg-muted/30"
-                                                aria-label={`${DAY_LABELS[d.day]} ${idx === 0 ? "end" : "additional end"} time`}
+                                                aria-label={
+                                                    idx === 0
+                                                        ? t("openingHours.aria.endTime", { day: getDayLabel(d.day) })
+                                                        : t("openingHours.aria.additionalEndTime", { day: getDayLabel(d.day) })
+                                                }
                                             />
                                         </div>
                                     ))}
@@ -510,7 +529,7 @@ export default function OpeningHoursPage() {
                                                     size="icon-sm"
                                                     onClick={() => addRange(d.day)}
                                                     disabled={isSaving || (isPending && !initialRef.current) || !d.enabled}
-                                                    aria-label={`Add time range for ${DAY_LABELS[d.day]}`}
+                                                    aria-label={t("openingHours.aria.addRange", { day: getDayLabel(d.day) })}
                                                 >
                                                     <Plus className="h-4 w-4 ms-4" />
                                                 </Button>
@@ -521,7 +540,7 @@ export default function OpeningHoursPage() {
                                                     size="icon-sm"
                                                     onClick={() => deleteRange(d.day, r.id)}
                                                     disabled={isSaving || (isPending && !initialRef.current) || !d.enabled || (d.ranges?.length ?? 0) <= 1}
-                                                    aria-label={`Delete time range for ${DAY_LABELS[d.day]}`}
+                                                    aria-label={t("openingHours.aria.deleteRange", { day: getDayLabel(d.day) })}
                                                 >
                                                     <Trash2 className="h-4 w-4 ms-4" />
                                                 </Button>
@@ -544,7 +563,7 @@ export default function OpeningHoursPage() {
                         {isSaving ? (
                             <Loader2 className="h-5 w-5 animate-spin" />
                         ) : (
-                            "Save changes"
+                            t("openingHours.saveChanges")
                         )}
                     </Button>
                 </div>
