@@ -4,6 +4,7 @@ export type PublicBusiness = {
     name: string;
     phone: string;
     address: string;
+    description?: string;
     instagram?: string;
     whatsapp?: string;
   };

@@ -115,6 +115,7 @@ export async function GET(
           normalizePhone((business as any)?.phone) ||
           String(business.phone ?? "").trim(),
         address: String(business.address ?? "").trim(),
+        description: String(business.description ?? "").trim(),
         instagram: String(business.instagram ?? "").trim(),
         whatsapp:
           normalizePhone((business as any)?.whatsapp) ||
