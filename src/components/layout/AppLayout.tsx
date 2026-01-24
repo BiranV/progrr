@@ -8,6 +8,7 @@ import BottomNav from "./BottomNav";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { CenteredSpinner } from "@/components/CenteredSpinner";
 
 function isPublicPath(pathname: string) {
   return (
@@ -110,7 +111,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const blockingFallback = (
     <div className="space-y-4">
-      <div className="text-sm text-muted-foreground">Redirecting…</div>
+      <CenteredSpinner className="min-h-[120px] items-center" />
       <div className="grid grid-cols-2 gap-3">
         <Skeleton className="h-20 w-full" />
         <Skeleton className="h-20 w-full" />

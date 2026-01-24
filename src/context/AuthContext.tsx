@@ -38,9 +38,9 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_CACHE_KEY = "progrr:auth-cache:v1";
-const APP_VERSION = "2026.01.23";
+const APP_VERSION =
+  process.env.NEXT_PUBLIC_APP_VERSION?.trim() || "2026.01.24";
 const APP_VERSION_KEY = "progrr_app_version";
-const LANGUAGE_STORAGE_KEYS = ["progrr_lang", "languageCode"];
 
 function readAuthCache(): User | null {
   if (typeof window === "undefined") return null;
@@ -79,6 +79,7 @@ function isPublicPath(pathname: string) {
   return (
     pathname === "/" ||
     pathname.startsWith("/auth") ||
+    pathname.startsWith("/login") ||
     pathname.startsWith("/public") ||
     pathname.startsWith("/b")
   );
@@ -180,39 +181,64 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    try {
-      const stored = window.localStorage.getItem(APP_VERSION_KEY);
-      if (!stored) {
-        window.localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
-        setIsVersionReady(true);
-        return;
-      }
+    (async () => {
+      try {
+        const stored = window.localStorage.getItem(APP_VERSION_KEY);
+        const cachedUser = readAuthCache();
+        const hasSession = Boolean(cachedUser);
 
-      if (stored !== APP_VERSION) {
-        LANGUAGE_STORAGE_KEYS.forEach((key) => {
+        if (!stored) {
+          window.localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
+          setIsVersionReady(true);
+          return;
+        }
+
+        if (stored !== APP_VERSION) {
+          if (hasSession) {
+            setMeCache(null);
+            setUser(null);
+            setAuthStatus("guest");
+            setIsLoadingAuth(false);
+
+            try {
+              await fetch("/api/auth/logout", { method: "POST" });
+            } catch {
+              // ignore
+            }
+
+            try {
+              window.localStorage.clear();
+            } catch {
+              // ignore
+            }
+            try {
+              window.sessionStorage.clear();
+            } catch {
+              // ignore
+            }
+            try {
+              window.localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
+            } catch {
+              // ignore
+            }
+
+            setIsVersionReady(true);
+            router.replace("/login");
+            return;
+          }
+
           try {
-            window.localStorage.removeItem(key);
+            window.localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
           } catch {
             // ignore
           }
-        });
-        try {
-          window.localStorage.removeItem(APP_VERSION_KEY);
-        } catch {
-          // ignore
         }
 
-        logout(false);
-        window.localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
-        setIsVersionReady(false);
-        router.replace("/auth");
-        return;
+        setIsVersionReady(true);
+      } catch {
+        setIsVersionReady(true);
       }
-
-      setIsVersionReady(true);
-    } catch {
-      setIsVersionReady(true);
-    }
+    })();
   }, [logout, router]);
 
   useEffect(() => {

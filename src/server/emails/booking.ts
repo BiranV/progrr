@@ -13,6 +13,12 @@ function escapeHtml(input: unknown): string {
         .replace(/'/g, "&#39;");
 }
 
+function formatDateForDisplay(date: string): string {
+    const match = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(String(date ?? ""));
+    if (!match) return String(date ?? "");
+    return `${match[3]}-${match[2]}-${match[1]}`;
+}
+
 export function buildAppointmentRescheduledEmail(args: {
     businessName?: string;
     serviceName?: string;
@@ -34,8 +40,8 @@ export function buildAppointmentRescheduledEmail(args: {
         "Your appointment has been rescheduled.",
         "",
         serviceName ? `Service: ${serviceName}` : "",
-        `Previous: ${args.oldDate} ${args.oldStartTime}–${args.oldEndTime}`,
-        `New: ${args.newDate} ${args.newStartTime}–${args.newEndTime}`,
+        `Previous: ${formatDateForDisplay(args.oldDate)} ${args.oldStartTime}–${args.oldEndTime}`,
+        `New: ${formatDateForDisplay(args.newDate)} ${args.newStartTime}–${args.newEndTime}`,
         "",
         `— ${businessName}`,
     ].filter(Boolean);
@@ -47,8 +53,8 @@ export function buildAppointmentRescheduledEmail(args: {
 
     ${serviceName ? `<div style="font-size:14px;margin:0 0 10px 0;"><strong>Service:</strong> ${escapeHtml(serviceName)}</div>` : ""}
 
-    <div style="font-size:14px;margin:0 0 6px 0;"><strong>Previous:</strong> ${escapeHtml(args.oldDate)} ${escapeHtml(args.oldStartTime)}–${escapeHtml(args.oldEndTime)}</div>
-    <div style="font-size:14px;margin:0 0 14px 0;"><strong>New:</strong> ${escapeHtml(args.newDate)} ${escapeHtml(args.newStartTime)}–${escapeHtml(args.newEndTime)}</div>
+    <div style="font-size:14px;margin:0 0 6px 0;"><strong>Previous:</strong> ${escapeHtml(formatDateForDisplay(args.oldDate))} ${escapeHtml(args.oldStartTime)}–${escapeHtml(args.oldEndTime)}</div>
+    <div style="font-size:14px;margin:0 0 14px 0;"><strong>New:</strong> ${escapeHtml(formatDateForDisplay(args.newDate))} ${escapeHtml(args.newStartTime)}–${escapeHtml(args.newEndTime)}</div>
 
     <div style="font-size:13px;color:#6b7280;">— ${escapeHtml(businessName)}</div>
   </div>`;
@@ -78,7 +84,7 @@ export function buildAppointmentCanceledEmail(args: {
         "Your appointment has been canceled.",
         "",
         serviceName ? `Service: ${serviceName}` : "",
-        `When: ${args.date} ${args.startTime}–${args.endTime}`,
+        `When: ${formatDateForDisplay(args.date)} ${args.startTime}–${args.endTime}`,
         "",
         `— ${businessName}`,
     ].filter(Boolean);
@@ -90,7 +96,7 @@ export function buildAppointmentCanceledEmail(args: {
 
     ${serviceName ? `<div style="font-size:14px;margin:0 0 10px 0;"><strong>Service:</strong> ${escapeHtml(serviceName)}</div>` : ""}
 
-    <div style="font-size:14px;margin:0 0 14px 0;"><strong>When:</strong> ${escapeHtml(args.date)} ${escapeHtml(args.startTime)}–${escapeHtml(args.endTime)}</div>
+    <div style="font-size:14px;margin:0 0 14px 0;"><strong>When:</strong> ${escapeHtml(formatDateForDisplay(args.date))} ${escapeHtml(args.startTime)}–${escapeHtml(args.endTime)}</div>
 
     <div style="font-size:13px;color:#6b7280;">— ${escapeHtml(businessName)}</div>
   </div>`;
@@ -120,7 +126,7 @@ export function buildAppointmentBookedEmail(args: {
         "Your appointment is confirmed.",
         "",
         serviceName ? `Service: ${serviceName}` : "",
-        `When: ${args.date} ${args.startTime}–${args.endTime}`,
+        `When: ${formatDateForDisplay(args.date)} ${args.startTime}–${args.endTime}`,
         "",
         `— ${businessName}`,
     ].filter(Boolean);
@@ -132,7 +138,7 @@ export function buildAppointmentBookedEmail(args: {
 
     ${serviceName ? `<div style="font-size:14px;margin:0 0 10px 0;"><strong>Service:</strong> ${escapeHtml(serviceName)}</div>` : ""}
 
-    <div style="font-size:14px;margin:0 0 14px 0;"><strong>When:</strong> ${escapeHtml(args.date)} ${escapeHtml(args.startTime)}–${escapeHtml(args.endTime)}</div>
+    <div style="font-size:14px;margin:0 0 14px 0;"><strong>When:</strong> ${escapeHtml(formatDateForDisplay(args.date))} ${escapeHtml(args.startTime)}–${escapeHtml(args.endTime)}</div>
 
     <div style="font-size:13px;color:#6b7280;">— ${escapeHtml(businessName)}</div>
   </div>`;
