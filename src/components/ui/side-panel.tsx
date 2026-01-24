@@ -91,7 +91,7 @@ export default function SidePanel({
           "absolute inset-x-0 bottom-0 flex w-full flex-col rounded-t-2xl border-t bg-background shadow-2xl max-h-[82dvh]",
           "sm:inset-y-0 sm:end-0 sm:inset-x-auto sm:h-full sm:max-h-[100dvh] sm:rounded-none sm:border-t-0 sm:border-s",
           "data-[state=open]:animate-in data-[state=closed]:animate-out duration-200 ease-out",
-          "data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom",
+          "max-sm:data-[state=open]:slide-in-from-bottom max-sm:data-[state=closed]:slide-out-to-bottom",
           "sm:data-[state=open]:slide-in-from-right sm:rtl:data-[state=open]:slide-in-from-left",
           "sm:data-[state=closed]:slide-out-to-right sm:rtl:data-[state=closed]:slide-out-to-left",
           "overflow-hidden",
