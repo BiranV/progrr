@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { persistQueryClient } from "@tanstack/react-query-persist-client";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
@@ -59,12 +59,14 @@ export default function Providers({
   }, []);
 
   return (
-    <AuthProvider>
-      <LocaleProvider>
-        <QueryClientProvider client={queryClient}>
-          {children}
-        </QueryClientProvider>
-      </LocaleProvider>
-    </AuthProvider>
+    <Suspense fallback={null}>
+      <AuthProvider>
+        <LocaleProvider>
+          <QueryClientProvider client={queryClient}>
+            {children}
+          </QueryClientProvider>
+        </LocaleProvider>
+      </AuthProvider>
+    </Suspense>
   );
 }

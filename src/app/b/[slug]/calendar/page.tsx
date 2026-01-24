@@ -1,9 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function PublicCalendarPage({
+function PublicCalendarContent({
   params,
 }: {
   params: Promise<{ slug: string }>;
@@ -26,4 +26,16 @@ export default function PublicCalendarPage({
   }, [raw, router, searchParams]);
 
   return null;
+}
+
+export default function PublicCalendarPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  return (
+    <Suspense fallback={null}>
+      <PublicCalendarContent params={params} />
+    </Suspense>
+  );
 }

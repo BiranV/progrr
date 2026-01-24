@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { type AuthBannerState } from "./_components/AuthBanner";
 import AuthFlow from "./_components/AuthFlow";
@@ -35,5 +36,9 @@ export default async function AuthEntryPage({
             ? { type: "message", text: authMessage }
             : null;
 
-    return <AuthFlow initialBanner={banner} initialNext={next} />;
+    return (
+        <Suspense fallback={null}>
+            <AuthFlow initialBanner={banner} initialNext={next} />
+        </Suspense>
+    );
 }

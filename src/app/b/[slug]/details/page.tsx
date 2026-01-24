@@ -1,9 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function PublicDetailsPage({
+function PublicDetailsContent({
   params,
 }: {
   params: Promise<{ slug: string }>;
@@ -30,4 +30,16 @@ export default function PublicDetailsPage({
   }, [raw, router, searchParams]);
 
   return null;
+}
+
+export default function PublicDetailsPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  return (
+    <Suspense fallback={null}>
+      <PublicDetailsContent params={params} />
+    </Suspense>
+  );
 }

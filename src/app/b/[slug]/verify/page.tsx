@@ -1,9 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function PublicVerifyPage({
+function PublicVerifyContent({
   params,
 }: {
   params: Promise<{ slug: string }>;
@@ -26,4 +26,16 @@ export default function PublicVerifyPage({
   }, [raw, router, searchParams]);
 
   return null;
+}
+
+export default function PublicVerifyPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  return (
+    <Suspense fallback={null}>
+      <PublicVerifyContent params={params} />
+    </Suspense>
+  );
 }
