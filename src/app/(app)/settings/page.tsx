@@ -9,14 +9,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +23,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useLocale } from "@/context/LocaleContext";
 import { useI18n } from "@/i18n/useI18n";
 import { ONBOARDING_QUERY_KEY, useOnboardingSettings } from "@/hooks/useOnboardingSettings";
+import SidePanel from "@/components/ui/side-panel";
 
 const DEFAULT_TIMEZONE = "Asia/Jerusalem";
 
@@ -594,68 +587,54 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Dialog
+      <SidePanel
         open={deleteOpen}
         onOpenChange={(open) => !deletePending && setDeleteOpen(open)}
+        title={t("settings.deleteDialogTitle")}
+        description={t("settings.deleteDialogDescription")}
+        showCloseButton={!deletePending}
+        closeOnOutsideClick={!deletePending}
       >
-        <DialogContent showCloseButton={!deletePending}>
-          <DialogHeader>
-            <DialogTitle>{t("settings.deleteDialogTitle")}</DialogTitle>
-            <DialogDescription>
-              {t("settings.deleteDialogDescription")}
-            </DialogDescription>
-          </DialogHeader>
+        <div className="space-y-3">
+          <div className="text-sm text-gray-700 dark:text-gray-300">
+            {t("settings.deleteListTitle")}
+          </div>
+          <ul className="list-disc pl-5 text-sm text-gray-700 dark:text-gray-300 space-y-1">
+            <li>{t("settings.deleteListBusiness")}</li>
+            <li>{t("settings.deleteListCustomers")}</li>
+            <li>{t("settings.deleteListAppointments")}</li>
+            <li>{t("settings.deleteListServices")}</li>
+            <li>{t("settings.deleteListSettings")}</li>
+          </ul>
 
-          <div className="space-y-3">
-            <div className="text-sm text-gray-700 dark:text-gray-300">
-              {t("settings.deleteListTitle")}
-            </div>
-            <ul className="list-disc pl-5 text-sm text-gray-700 dark:text-gray-300 space-y-1">
-              <li>{t("settings.deleteListBusiness")}</li>
-              <li>{t("settings.deleteListCustomers")}</li>
-              <li>{t("settings.deleteListAppointments")}</li>
-              <li>{t("settings.deleteListServices")}</li>
-              <li>{t("settings.deleteListSettings")}</li>
-            </ul>
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-2xl"
+            onClick={onDownloadData}
+            disabled={exportPending}
+          >
+            {exportPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : null}
+            {t("settings.deleteDownload")}
+          </Button>
 
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-2xl"
-              onClick={onDownloadData}
-              disabled={exportPending}
-            >
-              {exportPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : null}
-              {t("settings.deleteDownload")}
-            </Button>
-
-            <div className="space-y-2">
-              <Label>{t("settings.deleteTypeConfirm")}</Label>
-              <Input
-                value={deleteConfirmText}
-                onChange={(e) => setDeleteConfirmText(e.target.value)}
-                placeholder={t("settings.deletePlaceholder")}
-                autoComplete="off"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label>{t("settings.deleteTypeConfirm")}</Label>
+            <Input
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder={t("settings.deletePlaceholder")}
+              autoComplete="off"
+            />
           </div>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-2xl"
-              disabled={deletePending}
-              onClick={() => setDeleteOpen(false)}
-            >
-              {t("common.cancel")}
-            </Button>
+          <div className="pt-2">
             <Button
               type="button"
               variant="destructive"
-              className="rounded-2xl"
+              className="rounded-2xl w-full"
               disabled={deletePending || deleteConfirmText !== "DELETE"}
               onClick={onDeleteAccount}
             >
@@ -664,9 +643,9 @@ export default function SettingsPage() {
               ) : null}
               {t("settings.deleteConfirm")}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </div>
+      </SidePanel>
     </div>
   );
 }
