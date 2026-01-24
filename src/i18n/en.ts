@@ -31,6 +31,11 @@ const en = {
         appLogoAlt: "Logo",
         redirecting: "Redirecting...",
     },
+    timePicker: {
+        title: "Select time",
+        hours: "Hours",
+        minutes: "Minutes",
+    },
     nav: {
         settings: "Settings",
         customers: "Customers",

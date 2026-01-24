@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n/useI18n";
 
 function parseTime(value: string): { h: number; m: number } | null {
     const m = /^\s*(\d{1,2}):(\d{2})\s*$/.exec(String(value ?? ""));
@@ -51,6 +52,7 @@ export function TimePicker({
     placeholder = "--:--",
     ...a11y
 }: TimePickerProps) {
+    const { t } = useI18n();
     const [open, setOpen] = React.useState(false);
     const isRtl = typeof document !== "undefined" && document.documentElement.dir === "rtl";
 
@@ -127,7 +129,7 @@ export function TimePicker({
                 )}
             >
                 <DialogHeader className="gap-1">
-                    <DialogTitle className="text-sm">Select time</DialogTitle>
+                    <DialogTitle className="text-sm">{t("timePicker.title")}</DialogTitle>
                 </DialogHeader>
 
                 <div className="space-y-2">
@@ -150,7 +152,7 @@ export function TimePicker({
 
                     <div className="grid grid-cols-2 gap-3">
                         <div className="min-w-0">
-                            <div className="text-xs text-muted-foreground mb-1">Hours</div>
+                            <div className="text-xs text-muted-foreground mb-1">{t("timePicker.hours")}</div>
                             <div
                                 ref={hourListRef}
                                 className="max-h-40 overflow-y-auto rounded-md border border-border/60 bg-background/40 p-1 snap-y snap-mandatory"
@@ -184,7 +186,7 @@ export function TimePicker({
                         </div>
 
                         <div className="min-w-0">
-                            <div className="text-xs text-muted-foreground mb-1">Minutes</div>
+                            <div className="text-xs text-muted-foreground mb-1">{t("timePicker.minutes")}</div>
                             <div
                                 ref={minuteListRef}
                                 className="max-h-40 overflow-y-auto rounded-md border border-border/60 bg-background/40 p-1 snap-y snap-mandatory"

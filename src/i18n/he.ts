@@ -31,6 +31,11 @@ const he = {
         appLogoAlt: "לוגו",
         redirecting: "מעביר...",
     },
+    timePicker: {
+        title: "בחירת שעה",
+        hours: "שעות",
+        minutes: "דקות",
+    },
     nav: {
         settings: "הגדרות",
         customers: "לקוחות",
