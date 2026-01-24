@@ -25,6 +25,12 @@ export type DataTablePagination = {
     onPageChange: (nextPage: number) => void;
 };
 
+export type DataTablePaginationLabels = {
+    summary?: (page: number, totalPages: number) => React.ReactNode;
+    previous?: React.ReactNode;
+    next?: React.ReactNode;
+};
+
 export function DataTable<Row>({
     title,
     rows,
@@ -34,6 +40,7 @@ export function DataTable<Row>({
     sortConfig,
     onSort,
     pagination,
+    paginationLabels,
     containerClassName,
     headClassName,
     rowClassName,
@@ -48,6 +55,7 @@ export function DataTable<Row>({
     sortConfig?: DataTableSortConfig;
     onSort?: (key: string) => void;
     pagination?: DataTablePagination;
+    paginationLabels?: DataTablePaginationLabels;
     containerClassName?: string;
     headClassName?: string;
     rowClassName?: string;
@@ -152,7 +160,12 @@ export function DataTable<Row>({
                     )}
                 >
                     <div className="text-xs text-gray-600 dark:text-gray-300">
-                        Page {pagination.page} of {pagination.totalPages}
+                        {paginationLabels?.summary
+                            ? paginationLabels.summary(
+                                pagination.page,
+                                pagination.totalPages
+                            )
+                            : `Page ${pagination.page} of ${pagination.totalPages}`}
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -165,7 +178,7 @@ export function DataTable<Row>({
                                 pagination.onPageChange(Math.max(1, pagination.page - 1))
                             }
                         >
-                            Previous
+                            {paginationLabels?.previous ?? "Previous"}
                         </Button>
                         <Button
                             type="button"
@@ -178,7 +191,7 @@ export function DataTable<Row>({
                                 )
                             }
                         >
-                            Next
+                            {paginationLabels?.next ?? "Next"}
                         </Button>
                     </div>
                 </div>
