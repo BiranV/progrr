@@ -1,9 +1,10 @@
 "use client";
 
+import React, { Suspense } from "react";
 import SettingsBackHeader from "@/components/settings/SettingsBackHeader";
 import { useI18n } from "@/i18n/useI18n";
 
-export default function AccessibilityPage() {
+function AccessibilityContent() {
   const { t } = useI18n();
   const supportEmail = "support@progrr.io";
 
@@ -27,9 +28,7 @@ export default function AccessibilityPage() {
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
             {t("accessibility.sections.commitment.title")}
           </h2>
-          <p>
-            {t("accessibility.sections.commitment.body")}
-          </p>
+          <p>{t("accessibility.sections.commitment.body")}</p>
         </section>
 
         <section className="space-y-2">
@@ -84,27 +83,21 @@ export default function AccessibilityPage() {
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
             {t("accessibility.sections.settings.title")}
           </h2>
-          <p>
-            {t("accessibility.sections.settings.body")}
-          </p>
+          <p>{t("accessibility.sections.settings.body")}</p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
             {t("accessibility.sections.overlay.title")}
           </h2>
-          <p>
-            {t("accessibility.sections.overlay.body")}
-          </p>
+          <p>{t("accessibility.sections.overlay.body")}</p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
             {t("accessibility.sections.improvements.title")}
           </h2>
-          <p>
-            {t("accessibility.sections.improvements.body")}
-          </p>
+          <p>{t("accessibility.sections.improvements.body")}</p>
         </section>
 
         <section className="space-y-2">
@@ -112,7 +105,7 @@ export default function AccessibilityPage() {
             {t("accessibility.sections.contact.title")}
           </h2>
           <p>
-            {t("accessibility.sections.contact.body")}{" "}
+            {t("accessibility.sections.contact.body")} {" "}
             <a
               href={`mailto:${supportEmail}`}
               className="text-primary underline-offset-4 hover:underline"
@@ -124,5 +117,13 @@ export default function AccessibilityPage() {
         </section>
       </div>
     </div>
+  );
+}
+
+export default function AccessibilityPage() {
+  return (
+    <Suspense fallback={<div />}>
+      <AccessibilityContent />
+    </Suspense>
   );
 }

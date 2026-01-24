@@ -20,10 +20,8 @@ const queryClient = new QueryClient({
 
 export default function Providers({
   children,
-  initialLanguage,
 }: {
   children: React.ReactNode;
-  initialLanguage: "en" | "he";
 }) {
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -62,7 +60,7 @@ export default function Providers({
 
   return (
     <AuthProvider>
-      <LocaleProvider initialLanguage={initialLanguage}>
+      <LocaleProvider>
         <QueryClientProvider client={queryClient}>
           {children}
         </QueryClientProvider>

@@ -11,7 +11,7 @@ type LocaleContextValue = {
     updateUserLanguage: (lang: Language) => void;
 };
 
-const DEFAULT_LANGUAGE: Language = "en";
+const DEFAULT_LANGUAGE: Language = "he";
 const LOCALE_STORAGE = "progrr_lang";
 
 const LANG_META: Record<Language, { locale: "he-IL" | "en-US"; dir: "rtl" | "ltr" }> = {
@@ -27,14 +27,11 @@ const LocaleContext = React.createContext<LocaleContextValue | null>(null);
 
 export function LocaleProvider({
     children,
-    initialLanguage = DEFAULT_LANGUAGE,
 }: {
     children: React.ReactNode;
-    initialLanguage?: Language;
 }) {
-    const [language, setLanguageState] = React.useState<Language>(
-        resolveLanguage(initialLanguage)
-    );
+    const [language, setLanguageState] = React.useState<Language>(DEFAULT_LANGUAGE);
+    const [mounted, setMounted] = React.useState(false);
 
     const updateUserLanguage = React.useCallback((next: Language) => {
         setLanguageState(next);
@@ -50,25 +47,23 @@ export function LocaleProvider({
     React.useEffect(() => {
         if (typeof window === "undefined") return;
         try {
+            const stored = window.localStorage.getItem(LOCALE_STORAGE);
+            const resolved = resolveLanguage(stored);
+            setLanguageState(resolved);
+        } catch {
+            // ignore
+        }
+        setMounted(true);
+    }, []);
+
+    React.useEffect(() => {
+        if (typeof window === "undefined") return;
+        try {
             window.localStorage.setItem(LOCALE_STORAGE, language);
         } catch {
             // ignore
         }
     }, [language]);
-
-    React.useEffect(() => {
-        if (typeof window === "undefined") return;
-        try {
-            const stored = window.localStorage.getItem(LOCALE_STORAGE);
-            const resolved = resolveLanguage(stored);
-            if (resolved !== language) {
-                setLanguageState(resolved);
-            }
-        } catch {
-            // ignore
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
 
     React.useEffect(() => {
         const meta = LANG_META[language];
@@ -88,6 +83,7 @@ export function LocaleProvider({
         };
     }, [language, updateUserLanguage]);
 
+    if (!mounted) return null;
     return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
 }
 

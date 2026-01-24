@@ -30,14 +30,21 @@ export default function LanguageSwitcher({
 }: {
     variant?: "dark" | "light";
 }) {
+    const [mounted, setMounted] = React.useState(false);
     const { language, updateUserLanguage } = useLocale();
     const { t } = useI18n();
     const isDark = variant === "dark";
     const [open, setOpen] = React.useState(false);
 
+    React.useEffect(() => {
+        setMounted(true);
+    }, []);
+
     const current =
         LANGUAGE_OPTIONS.find((opt) => opt.code === language) ||
         LANGUAGE_OPTIONS[1];
+
+    if (!mounted) return null;
 
     return (
         <DropdownMenu open={open} onOpenChange={setOpen}>

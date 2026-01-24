@@ -9,7 +9,7 @@ export function Providers({
     initialLanguage,
 }: {
     children: React.ReactNode;
-    initialLanguage: "en" | "he";
+    initialLanguage?: "en" | "he";
 }) {
-    return <AppProviders initialLanguage={initialLanguage}>{children}</AppProviders>;
+    return <AppProviders>{children}</AppProviders>;
 }
