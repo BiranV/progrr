@@ -30,37 +30,20 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoadingAuth: boolean;
   authStatus: "loading" | "guest" | "authenticated";
-  logout: (shouldRedirect?: boolean) => Promise<void> | void;
+  logout: () => Promise<void>;
   setSessionUser: (user: User | null) => void;
   updateUser: (patch: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const AUTH_CACHE_KEY = "progrr:auth-cache:v1";
-const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION?.trim();
+const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION as string;
+
 const APP_VERSION_KEY = "progrr_app_version";
 
 if (!APP_VERSION) {
   throw new Error("NEXT_PUBLIC_APP_VERSION is missing");
 }
-
-function writeAuthCache(user: User | null) {
-  if (typeof window === "undefined") return;
-  try {
-    if (!user) {
-      window.localStorage.removeItem(AUTH_CACHE_KEY);
-      return;
-    }
-    window.localStorage.setItem(
-      AUTH_CACHE_KEY,
-      JSON.stringify({ user, updatedAt: Date.now() }),
-    );
-  } catch {
-    // Ignore cache errors.
-  }
-}
-
 
 function isPublicPath(pathname: string) {
   return (
@@ -72,146 +55,139 @@ function isPublicPath(pathname: string) {
   );
 }
 
-
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [isVersionReady, setIsVersionReady] = useState(false);
   const [authStatus, setAuthStatus] = useState<
     "loading" | "guest" | "authenticated"
   >("loading");
-  const didFetchMeRef = useRef(false);
-  const versionCheckRef = useRef(false);
+
+  const versionCheckedRef = useRef(false);
+  const meFetchedRef = useRef(false);
   const redirectingRef = useRef(false);
+
   const router = useRouter();
   const pathname = usePathname();
+
   const isAuthenticated = useMemo(() => Boolean(user), [user]);
 
-  const setSessionUser = (nextUser: User | null) => {
-    setUser(nextUser);
-    setIsLoadingAuth(false);
-    setAuthStatus(nextUser ? "authenticated" : "guest");
-  };
-
-  const updateUser = (patch: Partial<User>) => {
-    setUser((prev) => {
-      if (!prev) return prev;
-      const next = { ...prev, ...patch };
-      return next;
-    });
-  };
-
-  const logout = React.useCallback(async (shouldRedirect = true) => {
-    setSessionUser(null);
-
-    if (shouldRedirect) {
-      db.auth.logout();
-    } else {
-      try {
-        await fetch("/api/auth/logout", { method: "POST" });
-      } catch {
-        // Ignore.
-      }
-    }
-  }, []);
-
+  /* ======================
+     VERSION GUARD (ONCE)
+     ====================== */
   useEffect(() => {
-    if (versionCheckRef.current) return;
-    versionCheckRef.current = true;
+    if (versionCheckedRef.current) return;
+    versionCheckedRef.current = true;
 
-    if (typeof window === "undefined") {
-      setIsVersionReady(true);
-      return;
-    }
-    const storedVersion = window.localStorage.getItem(APP_VERSION_KEY);
-    if (storedVersion && storedVersion !== APP_VERSION) {
+    const stored = localStorage.getItem(APP_VERSION_KEY);
+
+    if (stored !== APP_VERSION) {
       redirectingRef.current = true;
-      fetch("/api/auth/logout", { method: "POST" }).catch(() => {
-        // ignore
+
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+        localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
+      } catch { }
+
+      fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+        keepalive: true,
+      }).finally(() => {
+        window.location.replace("/login");
       });
-      try {
-        window.localStorage.clear();
-      } catch {
-        // ignore
-      }
-      try {
-        window.sessionStorage.clear();
-      } catch {
-        // ignore
-      }
-      try {
-        window.localStorage.setItem(APP_VERSION_KEY, APP_VERSION ?? "");
-      } catch {
-        // ignore
-      }
-      window.location.href = "/login";
+
       return;
     }
 
-    if (!storedVersion) {
+    if (!stored) {
       try {
-        window.localStorage.setItem(APP_VERSION_KEY, APP_VERSION ?? "");
-      } catch {
-        // ignore
-      }
+        localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
+      } catch { }
     }
-    setIsVersionReady(true);
   }, []);
 
+  /* ======================
+     FETCH /me (ONCE)
+     ====================== */
   useEffect(() => {
-    writeAuthCache(user);
-  }, [user]);
-
-  useEffect(() => {
-    if (!isVersionReady) return;
     if (redirectingRef.current) return;
+    if (meFetchedRef.current) return;
+
     if (isPublicPath(pathname)) {
       setIsLoadingAuth(false);
       setAuthStatus(user ? "authenticated" : "guest");
       return;
     }
-    if (didFetchMeRef.current) return;
-    didFetchMeRef.current = true;
+
+    meFetchedRef.current = true;
 
     (async () => {
       setIsLoadingAuth(true);
       setAuthStatus("loading");
+
       try {
         const res = await db.auth.me();
-        let nextUser: User | null = null;
-        if (res && typeof res === "object" && (res as any).user) {
-          nextUser = {
-            ...((res as any).user as User),
-            business: (res as any).business,
-          } as User;
-        } else {
-          nextUser = res as User | null;
-        }
+
+        const nextUser =
+          res && typeof res === "object" && (res as any).user
+            ? { ...(res as any).user, business: (res as any).business }
+            : (res as User | null);
 
         setUser(nextUser);
         setAuthStatus(nextUser ? "authenticated" : "guest");
-      } catch (err: any) {
-        const status = typeof err?.status === "number" ? err.status : undefined;
-        const message = String(err?.message || "");
-        const inferred =
-          status ?? (message === "Unauthorized" ? 401 : undefined);
-        const isUnauthorized = inferred === 401;
-
+      } catch {
         setUser(null);
-        setAuthStatus(isUnauthorized ? "guest" : "guest");
+        setAuthStatus("guest");
       } finally {
         setIsLoadingAuth(false);
       }
     })();
-  }, [isVersionReady, pathname, user]);
+  }, [pathname]);
 
+  /* ======================
+     PROTECTED ROUTES
+     ====================== */
   useEffect(() => {
-    if (!isVersionReady) return;
     if (redirectingRef.current) return;
-    if (!isLoadingAuth && !user && !isPublicPath(pathname)) {
+    if (isLoadingAuth) return;
+
+    if (!user && !isPublicPath(pathname)) {
       router.replace("/auth");
     }
-  }, [isLoadingAuth, isVersionReady, pathname, router, user]);
+  }, [isLoadingAuth, user, pathname, router]);
+
+  /* ======================
+     ACTIONS
+     ====================== */
+  const logout = async () => {
+    setUser(null);
+    setAuthStatus("guest");
+    setIsLoadingAuth(false);
+
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch { }
+
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+      keepalive: true,
+    }).catch(() => { });
+
+    window.location.replace("/login");
+  };
+
+  const setSessionUser = (next: User | null) => {
+    setUser(next);
+    setAuthStatus(next ? "authenticated" : "guest");
+    setIsLoadingAuth(false);
+  };
+
+  const updateUser = (patch: Partial<User>) => {
+    setUser((prev) => (prev ? { ...prev, ...patch } : prev));
+  };
 
   return (
     <AuthContext.Provider
@@ -228,12 +204,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-};
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
+}
