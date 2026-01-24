@@ -249,7 +249,7 @@ export default function PublicBookingShell({
                   />
                 ) : (
                   <Image
-                    src="/logo.png"
+                    src="/logo-new.png"
                     alt={t("common.appName")}
                     width={48}
                     height={48}

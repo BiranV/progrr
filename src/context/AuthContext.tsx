@@ -105,9 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     redirectingRef.current = true;
 
     try {
-      // Don't nuke everything. Clear only session-related storage if you can.
       sessionStorage.clear();
-      // Keep the version key updated so we don't loop.
       localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
     } catch { }
 
@@ -206,7 +204,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoadingAuth(false);
 
     try {
-      localStorage.clear();
       sessionStorage.clear();
     } catch { }
 

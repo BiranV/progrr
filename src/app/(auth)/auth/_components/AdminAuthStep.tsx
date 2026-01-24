@@ -338,7 +338,7 @@ export default function AdminAuthStep({
         >
           <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center shadow-inner overflow-hidden p-3">
             <Image
-              src="/logo.png"
+              src="/logo-new.png"
               alt={t("common.appName")}
               width={64}
               height={64}

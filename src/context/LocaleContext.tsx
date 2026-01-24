@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { getCookie, setCookie } from "@/lib/client-cookies";
 
 export type Language = "he" | "en";
 
@@ -13,7 +12,7 @@ type LocaleContextValue = {
 };
 
 const DEFAULT_LANGUAGE: Language = "en";
-const LOCALE_COOKIE = "progrr_lang";
+const LOCALE_STORAGE = "progrr_lang";
 
 const LANG_META: Record<Language, { locale: "he-IL" | "en-US"; dir: "rtl" | "ltr" }> = {
     he: { locale: "he-IL", dir: "rtl" },
@@ -39,12 +38,37 @@ export function LocaleProvider({
 
     const updateUserLanguage = React.useCallback((next: Language) => {
         setLanguageState(next);
-        setCookie(LOCALE_COOKIE, next, { maxAgeSeconds: 60 * 60 * 24 * 365 });
+        if (typeof window !== "undefined") {
+            try {
+                window.localStorage.setItem(LOCALE_STORAGE, next);
+            } catch {
+                // ignore
+            }
+        }
     }, []);
 
     React.useEffect(() => {
-        setCookie(LOCALE_COOKIE, language, { maxAgeSeconds: 60 * 60 * 24 * 365 });
+        if (typeof window === "undefined") return;
+        try {
+            window.localStorage.setItem(LOCALE_STORAGE, language);
+        } catch {
+            // ignore
+        }
     }, [language]);
+
+    React.useEffect(() => {
+        if (typeof window === "undefined") return;
+        try {
+            const stored = window.localStorage.getItem(LOCALE_STORAGE);
+            const resolved = resolveLanguage(stored);
+            if (resolved !== language) {
+                setLanguageState(resolved);
+            }
+        } catch {
+            // ignore
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     React.useEffect(() => {
         const meta = LANG_META[language];

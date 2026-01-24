@@ -1,5 +1,5 @@
 /* Generates favicon assets from the transparent logo.
-   Input:  public/logo.png
+  Input:  public/logo-new.png
    Output: public/favicon.ico, public/favicon-16.png, public/favicon-32.png, public/favicon-48.png
 */
 
@@ -9,14 +9,14 @@ const sharp = require("sharp");
 const pngToIco = require("png-to-ico");
 
 const root = path.join(__dirname, "..");
-const inputPath = path.join(root, "public", "logo.png");
+const inputPath = path.join(root, "public", "logo-new.png");
 const outputDir = path.join(root, "public");
 
 const LOGO_SCALE = 0.9; // keep some padding for small sizes
 
 async function ensureInput() {
   if (!fs.existsSync(inputPath)) {
-    throw new Error(`Missing input logo: ${inputPath}`);
+    throw new Error(`Missing input logo: ${ inputPath }`);
   }
 }
 
@@ -28,7 +28,7 @@ async function generateFaviconPng(size) {
     .png()
     .toBuffer();
 
-  const outPath = path.join(outputDir, `favicon-${size}.png`);
+  const outPath = path.join(outputDir, `favicon-${ size }.png`);
 
   await sharp({
     create: {
@@ -62,7 +62,7 @@ async function main() {
   // eslint-disable-next-line no-console
   console.log(
     "Generated favicon assets:\n" +
-      [icoPath, ...pngPaths].map((p) => "- " + p).join("\n")
+    [icoPath, ...pngPaths].map((p) => "- " + p).join("\n")
   );
 }
 

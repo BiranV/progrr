@@ -30,8 +30,13 @@ export default function Providers({
 
     try {
       window.localStorage.removeItem("progrr_dark_mode");
-      window.localStorage.removeItem("languageCode");
       window.localStorage.removeItem("progrr:rq-cache:v1");
+    } catch {
+      // ignore
+    }
+
+    try {
+      document.cookie = "progrr_lang=; Max-Age=0; path=/";
     } catch {
       // ignore
     }

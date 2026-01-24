@@ -4,7 +4,7 @@
 
 const CACHE_NAME = "progrr-static-v1";
 
-const PRECACHE_URLS = ["/", "/logo.png", "/manifest.webmanifest"];
+const PRECACHE_URLS = ["/", "/logo-new.png", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

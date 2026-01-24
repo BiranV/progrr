@@ -42,7 +42,7 @@ function progrrLogoUrl(): string {
 
   const origin = pickPublicAppOrigin();
   if (!origin) return "";
-  return safeUrl(`${origin}/logo.png`);
+  return safeUrl(`${origin}/logo-new.png`);
 }
 
 function renderLayout(args: {
