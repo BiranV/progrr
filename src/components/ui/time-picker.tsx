@@ -230,9 +230,13 @@ export function TimePicker({
 
                 <DialogFooter className="gap-2">
                     <DialogClose asChild>
-                        <Button type="button" variant="ghost" size="sm">Cancel</Button>
+                        <Button type="button" variant="ghost" size="sm">
+                            {t("common.cancel")}
+                        </Button>
                     </DialogClose>
-                    <Button type="button" onClick={commit} size="sm">Done</Button>
+                    <Button type="button" onClick={commit} size="sm">
+                        {t("common.done")}
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
