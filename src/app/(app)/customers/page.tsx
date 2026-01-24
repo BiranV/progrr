@@ -116,6 +116,9 @@ export default function CustomersPage() {
   const [updatingCustomerId, setUpdatingCustomerId] = React.useState<
     string | null
   >(null);
+  const [optimisticStatusById, setOptimisticStatusById] = React.useState<
+    Record<string, "ACTIVE" | "BLOCKED">
+  >({});
 
   const [query, setQuery] = React.useState("");
   const [page, setPage] = React.useState(1);
@@ -194,28 +197,36 @@ export default function CustomersPage() {
         header: t("customers.table.status"),
         sortable: true,
         cellClassName: "w-[1%] whitespace-nowrap",
-        renderCell: (c) => (
-          <Badge
-            variant={"secondary"}
-            className={
-              "shrink-0 rounded-full px-2 py-0.5 text-xs " +
-              (String(c.status ?? "ACTIVE") === "BLOCKED"
-                ? "bg-rose-600 text-white"
-                : "bg-emerald-600 text-white")
-            }
-          >
-            {String(c.status ?? "ACTIVE") === "BLOCKED"
-              ? t("customers.details.status.blocked")
-              : t("customers.details.status.active")}
-          </Badge>
-        ),
+        renderCell: (c) => {
+          const status =
+            optimisticStatusById[c._id] ??
+            (String(c.status ?? "ACTIVE") as "ACTIVE" | "BLOCKED");
+          return (
+            <Badge
+              variant={"secondary"}
+              className={
+                "shrink-0 rounded-full px-2 py-0.5 text-xs " +
+                (status === "BLOCKED"
+                  ? "bg-rose-600 text-white"
+                  : "bg-emerald-600 text-white")
+              }
+            >
+              {status === "BLOCKED"
+                ? t("customers.details.status.blocked")
+                : t("customers.details.status.active")}
+            </Badge>
+          );
+        },
       },
       {
         key: "actions",
         header: t("customers.table.actions"),
         cellClassName: "w-[1%] whitespace-nowrap text-end",
         renderCell: (c) => {
-          const isBlocked = String(c.status ?? "ACTIVE") === "BLOCKED";
+          const status =
+            optimisticStatusById[c._id] ??
+            (String(c.status ?? "ACTIVE") as "ACTIVE" | "BLOCKED");
+          const isBlocked = status === "BLOCKED";
           const isUpdating = updatingCustomerId === c._id;
           return (
             <DropdownMenu>
@@ -296,6 +307,10 @@ export default function CustomersPage() {
                     const previousStatus = String(c.status ?? "ACTIVE");
 
                     setUpdatingCustomerId(c._id);
+                    setOptimisticStatusById((prev) => ({
+                      ...prev,
+                      [c._id]: nextStatus,
+                    }));
                     queryClient.setQueryData(["customers"], (old: any) => {
                       if (!Array.isArray(old)) return old;
                       return old.map((row: any) =>
@@ -332,6 +347,12 @@ export default function CustomersPage() {
                           ? t("customers.details.toastBlocked")
                           : t("customers.details.toastUnblocked")
                       );
+                      setOptimisticStatusById((prev) => {
+                        if (!prev[c._id]) return prev;
+                        const next = { ...prev };
+                        delete next[c._id];
+                        return next;
+                      });
                     } catch (e: any) {
                       queryClient.setQueryData(["customers"], (old: any) => {
                         if (!Array.isArray(old)) return old;
@@ -346,6 +367,12 @@ export default function CustomersPage() {
                           ? { ...prev, status: previousStatus as any }
                           : prev
                       );
+                      setOptimisticStatusById((prev) => {
+                        if (!prev[c._id]) return prev;
+                        const next = { ...prev };
+                        delete next[c._id];
+                        return next;
+                      });
                       toast.error(e?.message || t("errors.failedToSave"));
                     } finally {
                       setUpdatingCustomerId(null);
@@ -368,7 +395,7 @@ export default function CustomersPage() {
       },
     ];
     return cols;
-  }, [queryClient, t, updatingCustomerId]);
+  }, [optimisticStatusById, queryClient, t, updatingCustomerId]);
 
   const onSort = React.useCallback((key: string) => {
     setSortConfig((prev) => {
@@ -468,7 +495,7 @@ export default function CustomersPage() {
                 value={String(pageSize)}
                 onValueChange={(v) => setPageSize(Number(v) || 5)}
               >
-                <SelectTrigger size="sm" className="w-[104px]">
+                <SelectTrigger size="sm" className="w-[128px]">
                   <SelectValue placeholder={t("customers.table.rows")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -624,7 +651,7 @@ export default function CustomersPage() {
                       appt.status === "BOOKED"
                         ? "bg-emerald-600 text-white"
                         : appt.status === "COMPLETED"
-                          ? "bg-slate-700 text-white"
+                          ? "bg-blue-600 text-white"
                           : appt.status === "NO_SHOW"
                             ? "bg-amber-500 text-white"
                             : "bg-gray-500 text-white dark:bg-gray-700";

@@ -22,7 +22,7 @@ export function usePublicBusiness(publicIdOrSlug: string): {
   React.useEffect(() => {
     if (!raw) {
       setData(null);
-      setError("Business not found");
+      setError("BUSINESS_NOT_FOUND");
       setLoading(false);
       return;
     }
@@ -41,15 +41,12 @@ export function usePublicBusiness(publicIdOrSlug: string): {
           );
           const resolveJson = await resolveRes.json().catch(() => null);
           if (!resolveRes.ok) {
-            if (resolveRes.status === 404)
-              throw new Error("Business not found");
-            throw new Error(
-              resolveJson?.error || `Request failed (${resolveRes.status})`
-            );
+            if (resolveRes.status === 404) throw new Error("BUSINESS_NOT_FOUND");
+            throw new Error(String(resolveJson?.code ?? "REQUEST_FAILED"));
           }
 
           const pid = String(resolveJson?.publicId ?? "").trim();
-          if (!/^\d{5}$/.test(pid)) throw new Error("Business not found");
+          if (!/^\d{5}$/.test(pid)) throw new Error("BUSINESS_NOT_FOUND");
           if (cancelled) return;
           setResolvedPublicId(pid);
           setData(null);
@@ -61,8 +58,8 @@ export function usePublicBusiness(publicIdOrSlug: string): {
         );
         const json = await res.json().catch(() => null);
         if (!res.ok) {
-          if (res.status === 404) throw new Error("Business not found");
-          throw new Error(json?.error || `Request failed (${res.status})`);
+          if (res.status === 404) throw new Error("BUSINESS_NOT_FOUND");
+          throw new Error(String(json?.code ?? "REQUEST_FAILED"));
         }
         if (cancelled) return;
         setResolvedPublicId(null);
@@ -70,7 +67,7 @@ export function usePublicBusiness(publicIdOrSlug: string): {
       } catch (e: any) {
         if (cancelled) return;
         setData(null);
-        setError(e?.message || "Failed to load business");
+        setError(String(e?.message ?? "REQUEST_FAILED"));
       } finally {
         if (!cancelled) setLoading(false);
       }
