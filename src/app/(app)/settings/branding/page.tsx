@@ -10,6 +10,7 @@ import ImageCropperModal, {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/AuthContext";
+import { useI18n } from "@/i18n/useI18n";
 
 type BrandingState = {
   logoUrl?: string;
@@ -86,6 +87,7 @@ function pickLogoUrl(branding: BrandingState | null | undefined) {
 
 export default function BrandingSettingsPage() {
   const { user, updateUser } = useAuth();
+  const { t } = useI18n();
 
   const [uploadingLogo, setUploadingLogo] = React.useState(false);
   const [uploadingBanner, setUploadingBanner] = React.useState(false);
@@ -191,7 +193,7 @@ export default function BrandingSettingsPage() {
         logo: url ? { url, publicId } : undefined,
         logoUrl: undefined,
       });
-      toast.success("Logo updated");
+      toast.success(t("branding.toast.logoUpdated"));
     } finally {
       setUploadingLogo(false);
     }
@@ -209,7 +211,7 @@ export default function BrandingSettingsPage() {
         throw new Error(json?.error || `Request failed (${res.status})`);
 
       syncUserBranding({ logo: undefined, logoUrl: undefined });
-      toast.success("Logo removed");
+      toast.success(t("branding.toast.logoRemoved"));
     } finally {
       setUploadingLogo(false);
     }
@@ -234,7 +236,7 @@ export default function BrandingSettingsPage() {
       const publicId = String(json?.banner?.publicId ?? "").trim();
 
       syncUserBranding({ banner: url ? { url, publicId } : undefined });
-      toast.success("Banner updated");
+      toast.success(t("branding.toast.bannerUpdated"));
     } finally {
       setUploadingBanner(false);
     }
@@ -252,7 +254,7 @@ export default function BrandingSettingsPage() {
         throw new Error(json?.error || `Request failed (${res.status})`);
 
       syncUserBranding({ banner: undefined });
-      toast.success("Banner removed");
+      toast.success(t("branding.toast.bannerRemoved"));
     } finally {
       setUploadingBanner(false);
     }
@@ -271,7 +273,7 @@ export default function BrandingSettingsPage() {
     try {
       const current = normalizeGalleryFromState(branding.gallery).length;
       const remaining = Math.max(0, 10 - current);
-      if (remaining <= 0) throw new Error("Gallery limit reached (max 10)");
+      if (remaining <= 0) throw new Error(t("onboarding.errors.galleryLimit", { max: 10 }));
 
       const selected = files.slice(0, remaining);
 
@@ -281,27 +283,30 @@ export default function BrandingSettingsPage() {
       const skipped: string[] = [];
 
       for (const f of selected) {
-        const t = String(f.type || "").toLowerCase();
-        if (t && !allowed.has(t)) {
-          skipped.push(`${f.name || "image"} (unsupported format)`);
+        const typeLabel = String(f.type || "").toLowerCase();
+        if (typeLabel && !allowed.has(typeLabel)) {
+          skipped.push(
+            `${f.name || t("onboarding.errors.filePlaceholder")} (${t("onboarding.errors.unsupportedFormat")})`
+          );
           continue;
         }
         if (f.size > maxBytes) {
-          skipped.push(`${f.name || "image"} (too large)`);
+          skipped.push(
+            `${f.name || t("onboarding.errors.filePlaceholder")} (${t("onboarding.errors.tooLarge")})`
+          );
           continue;
         }
         valid.push(f);
       }
 
       if (!valid.length) {
-        throw new Error(
-          "Please upload JPG, PNG, or WEBP images (max 5MB each)"
-        );
+        throw new Error(t("onboarding.errors.invalidImageType"));
       }
       if (skipped.length) {
         toast.error(
-          `Some files were skipped: ${skipped.slice(0, 3).join(", ")}${skipped.length > 3 ? "…" : ""
-          }`
+          t("onboarding.errors.skippedFiles", {
+            files: `${skipped.slice(0, 3).join(", ")}${skipped.length > 3 ? "…" : ""}`,
+          })
         );
       }
 
@@ -322,12 +327,12 @@ export default function BrandingSettingsPage() {
 
       const gallery = normalizeGalleryFromApi(json?.gallery);
       syncUserBranding({ gallery });
-      toast.success("Gallery updated");
+      toast.success(t("branding.toast.galleryUpdated"));
 
       clearPreviewsDelayMs = 0;
     } catch (e: any) {
       clearPreviewsDelayMs = 2500;
-      const msg = e?.message || "Failed to upload images";
+      const msg = e?.message || t("onboarding.errors.uploadImagesFailed");
       setGalleryError(msg);
       toast.error(msg);
       throw e;
@@ -372,9 +377,9 @@ export default function BrandingSettingsPage() {
 
       const gallery = normalizeGalleryFromApi(json?.gallery);
       syncUserBranding({ gallery });
-      toast.success("Image removed");
+      toast.success(t("branding.toast.imageRemoved"));
     } catch (e: any) {
-      const msg = e?.message || "Failed to remove image";
+      const msg = e?.message || t("branding.errors.removeImageFailed");
       setGalleryError(msg);
       toast.error(msg);
       throw e;
@@ -389,7 +394,7 @@ export default function BrandingSettingsPage() {
     try {
       const before = normalizeGalleryFromState(branding.gallery);
       const target = before[index];
-      if (!target) throw new Error("Image not found");
+      if (!target) throw new Error(t("onboarding.errors.imageNotFound"));
 
       // Upload new (server appends)
       const fd = new FormData();
@@ -405,7 +410,7 @@ export default function BrandingSettingsPage() {
 
       const added = normalizeGalleryFromApi(upJson?.added);
       const first = added?.[0];
-      if (!first?.url) throw new Error("Upload failed");
+      if (!first?.url) throw new Error(t("onboarding.errors.uploadFailed"));
 
       // Remove old
       await removeGalleryImage({ url: target.url, publicId: target.publicId });
@@ -422,9 +427,9 @@ export default function BrandingSettingsPage() {
         gallery: normalizedFromServer.length ? normalizedFromServer : reordered,
       });
 
-      toast.success("Image replaced");
+      toast.success(t("branding.toast.imageReplaced"));
     } catch (e: any) {
-      const msg = e?.message || "Failed to replace image";
+      const msg = e?.message || t("branding.errors.replaceImageFailed");
       setGalleryError(msg);
       toast.error(msg);
       throw e;
@@ -437,20 +442,20 @@ export default function BrandingSettingsPage() {
     <div className="space-y-6">
       <div className="space-y-2">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Branding
+          {t("branding.title")}
         </h1>
         <p className="text-sm text-gray-600 dark:text-gray-300">
-          Upload a logo and banner. Cropping is required before saving.
+          {t("branding.subtitle")}
         </p>
       </div>
 
       <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4 space-y-4">
         <div className="space-y-1">
           <div className="font-semibold text-gray-900 dark:text-white">
-            Business logo
+            {t("branding.logoTitle")}
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-300">
-            1:1 crop, displayed as a circle.
+            {t("branding.logoHelp")}
           </div>
         </div>
 
@@ -476,12 +481,12 @@ export default function BrandingSettingsPage() {
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={logoUrl}
-                alt="Business logo"
+                alt={t("branding.logoAlt")}
                 className="h-full w-full object-cover"
               />
             ) : (
               <span className="text-xs font-medium text-gray-500 dark:text-gray-300">
-                No logo
+                {t("branding.noLogo")}
               </span>
             )}
           </div>
@@ -499,7 +504,9 @@ export default function BrandingSettingsPage() {
                   {uploadingLogo ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : null}
-                  <span>{logoUrl ? "Replace logo" : "Upload logo"}</span>
+                  <span>
+                    {logoUrl ? t("branding.replaceLogo") : t("branding.uploadLogo")}
+                  </span>
                 </span>
               </label>
             </Button>
@@ -512,11 +519,11 @@ export default function BrandingSettingsPage() {
                 className="rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
                 onClick={() =>
                   removeLogo().catch((err: any) =>
-                    toast.error(err?.message || "Failed to remove logo")
+                    toast.error(err?.message || t("branding.errors.removeLogoFailed"))
                   )
                 }
               >
-                Remove
+                {t("branding.remove")}
               </Button>
             ) : null}
           </div>
@@ -526,11 +533,10 @@ export default function BrandingSettingsPage() {
       <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4 space-y-4">
         <div className="space-y-1">
           <div className="font-semibold text-gray-900 dark:text-white">
-            Business banner
+            {t("branding.bannerTitle")}
           </div>
           <div className="text-sm text-gray-600 dark:text-gray-300">
-            Wide crop, used as the header background in the admin app and public
-            booking.
+            {t("branding.bannerHelp")}
           </div>
         </div>
 
@@ -556,7 +562,7 @@ export default function BrandingSettingsPage() {
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={bannerUrl}
-                alt="Business banner"
+                alt={t("branding.bannerAlt")}
                 className="absolute inset-0 w-full h-full object-cover"
               />
             ) : null}
@@ -564,7 +570,7 @@ export default function BrandingSettingsPage() {
             {!bannerUrl ? (
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-xs font-medium text-white/80">
-                  No banner
+                  {t("branding.noBanner")}
                 </div>
               </div>
             ) : null}
@@ -583,7 +589,9 @@ export default function BrandingSettingsPage() {
                   {uploadingBanner ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : null}
-                  <span>{bannerUrl ? "Replace banner" : "Upload banner"}</span>
+                  <span>
+                    {bannerUrl ? t("branding.replaceBanner") : t("branding.uploadBanner")}
+                  </span>
                 </span>
               </label>
             </Button>
@@ -596,11 +604,11 @@ export default function BrandingSettingsPage() {
                 className="rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
                 onClick={() =>
                   removeBanner().catch((err: any) =>
-                    toast.error(err?.message || "Failed to remove banner")
+                    toast.error(err?.message || t("branding.errors.removeBannerFailed"))
                   )
                 }
               >
-                Remove
+                {t("branding.remove")}
               </Button>
             ) : null}
           </div>
@@ -611,10 +619,10 @@ export default function BrandingSettingsPage() {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="font-semibold text-gray-900 dark:text-white">
-              Business gallery
+              {t("branding.galleryTitle")}
             </div>
             <div className="text-sm text-gray-600 dark:text-gray-300">
-              Up to 10 images of your space, work, products, or services.
+              {t("branding.galleryHelp", { max: 10 })}
             </div>
           </div>
           <div className="text-xs font-semibold text-gray-700 dark:text-gray-300 shrink-0">
@@ -646,7 +654,7 @@ export default function BrandingSettingsPage() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={url}
-                alt="Uploading"
+                alt={t("branding.uploading")}
                 className="h-full w-full object-cover opacity-70"
               />
               <div className="absolute inset-0 flex items-center justify-center">
@@ -683,7 +691,7 @@ export default function BrandingSettingsPage() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={url}
-                  alt={`Gallery image ${idx + 1}`}
+                  alt={t("branding.galleryImageAlt", { index: idx + 1 })}
                   className="h-full w-full object-cover"
                   loading="lazy"
                 />
@@ -698,7 +706,7 @@ export default function BrandingSettingsPage() {
                         : "cursor-pointer")
                     }
                   >
-                    {replacingIndex === idx ? "…" : "Replace"}
+                    {replacingIndex === idx ? "…" : t("branding.replaceImage")}
                   </label>
 
                   <button
@@ -708,7 +716,7 @@ export default function BrandingSettingsPage() {
                       removeGalleryImage({ url, publicId }).catch(() => null)
                     }
                     className="rounded-lg bg-black/45 text-white p-1.5 backdrop-blur-sm hover:bg-black/55 transition disabled:opacity-60"
-                    aria-label="Remove image"
+                    aria-label={t("branding.removeImage")}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -737,7 +745,7 @@ export default function BrandingSettingsPage() {
                     <Loader2 className="h-5 w-5 animate-spin text-gray-500 dark:text-gray-300" />
                   ) : null}
                   <div className="text-xs text-gray-600 dark:text-gray-300">
-                    Add images
+                    {t("branding.addImages")}
                   </div>
                 </div>
               </label>
@@ -746,7 +754,7 @@ export default function BrandingSettingsPage() {
         </div>
 
         <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
-          These photos appear on your public booking page.
+          {t("branding.galleryFooter")}
         </div>
 
         {galleryError ? (
@@ -774,7 +782,7 @@ export default function BrandingSettingsPage() {
             setCropOpen(false);
             setCropFile(null);
           } catch (err: any) {
-            toast.error(err?.message || "Failed to upload image");
+            toast.error(err?.message || t("branding.errors.uploadImageFailed"));
             throw err;
           }
         }}

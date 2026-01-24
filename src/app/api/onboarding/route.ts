@@ -605,13 +605,17 @@ export async function PATCH(req: Request) {
         });
 
         if (hasFuture) {
-          const message = priceChangedIds.length && !durationChangedIds.length
+          const reason = priceChangedIds.length && !durationChangedIds.length
+            ? "price"
+            : "duration";
+          const message = reason === "price"
             ? "You can’t change the price of this service because there are already scheduled appointments."
             : "You can’t change the duration of this service because there are already scheduled appointments.";
           return NextResponse.json(
             {
               error: "SERVICE_HAS_FUTURE_APPOINTMENTS",
               message,
+              reason,
             },
             { status: 409 }
           );

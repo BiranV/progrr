@@ -19,6 +19,7 @@ import {
 
 import { useBusiness } from "@/hooks/useBusiness";
 import { ONBOARDING_QUERY_KEY, useOnboardingSettings } from "@/hooks/useOnboardingSettings";
+import { useI18n } from "@/i18n/useI18n";
 
 type Service = {
     id: string;
@@ -95,8 +96,9 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
     if (!res.ok) {
         let message = `Request failed (${res.status})`;
+        let body: any = null;
         try {
-            const body = await res.json();
+            body = await res.json();
             if (body?.message) message = body.message;
             else if (body?.error) message = body.error;
         } catch {
@@ -104,6 +106,10 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
         }
         const err: any = new Error(message);
         err.status = res.status;
+        if (body) {
+            err.code = body.code || body.error;
+            err.reason = body.reason;
+        }
         throw err;
     }
 
@@ -113,6 +119,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 export default function ServicesSettingsPage() {
     const [isSaving, setIsSaving] = React.useState(false);
     const queryClient = useQueryClient();
+    const { t } = useI18n();
 
     const {
         data: business,
@@ -138,7 +145,7 @@ export default function ServicesSettingsPage() {
 
     const [currencyCode, setCurrencyCode] = React.useState<string>("ILS");
 
-    const [globalError, setGlobalError] = React.useState<string | null>(null);
+    const [globalErrorKey, setGlobalErrorKey] = React.useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
 
     const stableStringifyServices = React.useCallback((list: Service[]) => {
@@ -172,15 +179,15 @@ export default function ServicesSettingsPage() {
 
     React.useEffect(() => {
         if (isBusinessError) {
-            toast.error((businessError as any)?.message || "Failed to load business");
+            toast.error((businessError as any)?.message || t("services.errors.failedToLoadBusiness"));
         }
-    }, [isBusinessError, businessError]);
+    }, [isBusinessError, businessError, t]);
 
     React.useEffect(() => {
         if (isOnboardingError) {
-            toast.error((onboardingError as any)?.message || "Failed to load services");
+            toast.error((onboardingError as any)?.message || t("services.errors.failedToLoad"));
         }
-    }, [isOnboardingError, onboardingError]);
+    }, [isOnboardingError, onboardingError, t]);
 
     React.useEffect(() => {
         if (!onboardingRes) return;
@@ -254,32 +261,32 @@ export default function ServicesSettingsPage() {
         const nextActive = nextServices.filter((s) => s.isActive !== false);
 
         if (nextActive.length === 0) {
-            setGlobalError("At least one service is required");
+            setGlobalErrorKey("onboarding.errors.atLeastOneService");
             setFieldErrors({});
             return false;
         }
 
         for (const s of nextActive) {
             const name = String(s.name ?? "").trim();
-            if (!name) nextFieldErrors[`serviceName_${s.id}`] = "Service name is required";
+            if (!name) nextFieldErrors[`serviceName_${s.id}`] = t("onboarding.errors.serviceNameRequired");
 
             const duration = Number(s.durationMinutes);
             if (!Number.isFinite(duration) || duration < 10)
-                nextFieldErrors[`serviceDuration_${s.id}`] = "Duration must be at least 10 minutes";
+                nextFieldErrors[`serviceDuration_${s.id}`] = t("services.errors.durationMin", { min: 10 });
 
             const price = Number(s.price);
             if (!Number.isFinite(price) || price < 0)
-                nextFieldErrors[`servicePrice_${s.id}`] = "Price must be 0 or more";
+                nextFieldErrors[`servicePrice_${s.id}`] = t("services.errors.priceMin");
         }
 
-        setGlobalError(null);
+        setGlobalErrorKey(null);
         setFieldErrors(nextFieldErrors);
         return Object.keys(nextFieldErrors).length === 0;
     };
 
     const updateService = (id: string, patch: Partial<Service>) => {
         setServices((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
-        setGlobalError(null);
+        setGlobalErrorKey(null);
     };
 
     const addService = () => {
@@ -294,7 +301,7 @@ export default function ServicesSettingsPage() {
                 isActive: true,
             },
         ]);
-        setGlobalError(null);
+        setGlobalErrorKey(null);
     };
 
     const deactivateService = (id: string) => {
@@ -307,7 +314,7 @@ export default function ServicesSettingsPage() {
 
     const deleteServicePermanently = (id: string) => {
         setServices((prev) => prev.filter((s) => s.id !== id));
-        setGlobalError(null);
+        setGlobalErrorKey(null);
         setFieldErrors((prev) => {
             const next: Record<string, string> = {};
             for (const [k, v] of Object.entries(prev)) {
@@ -352,16 +359,21 @@ export default function ServicesSettingsPage() {
                 },
             }));
 
-            toast.success("Changes saved");
+            toast.success(t("services.toastSaved"));
         } catch (e: any) {
             if (e?.status === 409) {
-                setGlobalError(
-                    e?.message ||
-                    "You can’t change the duration of this service because there are already scheduled appointments. Please cancel or reschedule those appointments first."
-                );
+                if (String(e?.code || "") === "SERVICE_HAS_FUTURE_APPOINTMENTS") {
+                    const reason = String(e?.reason || "").toLowerCase();
+                    const key = reason === "price"
+                        ? "services.errors.priceHasAppointments"
+                        : "services.errors.durationHasAppointments";
+                    setGlobalErrorKey(key);
+                } else {
+                    setGlobalErrorKey("errors.failedToSave");
+                }
                 return;
             }
-            toast.error(e?.message || "Failed to save changes");
+            toast.error(e?.message || t("errors.failedToSave"));
         } finally {
             setIsSaving(false);
         }
@@ -375,22 +387,22 @@ export default function ServicesSettingsPage() {
         <div className="w-full max-w-md mx-auto space-y-4">
             <div>
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                    Services
+                    {t("services.title")}
                 </h2>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
-                    Manage your services, duration and pricing.
+                    {t("services.subtitle")}
                 </p>
             </div>
 
-            {globalError ? (
-                <div className="text-sm text-rose-600 dark:text-rose-400">
-                    {globalError}
+            {globalErrorKey ? (
+                <div className="rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-3 py-2 text-sm text-red-700 dark:text-red-200">
+                    {t(globalErrorKey)}
                 </div>
             ) : null}
 
             <div className="space-y-4">
                 <div className="space-y-2">
-                    <Label>Currency</Label>
+                    <Label>{t("services.currency")}</Label>
                     <Select
                         value={normalizeCurrency(currencyCode)}
                         onValueChange={(v) => {
@@ -399,7 +411,7 @@ export default function ServicesSettingsPage() {
                         disabled={isFirstLoad || isSaving}
                     >
                         <SelectTrigger>
-                            <SelectValue placeholder="Select currency" />
+                            <SelectValue placeholder={t("services.selectCurrency")} />
                         </SelectTrigger>
                         <SelectContent>
                             {UI_CURRENCIES.map((c) => (
@@ -410,37 +422,34 @@ export default function ServicesSettingsPage() {
                         </SelectContent>
                     </Select>
                     <div className="text-xs text-gray-600 dark:text-gray-300">
-                        Prices are displayed in this currency. Changing currency will not convert existing
-                        numeric prices.
+                        {t("services.currencyHelp")}
                     </div>
                 </div>
 
                 {currencyChanged && hasAnyActiveService ? (
                     <div className="text-sm text-amber-700 dark:text-amber-300 rounded-md border border-amber-200 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-950/20 px-3 py-2">
-                        Changing currency will not convert existing service prices (numbers stay the
-                        same, symbol changes only).
+                        {t("services.currencyWarning")}
                     </div>
                 ) : null}
 
                 <div className="flex items-center gap-2 px-1">
-                    <Label className="flex-1">Service name *</Label>
-                    <Label className="w-[70px] shrink-0 text-center">Time</Label>
+                    <Label className="flex-1">{t("services.serviceName")}</Label>
+                    <Label className="w-[70px] shrink-0 text-center">{t("services.time")}</Label>
                     <Label className="w-[70px] shrink-0 text-center">
-                        Price ({currencySymbol(currencyCode)})
+                        {t("services.priceWithSymbol", { symbol: currencySymbol(currencyCode) })}
                     </Label>
                     <div className="w-8 shrink-0"></div>
                 </div>
                 <p className="px-1 text-xs text-gray-500 dark:text-gray-400">
-                    Price changes apply only to new bookings. Existing appointments will keep their original price.
+                    {t("services.priceNote")}
                 </p>
 
                 <div className="space-y-3">
                     {activeServices.length === 0 ? (
                         <div className="text-sm text-gray-600 dark:text-gray-300 px-1">
-                            No active services.
+                            {t("services.noActiveServices")}
                         </div>
                     ) : null}
-
                     {activeServices.map((s) => (
                         <div key={s.id}>
                             <div className="flex items-start gap-2">
@@ -459,9 +468,9 @@ export default function ServicesSettingsPage() {
                                                     x.id === s.id ? { ...x, name: nextName } : x
                                                 )
                                             );
-                                            setGlobalError(null);
+                                            setGlobalErrorKey(null);
                                         }}
-                                        placeholder="Service"
+                                        placeholder={t("services.servicePlaceholder")}
                                         disabled={isSaving}
                                     />
                                 </div>
@@ -484,7 +493,7 @@ export default function ServicesSettingsPage() {
                                                         : x
                                                 )
                                             );
-                                            setGlobalError(null);
+                                            setGlobalErrorKey(null);
                                         }}
                                         disabled={isSaving}
                                     />
@@ -506,7 +515,7 @@ export default function ServicesSettingsPage() {
                                                     x.id === s.id ? { ...x, price: nextPrice } : x
                                                 )
                                             );
-                                            setGlobalError(null);
+                                            setGlobalErrorKey(null);
                                         }}
                                         placeholder={currencySymbol(currencyCode)}
                                         disabled={isSaving}
@@ -520,7 +529,7 @@ export default function ServicesSettingsPage() {
                                         size="icon-sm"
                                         className="h-8 w-8 text-gray-400"
                                         disabled={isSaving || activeServices.length <= 1}
-                                        aria-label="Remove service"
+                                        aria-label={t("services.removeService")}
                                         onClick={() => deactivateService(s.id)}
                                     >
                                         <Trash2 className="h-4 w-4" />
@@ -548,14 +557,14 @@ export default function ServicesSettingsPage() {
                         onClick={addService}
                         disabled={isFirstLoad || isSaving}
                     >
-                        Add service
+                        {t("services.addService")}
                     </Button>
                 </div>
 
                 {inactiveServices.length ? (
                     <div className="space-y-2">
                         <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                            Inactive services
+                            {t("services.inactiveServices")}
                         </div>
                         <div className="space-y-2">
                             {inactiveServices.map((s) => (
@@ -569,7 +578,9 @@ export default function ServicesSettingsPage() {
                                                 {String(s.name || "").trim() || "—"}
                                             </div>
                                             <div className="text-xs text-gray-600 dark:text-gray-300">
-                                                Duration: {Number.isFinite(s.durationMinutes) ? s.durationMinutes : "—"} min
+                                                {t("services.durationLabel", {
+                                                    minutes: Number.isFinite(s.durationMinutes) ? s.durationMinutes : "—",
+                                                })}
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2 shrink-0">
@@ -580,7 +591,7 @@ export default function ServicesSettingsPage() {
                                                 onClick={() => restoreService(s.id)}
                                                 disabled={isSaving}
                                             >
-                                                Restore
+                                                {t("services.restoreService")}
                                             </Button>
                                             <Button
                                                 type="button"
@@ -588,9 +599,9 @@ export default function ServicesSettingsPage() {
                                                 size="sm"
                                                 onClick={() => deleteServicePermanently(s.id)}
                                                 disabled={isSaving}
-                                                aria-label="Delete service permanently"
+                                                aria-label={t("services.deleteServicePermanently")}
                                             >
-                                                Delete
+                                                {t("services.deleteService")}
                                             </Button>
                                         </div>
                                     </div>
@@ -610,7 +621,7 @@ export default function ServicesSettingsPage() {
                         {isSaving ? (
                             <Loader2 className="h-5 w-5 animate-spin" />
                         ) : (
-                            "Save changes"
+                            t("services.saveChanges")
                         )}
                     </Button>
                 </div>
