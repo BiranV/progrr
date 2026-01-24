@@ -1070,6 +1070,7 @@ export default function CalendarClient() {
                             className="rounded-2xl w-full"
                             onClick={createAppointment}
                             disabled={creating || !canCreateAppointment}
+                            data-panel-primary="true"
                         >
                             {creating ? t("calendar.saving") : t("calendar.save")}
                         </Button>

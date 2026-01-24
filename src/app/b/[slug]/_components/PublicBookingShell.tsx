@@ -14,7 +14,7 @@ import {
 
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import SidePanel from "@/components/ui/side-panel";
 import { useI18n } from "@/i18n/useI18n";
 import { cn } from "@/lib/utils";
 import type { PublicBusiness } from "@/lib/public-booking";
@@ -171,32 +171,24 @@ export default function PublicBookingShell({
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-black pb-safe">
-      <Dialog
+      <SidePanel
         open={Boolean(previewSrc)}
         onOpenChange={(open) => {
           if (!open) setPreviewSrc(null);
         }}
+        title={t("publicBooking.imagePreviewTitle")}
+        description={undefined}
       >
-        <DialogContent
-          className="p-0 overflow-hidden max-w-[95vw] sm:max-w-3xl"
-          // Don’t steal focus (nice for mobile + image viewing)
-          onOpenAutoFocus={(e) => e.preventDefault()}
-        >
-          {/* A11y: DialogContent requires a DialogTitle */}
-          <DialogTitle className="sr-only">
-            {t("publicBooking.imagePreviewTitle")}
-          </DialogTitle>
-          {previewSrc ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={previewSrc}
-              alt={t("publicBooking.galleryImageAlt", { index: 1 })}
-              className="w-full max-h-[80vh] object-contain bg-black"
-              draggable={false}
-            />
-          ) : null}
-        </DialogContent>
-      </Dialog>
+        {previewSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={previewSrc}
+            alt={t("publicBooking.galleryImageAlt", { index: 1 })}
+            className="w-full max-h-[80vh] object-contain bg-black rounded-xl"
+            draggable={false}
+          />
+        ) : null}
+      </SidePanel>
 
       <div className="relative w-full z-0 h-[140px] bg-gradient-to-br from-neutral-950 via-zinc-900 to-zinc-800 shrink-0 overflow-hidden">
         {bannerUrl ? (

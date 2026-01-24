@@ -9,18 +9,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import SidePanel from "@/components/ui/side-panel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PhoneInput } from "@/components/ui/phone-input";
-import SidePanel from "@/components/ui/side-panel";
 
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 import OtpInput from "@/components/OtpInput";
@@ -1567,7 +1560,7 @@ export default function PublicBookingFlow({
       onBack={step === "service" ? undefined : onBack}
       showGallery={showGallery}
     >
-      <Dialog
+      <SidePanel
         open={loginOpen}
         onOpenChange={(open) => {
           setLoginOpen(open);
@@ -1580,39 +1573,133 @@ export default function PublicBookingFlow({
             setCustomerPhoneTouched(false);
           }
         }}
+        title={t("publicBooking.login.title")}
+        description={t("publicBooking.login.description")}
       >
-        <DialogContent className="sm:max-w-[420px]">
-          <DialogHeader>
-            <DialogTitle>{t("publicBooking.login.title")}</DialogTitle>
-            <DialogDescription>
-              {t("publicBooking.login.description")}
-            </DialogDescription>
-          </DialogHeader>
+        {loginError ? <ErrorAlert>{t(loginError)}</ErrorAlert> : null}
 
-          {loginError ? <ErrorAlert>{t(loginError)}</ErrorAlert> : null}
+        {loginStep === "email" ? (
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="loginEmail">{t("publicBooking.login.emailLabel")}</Label>
+              <Input
+                id="loginEmail"
+                className="rounded-2xl"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                placeholder={t("publicBooking.login.emailPlaceholder")}
+              />
+            </div>
 
-          {loginStep === "email" ? (
-            <div className="space-y-3">
-              <div className="space-y-2">
-                <Label htmlFor="loginEmail">{t("publicBooking.login.emailLabel")}</Label>
-                <Input
-                  id="loginEmail"
-                  className="rounded-2xl"
-                  value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
-                  placeholder={t("publicBooking.login.emailPlaceholder")}
-                />
+            <Button
+              className="rounded-2xl w-full"
+              disabled={loginSubmitting || !isValidEmail(loginEmail.trim())}
+              data-panel-primary="true"
+              onClick={async () => {
+                setLoginSubmitting(true);
+                setLoginError(null);
+                try {
+                  await requestLoginOtp();
+                  setLoginStep("code");
+                } catch (e: any) {
+                  setLoginError(getPublicBookingErrorKey(e));
+                } finally {
+                  setLoginSubmitting(false);
+                }
+              }}
+            >
+              {loginSubmitting
+                ? t("publicBooking.login.sendingCode")
+                : t("publicBooking.login.sendCode")}
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="text-sm text-gray-600 dark:text-gray-300">
+              {t("publicBooking.login.codeSent", { email: loginEmail })}
+            </div>
+            <div className="flex justify-center">
+              <OtpInput
+                id="login-otp"
+                name="code"
+                length={6}
+                value={loginCode}
+                onChange={setLoginCode}
+                disabled={loginSubmitting}
+                inputClassName="h-10 w-10 sm:h-11 sm:w-11 text-base sm:text-lg"
+              />
+            </div>
+            {loginPurpose === "booking" && loginRequiresDetails ? (
+              <div className="space-y-3">
+                <div className="rounded-2xl border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-950/10 p-3">
+                  <div className="text-sm text-amber-900 dark:text-amber-200">
+                    {t("publicBooking.details.completeDetailsDescription")}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="loginFullName">
+                    {t("publicBooking.details.fullNameLabel")}
+                  </Label>
+                  <Input
+                    id="loginFullName"
+                    className="rounded-2xl"
+                    value={customerFullName}
+                    onChange={(e) => setCustomerFullName(e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="loginPhone">
+                    {t("publicBooking.details.phoneLabel")}
+                  </Label>
+                  <PhoneInput
+                    id="loginPhone"
+                    className="rounded-2xl"
+                    inputClassName="rounded-2xl"
+                    value={customerPhone}
+                    onChange={(v) => setCustomerPhone(v)}
+                    onValidityChange={setCustomerPhoneValid}
+                    onBlur={() => setCustomerPhoneTouched(true)}
+                    aria-invalid={customerPhoneTouched && !customerPhoneValid}
+                    placeholder={t("publicBooking.details.phonePlaceholder")}
+                  />
+                  {customerPhoneTouched && customerPhone.trim() && !customerPhoneValid ? (
+                    <div className="text-xs text-red-600 dark:text-red-400">
+                      {t("publicBooking.details.invalidPhone")}
+                    </div>
+                  ) : null}
+                </div>
               </div>
-
+            ) : null}
+            <div className="flex gap-2">
               <Button
-                className="rounded-2xl w-full"
-                disabled={loginSubmitting || !isValidEmail(loginEmail.trim())}
+                type="button"
+                variant="outline"
+                className="rounded-2xl"
+                onClick={() => {
+                  setLoginStep("email");
+                  setLoginCode("");
+                  setLoginError(null);
+                }}
+                disabled={loginSubmitting}
+              >
+                {t("common.back")}
+              </Button>
+              <Button
+                className="rounded-2xl flex-1"
+                disabled={
+                  loginSubmitting ||
+                  normalizeOtpCode(loginCode).length < 6 ||
+                  loginDetailsMissing
+                }
+                data-panel-primary="true"
                 onClick={async () => {
                   setLoginSubmitting(true);
                   setLoginError(null);
                   try {
-                    await requestLoginOtp();
-                    setLoginStep("code");
+                    await verifyLoginOtp();
+                    setLoginOpen(false);
                   } catch (e: any) {
                     setLoginError(getPublicBookingErrorKey(e));
                   } finally {
@@ -1621,112 +1708,13 @@ export default function PublicBookingFlow({
                 }}
               >
                 {loginSubmitting
-                  ? t("publicBooking.login.sendingCode")
-                  : t("publicBooking.login.sendCode")}
+                  ? t("publicBooking.login.verifying")
+                  : t("publicBooking.login.verify")}
               </Button>
             </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="text-sm text-gray-600 dark:text-gray-300">
-                {t("publicBooking.login.codeSent", { email: loginEmail })}
-              </div>
-              <div className="flex justify-center">
-                <OtpInput
-                  id="login-otp"
-                  name="code"
-                  length={6}
-                  value={loginCode}
-                  onChange={setLoginCode}
-                  disabled={loginSubmitting}
-                  inputClassName="h-10 w-10 sm:h-11 sm:w-11 text-base sm:text-lg"
-                />
-              </div>
-              {loginPurpose === "booking" && loginRequiresDetails ? (
-                <div className="space-y-3">
-                  <div className="rounded-2xl border border-amber-200/70 dark:border-amber-900/40 bg-amber-50/60 dark:bg-amber-950/10 p-3">
-                    <div className="text-sm text-amber-900 dark:text-amber-200">
-                      {t("publicBooking.details.completeDetailsDescription")}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="loginFullName">
-                      {t("publicBooking.details.fullNameLabel")}
-                    </Label>
-                    <Input
-                      id="loginFullName"
-                      className="rounded-2xl"
-                      value={customerFullName}
-                      onChange={(e) => setCustomerFullName(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="loginPhone">
-                      {t("publicBooking.details.phoneLabel")}
-                    </Label>
-                    <PhoneInput
-                      id="loginPhone"
-                      className="rounded-2xl"
-                      inputClassName="rounded-2xl"
-                      value={customerPhone}
-                      onChange={(v) => setCustomerPhone(v)}
-                      onValidityChange={setCustomerPhoneValid}
-                      onBlur={() => setCustomerPhoneTouched(true)}
-                      aria-invalid={customerPhoneTouched && !customerPhoneValid}
-                      placeholder={t("publicBooking.details.phonePlaceholder")}
-                    />
-                    {customerPhoneTouched && customerPhone.trim() && !customerPhoneValid ? (
-                      <div className="text-xs text-red-600 dark:text-red-400">
-                        {t("publicBooking.details.invalidPhone")}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              ) : null}
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-2xl"
-                  onClick={() => {
-                    setLoginStep("email");
-                    setLoginCode("");
-                    setLoginError(null);
-                  }}
-                  disabled={loginSubmitting}
-                >
-                  {t("common.back")}
-                </Button>
-                <Button
-                  className="rounded-2xl flex-1"
-                  disabled={
-                    loginSubmitting ||
-                    normalizeOtpCode(loginCode).length < 6 ||
-                    loginDetailsMissing
-                  }
-                  onClick={async () => {
-                    setLoginSubmitting(true);
-                    setLoginError(null);
-                    try {
-                      await verifyLoginOtp();
-                      setLoginOpen(false);
-                    } catch (e: any) {
-                      setLoginError(getPublicBookingErrorKey(e));
-                    } finally {
-                      setLoginSubmitting(false);
-                    }
-                  }}
-                >
-                  {loginSubmitting
-                    ? t("publicBooking.login.verifying")
-                    : t("publicBooking.login.verify")}
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+          </div>
+        )}
+      </SidePanel>
 
       <SidePanel
         open={myAppointmentsOpen}

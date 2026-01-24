@@ -637,6 +637,7 @@ export default function SettingsPage() {
               className="rounded-2xl w-full"
               disabled={deletePending || deleteConfirmText !== "DELETE"}
               onClick={onDeleteAccount}
+              data-panel-primary="true"
             >
               {deletePending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />

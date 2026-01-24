@@ -32,6 +32,7 @@ export default function SidePanel({
   contentClassName,
   widthClassName,
 }: SidePanelProps) {
+  const panelRef = React.useRef<HTMLDivElement | null>(null);
   const contentRef = React.useRef<HTMLDivElement | null>(null);
   const touchStartYRef = React.useRef<number | null>(null);
   const touchDeltaRef = React.useRef<number>(0);
@@ -100,9 +101,22 @@ export default function SidePanel({
           contentClassName
         )}
         data-state="open"
+        ref={panelRef}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter") return;
+          const target = event.target as HTMLElement | null;
+          if (!target) return;
+          if (target.tagName === "TEXTAREA" || target.isContentEditable) return;
+          const primary = panelRef.current?.querySelector<HTMLElement>(
+            "[data-panel-primary=\"true\"]"
+          );
+          if (!primary || (primary as HTMLButtonElement).disabled) return;
+          event.preventDefault();
+          primary.click();
+        }}
       >
         <div className="flex items-start justify-between gap-3 border-b px-4 py-4 sm:px-5">
           <div className="min-w-0">
