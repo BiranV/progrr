@@ -40,6 +40,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import SidePanel from "@/components/ui/side-panel";
 
 import { useAuth } from "@/context/AuthContext";
 
@@ -861,240 +862,220 @@ export default function CalendarClient() {
                 </div>
             ) : null}
 
-            <Dialog
+            <SidePanel
                 open={createOpen}
                 onOpenChange={(open) => {
                     setCreateOpen(open);
                     if (!open) resetCreateForm();
                 }}
+                title={t("calendar.newAppointmentTitle")}
+                description={t("calendar.newAppointmentDescription")}
             >
-                <DialogContent>
-                    <DialogHeader className="text-start items-start sm:text-start">
-                        <DialogTitle className="text-start">
-                            {t("calendar.newAppointmentTitle")}
-                        </DialogTitle>
-                        <DialogDescription className="text-start">
-                            {t("calendar.newAppointmentDescription")}
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1 min-w-0">
-                                <div className="text-xs text-muted-foreground">
-                                    {t("calendar.serviceLabel")}
-                                </div>
-                                <Select
-                                    value={createServiceId}
-                                    onValueChange={(v) => {
-                                        setCreateServiceId(String(v || ""));
-                                    }}
-                                >
-                                    <SelectTrigger className="rounded-xl w-full">
-                                        <SelectValue placeholder={t("calendar.servicePlaceholder")} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {services.map((s) => (
-                                            <SelectItem
-                                                key={s.id}
-                                                value={s.id}
-                                            >
-                                                {s.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1 min-w-0">
+                            <div className="text-xs text-muted-foreground">
+                                {t("calendar.serviceLabel")}
                             </div>
-
-                            <div className="space-y-1 min-w-0">
-                                <div className="text-xs text-muted-foreground">
-                                    {t("calendar.hourLabel")}
-                                </div>
-                                <Select
-                                    value={createStartTime}
-                                    onValueChange={(v) => {
-                                        setCreateStartTime(String(v || ""));
-                                    }}
-                                    disabled={!createServiceId || availableCreateSlotsQuery.isPending}
-                                >
-                                    <SelectTrigger className="rounded-xl w-full">
-                                        <SelectValue
-                                            placeholder={
-                                                !createServiceId
-                                                    ? t("calendar.hourPlaceholder")
-                                                    : availableCreateSlotsQuery.isPending
-                                                        ? t("calendar.hourLoading")
-                                                        : createSlots.length
-                                                            ? t("calendar.hourPlaceholder")
-                                                            : t("calendar.hourUnavailable")
-                                            }
-                                        />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {createSlots.map((s) => (
-                                            <SelectItem
-                                                key={s.startTime}
-                                                value={s.startTime}
-                                            >
-                                                <span dir="ltr">
-                                                    {formatTimeRange(s.startTime, s.endTime)}
-                                                </span>
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                {availableCreateSlotsQuery.isError ? (
-                                    <div className="text-xs text-red-600 dark:text-red-400">
-                                        {(availableCreateSlotsQuery.error as any)?.message ||
-                                            t("calendar.hourLoadFailed")}
-                                    </div>
-                                ) : null}
-                            </div>
-
-                            <div className="space-y-1 min-w-0 col-span-2">
-                                <div className="text-xs text-muted-foreground">
-                                    {t("calendar.customerLabel")}
-                                </div>
-                                <Popover
-                                    open={createCustomerPickerOpen}
-                                    onOpenChange={(next) => {
-                                        if (customersPickerQuery.isPending) return;
-                                        setCreateCustomerPickerOpen(next);
-                                        if (next) setCreateCustomerSearch("");
-                                    }}
-                                >
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            disabled={customersPickerQuery.isPending}
-                                            className="rounded-xl w-full justify-between text-start"
+                            <Select
+                                value={createServiceId}
+                                onValueChange={(v) => {
+                                    setCreateServiceId(String(v || ""));
+                                }}
+                            >
+                                <SelectTrigger className="rounded-xl w-full">
+                                    <SelectValue placeholder={t("calendar.servicePlaceholder")} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {services.map((s) => (
+                                        <SelectItem
+                                            key={s.id}
+                                            value={s.id}
                                         >
-                                            <span className="truncate text-start">
-                                                {customersPickerQuery.isPending
-                                                    ? t("calendar.customersLoading")
-                                                    : selectedCustomerForPicker
-                                                        ? `${selectedCustomerForPicker.fullName || t("calendar.noName")} • ${selectedCustomerForPicker.phone}${selectedCustomerForPicker.email ? ` • ${selectedCustomerForPicker.email}` : ""}`
-                                                        : customersForPicker.length
-                                                            ? t("calendar.customerChoose")
-                                                            : t("calendar.customerNone")}
-                                            </span>
-                                            <ChevronsUpDown className="h-4 w-4 opacity-50 ms-2" />
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent
-                                        align="start"
-                                        className="w-[var(--radix-popover-trigger-width)] p-2 text-start"
-                                    >
-                                        <Input
-                                            value={createCustomerSearch}
-                                            onChange={(e) => setCreateCustomerSearch(e.target.value)}
-                                            placeholder={t("calendar.customerSearchPlaceholder")}
-                                            className="rounded-lg h-9"
-                                        />
-                                        <div className="mt-2 max-h-60 overflow-y-auto">
-                                            {filteredCustomersForPicker.length ? (
-                                                <div className="space-y-1">
-                                                    {filteredCustomersForPicker.map((c) => {
-                                                        const disabled =
-                                                            c.status === "BLOCKED" ||
-                                                            !c.fullName.trim() ||
-                                                            !c.phone.trim() ||
-                                                            !c.email;
-                                                        const isSelected = c._id === createExistingCustomerId;
-
-                                                        return (
-                                                            <button
-                                                                key={c._id}
-                                                                type="button"
-                                                                disabled={disabled}
-                                                                onClick={() => {
-                                                                    if (disabled) return;
-                                                                    setCreateExistingCustomerId(c._id);
-                                                                    setCreateCustomerPickerOpen(false);
-                                                                    setCreateCustomerSearch("");
-                                                                }}
-                                                                className={
-                                                                    "w-full rounded-md px-2 py-2 text-sm transition-colors text-start" +
-                                                                    (disabled
-                                                                        ? " opacity-50 cursor-not-allowed"
-                                                                        : " hover:bg-muted") +
-                                                                    (isSelected ? " bg-muted" : "")
-                                                                }
-                                                            >
-                                                                <div className="truncate">
-                                                                    {c.fullName || t("calendar.noName")} • {c.phone}
-                                                                </div>
-                                                                <div className="truncate text-xs text-muted-foreground">
-                                                                    {c.email ? c.email : t("calendar.missingEmail")}
-                                                                    {c.status === "BLOCKED"
-                                                                        ? ` • ${t("calendar.customerBlocked")}`
-                                                                        : !c.fullName.trim() ||
-                                                                            !c.phone.trim() ||
-                                                                            !c.email
-                                                                            ? ` • ${t("calendar.customerIncomplete")}`
-                                                                            : ""}
-                                                                </div>
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            ) : (
-                                                <div className="p-2 text-sm text-muted-foreground">
-                                                    {t("calendar.customerNoResults")}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </PopoverContent>
-                                </Popover>
-                                <div className="text-xs text-muted-foreground">
-                                    {t("calendar.customerHelper")}
-                                </div>
-                                {customersPickerQuery.isError ? (
-                                    <div className="text-xs text-red-600 dark:text-red-400">
-                                        {(customersPickerQuery.error as any)?.message ||
-                                            t("calendar.customersLoadFailed")}
-                                    </div>
-                                ) : null}
-                            </div>
+                                            {s.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
 
-                        <div className="space-y-1">
+                        <div className="space-y-1 min-w-0">
                             <div className="text-xs text-muted-foreground">
-                                {t("calendar.notesLabel")}
+                                {t("calendar.hourLabel")}
                             </div>
-                            <Textarea
-                                className="rounded-xl"
-                                value={createNotes}
-                                onChange={(e) => setCreateNotes(e.target.value)}
-                                placeholder={t("calendar.notesPlaceholder")}
-                            />
+                            <Select
+                                value={createStartTime}
+                                onValueChange={(v) => {
+                                    setCreateStartTime(String(v || ""));
+                                }}
+                                disabled={!createServiceId || availableCreateSlotsQuery.isPending}
+                            >
+                                <SelectTrigger className="rounded-xl w-full">
+                                    <SelectValue
+                                        placeholder={
+                                            !createServiceId
+                                                ? t("calendar.hourPlaceholder")
+                                                : availableCreateSlotsQuery.isPending
+                                                    ? t("calendar.hourLoading")
+                                                    : createSlots.length
+                                                        ? t("calendar.hourPlaceholder")
+                                                        : t("calendar.hourUnavailable")
+                                        }
+                                    />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {createSlots.map((s) => (
+                                        <SelectItem
+                                            key={s.startTime}
+                                            value={s.startTime}
+                                        >
+                                            <span dir="ltr">
+                                                {formatTimeRange(s.startTime, s.endTime)}
+                                            </span>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            {availableCreateSlotsQuery.isError ? (
+                                <div className="text-xs text-red-600 dark:text-red-400">
+                                    {(availableCreateSlotsQuery.error as any)?.message ||
+                                        t("calendar.hourLoadFailed")}
+                                </div>
+                            ) : null}
+                        </div>
+
+                        <div className="space-y-1 min-w-0 col-span-2">
+                            <div className="text-xs text-muted-foreground">
+                                {t("calendar.customerLabel")}
+                            </div>
+                            <Popover
+                                open={createCustomerPickerOpen}
+                                onOpenChange={(next) => {
+                                    if (customersPickerQuery.isPending) return;
+                                    setCreateCustomerPickerOpen(next);
+                                    if (next) setCreateCustomerSearch("");
+                                }}
+                            >
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        disabled={customersPickerQuery.isPending}
+                                        className="rounded-xl w-full justify-between text-start"
+                                    >
+                                        <span className="truncate text-start">
+                                            {customersPickerQuery.isPending
+                                                ? t("calendar.customersLoading")
+                                                : selectedCustomerForPicker
+                                                    ? `${selectedCustomerForPicker.fullName || t("calendar.noName")} • ${selectedCustomerForPicker.phone}${selectedCustomerForPicker.email ? ` • ${selectedCustomerForPicker.email}` : ""}`
+                                                    : customersForPicker.length
+                                                        ? t("calendar.customerChoose")
+                                                        : t("calendar.customerNone")}
+                                        </span>
+                                        <ChevronsUpDown className="h-4 w-4 opacity-50 ms-2" />
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                    align="start"
+                                    className="w-[var(--radix-popover-trigger-width)] p-2 text-start"
+                                >
+                                    <Input
+                                        value={createCustomerSearch}
+                                        onChange={(e) => setCreateCustomerSearch(e.target.value)}
+                                        placeholder={t("calendar.customerSearchPlaceholder")}
+                                        className="rounded-lg h-9"
+                                    />
+                                    <div className="mt-2 max-h-60 overflow-y-auto">
+                                        {filteredCustomersForPicker.length ? (
+                                            <div className="space-y-1">
+                                                {filteredCustomersForPicker.map((c) => {
+                                                    const disabled =
+                                                        c.status === "BLOCKED" ||
+                                                        !c.fullName.trim() ||
+                                                        !c.phone.trim() ||
+                                                        !c.email;
+                                                    const isSelected = c._id === createExistingCustomerId;
+
+                                                    return (
+                                                        <button
+                                                            key={c._id}
+                                                            type="button"
+                                                            disabled={disabled}
+                                                            onClick={() => {
+                                                                if (disabled) return;
+                                                                setCreateExistingCustomerId(c._id);
+                                                                setCreateCustomerPickerOpen(false);
+                                                                setCreateCustomerSearch("");
+                                                            }}
+                                                            className={
+                                                                "w-full rounded-md px-2 py-2 text-sm transition-colors text-start" +
+                                                                (disabled
+                                                                    ? " opacity-50 cursor-not-allowed"
+                                                                    : " hover:bg-muted") +
+                                                                (isSelected ? " bg-muted" : "")
+                                                            }
+                                                        >
+                                                            <div className="truncate">
+                                                                {c.fullName || t("calendar.noName")} • {c.phone}
+                                                            </div>
+                                                            <div className="truncate text-xs text-muted-foreground">
+                                                                {c.email ? c.email : t("calendar.missingEmail")}
+                                                                {c.status === "BLOCKED"
+                                                                    ? ` • ${t("calendar.customerBlocked")}`
+                                                                    : !c.fullName.trim() ||
+                                                                        !c.phone.trim() ||
+                                                                        !c.email
+                                                                        ? ` • ${t("calendar.customerIncomplete")}`
+                                                                        : ""}
+                                                            </div>
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                            <div className="p-2 text-sm text-muted-foreground">
+                                                {t("calendar.customerNoResults")}
+                                            </div>
+                                        )}
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                            <div className="text-xs text-muted-foreground">
+                                {t("calendar.customerHelper")}
+                            </div>
+                            {customersPickerQuery.isError ? (
+                                <div className="text-xs text-red-600 dark:text-red-400">
+                                    {(customersPickerQuery.error as any)?.message ||
+                                        t("calendar.customersLoadFailed")}
+                                </div>
+                            ) : null}
                         </div>
                     </div>
 
-                    <DialogFooter>
+                    <div className="space-y-1">
+                        <div className="text-xs text-muted-foreground">
+                            {t("calendar.notesLabel")}
+                        </div>
+                        <Textarea
+                            className="rounded-xl"
+                            value={createNotes}
+                            onChange={(e) => setCreateNotes(e.target.value)}
+                            placeholder={t("calendar.notesPlaceholder")}
+                        />
+                    </div>
+
+                    <div className="pt-2">
                         <Button
                             type="button"
-                            variant="outline"
-                            className="rounded-2xl"
-                            onClick={() => {
-                                setCreateOpen(false);
-                                resetCreateForm();
-                            }}
-                        >
-                            {t("calendar.cancel")}
-                        </Button>
-                        <Button
-                            type="button"
-                            className="rounded-2xl"
+                            className="rounded-2xl w-full"
                             onClick={createAppointment}
                             disabled={creating || !canCreateAppointment}
                         >
                             {creating ? t("calendar.saving") : t("calendar.save")}
                         </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                    </div>
+                </div>
+            </SidePanel>
 
             {showLoading ? (
                 <CenteredSpinner className="min-h-[20vh] items-center" />
