@@ -775,6 +775,39 @@ const en = {
             uploadImageFailed: "Failed to upload image",
         },
     },
+    subscription: {
+        title: "Plans & Pricing",
+        subtitle: "Start with a 14-day free trial. No feature restrictions.",
+        trialBadge: "Trial – {{days}} days left",
+        trialNote: "All plans include a 14-day free trial. No payment required to get started.",
+        planTitle: "Pro plan",
+        recommended: "Recommended",
+        currentPlan: "Current plan",
+        footerNote:
+            "You won’t be charged during the trial. Billing will begin after your trial ends if you choose to continue.",
+        cta: {
+            continueAfterTrial: "Continue after trial",
+        },
+        plan: {
+            monthly: "Monthly",
+            semi: "6 Months",
+            yearly: "Yearly",
+        },
+        price: {
+            monthly: "₪79 / month",
+            semi: "₪399 / 6 months",
+            yearly: "₪749 / year",
+        },
+        monthlyEquivalent: {
+            monthly: "₪79 / month",
+            semi: "₪66.5 / month",
+            yearly: "₪62 / month",
+        },
+        savings: {
+            semi: "Save ~15%",
+            yearly: "Save ~20%",
+        },
+    },
     dashboard: {
         title: "Dashboard",
         subtitle: "Overview of your business activity.",

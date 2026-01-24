@@ -1,68 +1,73 @@
+"use client";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-const PRICING = [
-  {
-    id: "monthly",
-    label: "Monthly",
-    price: "₪79 / month",
-    monthlyEquivalent: "₪79 / month",
-    cta: "Continue after trial",
-  },
-  {
-    id: "semi",
-    label: "6 Months",
-    price: "₪399 / 6 months",
-    monthlyEquivalent: "₪66.5 / month",
-    savings: "Save ~15%",
-    cta: "Continue after trial",
-  },
-  {
-    id: "yearly",
-    label: "Yearly",
-    price: "₪749 / year",
-    monthlyEquivalent: "₪62 / month",
-    savings: "Save ~20%",
-    recommended: true,
-    cta: "Continue after trial",
-  },
-];
+import { useI18n } from "@/i18n/useI18n";
 
 export default function SubscriptionPage() {
+  const { t } = useI18n();
   const isTrial = true;
   const trialDaysLeft = 10;
   const isPaid = false;
+
+  const pricing = [
+    {
+      id: "monthly",
+      label: t("subscription.plan.monthly"),
+      price: t("subscription.price.monthly"),
+      monthlyEquivalent: t("subscription.monthlyEquivalent.monthly"),
+      cta: t("subscription.cta.continueAfterTrial"),
+    },
+    {
+      id: "semi",
+      label: t("subscription.plan.semi"),
+      price: t("subscription.price.semi"),
+      monthlyEquivalent: t("subscription.monthlyEquivalent.semi"),
+      savings: t("subscription.savings.semi"),
+      cta: t("subscription.cta.continueAfterTrial"),
+    },
+    {
+      id: "yearly",
+      label: t("subscription.plan.yearly"),
+      price: t("subscription.price.yearly"),
+      monthlyEquivalent: t("subscription.monthlyEquivalent.yearly"),
+      savings: t("subscription.savings.yearly"),
+      recommended: true,
+      cta: t("subscription.cta.continueAfterTrial"),
+    },
+  ];
 
   return (
     <div className="space-y-6">
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Plans & Pricing
+            {t("subscription.title")}
           </h1>
           {isTrial ? (
-            <Badge variant="secondary">Trial – {trialDaysLeft} days left</Badge>
+            <Badge variant="secondary">
+              {t("subscription.trialBadge", { days: trialDaysLeft })}
+            </Badge>
           ) : null}
         </div>
         <p className="text-sm text-gray-600 dark:text-gray-300">
-          Start with a 14-day free trial. No feature restrictions.
+          {t("subscription.subtitle")}
         </p>
       </div>
 
       <Card>
         <CardContent className="py-4 text-sm text-muted-foreground">
-          All plans include a 14-day free trial. No payment required to get
-          started.
+          {t("subscription.trialNote")}
         </CardContent>
       </Card>
 
       <div className="space-y-3">
         <div className="text-sm font-medium text-gray-900 dark:text-white">
-          Pro plan
+          {t("subscription.planTitle")}
         </div>
         <div className="grid gap-3">
-          {PRICING.map((plan) => (
+          {pricing.map((plan) => (
             <Card
               key={plan.id}
               className={
@@ -76,7 +81,7 @@ export default function SubscriptionPage() {
                   <CardTitle className="text-base">{plan.label}</CardTitle>
                   {plan.recommended ? (
                     <Badge className="bg-primary text-primary-foreground">
-                      Recommended
+                      {t("subscription.recommended")}
                     </Badge>
                   ) : null}
                 </div>
@@ -101,7 +106,7 @@ export default function SubscriptionPage() {
                   disabled={isPaid}
                   variant={plan.recommended ? "default" : "outline"}
                 >
-                  {isPaid ? "Current plan" : plan.cta}
+                  {isPaid ? t("subscription.currentPlan") : plan.cta}
                 </Button>
               </CardContent>
             </Card>
@@ -110,8 +115,7 @@ export default function SubscriptionPage() {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        You won’t be charged during the trial. Billing will begin after your
-        trial ends if you choose to continue.
+        {t("subscription.footerNote")}
       </p>
     </div>
   );

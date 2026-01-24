@@ -769,6 +769,39 @@ const he = {
             uploadImageFailed: "העלאת התמונה נכשלה",
         },
     },
+    subscription: {
+        title: "תוכניות ומחירים",
+        subtitle: "התחל/י עם ניסיון חינם של 14 יום. ללא הגבלות תכונות.",
+        trialBadge: "ניסיון – נשארו {{days}} ימים",
+        trialNote: "כל התוכניות כוללות ניסיון חינם של 14 יום. אין צורך בתשלום כדי להתחיל.",
+        planTitle: "תוכנית פרו",
+        recommended: "מומלץ",
+        currentPlan: "תוכנית נוכחית",
+        footerNote:
+            "לא תחויב/י במהלך תקופת הניסיון. החיוב יתחיל לאחר סיום הניסיון אם תבחר/י להמשיך.",
+        cta: {
+            continueAfterTrial: "המשך/י לאחר הניסיון",
+        },
+        plan: {
+            monthly: "חודשי",
+            semi: "6 חודשים",
+            yearly: "שנתי",
+        },
+        price: {
+            monthly: "₪79 / חודש",
+            semi: "₪399 / 6 חודשים",
+            yearly: "₪749 / שנה",
+        },
+        monthlyEquivalent: {
+            monthly: "₪79 / חודש",
+            semi: "₪66.5 / חודש",
+            yearly: "₪62 / חודש",
+        },
+        savings: {
+            semi: "חיסכון ~15%",
+            yearly: "חיסכון ~20%",
+        },
+    },
     dashboard: {
         title: "דשבורד",
         subtitle: "סקירה של פעילות העסק.",
