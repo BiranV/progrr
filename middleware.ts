@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { verifyAuthToken } from "@/server/jwt";
 import { AUTH_COOKIE_NAME } from "@/server/auth-cookie";
+import { isPublicPagePathname } from "@/lib/public-routes";
 import {
   DEV_ONBOARDING_COOKIE,
   isDevOnboardingEnabled,
@@ -22,10 +23,6 @@ function isSafeNextPath(next: string | null): next is string {
 }
 
 function isPublicPath(pathname: string) {
-  if (pathname === "/") return true;
-  if (pathname.startsWith("/auth")) return true;
-  if (pathname.startsWith("/login")) return true;
-  if (pathname.startsWith("/b")) return true;
   if (pathname.startsWith("/api")) return true;
   if (pathname.startsWith("/_next")) return true;
   if (pathname === "/favicon.ico") return true;
@@ -35,7 +32,7 @@ function isPublicPath(pathname: string) {
   if (pathname.startsWith("/uploads")) return true;
   if (pathname === "/robots.txt") return true;
   if (pathname === "/sitemap.xml") return true;
-  if (pathname.startsWith("/public")) return true;
+  if (isPublicPagePathname(pathname)) return true;
   return false;
 }
 

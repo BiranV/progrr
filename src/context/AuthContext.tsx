@@ -11,6 +11,7 @@ import React, {
 } from "react";
 import { db } from "@/lib/db";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { isPublicPagePathname } from "@/lib/public-routes";
 import { DEV_ONBOARDING_COOKIE, DEV_ONBOARDING_USER_ID } from "@/lib/dev-onboarding";
 
 interface User {
@@ -47,13 +48,7 @@ if (!APP_VERSION) {
 }
 
 function isPublicPath(pathname: string) {
-  return (
-    pathname === "/" ||
-    pathname.startsWith("/auth") ||
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/public") ||
-    pathname.startsWith("/b")
-  );
+  return isPublicPagePathname(pathname);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -83,38 +78,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /* ======================
      VERSION GUARD (ONCE)
      ====================== */
+  /* ======================
+     VERSION GUARD (ONCE)
+     ====================== */
   useEffect(() => {
     if (versionCheckedRef.current) return;
     versionCheckedRef.current = true;
 
-    const stored = localStorage.getItem(APP_VERSION_KEY);
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem(APP_VERSION_KEY);
+    } catch { }
 
-    if (stored !== APP_VERSION) {
-      redirectingRef.current = true;
-
-      try {
-        localStorage.clear();
-        sessionStorage.clear();
-        localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
-      } catch { }
-
-      fetch("/api/auth/logout", {
-        method: "POST",
-        credentials: "include",
-        keepalive: true,
-      }).finally(() => {
-        window.location.replace("/login");
-      });
-
-      return;
-    }
-
+    // First ever visit on this device/browser: just set and continue (NO logout)
     if (!stored) {
       try {
         localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
       } catch { }
+      return;
     }
-  }, []);
+
+    // Same version: nothing to do
+    if (stored === APP_VERSION) return;
+
+    // Real mismatch: logout, but NEVER redirect public pages to login
+    redirectingRef.current = true;
+
+    try {
+      // Don't nuke everything. Clear only session-related storage if you can.
+      sessionStorage.clear();
+      // Keep the version key updated so we don't loop.
+      localStorage.setItem(APP_VERSION_KEY, APP_VERSION);
+    } catch { }
+
+    fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+      keepalive: true,
+    }).finally(() => {
+      const path =
+        typeof window !== "undefined" ? window.location.pathname : pathname;
+
+      // Public booking must stay public: just reload (guest)
+      if (isPublicPagePathname(path)) {
+        window.location.reload();
+        return;
+      }
+
+      // Admin routes: go to auth (consistent with the rest of the app)
+      window.location.replace("/auth");
+    });
+  }, [pathname]);
+
 
   /* ======================
      FETCH /me (ONCE)

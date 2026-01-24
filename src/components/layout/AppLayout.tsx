@@ -9,13 +9,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { CenteredSpinner } from "@/components/CenteredSpinner";
+import { isPublicPagePathname } from "@/lib/public-routes";
 
 function isPublicPath(pathname: string) {
-  return (
-    pathname === "/" ||
-    pathname.startsWith("/auth") ||
-    pathname.startsWith("/public")
-  );
+  return isPublicPagePathname(pathname);
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
