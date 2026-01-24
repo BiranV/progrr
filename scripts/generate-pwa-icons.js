@@ -30,7 +30,12 @@ async function generateSquareIcon(size, outName) {
   const inner = Math.max(1, Math.round(size * LOGO_SCALE));
 
   const logo = await sharp(inputPath)
-    .resize(inner, inner, { fit: "contain", withoutEnlargement: true })
+    .ensureAlpha()
+    .resize(inner, inner, {
+      fit: "contain",
+      withoutEnlargement: true,
+      background: { r: 255, g: 255, b: 255, alpha: 0 },
+    })
     .png()
     .toBuffer();
 
