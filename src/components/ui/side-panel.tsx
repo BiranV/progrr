@@ -13,6 +13,7 @@ export type SidePanelProps = {
   children: React.ReactNode;
   footer?: React.ReactNode;
   closeOnOutsideClick?: boolean;
+  showCloseButton?: boolean;
   className?: string;
   contentClassName?: string;
   widthClassName?: string;
@@ -26,10 +27,15 @@ export default function SidePanel({
   children,
   footer,
   closeOnOutsideClick = true,
+  showCloseButton = true,
   className,
   contentClassName,
   widthClassName,
 }: SidePanelProps) {
+  const contentRef = React.useRef<HTMLDivElement | null>(null);
+  const touchStartYRef = React.useRef<number | null>(null);
+  const touchDeltaRef = React.useRef<number>(0);
+
   React.useEffect(() => {
     if (!open) return;
 
@@ -44,6 +50,27 @@ export default function SidePanel({
   }, [open, onOpenChange]);
 
   if (!open) return null;
+
+  const handleTouchStart = (event: React.TouchEvent) => {
+    touchStartYRef.current = event.touches[0]?.clientY ?? null;
+    touchDeltaRef.current = 0;
+  };
+
+  const handleTouchMove = (event: React.TouchEvent) => {
+    if (touchStartYRef.current == null) return;
+    const currentY = event.touches[0]?.clientY ?? 0;
+    touchDeltaRef.current = currentY - touchStartYRef.current;
+  };
+
+  const handleTouchEnd = () => {
+    const delta = touchDeltaRef.current;
+    const scrollTop = contentRef.current?.scrollTop ?? 0;
+    if (delta > 80 && scrollTop <= 0) {
+      onOpenChange(false);
+    }
+    touchStartYRef.current = null;
+    touchDeltaRef.current = 0;
+  };
 
   return (
     <div className={cn("fixed inset-0 z-50 h-[100dvh]", className)}>
@@ -61,14 +88,20 @@ export default function SidePanel({
         role="dialog"
         aria-modal={false}
         className={cn(
-          "absolute inset-y-0 end-0 flex h-full max-h-[100dvh] flex-col border-s bg-background shadow-2xl",
+          "absolute inset-x-0 bottom-0 flex w-full flex-col rounded-t-2xl border-t bg-background shadow-2xl max-h-[90dvh]",
+          "sm:inset-y-0 sm:end-0 sm:inset-x-auto sm:h-full sm:max-h-[100dvh] sm:rounded-none sm:border-t-0 sm:border-s",
           "data-[state=open]:animate-in data-[state=closed]:animate-out",
           "data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right rtl:data-[state=open]:slide-in-from-left rtl:data-[state=closed]:slide-out-to-left",
+          "data-[state=open]:slide-in-from-bottom sm:data-[state=open]:slide-in-from-right sm:rtl:data-[state=open]:slide-in-from-left",
+          "data-[state=closed]:slide-out-to-bottom sm:data-[state=closed]:slide-out-to-right sm:rtl:data-[state=closed]:slide-out-to-left",
           widthClassName ?? "w-full sm:w-[480px] lg:w-[560px]",
           "dark:bg-gray-900",
           contentClassName
         )}
         data-state="open"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         <div className="flex items-start justify-between gap-3 border-b px-4 py-4 sm:px-5">
           <div className="min-w-0">
@@ -84,17 +117,22 @@ export default function SidePanel({
             ) : null}
           </div>
 
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Close"
-          >
-            <XIcon className="h-4 w-4" />
-          </button>
+          {showCloseButton ? (
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Close"
+            >
+              <XIcon className="h-4 w-4" />
+            </button>
+          ) : null}
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 pt-4 pb-[calc(var(--bottom-nav-height)+16px+env(safe-area-inset-bottom))] sm:px-5">
+        <div
+          ref={contentRef}
+          className="flex-1 overflow-y-auto px-4 pt-4 pb-[calc(var(--bottom-nav-height)+16px+env(safe-area-inset-bottom))] sm:px-5"
+        >
           {children}
         </div>
 

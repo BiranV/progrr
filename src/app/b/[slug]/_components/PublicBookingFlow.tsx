@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PhoneInput } from "@/components/ui/phone-input";
+import SidePanel from "@/components/ui/side-panel";
 
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 import OtpInput from "@/components/OtpInput";
@@ -1727,7 +1728,7 @@ export default function PublicBookingFlow({
         </DialogContent>
       </Dialog>
 
-      <Dialog
+      <SidePanel
         open={myAppointmentsOpen}
         onOpenChange={(open) => {
           setMyAppointmentsOpen(open);
@@ -1737,119 +1738,115 @@ export default function PublicBookingFlow({
             setCancellingMyAppointmentId(null);
           }
         }}
+        title={
+          myAppointmentsScope === "future" || myAppointmentsScope === "all"
+            ? t("publicBooking.myAppointments.titleUpcoming")
+            : t("publicBooking.myAppointments.titleAll")
+        }
+        description={
+          myAppointmentsScope === "future" || myAppointmentsScope === "all"
+            ? t("publicBooking.myAppointments.subtitleUpcoming")
+            : myAppointmentsDate
+              ? t("publicBooking.myAppointments.subtitleForDate", {
+                date: myAppointmentsDate,
+              })
+              : ""
+        }
+        showCloseButton
       >
-        <DialogContent className="sm:max-w-[520px]">
-          <DialogHeader>
-            <DialogTitle>
-              {myAppointmentsScope === "future" || myAppointmentsScope === "all"
-                ? t("publicBooking.myAppointments.titleUpcoming")
-                : t("publicBooking.myAppointments.titleAll")}
-            </DialogTitle>
-            <DialogDescription>
-              {myAppointmentsScope === "future" || myAppointmentsScope === "all"
-                ? t("publicBooking.myAppointments.subtitleUpcoming")
-                : myAppointmentsDate
-                  ? t("publicBooking.myAppointments.subtitleForDate", {
-                    date: myAppointmentsDate,
-                  })
-                  : ""}
-            </DialogDescription>
-          </DialogHeader>
+        {myAppointmentsError ? (
+          <ErrorAlert>{t(myAppointmentsError)}</ErrorAlert>
+        ) : null}
 
-          {myAppointmentsError ? (
-            <ErrorAlert>{t(myAppointmentsError)}</ErrorAlert>
-          ) : null}
-
-          {myAppointmentsLoading ? (
-            <CenteredSpinner className="min-h-[120px] items-center" />
-          ) : myAppointments.filter(
-            (a) => String(a.status || "").toUpperCase() === "BOOKED"
-          ).length === 0 ? (
-            <div className="text-sm text-muted-foreground">
-              {myAppointmentsScope === "future" || myAppointmentsScope === "all"
-                ? t("publicBooking.myAppointments.emptyUpcoming")
-                : t("publicBooking.myAppointments.emptyForDay")}
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-200 dark:divide-gray-800">
-              {myAppointments
-                .filter((a) => String(a.status || "").toUpperCase() === "BOOKED")
-                .map((a) => (
-                  <div
-                    key={a.id}
-                    className="py-3"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        {a.date ? (
-                          <div className="text-xs text-muted-foreground">
-                            {formatDateForDisplay(a.date)}
-                          </div>
-                        ) : null}
-                        {a.businessName ? (
-                          <div className="text-xs text-muted-foreground">
-                            {a.businessName}
-                          </div>
-                        ) : null}
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          <span dir="ltr">
-                            {formatTimeRange(a.startTime, a.endTime)}
-                          </span>
+        {myAppointmentsLoading ? (
+          <CenteredSpinner className="min-h-[120px] items-center" />
+        ) : myAppointments.filter(
+          (a) => String(a.status || "").toUpperCase() === "BOOKED"
+        ).length === 0 ? (
+          <div className="text-sm text-muted-foreground">
+            {myAppointmentsScope === "future" || myAppointmentsScope === "all"
+              ? t("publicBooking.myAppointments.emptyUpcoming")
+              : t("publicBooking.myAppointments.emptyForDay")}
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-200 dark:divide-gray-800">
+            {myAppointments
+              .filter((a) => String(a.status || "").toUpperCase() === "BOOKED")
+              .map((a) => (
+                <div
+                  key={a.id}
+                  className="py-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      {a.date ? (
+                        <div className="text-xs text-muted-foreground">
+                          {formatDateForDisplay(a.date)}
                         </div>
-                        <div className="text-sm text-gray-700 dark:text-gray-200">
-                          {a.serviceName}
+                      ) : null}
+                      {a.businessName ? (
+                        <div className="text-xs text-muted-foreground">
+                          {a.businessName}
                         </div>
+                      ) : null}
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">
+                        <span dir="ltr">
+                          {formatTimeRange(a.startTime, a.endTime)}
+                        </span>
                       </div>
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="rounded-xl shrink-0"
-                        disabled={cancellingMyAppointmentId === a.id}
-                        onClick={async () => {
-                          setCancellingMyAppointmentId(a.id);
-                          setMyAppointmentsError(null);
-                          try {
-                            await cancelSameDayAppointment(a.id);
-                            setMyAppointments((prev) => prev.filter((x) => x.id !== a.id));
-                            setFormError(null);
-                            setActiveConflict((prev) => {
-                              if (!prev) return prev;
-                              const id = String(a.id ?? "").trim();
-                              const existingId = String(prev.existingAppointment?.id ?? "").trim();
-                              if (existingId && existingId === id) return null;
-
-                              const list = Array.isArray(prev.existingAppointments)
-                                ? prev.existingAppointments
-                                : [];
-                              if (list.length === 0) return prev;
-
-                              const nextList = list.filter(
-                                (x: any) => String(x?.id ?? "").trim() !== id
-                              );
-                              if (nextList.length === 0) return null;
-                              return { ...prev, existingAppointments: nextList };
-                            });
-                          } catch (e: any) {
-                            setMyAppointmentsError(getPublicBookingErrorKey(e));
-                          } finally {
-                            setCancellingMyAppointmentId(null);
-                          }
-                        }}
-                      >
-                        {cancellingMyAppointmentId === a.id
-                          ? t("publicBooking.actions.cancelling")
-                          : t("publicBooking.actions.cancelAppointment")}
-                      </Button>
+                      <div className="text-sm text-gray-700 dark:text-gray-200">
+                        {a.serviceName}
+                      </div>
                     </div>
-                  </div>
-                ))}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
 
-      <Dialog
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl shrink-0"
+                      disabled={cancellingMyAppointmentId === a.id}
+                      onClick={async () => {
+                        setCancellingMyAppointmentId(a.id);
+                        setMyAppointmentsError(null);
+                        try {
+                          await cancelSameDayAppointment(a.id);
+                          setMyAppointments((prev) => prev.filter((x) => x.id !== a.id));
+                          setFormError(null);
+                          setActiveConflict((prev) => {
+                            if (!prev) return prev;
+                            const id = String(a.id ?? "").trim();
+                            const existingId = String(prev.existingAppointment?.id ?? "").trim();
+                            if (existingId && existingId === id) return null;
+
+                            const list = Array.isArray(prev.existingAppointments)
+                              ? prev.existingAppointments
+                              : [];
+                            if (list.length === 0) return prev;
+
+                            const nextList = list.filter(
+                              (x: any) => String(x?.id ?? "").trim() !== id
+                            );
+                            if (nextList.length === 0) return null;
+                            return { ...prev, existingAppointments: nextList };
+                          });
+                        } catch (e: any) {
+                          setMyAppointmentsError(getPublicBookingErrorKey(e));
+                        } finally {
+                          setCancellingMyAppointmentId(null);
+                        }
+                      }}
+                    >
+                      {cancellingMyAppointmentId === a.id
+                        ? t("publicBooking.actions.cancelling")
+                        : t("publicBooking.actions.cancelAppointment")}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+          </div>
+        )}
+      </SidePanel>
+
+      <SidePanel
         open={profileOpen}
         onOpenChange={(open) => {
           setProfileOpen(open);
@@ -1860,81 +1857,128 @@ export default function PublicBookingFlow({
             setProfileCode("");
           }
         }}
+        title={t("publicBooking.profile.title")}
+        description={t("publicBooking.profile.description")}
       >
-        <DialogContent className="sm:max-w-[520px]">
-          <DialogHeader>
-            <DialogTitle>{t("publicBooking.profile.title")}</DialogTitle>
-            <DialogDescription>
-              {t("publicBooking.profile.description")}
-            </DialogDescription>
-          </DialogHeader>
+        {profileError ? <ErrorAlert>{t(profileError)}</ErrorAlert> : null}
 
-          {profileError ? <ErrorAlert>{t(profileError)}</ErrorAlert> : null}
+        {profileStep === "form" ? (
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="profileFullName">
+                {t("publicBooking.profile.fullNameLabel")}
+              </Label>
+              <Input
+                id="profileFullName"
+                className="rounded-2xl"
+                value={profileFullName}
+                onChange={(e) => setProfileFullName(e.target.value)}
+              />
+            </div>
 
-          {profileStep === "form" ? (
-            <div className="space-y-3">
-              <div className="space-y-2">
-                <Label htmlFor="profileFullName">
-                  {t("publicBooking.profile.fullNameLabel")}
-                </Label>
-                <Input
-                  id="profileFullName"
-                  className="rounded-2xl"
-                  value={profileFullName}
-                  onChange={(e) => setProfileFullName(e.target.value)}
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="profileEmail">
+                {t("publicBooking.profile.emailLabel")}
+              </Label>
+              <Input
+                id="profileEmail"
+                className="rounded-2xl"
+                value={profileNewEmail}
+                onChange={(e) => setProfileNewEmail(e.target.value)}
+                placeholder={t("publicBooking.profile.emailPlaceholder")}
+              />
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="profileEmail">
-                  {t("publicBooking.profile.emailLabel")}
-                </Label>
-                <Input
-                  id="profileEmail"
-                  className="rounded-2xl"
-                  value={profileNewEmail}
-                  onChange={(e) => setProfileNewEmail(e.target.value)}
-                  placeholder={t("publicBooking.profile.emailPlaceholder")}
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="profilePhone">
+                {t("publicBooking.profile.phoneLabel")}
+              </Label>
+              <PhoneInput
+                id="profilePhone"
+                className="rounded-2xl"
+                inputClassName="rounded-2xl"
+                value={profilePhone}
+                onChange={(v) => setProfilePhone(v)}
+                onValidityChange={setProfilePhoneValid}
+                onBlur={() => setProfilePhoneTouched(true)}
+                aria-invalid={profilePhoneTouched && !profilePhoneValid}
+                placeholder={t("publicBooking.profile.phonePlaceholder")}
+              />
+              {profilePhoneTouched && profilePhone.trim() && !profilePhoneValid ? (
+                <div className="text-xs text-red-600 dark:text-red-400">
+                  {t("publicBooking.profile.invalidPhone")}
+                </div>
+              ) : null}
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="profilePhone">
-                  {t("publicBooking.profile.phoneLabel")}
-                </Label>
-                <PhoneInput
-                  id="profilePhone"
-                  className="rounded-2xl"
-                  inputClassName="rounded-2xl"
-                  value={profilePhone}
-                  onChange={(v) => setProfilePhone(v)}
-                  onValidityChange={setProfilePhoneValid}
-                  onBlur={() => setProfilePhoneTouched(true)}
-                  aria-invalid={profilePhoneTouched && !profilePhoneValid}
-                  placeholder={t("publicBooking.profile.phonePlaceholder")}
-                />
-                {profilePhoneTouched && profilePhone.trim() && !profilePhoneValid ? (
-                  <div className="text-xs text-red-600 dark:text-red-400">
-                    {t("publicBooking.profile.invalidPhone")}
-                  </div>
-                ) : null}
-              </div>
-
-              <Button
-                className="rounded-2xl w-full"
-                disabled={
-                  profileSubmitting ||
-                  !profileFullName.trim() ||
-                  !profilePhone.trim() ||
-                  !profilePhoneValid ||
-                  !profileNewEmail.trim() ||
-                  !isValidEmail(profileNewEmail.trim())
+            <Button
+              className="rounded-2xl w-full"
+              disabled={
+                profileSubmitting ||
+                !profileFullName.trim() ||
+                !profilePhone.trim() ||
+                !profilePhoneValid ||
+                !profileNewEmail.trim() ||
+                !isValidEmail(profileNewEmail.trim())
+              }
+              onClick={async () => {
+                setProfileSubmitting(true);
+                setProfileError(null);
+                try {
+                  await submitProfileUpdate();
+                } catch (e: any) {
+                  setProfileError(getPublicBookingErrorKey(e));
+                } finally {
+                  setProfileSubmitting(false);
                 }
+              }}
+            >
+              {profileSubmitting
+                ? t("publicBooking.actions.saving")
+                : t("common.save")}
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="text-sm text-gray-600 dark:text-gray-300">
+              {t("publicBooking.profile.codeSent", {
+                email: profileNewEmail.trim() || t("publicBooking.profile.yourEmail"),
+              })}
+            </div>
+
+            <div className="flex justify-center">
+              <OtpInput
+                id="profile-otp"
+                name="code"
+                length={6}
+                value={profileCode}
+                onChange={setProfileCode}
+                disabled={profileSubmitting}
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-2xl"
+                onClick={() => {
+                  setProfileStep("form");
+                  setProfileCode("");
+                  setProfileError(null);
+                }}
+                disabled={profileSubmitting}
+              >
+                {t("common.back")}
+              </Button>
+              <Button
+                className="rounded-2xl flex-1"
+                disabled={profileSubmitting || normalizeOtpCode(profileCode).length < 6}
                 onClick={async () => {
                   setProfileSubmitting(true);
                   setProfileError(null);
                   try {
-                    await submitProfileUpdate();
+                    await submitProfileEmailVerify();
                   } catch (e: any) {
                     setProfileError(getPublicBookingErrorKey(e));
                   } finally {
@@ -1943,67 +1987,13 @@ export default function PublicBookingFlow({
                 }}
               >
                 {profileSubmitting
-                  ? t("publicBooking.actions.saving")
-                  : t("common.save")}
+                  ? t("publicBooking.profile.verifying")
+                  : t("publicBooking.profile.verify")}
               </Button>
             </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="text-sm text-gray-600 dark:text-gray-300">
-                {t("publicBooking.profile.codeSent", {
-                  email: profileNewEmail.trim() || t("publicBooking.profile.yourEmail"),
-                })}
-              </div>
-
-              <div className="flex justify-center">
-                <OtpInput
-                  id="profile-otp"
-                  name="code"
-                  length={6}
-                  value={profileCode}
-                  onChange={setProfileCode}
-                  disabled={profileSubmitting}
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-2xl"
-                  onClick={() => {
-                    setProfileStep("form");
-                    setProfileCode("");
-                    setProfileError(null);
-                  }}
-                  disabled={profileSubmitting}
-                >
-                  {t("common.back")}
-                </Button>
-                <Button
-                  className="rounded-2xl flex-1"
-                  disabled={profileSubmitting || normalizeOtpCode(profileCode).length < 6}
-                  onClick={async () => {
-                    setProfileSubmitting(true);
-                    setProfileError(null);
-                    try {
-                      await submitProfileEmailVerify();
-                    } catch (e: any) {
-                      setProfileError(getPublicBookingErrorKey(e));
-                    } finally {
-                      setProfileSubmitting(false);
-                    }
-                  }}
-                >
-                  {profileSubmitting
-                    ? t("publicBooking.profile.verifying")
-                    : t("publicBooking.profile.verify")}
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+          </div>
+        )}
+      </SidePanel>
 
       <ProgressBar
         progress={progress}
