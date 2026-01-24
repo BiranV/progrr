@@ -659,7 +659,7 @@ const en = {
         namePlaceholder: "Your business name",
         phoneLabel: "Phone number",
         whatsappLabel: "WhatsApp number",
-        whatsappHelp: "Used for the WhatsApp quick action on the public booking page.",
+        whatsappHelp: "Shown to customers on your public booking page as your business WhatsApp contact.",
         addressLabel: "Address (optional)",
         addressHelp: "Required only for in-person services",
         addressPlaceholder: "City, street",
@@ -676,7 +676,7 @@ const en = {
         toastCopy: "Copied",
         toastCopyFailed: "Failed to copy",
         errors: {
-            whatsappInvalid: "WhatsApp number must be a valid mobile number.",
+            whatsappInvalid: "WhatsApp number must be a valid phone number.",
         },
     },
     services: {
@@ -928,6 +928,8 @@ const en = {
         requestFailed: "Request failed ({{status}})",
         somethingWentWrong: "Something went wrong",
         invalidEmail: "Please enter a valid email address",
+        businessPhoneRequired: "Business phone is required",
+        businessPhoneInvalid: "Please enter a valid phone number",
         fullNameRequired: "Please enter your full name",
         codeRequired: "Code required",
         invalidCode: "Invalid code",

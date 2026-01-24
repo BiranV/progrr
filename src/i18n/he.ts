@@ -653,7 +653,7 @@ const he = {
         namePlaceholder: "שם העסק שלך",
         phoneLabel: "מספר טלפון",
         whatsappLabel: "מספר וואטסאפ",
-        whatsappHelp: "משמש לפעולת וואטסאפ מהירה בעמוד ההזמנה הציבורי.",
+        whatsappHelp: "מוצג ללקוחות בעמוד ההזמנה הציבורי כאיש הקשר של העסק בוואטסאפ.",
         addressLabel: "כתובת (אופציונלי)",
         addressHelp: "נדרש רק לשירותים פרונטליים",
         addressPlaceholder: "עיר, רחוב",
@@ -670,7 +670,7 @@ const he = {
         toastCopy: "הועתק",
         toastCopyFailed: "ההעתקה נכשלה",
         errors: {
-            whatsappInvalid: "מספר וואטסאפ חייב להיות מספר נייד תקין.",
+            whatsappInvalid: "מספר וואטסאפ חייב להיות מספר טלפון תקין.",
         },
     },
     services: {
@@ -918,6 +918,8 @@ const he = {
         requestFailed: "הבקשה נכשלה ({{status}})",
         somethingWentWrong: "משהו השתבש",
         invalidEmail: "נא להזין כתובת אימייל תקינה",
+        businessPhoneRequired: "נדרש טלפון עסק",
+        businessPhoneInvalid: "נא להזין מספר טלפון תקין",
         fullNameRequired: "נא להזין שם מלא",
         codeRequired: "נדרש קוד",
         invalidCode: "קוד לא תקין",

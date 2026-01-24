@@ -7,7 +7,7 @@ import {
   ensureBusinessPublicIdForUser,
   isValidBusinessPublicId,
 } from "@/server/business-public-id";
-import { isMobilePhoneE164, normalizePhone } from "@/server/phone";
+import { normalizePhone } from "@/server/phone";
 
 function asString(v: unknown, maxLen = 250): string | undefined {
   const s = String(v ?? "").trim();
@@ -31,7 +31,6 @@ function normalizeWhatsApp(v: unknown): string | undefined {
 
   const e164 = normalizePhone(raw);
   if (!e164) return undefined;
-  if (!isMobilePhoneE164(e164)) return undefined;
   return e164;
 }
 
@@ -88,7 +87,7 @@ export async function GET() {
     const slug = asString((business as any).slug, 120);
     const description = asString((business as any).description, 250);
     const instagram = normalizeInstagram((business as any).instagram);
-    const whatsapp = normalizeWhatsApp((business as any).whatsapp);
+    const whatsapp = normalizePhone((business as any).whatsapp);
     const currency =
       normalizeCurrencyCode((business as any).currency) ??
       normalizeCurrencyCode((user as any)?.onboarding?.currency) ??
@@ -246,7 +245,7 @@ export async function PATCH(req: Request) {
 
     if (whatsapp === "__INVALID__") {
       return NextResponse.json(
-        { error: "WhatsApp number must be a valid mobile number" },
+        { error: "WhatsApp number must be a valid phone number" },
         { status: 400 }
       );
     }

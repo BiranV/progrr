@@ -295,7 +295,6 @@ export default function BusinessDetailsPage() {
             value={form.whatsapp}
             onChange={(v) => updateField("whatsapp", v)}
             onValidityChange={setIsWhatsAppValid}
-            requireMobile
             aria-invalid={Boolean(errors.whatsapp)}
           />
           <p className="text-xs text-gray-500 dark:text-gray-400">
