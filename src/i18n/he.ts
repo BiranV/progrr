@@ -960,6 +960,8 @@ const he = {
             logoHint: "הלוגו יוצג בתוך עיגול.",
             bannerHint: "הבאנר ישמש כרקע הכותרת.",
             zoom: "זום",
+            brightness: "בהירות",
+            color: "צבע",
             useCropped: "השתמש/י בתמונה החתוכה",
             cropping: "חותך…",
         },

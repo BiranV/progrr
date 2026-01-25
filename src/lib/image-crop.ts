@@ -26,14 +26,16 @@ export async function cropImageToBlob(options: {
   outputHeight: number;
   mimeType: "image/png" | "image/jpeg" | "image/webp";
   quality?: number;
+  brightness?: number;
+  color?: number;
 }): Promise<Blob> {
   const { imageSrc, crop, outputWidth, outputHeight, mimeType } = options;
   const quality =
     typeof options.quality === "number"
       ? options.quality
       : mimeType === "image/jpeg"
-      ? 0.9
-      : 0.92;
+        ? 0.9
+        : 0.92;
 
   const img = await createImage(imageSrc);
   const canvas = document.createElement("canvas");
@@ -48,8 +50,18 @@ export async function cropImageToBlob(options: {
   const sWidth = clampInt(crop.width);
   const sHeight = clampInt(crop.height);
 
+  const brightness =
+    typeof options.brightness === "number" ? options.brightness : 0;
+  const color = typeof options.color === "number" ? options.color : 0;
+  const brightnessPercent = Math.max(50, Math.min(150, 100 + brightness));
+  const saturationPercent = Math.max(
+    0,
+    Math.min(100, color < 0 ? 100 + (color / 15) * 100 : 100)
+  );
+
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
+  ctx.filter = `brightness(${brightnessPercent}%) saturate(${saturationPercent}%)`;
   ctx.drawImage(
     img,
     sx,
@@ -61,6 +73,7 @@ export async function cropImageToBlob(options: {
     canvas.width,
     canvas.height
   );
+  ctx.filter = "none";
 
   const blob = await new Promise<Blob | null>((resolve) => {
     canvas.toBlob(
@@ -82,6 +95,8 @@ export async function cropImageToFile(options: {
   mimeType: "image/png" | "image/jpeg" | "image/webp";
   fileName: string;
   quality?: number;
+  brightness?: number;
+  color?: number;
 }): Promise<File> {
   const blob = await cropImageToBlob(options);
   return new File([blob], options.fileName, { type: options.mimeType });

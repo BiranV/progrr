@@ -73,6 +73,8 @@ export default function ImageCropperModal({
       : t("branding.cropper.bannerHint");
   const [crop, setCrop] = React.useState({ x: 0, y: 0 });
   const [zoom, setZoom] = React.useState(1);
+  const [brightness, setBrightness] = React.useState(0);
+  const [color, setColor] = React.useState(0);
   const [croppedAreaPixels, setCroppedAreaPixels] =
     React.useState<CropPixels | null>(null);
   const [imageSrc, setImageSrc] = React.useState<string | null>(null);
@@ -94,6 +96,8 @@ export default function ImageCropperModal({
     if (!open) return;
     setCrop({ x: 0, y: 0 });
     setZoom(1);
+    setBrightness(0);
+    setColor(0);
     setCroppedAreaPixels(null);
   }, [open, mode]);
 
@@ -113,6 +117,8 @@ export default function ImageCropperModal({
             outputHeight: cfg.outputHeight,
             mimeType: cfg.mimeType,
             quality: cfg.mimeType === "image/jpeg" ? 0.9 : undefined,
+            brightness: mode === "banner" ? brightness : 0,
+            color: mode === "banner" ? color : 0,
           });
 
           if (cancelled) return;
@@ -174,6 +180,8 @@ export default function ImageCropperModal({
         mimeType: cfg.mimeType,
         quality: cfg.mimeType === "image/jpeg" ? 0.9 : undefined,
         fileName: `${mode}-cropped.${ext}`,
+        brightness: mode === "banner" ? brightness : 0,
+        color: mode === "banner" ? color : 0,
       });
 
       await onConfirm(cropped);
@@ -190,6 +198,17 @@ export default function ImageCropperModal({
     mode === "logo"
       ? "relative overflow-hidden border bg-muted/40"
       : "relative overflow-hidden bg-transparent";
+  const brightnessPercent = Math.max(50, Math.min(150, 100 + brightness));
+  const saturationPercent = Math.max(
+    0,
+    Math.min(100, color < 0 ? 100 + (color / 15) * 100 : 100)
+  );
+  const bannerMediaStyle =
+    mode === "banner"
+      ? ({
+        filter: `brightness(${brightnessPercent}%) saturate(${saturationPercent}%)`,
+      } as React.CSSProperties)
+      : undefined;
 
   return (
     <SidePanel
@@ -228,6 +247,7 @@ export default function ImageCropperModal({
                   onZoomChange={setZoom}
                   onCropComplete={onCropComplete}
                   zoomWithScroll
+                  style={{ mediaStyle: bannerMediaStyle }}
                 />
               ) : null}
             </div>
@@ -248,8 +268,57 @@ export default function ImageCropperModal({
                 value={zoom}
                 onChange={(e) => setZoom(Number(e.target.value))}
                 className="w-full"
+                dir="ltr"
               />
             </div>
+
+            {mode === "banner" ? (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="crop-brightness">
+                      {t("branding.cropper.brightness")}
+                    </Label>
+                    <div className="text-xs text-muted-foreground">
+                      {brightness}
+                    </div>
+                  </div>
+                  <input
+                    id="crop-brightness"
+                    type="range"
+                    min={-15}
+                    max={15}
+                    step={1}
+                    value={brightness}
+                    onChange={(e) => setBrightness(Number(e.target.value))}
+                    className="w-full"
+                    dir="ltr"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="crop-color">
+                      {t("branding.cropper.color")}
+                    </Label>
+                    <div className="text-xs text-muted-foreground">
+                      {color}
+                    </div>
+                  </div>
+                  <input
+                    id="crop-color"
+                    type="range"
+                    min={-15}
+                    max={15}
+                    step={1}
+                    value={color}
+                    onChange={(e) => setColor(Number(e.target.value))}
+                    className="w-full"
+                    dir="ltr"
+                  />
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div
@@ -273,6 +342,7 @@ export default function ImageCropperModal({
                       ? "h-full w-full object-cover"
                       : "h-full w-full object-contain"
                   }
+                  style={bannerMediaStyle}
                 />
               ) : (
                 <div className="h-full w-full flex items-center justify-center text-xs text-muted-foreground">

@@ -966,6 +966,8 @@ const en = {
             logoHint: "Logo will be displayed inside a circle.",
             bannerHint: "Banner will be used as the header background.",
             zoom: "Zoom",
+            brightness: "Brightness",
+            color: "Color",
             useCropped: "Use cropped image",
             cropping: "Cropping…",
         },
