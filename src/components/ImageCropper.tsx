@@ -193,11 +193,11 @@ export default function ImageCropperModal({
   const previewBox =
     mode === "logo"
       ? "w-28 h-28 rounded-full"
-      : "w-full aspect-[1600/560]";
+      : "w-full h-[10vh]";
   const previewContainerClass =
     mode === "logo"
       ? "relative overflow-hidden border bg-muted/40"
-      : "relative overflow-hidden bg-transparent";
+      : "relative bg-transparent";
   const brightnessPercent = Math.max(50, Math.min(150, 100 + brightness));
   const saturationPercent = Math.max(
     0,
@@ -340,7 +340,7 @@ export default function ImageCropperModal({
                   className={
                     mode === "logo"
                       ? "h-full w-full object-cover"
-                      : "h-full w-full object-contain"
+                      : "h-full w-full object-cover"
                   }
                   style={bannerMediaStyle}
                 />
