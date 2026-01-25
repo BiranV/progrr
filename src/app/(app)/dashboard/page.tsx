@@ -318,9 +318,9 @@ export default function DashboardPage() {
                 {/* A11y: icon-only buttons need accessible names */}
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-xl"
+                  className="h-8 w-8 rounded-none !text-gray-900 hover:!text-gray-900 !bg-transparent hover:!bg-transparent disabled:opacity-40"
                   onClick={() => setWeekOffset((v) => v - 1)}
                   disabled={weekSeriesQuery.isFetching}
                   aria-label={t("dashboard.previousWeek")}
@@ -329,9 +329,9 @@ export default function DashboardPage() {
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-xl"
+                  className="h-8 w-8 rounded-none !text-gray-900 hover:!text-gray-900 !bg-transparent hover:!bg-transparent disabled:opacity-40"
                   onClick={() => setWeekOffset((v) => v + 1)}
                   disabled={weekSeriesQuery.isFetching || weekOffset >= 0}
                   title={weekOffset >= 0 ? t("dashboard.nextWeekDisabled") : t("dashboard.nextWeek")}
@@ -396,9 +396,9 @@ export default function DashboardPage() {
                 {/* A11y: icon-only buttons need accessible names */}
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-xl"
+                  className="h-8 w-8 rounded-none !text-gray-900 hover:!text-gray-900 !bg-transparent hover:!bg-transparent disabled:opacity-40"
                   onClick={() => setMonthOffset((v) => v - 1)}
                   disabled={monthSeriesQuery.isFetching}
                   aria-label={t("dashboard.previousMonth")}
@@ -407,9 +407,9 @@ export default function DashboardPage() {
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   size="icon"
-                  className="h-8 w-8 rounded-xl"
+                  className="h-8 w-8 rounded-none !text-gray-900 hover:!text-gray-900 !bg-transparent hover:!bg-transparent disabled:opacity-40"
                   onClick={() => setMonthOffset((v) => v + 1)}
                   disabled={monthSeriesQuery.isFetching || monthOffset >= 0}
                   title={monthOffset >= 0 ? t("dashboard.nextMonthDisabled") : t("dashboard.nextMonth")}
