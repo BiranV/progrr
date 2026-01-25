@@ -2433,7 +2433,7 @@ function OnboardingContent() {
                   <div className="w-24 h-16 bg-gradient-to-br from-amber-300 to-amber-400 rounded-lg transform -rotate-6 shadow-lg">
                     <div className="absolute inset-2 bg-gradient-to-br from-blue-100 to-blue-200 rounded flex items-center justify-center">
                       <span
-                        className="text-black-800 font-bold text-lg tracking-wide"
+                        className="text-black-800 font-bold text-lg tracking-wide opacity-60"
                         style={{ fontFamily: "Comic Sans MS, cursive" }}
                       >
                         proggr
