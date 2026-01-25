@@ -2546,7 +2546,7 @@ function OnboardingContent() {
               type="button"
               onClick={complete}
               disabled={saving || loading}
-              className={`h-14 flex-1 text-lg font-bold transition-all hover:scale-[1.02] active:scale-[0.98] ${primaryButtonClass}`}
+              className={`h-14 flex-[2] text-lg font-bold transition-all hover:scale-[1.02] active:scale-[0.98] ${primaryButtonClass}`}
             >
               {saving ? (
                 <Loader2 className="h-6 w-6 animate-spin" />
