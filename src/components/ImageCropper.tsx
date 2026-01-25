@@ -6,6 +6,7 @@ import Cropper, { type Area } from "react-easy-crop";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import SidePanel from "@/components/ui/side-panel";
+import { useI18n } from "@/i18n/useI18n";
 import {
   cropImageToBlob,
   cropImageToFile,
@@ -17,7 +18,6 @@ export type ImageCropperMode = "logo" | "banner";
 const MODE_CONFIG: Record<
   ImageCropperMode,
   {
-    title: string;
     aspect: number;
     cropShape: "round" | "rect";
     outputWidth: number;
@@ -26,7 +26,6 @@ const MODE_CONFIG: Record<
   }
 > = {
   logo: {
-    title: "Crop logo",
     aspect: 1,
     cropShape: "round",
     outputWidth: 512,
@@ -35,7 +34,6 @@ const MODE_CONFIG: Record<
   },
   // Matches current header usage: 1600x560 -> 2.857:1
   banner: {
-    title: "Crop banner",
     aspect: 1600 / 560,
     cropShape: "rect",
     outputWidth: 1600,
@@ -63,7 +61,16 @@ export default function ImageCropperModal({
   onCancel: () => void;
   onConfirm: (cropped: File) => void | Promise<void>;
 }) {
+  const { t } = useI18n();
   const cfg = MODE_CONFIG[mode];
+  const title =
+    mode === "logo"
+      ? t("branding.cropper.logoTitle")
+      : t("branding.cropper.bannerTitle");
+  const hint =
+    mode === "logo"
+      ? t("branding.cropper.logoHint")
+      : t("branding.cropper.bannerHint");
   const [crop, setCrop] = React.useState({ x: 0, y: 0 });
   const [zoom, setZoom] = React.useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] =
@@ -184,7 +191,7 @@ export default function ImageCropperModal({
       onOpenChange={(next) => {
         if (!next) onCancel();
       }}
-      title={cfg.title}
+      title={title}
       description={undefined}
       widthClassName="w-full sm:w-[720px]"
     >
@@ -215,7 +222,7 @@ export default function ImageCropperModal({
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="crop-zoom">Zoom</Label>
+                <Label htmlFor="crop-zoom">{t("branding.cropper.zoom")}</Label>
                 <div className="text-xs text-muted-foreground">
                   {Math.round(zoom * 100)}%
                 </div>
@@ -234,7 +241,9 @@ export default function ImageCropperModal({
           </div>
 
           <div className="space-y-3 w-[200px] sm:w-[220px]">
-            <div className="text-sm font-medium">Final preview</div>
+            <div className="text-sm font-medium">
+              {t("branding.cropper.finalPreview")}
+            </div>
             <div
               className={
                 "relative overflow-hidden border bg-muted/40 " + previewBox
@@ -244,12 +253,12 @@ export default function ImageCropperModal({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={previewUrl}
-                  alt="Cropped preview"
+                  alt={t("branding.cropper.previewAlt")}
                   className="h-full w-full object-cover"
                 />
               ) : (
                 <div className="h-full w-full flex items-center justify-center text-xs text-muted-foreground">
-                  Move the crop to preview
+                  {t("branding.cropper.moveToPreview")}
                 </div>
               )}
               {mode === "logo" ? (
@@ -257,9 +266,7 @@ export default function ImageCropperModal({
               ) : null}
             </div>
             <div className="text-xs text-muted-foreground">
-              {mode === "logo"
-                ? "Logo will be displayed inside a circle."
-                : "Banner will be used as the header background."}
+              {hint}
             </div>
           </div>
         </div>
@@ -271,7 +278,7 @@ export default function ImageCropperModal({
             onClick={onCancel}
             disabled={isConfirming}
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             type="button"
@@ -279,7 +286,9 @@ export default function ImageCropperModal({
             disabled={!file || !imageSrc || !croppedAreaPixels || isConfirming}
             data-panel-primary="true"
           >
-            {isConfirming ? "Cropping…" : "Use cropped image"}
+            {isConfirming
+              ? t("branding.cropper.cropping")
+              : t("branding.cropper.useCropped")}
           </Button>
         </div>
       </div>
