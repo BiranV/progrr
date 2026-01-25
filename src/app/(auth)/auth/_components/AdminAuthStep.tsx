@@ -366,14 +366,14 @@ export default function AdminAuthStep({
             </div>
             <div className="flex flex-col gap-3 max-w-xs mx-auto w-full">
               <Button
-                className="w-full py-6 text-base font-semibold bg-gradient-to-r from-[#165CF0] to-[#0E4FDB] hover:from-[#0E4FDB] hover:to-[#0A46C8] rounded-xl shadow-lg shadow-blue-500/20 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5"
+                className="w-full h-14 bg-[#165CF0] text-white hover:bg-[#0E4FDB] rounded-xl text-lg font-medium shadow-md shadow-blue-500/20"
                 onClick={() => setView("login")}
               >
                 {t("auth.login")}
               </Button>
               <Button
                 variant="outline"
-                className="w-full py-6 text-base font-semibold border-2 border-[#165CF0] text-[#165CF0] hover:bg-blue-50 rounded-xl transition-all duration-300 hover:-translate-y-0.5"
+                className="w-full py-6 text-base font-semibold border-2 border-[#165CF0] text-[#165CF0] hover:text-[#165CF0] hover:bg-blue-50 rounded-xl transition-all duration-300 hover:-translate-y-0.5"
                 onClick={() => setView("signup")}
               >
                 {t("auth.createAccountCta")}
