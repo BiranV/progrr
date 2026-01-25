@@ -9,7 +9,7 @@ const sharp = require("sharp");
 
 const root = path.join(__dirname, "..");
 const inputPath = path.join(root, "public", "logo-new2.png");
-const outputDir = path.join(root, "public", "icons");
+const outputDir = path.join(root, "public");
 
 const BG = "#165CF0";
 
@@ -45,12 +45,9 @@ async function main() {
 
   const outputs = [];
 
+  outputs.push(await generateSquareIcon(180, "apple-touch-icon.png"));
   outputs.push(await generateSquareIcon(192, "icon-192.png"));
   outputs.push(await generateSquareIcon(512, "icon-512.png"));
-  outputs.push(await generateSquareIcon(512, "icon-512-maskable.png"));
-
-  // iOS recommended size for apple-touch-icon
-  outputs.push(await generateSquareIcon(180, "apple-touch-icon.png"));
 
   // eslint-disable-next-line no-console
   console.log("Generated PWA icons:\n" + outputs.map((p) => "- " + p).join("\n"));
