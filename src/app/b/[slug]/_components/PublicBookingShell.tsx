@@ -334,11 +334,6 @@ export default function PublicBookingShell({
             <ArrowLeft className="h-5 w-5 rtl:rotate-180" />
           </Button>
         ) : null}
-        {headerRight ? (
-          <div className="absolute top-3 end-4 flex items-center justify-end">
-            {headerRight}
-          </div>
-        ) : null}
         <div className="absolute inset-x-0 bottom-3 z-20 px-6">
           <div className="mx-auto max-w-[480px] text-white flex justify-center" />
         </div>
@@ -347,6 +342,11 @@ export default function PublicBookingShell({
       <div className="flex-1 flex flex-col items-center">
         <div className="flex-1 px-6 pt-5 pb-24 w-full max-w-md mx-auto relative">
           <div className="space-y-1 mt-4 mb-6">
+            {headerRight ? (
+              <div className="flex items-center justify-end p-0 m-0">
+                {headerRight}
+              </div>
+            ) : null}
             <h1 className="text-lg font-semibold text-gray-900 dark:text-white text-center">
               {businessName}
             </h1>

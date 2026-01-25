@@ -868,20 +868,12 @@ export default function PublicBookingFlow({
             <Button
               type="button"
               size="icon"
-              variant="outline"
-              className={
-                "group relative inline-flex items-center justify-center " +
-                "h-10 w-10 rounded-xl aspect-square " +
-                "border border-gray-200/70 dark:border-gray-800 " +
-                "bg-gray-100/80 dark:bg-gray-900/30 " +
-                "text-gray-700 dark:text-gray-200 " +
-                "shadow-md transition cursor-pointer " +
-                "active:scale-[0.98]"
-              }
+              variant="ghost"
+              className="h-6 w-6 rounded-none p-0 m-0 bg-transparent text-gray-900 dark:text-white hover:bg-transparent hover:text-gray-900 dark:hover:text-white"
               aria-label={t("publicBooking.header.menu")}
               disabled={loggingOut}
             >
-              <Menu className="h-4 w-4 pointer-events-auto" />
+              <Menu className="h-6 w-6 pointer-events-auto" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
