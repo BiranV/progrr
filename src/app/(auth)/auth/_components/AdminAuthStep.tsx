@@ -331,8 +331,8 @@ export default function AdminAuthStep({
   // For inputs
   const inputErrorClass = "border-red-300 ring-1 ring-red-200";
 
-  const slideInX = isRtl ? -50 : 50;
-  const slideOutX = isRtl ? 50 : -50;
+  const slideInY = 50;
+  const slideOutY = -50;
   const authStepIndex = view === "landing" ? 0 : 1;
 
   return (
@@ -341,9 +341,9 @@ export default function AdminAuthStep({
         {view === "landing" && (
           <motion.div
             key="landing"
-            initial={{ opacity: 0, y: 100 }}
+            initial={{ opacity: 0, y: slideInY }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
+            exit={{ opacity: 0, y: slideOutY }}
             className="space-y-8"
           >
             <div className="text-center">
@@ -375,9 +375,9 @@ export default function AdminAuthStep({
         {(view === "login" || view === "login-verify") && (
           <motion.div
             key="login"
-            initial={{ opacity: 0, x: slideInX }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: slideOutX }}
+            initial={{ opacity: 0, y: slideInY }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: slideOutY }}
             className="space-y-6 max-w-xs mx-auto w-full"
           >
             <h2 className="text-xl font-bold text-slate-800 mb-6">
@@ -501,9 +501,9 @@ export default function AdminAuthStep({
         {(view === "signup" || view === "signup-verify") && (
           <motion.div
             key="signup"
-            initial={{ opacity: 0, x: slideInX }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: slideOutX }}
+            initial={{ opacity: 0, y: slideInY }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: slideOutY }}
             className="space-y-6 max-w-xs mx-auto w-full"
           >
             <h2 className="text-xl font-bold text-slate-800 mb-8">
