@@ -1,4 +1,4 @@
-/* Generates padded PWA icons so the logo appears smaller inside the square.
+/* Generates full-bleed PWA icons from the logo.
   Input:  public/logo-new2.png
    Output: public/icons/*.png
 */
@@ -11,8 +11,7 @@ const root = path.join(__dirname, "..");
 const inputPath = path.join(root, "public", "logo-new2.png");
 const outputDir = path.join(root, "public", "icons");
 
-const BG = "#ffffff";
-const LOGO_SCALE = 0.66; // smaller logo inside square
+const BG = "#165CF0";
 
 async function ensureInput() {
   if (!fs.existsSync(inputPath)) {
@@ -27,27 +26,13 @@ async function ensureOutputDir() {
 async function generateSquareIcon(size, outName) {
   const outPath = path.join(outputDir, outName);
 
-  const inner = Math.max(1, Math.round(size * LOGO_SCALE));
-
-  const logo = await sharp(inputPath)
+  await sharp(inputPath)
     .ensureAlpha()
-    .resize(inner, inner, {
-      fit: "contain",
+    .resize(size, size, {
+      fit: "cover",
       withoutEnlargement: true,
-      background: { r: 255, g: 255, b: 255, alpha: 0 },
     })
-    .png()
-    .toBuffer();
-
-  await sharp({
-    create: {
-      width: size,
-      height: size,
-      channels: 4,
-      background: BG,
-    },
-  })
-    .composite([{ input: logo, gravity: "center" }])
+    .flatten({ background: BG })
     .png()
     .toFile(outPath);
 
