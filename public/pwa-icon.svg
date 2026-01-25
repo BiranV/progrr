@@ -1,0 +1,26 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512">
+      <stop offset="0%" stop-color="#2563EB" />
+      <stop offset="100%" stop-color="#2563EB" />
+    </linearGradient>
+    <linearGradient id="amber" x1="0" y1="0" x2="384" y2="256">
+      <stop offset="0%" stop-color="#FCD34D" />
+      <stop offset="100%" stop-color="#FBBF24" />
+    </linearGradient>
+    <linearGradient id="inner" x1="0" y1="0" x2="320" y2="192">
+      <stop offset="0%" stop-color="#DBEAFE" />
+      <stop offset="100%" stop-color="#BFDBFE" />
+    </linearGradient>
+    <filter id="shadow" x="0" y="0" width="200%" height="200%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#000000" flood-opacity="0.18" />
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="512" height="512" rx="64" fill="url(#bg)" />
+
+  <g transform="translate(256 256) rotate(-6)">
+    <rect x="-192" y="-128" width="384" height="256" rx="28" fill="url(#amber)" filter="url(#shadow)" />
+    <rect x="-160" y="-96" width="320" height="192" rx="20" fill="url(#inner)" stroke="#E5E7EB" stroke-width="4" />
+  </g>
+</svg>

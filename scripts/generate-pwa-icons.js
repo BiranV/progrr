@@ -1,6 +1,6 @@
-/* Generates full-bleed PWA icons from the logo.
-  Input:  public/logo-new2.png
-   Output: public/icons/*.png
+/* Generates full-bleed PWA icons from a custom SVG.
+  Input:  public/pwa-icon.svg
+   Output: public/*.png
 */
 
 const fs = require("fs");
@@ -8,7 +8,7 @@ const path = require("path");
 const sharp = require("sharp");
 
 const root = path.join(__dirname, "..");
-const inputPath = path.join(root, "public", "logo-new2.png");
+const inputPath = path.join(root, "public", "pwa-icon.svg");
 const outputDir = path.join(root, "public");
 
 const BG = "#165CF0";
