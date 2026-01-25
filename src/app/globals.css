@@ -120,6 +120,28 @@
   @apply mx-auto max-w-[480px] min-h-screen bg-background;
 }
 
+.app-shell {
+  --primary: 0.63 0.24 258;
+  --primary-foreground: 1 0 0;
+  --ring: 0.63 0.24 258;
+}
+
+.app-shell [data-slot="button"][data-variant="default"] {
+  @apply bg-[#165CF0] text-white hover:bg-[#0E4FDB] rounded-xl shadow-md shadow-blue-500/20;
+}
+
+.app-shell [data-slot="button"][data-variant="outline"] {
+  @apply border-2 border-[#165CF0] text-[#165CF0] hover:text-[#165CF0] hover:bg-blue-50 rounded-xl;
+}
+
+.app-shell [data-slot="button"][data-variant="ghost"] {
+  @apply text-[#165CF0] hover:text-[#165CF0] hover:bg-blue-50 rounded-xl;
+}
+
+.app-shell [data-slot="button"][data-variant="secondary"] {
+  @apply bg-blue-50 text-[#165CF0] hover:bg-blue-100 rounded-xl;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

@@ -2,6 +2,7 @@
 
 import React from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { User } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
 import BottomNav from "./BottomNav";
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 import { isPublicPagePathname } from "@/lib/public-routes";
+import { useI18n } from "@/i18n/useI18n";
 
 function isPublicPath(pathname: string) {
   return isPublicPagePathname(pathname);
@@ -20,7 +22,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const mainRef = React.useRef<HTMLElement | null>(null);
-  const [isMounted, setIsMounted] = React.useState(false);
+  const { t } = useI18n();
 
   const isOnboardingPath =
     pathname === "/onboarding" || pathname.startsWith("/onboarding/");
@@ -151,10 +153,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     });
   }, [pathname, shouldBlockChildren]);
 
-  React.useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
   // Onboarding Layout (Minimal, no nav)
   if (isOnboardingPath) {
     return (
@@ -172,50 +170,45 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const businessName = String(
     (user as any)?.onboarding?.business?.name ?? "",
   ).trim();
-  const logoUrl = String(
-    (user as any)?.onboarding?.branding?.logo?.url ??
-    (user as any)?.onboarding?.branding?.logoUrl ??
-    "",
-  ).trim();
-  const bannerUrl = String(
-    (user as any)?.onboarding?.branding?.banner?.url ?? "",
-  ).trim();
   const headerName = businessName || user?.full_name || "Progrr";
+  const getSectionTitle = () => {
+    if (pathname.startsWith("/dashboard")) return t("nav.dashboard");
+    if (pathname.startsWith("/calendar")) return t("nav.calendar");
+    if (pathname.startsWith("/customers")) return t("nav.customers");
+    if (pathname.startsWith("/settings")) return t("nav.settings");
+    if (pathname.startsWith("/support")) return t("support.title");
+    if (pathname.startsWith("/legal/privacy")) return t("privacy.title");
+    if (pathname.startsWith("/legal/terms")) return t("terms.title");
+    if (pathname.startsWith("/legal")) return "Legal";
+    return "Progrr";
+  };
+  const sectionTitle = getSectionTitle();
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-black pb-safe">
-      <header className="relative w-full z-0 h-[140px] bg-gradient-to-br from-neutral-950 via-zinc-900 to-zinc-800 shrink-0 overflow-hidden">
-        {isMounted && bannerUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={bannerUrl}
-            alt="Business banner"
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-        ) : null}
-        {showLanguageSwitcher ? (
-          <div className="absolute top-4 inset-x-0 z-20 flex justify-center">
-            <LanguageSwitcher variant="dark" />
-          </div>
-        ) : null}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/15 to-transparent" />
+    <div className="app-shell flex flex-col min-h-screen bg-gray-50 dark:bg-black pb-safe">
+      <header className="relative w-full z-10 h-[10vh] bg-gradient-to-br from-[#165CF0] via-[#1E6CF2] to-[#2B79F5] rounded-b-[40px] overflow-hidden">
         <div className="absolute inset-0 opacity-20 mix-blend-overlay"></div>
+        <div className="absolute top-4 inset-x-0 z-20 flex justify-center">
+          {showLanguageSwitcher ? (
+            <LanguageSwitcher variant="light" />
+          ) : null}
+        </div>
+        <div className="absolute inset-x-0 bottom-3 z-20 px-6">
+          <div className="mx-auto max-w-[480px] text-white">
+            <div className="flex items-center gap-2 text-sm font-semibold truncate">
+              <User className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span className="truncate">{headerName}</span>
+            </div>
+          </div>
+        </div>
       </header>
 
-      <div className="flex-1 -mt-16 bg-gray-50 dark:bg-zinc-900 rounded-t-[40px] relative z-10 flex flex-col items-center shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
+      <div className="flex-1 flex flex-col items-center">
         <main
           ref={mainRef}
           tabIndex={-1}
-          className="flex-1 px-6 pt-4 pb-24 w-full max-w-md mx-auto focus:outline-none"
+          className="flex-1 px-6 pt-5 pb-24 w-full max-w-md mx-auto focus:outline-none"
         >
-          {/* <div className="text-center space-y-1 mb-4 mb-6">
-            <div className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-              {businessName ? "Your business" : "Welcome"}
-            </div>
-            <div className="text-base font-bold text-gray-900 dark:text-white truncate">
-              Hi, {headerName}
-            </div>
-          </div> */}
           {shouldBlockChildren
             ? blockingFallback
             : shouldShowExpiredGate
