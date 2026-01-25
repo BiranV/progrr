@@ -2511,7 +2511,7 @@ function OnboardingContent() {
       </section>
 
       {/* Sticky Bottom Actions */}
-      <div className="fixed bottom-0 inset-x-0 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-lg border-t border-gray-100 dark:border-gray-800 p-4 z-40 shadow-[0_-4px_8px_-1px_rgba(0,0,0,0.02)]">
+      <div className="fixed bottom-0 inset-x-0 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-lg border-t border-gray-200 dark:border-gray-800 p-4 z-40 shadow-[0_-4px_8px_-1px_rgba(0,0,0,0.02)]">
         <div className="max-w-[420px] mx-auto flex gap-3 w-full">
           {step > 0 && (
             <Button
