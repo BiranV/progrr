@@ -411,8 +411,8 @@ export default function AdminAuthStep({
                   <Input
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
-                    className={`h-14 bg-white text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
-                      loginError ? inputErrorClass : "border-slate-200"
+                    className={`h-14 bg-white text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
+                      loginError ? inputErrorClass : "border-[#165CF0]"
                     }`}
                     placeholder={t("auth.emailPlaceholder")}
                     autoFocus
@@ -439,8 +439,8 @@ export default function AdminAuthStep({
                     onChange={setLoginCode}
                     length={6}
                     disabled={loading}
-                    inputClassName={`bg-white text-slate-900 placeholder:text-slate-400 rounded-xl focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
-                      loginCodeError ? inputErrorClass : "border-slate-200"
+                    inputClassName={`bg-white text-slate-900 placeholder:text-slate-400 rounded-xl border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
+                      loginCodeError ? inputErrorClass : "border-[#165CF0]"
                     }`}
                   />
                   <InlineError message={loginCodeError} />
@@ -539,8 +539,8 @@ export default function AdminAuthStep({
                   <Input
                     value={signupName}
                     onChange={(e) => setSignupName(e.target.value)}
-                    className={`h-14 bg-white text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
-                      signupNameError ? inputErrorClass : "border-slate-200"
+                    className={`h-14 bg-white text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
+                      signupNameError ? inputErrorClass : "border-[#165CF0]"
                     }`}
                     placeholder={t("auth.fullNamePlaceholder")}
                     autoFocus
@@ -554,8 +554,8 @@ export default function AdminAuthStep({
                   <Input
                     value={signupEmail}
                     onChange={(e) => setSignupEmail(e.target.value)}
-                    className={`h-14 bg-white text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
-                      signupEmailError ? inputErrorClass : "border-slate-200"
+                    className={`h-14 bg-white text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
+                      signupEmailError ? inputErrorClass : "border-[#165CF0]"
                     }`}
                     placeholder={t("auth.emailPlaceholder")}
                   />
@@ -581,8 +581,8 @@ export default function AdminAuthStep({
                     onChange={setSignupCode}
                     length={6}
                     disabled={loading}
-                    inputClassName={`bg-white text-slate-900 placeholder:text-slate-400 rounded-xl focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
-                      signupCodeError ? inputErrorClass : "border-slate-200"
+                    inputClassName={`bg-white text-slate-900 placeholder:text-slate-400 rounded-xl border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
+                      signupCodeError ? inputErrorClass : "border-[#165CF0]"
                     }`}
                   />
                   <InlineError message={signupCodeError} />
