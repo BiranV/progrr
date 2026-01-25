@@ -38,7 +38,7 @@ export default function PublicBookingShell({
   children: React.ReactNode;
 }) {
   const { t } = useI18n();
-  const [previewSrc, setPreviewSrc] = React.useState<string | null>(null);
+  const [previewIndex, setPreviewIndex] = React.useState<number | null>(null);
 
   const gallery = Array.isArray(business?.branding?.gallery)
     ? (business?.branding?.gallery || []).filter(Boolean).slice(0, 10)
@@ -58,6 +58,8 @@ export default function PublicBookingShell({
 
   const galleryScrollerRef = React.useRef<HTMLDivElement | null>(null);
   const [galleryPage, setGalleryPage] = React.useState(0);
+  const previewTouchStartXRef = React.useRef<number | null>(null);
+  const previewTouchDeltaRef = React.useRef<number>(0);
 
   React.useEffect(() => {
     setGalleryPage(0);
@@ -97,6 +99,30 @@ export default function PublicBookingShell({
       el.removeEventListener("scroll", onScroll);
     };
   }, [galleryPaged]);
+
+  React.useEffect(() => {
+    if (previewIndex == null) return;
+    if (previewIndex < 0 || previewIndex >= gallery.length) {
+      setPreviewIndex(null);
+    }
+  }, [gallery.length, previewIndex]);
+
+  const previewSrc =
+    previewIndex != null && previewIndex >= 0 && previewIndex < gallery.length
+      ? gallery[previewIndex]
+      : null;
+
+  const canPreviewPrev = previewIndex != null && previewIndex > 0;
+  const canPreviewNext =
+    previewIndex != null && previewIndex < gallery.length - 1;
+
+  const goPreview = React.useCallback(
+    (nextIndex: number) => {
+      const clamped = Math.max(0, Math.min(nextIndex, gallery.length - 1));
+      setPreviewIndex(clamped);
+    },
+    [gallery.length],
+  );
 
   const businessName = String(business?.business?.name ?? title).trim();
   const businessPhone = String(business?.business?.phone ?? "").trim();
@@ -167,21 +193,81 @@ export default function PublicBookingShell({
   return (
     <div className="app-shell flex flex-col min-h-screen bg-gray-50 dark:bg-black pb-safe">
       <SidePanel
-        open={Boolean(previewSrc)}
+        open={previewIndex != null}
         onOpenChange={(open) => {
-          if (!open) setPreviewSrc(null);
+          if (!open) setPreviewIndex(null);
         }}
         title={t("publicBooking.imagePreviewTitle")}
         description={undefined}
+        footer={
+          previewIndex != null ? (
+            <div className="flex items-center justify-between">
+              <div className="text-xs text-muted-foreground">
+                {t("publicBooking.galleryImageAlt", {
+                  index: previewIndex + 1,
+                })}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => goPreview((previewIndex ?? 0) - 1)}
+                  disabled={!canPreviewPrev}
+                  aria-label={t("publicBooking.galleryPrev")}
+                >
+                  <ChevronLeft className="h-4 w-4 rtl:rotate-180" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => goPreview((previewIndex ?? 0) + 1)}
+                  disabled={!canPreviewNext}
+                  aria-label={t("publicBooking.galleryNext")}
+                >
+                  <ChevronRight className="h-4 w-4 rtl:rotate-180" />
+                </Button>
+              </div>
+            </div>
+          ) : null
+        }
       >
         {previewSrc ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={previewSrc}
-            alt={t("publicBooking.galleryImageAlt", { index: 1 })}
-            className="w-full max-h-[80vh] object-contain bg-black rounded-xl"
-            draggable={false}
-          />
+          <div
+            className="relative w-full"
+            onTouchStart={(event) => {
+              previewTouchStartXRef.current =
+                event.touches[0]?.clientX ?? null;
+              previewTouchDeltaRef.current = 0;
+            }}
+            onTouchMove={(event) => {
+              if (previewTouchStartXRef.current == null) return;
+              const currentX = event.touches[0]?.clientX ?? 0;
+              previewTouchDeltaRef.current =
+                currentX - previewTouchStartXRef.current;
+            }}
+            onTouchEnd={() => {
+              const delta = previewTouchDeltaRef.current;
+              if (delta <= -60 && canPreviewNext && previewIndex != null) {
+                goPreview(previewIndex + 1);
+              } else if (delta >= 60 && canPreviewPrev && previewIndex != null) {
+                goPreview(previewIndex - 1);
+              }
+              previewTouchStartXRef.current = null;
+              previewTouchDeltaRef.current = 0;
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewSrc}
+              alt={t("publicBooking.galleryImageAlt", {
+                index: previewIndex != null ? previewIndex + 1 : 1,
+              })}
+              className="w-full max-h-[70vh] object-contain bg-black rounded-xl"
+              draggable={false}
+            />
+          </div>
         ) : null}
       </SidePanel>
 
@@ -299,7 +385,7 @@ export default function PublicBookingShell({
                         aria-label={t("publicBooking.openGalleryImage", {
                           index: idx + 1,
                         })}
-                        onClick={() => setPreviewSrc(src)}
+                        onClick={() => setPreviewIndex(idx)}
                         className={cn(
                           "group relative overflow-hidden",
                           "rounded-2xl",
@@ -363,7 +449,9 @@ export default function PublicBookingShell({
                               aria-label={t("publicBooking.openGalleryImage", {
                                 index: pageIdx * galleryMaxVisible + idx + 1,
                               })}
-                              onClick={() => setPreviewSrc(src)}
+                              onClick={() =>
+                                setPreviewIndex(pageIdx * galleryMaxVisible + idx)
+                              }
                               className={cn(
                                 "group relative overflow-hidden",
                                 "rounded-2xl",
