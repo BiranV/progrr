@@ -356,10 +356,9 @@ export default function CalendarClient() {
         (ymd: string) => {
             const dateStr = String(ymd || "").trim();
             if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return true;
-            if (todayYmd && dateStr < todayYmd) return true;
             return !isDateAvailableYmd(dateStr);
         },
-        [isDateAvailableYmd, todayYmd],
+        [isDateAvailableYmd],
     );
 
     const isCanceledStatus = React.useCallback((status: unknown) => {
@@ -837,7 +836,6 @@ export default function CalendarClient() {
             inline: true,
             disableMobile: false,
             monthSelectorType: "static" as const,
-            minDate: todayYmd || undefined,
             locale: resolvedLocale,
             disable: [
                 (d: Date) => {
@@ -845,6 +843,13 @@ export default function CalendarClient() {
                     return isDisabledYmd(ymd);
                 },
             ],
+            onDayCreate: (_dObj: Date, _dStr: string, fp: any, dayElem: HTMLElement) => {
+                const elem = dayElem as HTMLElement & { dateObj?: Date };
+                const ymd = ymdFromDateLocal(elem.dateObj as Date);
+                if (todayYmd && ymd < todayYmd) {
+                    dayElem.classList.add("pastDay");
+                }
+            },
         };
     }, [isDisabledYmd, resolvedLocale, todayYmd]);
 

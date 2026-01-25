@@ -284,8 +284,11 @@ html[dir="rtl"] ol {
 .flatpickr-day.prevMonthDay,
 .flatpickr-day.nextMonthDay {
   opacity: 0.4;
-  pointer-events: none;
   cursor: default;
+}
+
+.flatpickr-day.pastDay {
+  opacity: 0.4;
 }
 
 /* Selected day: smaller centered circle (single-date booking UX) */
@@ -297,7 +300,8 @@ html[dir="rtl"] ol {
   position: relative;
   background: transparent;
   border-color: transparent;
-  color: var(--primary-foreground);
+  color: #165CF0;
+  font-weight: 700;
 }
 
 .flatpickr-day.selected::after,
@@ -316,10 +320,26 @@ html[dir="rtl"] ol {
 
 /* Today indicator: circle border around day */
 .flatpickr-day.today:not(.selected):not(.startRange):not(.endRange):not(.inRange) {
-  border: 2px solid #165CF0;
-  border-radius: 9999px;
+  position: relative;
   background: transparent;
-  box-shadow: none;
+  border-color: transparent;
+}
+
+.flatpickr-day.today:not(.selected):not(.startRange):not(.endRange):not(.inRange):hover {
+  color: inherit;
+}
+
+.flatpickr-day.today:not(.startRange):not(.endRange):not(.inRange)::after {
+  content: "";
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 30px;
+  height: 30px;
+  transform: translate(-50%, -50%);
+  border-radius: 9999px;
+  border: 2px solid #165CF0;
+  background: transparent;
+  z-index: -1;
 }
 
 /* Hover day: same size circle as selected (but muted color) */
