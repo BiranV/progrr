@@ -109,7 +109,7 @@ export function TimePicker({
                 className={cn(
                     "border-input dark:bg-input/30 bg-transparent focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
                     "inline-flex items-center justify-center rounded-md border shadow-xs outline-none",
-                    "disabled:cursor-not-allowed disabled:opacity-50",
+                    "disabled:cursor-default disabled:opacity-50",
                     "tabular-nums",
                     className
                 )}

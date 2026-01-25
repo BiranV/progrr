@@ -49,6 +49,7 @@ const he = {
         emptyDescription: "לקוחות יופיעו כאן לאחר שיתחילו קביעות תורים.",
         table: {
             client: "לקוח",
+            serviceLabel: "פרטים",
             status: "סטטוס",
             actions: "פעולות",
             searchPlaceholder: "חיפוש לקוחות",

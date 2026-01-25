@@ -49,6 +49,7 @@ const en = {
         emptyDescription: "Customers will appear here once bookings start.",
         table: {
             client: "Client",
+            serviceLabel: "Details",
             status: "Status",
             actions: "Actions",
             searchPlaceholder: "Search customers",

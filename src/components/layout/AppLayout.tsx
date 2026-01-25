@@ -194,10 +194,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           ) : null}
         </div>
         <div className="absolute inset-x-0 bottom-3 z-20 px-6">
-          <div className="mx-auto max-w-[480px] text-white">
-            <div className="flex items-center gap-2 text-sm font-semibold truncate">
+          <div className="mx-auto max-w-[480px] text-white flex justify-center">
+            <div className="flex items-center gap-2 text-sm font-semibold max-w-full">
               <User className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span className="truncate">{headerName}</span>
+              <span className="truncate text-center">{headerName}</span>
             </div>
           </div>
         </div>

@@ -171,18 +171,19 @@ export function DataTable<Row>({
                     <div className="flex items-center gap-2">
                         <Button
                             type="button"
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
                             disabled={pagination.page <= 1}
                             onClick={() =>
                                 pagination.onPageChange(Math.max(1, pagination.page - 1))
                             }
+                            className="!text-gray-900 hover:!text-gray-900 !bg-transparent hover:!bg-transparent"
                         >
                             {paginationLabels?.previous ?? "Previous"}
                         </Button>
                         <Button
                             type="button"
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
                             disabled={pagination.page >= pagination.totalPages}
                             onClick={() =>
@@ -190,6 +191,7 @@ export function DataTable<Row>({
                                     Math.min(pagination.totalPages, pagination.page + 1)
                                 )
                             }
+                            className="!text-gray-900 hover:!text-gray-900 !bg-transparent hover:!bg-transparent"
                         >
                             {paginationLabels?.next ?? "Next"}
                         </Button>

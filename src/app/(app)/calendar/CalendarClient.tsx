@@ -1095,7 +1095,7 @@ export default function CalendarClient() {
                                                             className={
                                                                 "w-full rounded-md px-2 py-2 text-sm transition-colors text-start" +
                                                                 (disabled
-                                                                    ? " opacity-50 cursor-not-allowed"
+                                                                    ? " opacity-50 cursor-default"
                                                                     : " hover:bg-muted") +
                                                                 (isSelected ? " bg-muted" : "")
                                                             }

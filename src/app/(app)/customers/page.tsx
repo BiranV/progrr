@@ -232,7 +232,7 @@ export default function CustomersPage() {
       },
       {
         key: "actions",
-        header: t("customers.table.actions"),
+        header: "",
         cellClassName: "w-[1%] whitespace-nowrap text-end",
         renderCell: (c) => {
           const status =
@@ -666,102 +666,97 @@ export default function CustomersPage() {
                   {(appointmentsQuery.error as any)?.message ||
                     t("errors.failedToLoad")}
                 </div>
-              ) : appointments.length === 0 ? (
-                <div className="text-sm text-muted-foreground">
-                  {t("customers.drawer.emptyAppointments")}
-                </div>
               ) : (
-                <div className="space-y-3">
-                  {appointments.map((appt) => {
-                    const badgeClass =
-                      appt.status === "BOOKED"
-                        ? "bg-emerald-600 text-white"
-                        : appt.status === "COMPLETED"
-                          ? "bg-blue-600 text-white"
-                          : appt.status === "NO_SHOW"
-                            ? "bg-amber-500 text-white"
-                            : "bg-gray-500 text-white dark:bg-gray-700";
-
-                    const badgeLabel =
-                      appt.status === "BOOKED"
-                        ? t("customers.details.status.booked")
-                        : appt.status === "COMPLETED"
-                          ? t("customers.details.status.completed")
-                          : appt.status === "NO_SHOW"
-                            ? t("customers.details.status.noShow")
-                            : t("customers.details.status.canceled");
-
-                    return (
-                      <div
-                        key={appt.id}
-                        className="flex items-start justify-between gap-3 rounded-lg border px-3 py-2"
-                      >
+                <DataTable
+                  rows={appointments}
+                  getRowId={(row) => row.id}
+                  emptyMessage={t("customers.drawer.emptyAppointments")}
+                  columns={[
+                    {
+                      key: "details",
+                      header: t("customers.table.serviceLabel"),
+                      renderCell: (row) => (
                         <div className="min-w-0">
                           <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                            {appt.serviceName || t("customers.drawer.appointmentFallback")}
+                            {row.serviceName ||
+                              t("customers.drawer.appointmentFallback")}
                           </div>
                           <div className="text-xs text-muted-foreground mt-1">
-                            {appt.date || t("common.emptyDash")} •{" "}
-                            {formatTimeRange(appt.startTime, appt.endTime) ||
-                              t("common.emptyDash")}
+                            {row.date || t("common.emptyDash")} •{" "}
+                            <span dir="ltr">
+                              {formatTimeRange(row.startTime, row.endTime) ||
+                                t("common.emptyDash")}
+                            </span>
                           </div>
-                          {appt.status === "CANCELED" ? (
+                          {row.status === "CANCELED" ? (
                             <div className="text-xs text-muted-foreground mt-1">
-                              {String(appt.cancelledBy || "").toUpperCase() ===
+                              {String(row.cancelledBy || "").toUpperCase() ===
                                 "BUSINESS"
                                 ? t("customers.details.canceledBy.business")
-                                : String(appt.cancelledBy || "").toUpperCase() ===
+                                : String(row.cancelledBy || "").toUpperCase() ===
                                   "CUSTOMER"
                                   ? t("customers.details.canceledBy.customer")
                                   : t("customers.details.canceledBy.unknown")}
                             </div>
                           ) : null}
                         </div>
-                        <Badge className={badgeClass}>{badgeLabel}</Badge>
-                      </div>
-                    );
-                  })}
+                      ),
+                    },
+                    {
+                      key: "status",
+                      header: t("customers.table.status"),
+                      renderCell: (row) => {
+                        const badgeClass =
+                          row.status === "BOOKED"
+                            ? "bg-emerald-600 text-white"
+                            : row.status === "COMPLETED"
+                              ? "bg-blue-600 text-white"
+                              : row.status === "NO_SHOW"
+                                ? "bg-amber-500 text-white"
+                                : "bg-gray-500 text-white dark:bg-gray-700";
 
-                  {appointmentsPagination ? (
-                    <div className="flex items-center justify-between gap-2 pt-2 text-xs text-muted-foreground">
-                      <div>
-                        {t("customers.drawer.appointmentsPagination", {
-                          page: appointmentsPagination.page,
-                          total: appointmentsPagination.totalPages,
-                        })}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={appointmentsPagination.page <= 1}
-                          onClick={() =>
-                            setAppointmentsPage((p) => Math.max(1, p - 1))
-                          }
-                        >
-                          {t("customers.drawer.newer")}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={
-                            appointmentsPagination.page >=
-                            appointmentsPagination.totalPages
-                          }
-                          onClick={() =>
-                            setAppointmentsPage((p) =>
-                              Math.min(appointmentsPagination.totalPages, p + 1)
+                        const badgeLabel =
+                          row.status === "BOOKED"
+                            ? t("customers.details.status.booked")
+                            : row.status === "COMPLETED"
+                              ? t("customers.details.status.completed")
+                              : row.status === "NO_SHOW"
+                                ? t("customers.details.status.noShow")
+                                : t("customers.details.status.canceled");
+
+                        return <Badge className={badgeClass}>{badgeLabel}</Badge>;
+                      },
+                    },
+                  ]}
+                  pagination={
+                    appointmentsPagination
+                      ? {
+                        page: appointmentsPagination.page,
+                        totalPages: appointmentsPagination.totalPages,
+                        onPageChange: (nextPage) =>
+                          setAppointmentsPage(
+                            Math.max(
+                              1,
+                              Math.min(appointmentsPagination.totalPages, nextPage)
                             )
-                          }
-                        >
-                          {t("customers.drawer.older")}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
+                          ),
+                      }
+                      : undefined
+                  }
+                  paginationLabels={
+                    appointmentsPagination
+                      ? {
+                        summary: (page, totalPages) =>
+                          t("customers.drawer.appointmentsPagination", {
+                            page,
+                            total: totalPages,
+                          }),
+                        previous: t("customers.drawer.newer"),
+                        next: t("customers.drawer.older"),
+                      }
+                      : undefined
+                  }
+                />
               )}
             </div>
           ) : (
