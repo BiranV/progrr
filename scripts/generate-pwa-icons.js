@@ -1,4 +1,4 @@
-/* Generates full-bleed PWA icons from the official logo.
+/* Generates padded PWA icons from the official logo.
   Input:  public/progrr-logo.png
    Output: public/*.png
 */
@@ -12,6 +12,7 @@ const inputPath = path.join(root, "public", "progrr-logo.png");
 const outputDir = path.join(root, "public");
 
 const BG = "#216FF3";
+const LOGO_SCALE = 0.85;
 
 async function ensureInput() {
   if (!fs.existsSync(inputPath)) {
@@ -25,14 +26,27 @@ async function ensureOutputDir() {
 
 async function generateSquareIcon(size, outName) {
   const outPath = path.join(outputDir, outName);
+  const inner = Math.max(1, Math.round(size * LOGO_SCALE));
 
-  await sharp(inputPath)
+  const logo = await sharp(inputPath)
     .ensureAlpha()
-    .resize(size, size, {
-      fit: "cover",
+    .resize(inner, inner, {
+      fit: "contain",
       withoutEnlargement: true,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
     })
-    .flatten({ background: BG })
+    .png()
+    .toBuffer();
+
+  await sharp({
+    create: {
+      width: size,
+      height: size,
+      channels: 4,
+      background: BG,
+    },
+  })
+    .composite([{ input: logo, gravity: "center" }])
     .png()
     .toFile(outPath);
 
