@@ -186,7 +186,7 @@ export default function PublicBookingShell({
       </SidePanel>
 
       <div className="relative w-full z-10 h-[10vh] bg-gradient-to-br from-[#165CF0] via-[#1E6CF2] to-[#2B79F5] rounded-b-[40px] overflow-visible">
-        <div className="absolute inset-0 opacity-20 mix-blend-overlay"></div>
+        <div className="absolute inset-0 opacity-20 mix-blend-overlay pointer-events-none"></div>
         <div className="absolute top-4 inset-x-0 z-20 flex justify-center">
           <LanguageSwitcher variant="light" />
         </div>
