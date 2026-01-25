@@ -170,6 +170,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const businessName = String(
     (user as any)?.onboarding?.business?.name ?? "",
   ).trim();
+  const bannerUrl = String(
+    (user as any)?.onboarding?.branding?.banner?.url ??
+    (user as any)?.onboarding?.branding?.bannerUrl ??
+    "",
+  ).trim();
+  const hasBanner = Boolean(bannerUrl);
   const headerName = businessName || user?.full_name || "Progrr";
   const getSectionTitle = () => {
     if (pathname.startsWith("/dashboard")) return t("nav.dashboard");
@@ -186,8 +192,28 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app-shell flex flex-col min-h-screen bg-gray-50 dark:bg-black pb-safe">
-      <header className="relative w-full z-10 h-[10vh] bg-gradient-to-br from-[#165CF0] via-[#1E6CF2] to-[#2B79F5] rounded-b-[40px] overflow-hidden">
-        <div className="absolute inset-0 opacity-20 mix-blend-overlay"></div>
+      <header
+        className={
+          "relative w-full z-10 h-[10vh] rounded-b-[40px] overflow-hidden " +
+          (hasBanner
+            ? "bg-black"
+            : "bg-gradient-to-br from-[#165CF0] via-[#1E6CF2] to-[#2B79F5]")
+        }
+        style={
+          hasBanner
+            ? {
+              backgroundImage: `url(${bannerUrl})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }
+            : undefined
+        }
+      >
+        {hasBanner ? (
+          <div className="absolute inset-0 bg-black/35" />
+        ) : (
+          <div className="absolute inset-0 opacity-20 mix-blend-overlay" />
+        )}
         <div className="absolute top-4 inset-x-0 z-20 flex justify-center">
           {showLanguageSwitcher ? (
             <LanguageSwitcher variant="light" />
