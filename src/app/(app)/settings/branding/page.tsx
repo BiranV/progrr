@@ -563,7 +563,7 @@ export default function BrandingSettingsPage() {
         />
 
         <div className="space-y-3">
-          <div className="relative w-full h-[10vh] min-h-[120px] rounded-b-[40px] overflow-hidden bg-gray-100 dark:bg-gray-800">
+          <div className="relative w-full h-[10vh] bg-gray-100 dark:bg-gray-800">
             {bannerUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img

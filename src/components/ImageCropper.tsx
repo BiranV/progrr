@@ -212,7 +212,7 @@ export default function ImageCropperModal({
           <div className="space-y-3 w-[240px] sm:w-[300px]">
             <div
               className={
-                "relative w-full overflow-hidden rounded-2xl border bg-black/90 " +
+                "relative w-full overflow-hidden " +
                 (mode === "logo" ? "h-[260px]" : "h-[220px]")
               }
             >
@@ -223,7 +223,7 @@ export default function ImageCropperModal({
                   zoom={zoom}
                   aspect={cfg.aspect}
                   cropShape={cfg.cropShape}
-                  showGrid={mode !== "logo"}
+                  showGrid={false}
                   onCropChange={setCrop}
                   onZoomChange={setZoom}
                   onCropComplete={onCropComplete}
@@ -268,7 +268,11 @@ export default function ImageCropperModal({
                 <img
                   src={previewUrl}
                   alt={t("branding.cropper.previewAlt")}
-                  className="h-full w-full object-cover"
+                  className={
+                    mode === "logo"
+                      ? "h-full w-full object-cover"
+                      : "h-full w-full object-contain"
+                  }
                 />
               ) : (
                 <div className="h-full w-full flex items-center justify-center text-xs text-muted-foreground">
