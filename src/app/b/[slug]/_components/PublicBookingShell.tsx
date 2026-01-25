@@ -57,6 +57,7 @@ export default function PublicBookingShell({
   }, [gallery, galleryPaged]);
 
   const galleryScrollerRef = React.useRef<HTMLDivElement | null>(null);
+  const galleryPageRefs = React.useRef<Array<HTMLDivElement | null>>([]);
   const [galleryPage, setGalleryPage] = React.useState(0);
   const previewTouchStartXRef = React.useRef<number | null>(null);
   const previewTouchDeltaRef = React.useRef<number>(0);
@@ -64,17 +65,22 @@ export default function PublicBookingShell({
   React.useEffect(() => {
     setGalleryPage(0);
     if (galleryPaged && galleryScrollerRef.current) {
-      galleryScrollerRef.current.scrollTo({ left: 0, behavior: "auto" });
+      galleryPageRefs.current[0]?.scrollIntoView({
+        behavior: "auto",
+        inline: "start",
+        block: "nearest",
+      });
     }
   }, [galleryPaged, galleryPages.length]);
 
   const scrollGalleryToPage = React.useCallback(
     (nextPage: number) => {
-      const el = galleryScrollerRef.current;
-      if (!el) return;
       const clamped = Math.max(0, Math.min(nextPage, galleryPages.length - 1));
-      const pageWidth = el.clientWidth || 1;
-      el.scrollTo({ left: clamped * pageWidth, behavior: "smooth" });
+      galleryPageRefs.current[clamped]?.scrollIntoView({
+        behavior: "smooth",
+        inline: "start",
+        block: "nearest",
+      });
     },
     [galleryPages.length],
   );
@@ -87,9 +93,19 @@ export default function PublicBookingShell({
     const onScroll = () => {
       if (raf) cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
-        const pageWidth = el.clientWidth || 1;
-        const next = Math.round(el.scrollLeft / pageWidth);
-        setGalleryPage((p) => (p === next ? p : next));
+        const containerRect = el.getBoundingClientRect();
+        let bestIndex = 0;
+        let bestDistance = Number.POSITIVE_INFINITY;
+        galleryPageRefs.current.forEach((pageEl, index) => {
+          if (!pageEl) return;
+          const rect = pageEl.getBoundingClientRect();
+          const distance = Math.abs(rect.left - containerRect.left);
+          if (distance < bestDistance) {
+            bestDistance = distance;
+            bestIndex = index;
+          }
+        });
+        setGalleryPage((p) => (p === bestIndex ? p : bestIndex));
       });
     };
 
@@ -373,8 +389,7 @@ export default function PublicBookingShell({
               {!galleryPaged ? (
                 <div
                   className={cn(
-                    "flex gap-2 overflow-x-auto",
-                    "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
+                    "grid grid-cols-6 gap-2 justify-items-center",
                   )}
                 >
                   {gallery.map((src, idx) => {
@@ -389,7 +404,7 @@ export default function PublicBookingShell({
                         className={cn(
                           "group relative overflow-hidden",
                           "rounded-2xl",
-                          "shrink-0 h-[84px] w-[84px] sm:h-[92px] sm:w-[92px]",
+                          "h-16 w-16 sm:h-18 sm:w-18",
                           "border border-gray-200/70 dark:border-gray-800",
                           "bg-gray-100 dark:bg-gray-800",
                           "shadow-sm",
@@ -431,15 +446,20 @@ export default function PublicBookingShell({
                     dir="ltr"
                     className={cn(
                       "flex overflow-x-auto scroll-smooth",
-                      "snap-x snap-mandatory",
                       "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
                     )}
                   >
                     {galleryPages.map((page, pageIdx) => (
-                      <div key={pageIdx} className="shrink-0 w-full snap-start">
+                      <div
+                        key={pageIdx}
+                        className="shrink-0 min-w-full snap-start overflow-hidden"
+                        ref={(el) => {
+                          galleryPageRefs.current[pageIdx] = el;
+                        }}
+                      >
                         <div
                           className={cn(
-                            "flex gap-2",
+                            "grid grid-cols-6 gap-2 justify-items-center",
                           )}
                         >
                           {page.map((src, idx) => (
@@ -455,7 +475,7 @@ export default function PublicBookingShell({
                               className={cn(
                                 "group relative overflow-hidden",
                                 "rounded-2xl",
-                                "shrink-0 h-[84px] w-[84px] sm:h-[92px] sm:w-[92px]",
+                                "h-16 w-16 sm:h-18 sm:w-18",
                                 "border border-gray-200/70 dark:border-gray-800",
                                 "bg-gray-100 dark:bg-gray-800",
                                 "shadow-sm",
@@ -491,52 +511,6 @@ export default function PublicBookingShell({
                         </div>
                       </div>
                     ))}
-                  </div>
-
-                  <div className="pointer-events-none absolute inset-y-0 inset-x-0 flex items-center justify-between">
-                    <div className="pointer-events-auto">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => scrollGalleryToPage(galleryPage - 1)}
-                        disabled={galleryPage <= 0}
-                        className={cn(
-                          "rounded-2xl",
-                          "h-10 w-10",
-                          "bg-white/70 dark:bg-black/40",
-                          "backdrop-blur",
-                          "border border-gray-200/70 dark:border-gray-800",
-                          "shadow-sm",
-                          "ms-1",
-                        )}
-                        aria-label={t("publicBooking.galleryPrev")}
-                      >
-                        <ChevronLeft className="h-5 w-5 rtl:rotate-180" />
-                      </Button>
-                    </div>
-
-                    <div className="pointer-events-auto">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => scrollGalleryToPage(galleryPage + 1)}
-                        disabled={galleryPage >= galleryPages.length - 1}
-                        className={cn(
-                          "rounded-2xl",
-                          "h-10 w-10",
-                          "bg-white/70 dark:bg-black/40",
-                          "backdrop-blur",
-                          "border border-gray-200/70 dark:border-gray-800",
-                          "shadow-sm",
-                          "me-1",
-                        )}
-                        aria-label={t("publicBooking.galleryNext")}
-                      >
-                        <ChevronRight className="h-5 w-5 rtl:rotate-180" />
-                      </Button>
-                    </div>
                   </div>
 
                   <div className="mt-2 flex items-center justify-center gap-1.5">
