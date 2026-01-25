@@ -388,7 +388,7 @@ export default function AdminAuthStep({
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
-            className="space-y-6"
+            className="space-y-6 max-w-xs mx-auto w-full"
           >
             <h2 className="text-xl font-bold text-slate-800 mb-6">
               {view === "login" ? t("auth.welcomeBack") : t("auth.verifyLogin")}
@@ -465,7 +465,7 @@ export default function AdminAuthStep({
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="space-y-6"
+            className="space-y-6 max-w-xs mx-auto w-full"
           >
             <h2 className="text-xl font-bold text-slate-800 mb-2">
               {t("auth.createAccount")}
@@ -514,7 +514,7 @@ export default function AdminAuthStep({
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
-            className="space-y-6"
+            className="space-y-6 max-w-xs mx-auto w-full"
           >
             <h2 className="text-xl font-bold text-slate-800 mb-8">
               {view === "signup"
