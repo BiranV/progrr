@@ -70,6 +70,21 @@ function wrapRtlSegment(value: string): string {
     return `\u2067${text}\u2069`;
 }
 
+function weekdayFromDateString(dateStr: string): number {
+    const match = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(String(dateStr));
+    if (!match) return NaN;
+    const [_, y, m, d] = match;
+    const date = new Date(`${y}-${m}-${d}T00:00:00`);
+    return date.getDay();
+}
+
+function ymdFromDateLocal(date: Date): string {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+}
+
 export default function CalendarClient() {
     const { t, language } = useI18n();
     const searchParams = useSearchParams();
@@ -287,6 +302,64 @@ export default function CalendarClient() {
     const flatpickrKey = React.useMemo(
         () => `${language || ""}-${isRtl ? "rtl" : "ltr"}`,
         [isRtl, language],
+    );
+
+    const availabilityByDay = React.useMemo(() => {
+        const days = Array.isArray((user as any)?.onboarding?.availability?.days)
+            ? ((user as any).onboarding.availability.days as any[])
+            : [];
+        const map = new Map<
+            number,
+            { enabled: boolean; ranges: Array<{ start?: string; end?: string }> }
+        >();
+
+        for (const raw of days) {
+            const day = Number((raw as any)?.day);
+            if (!Number.isInteger(day)) continue;
+            const enabled = Boolean((raw as any)?.enabled);
+            const ranges = Array.isArray((raw as any)?.ranges)
+                ? ((raw as any).ranges as Array<{ start?: string; end?: string }>).map(
+                    (r) => ({ start: r?.start, end: r?.end }),
+                )
+                : String((raw as any)?.start ?? "").trim() ||
+                    String((raw as any)?.end ?? "").trim()
+                    ? [{ start: (raw as any)?.start, end: (raw as any)?.end }]
+                    : [];
+
+            map.set(day, { enabled, ranges });
+        }
+
+        return map;
+    }, [user]);
+
+    const todayYmd = React.useMemo(() => ymdFromDateLocal(new Date()), []);
+
+    const isDateAvailableYmd = React.useCallback(
+        (ymd: string) => {
+            if (availabilityByDay.size === 0) return true;
+            const dateStr = String(ymd || "").trim();
+            const weekday = weekdayFromDateString(dateStr);
+            if (!Number.isInteger(weekday)) return false;
+            const conf = availabilityByDay.get(weekday);
+            if (!conf || !conf.enabled) return false;
+            const ranges = Array.isArray(conf.ranges) ? conf.ranges : [];
+            return ranges.some(
+                (r) =>
+                    String(r?.start ?? "").trim() &&
+                    String(r?.end ?? "").trim(),
+            );
+        },
+        [availabilityByDay],
+    );
+
+    const isDisabledYmd = React.useCallback(
+        (ymd: string) => {
+            const dateStr = String(ymd || "").trim();
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return true;
+            if (todayYmd && dateStr < todayYmd) return true;
+            return !isDateAvailableYmd(dateStr);
+        },
+        [isDateAvailableYmd, todayYmd],
     );
 
     const isCanceledStatus = React.useCallback((status: unknown) => {
@@ -764,9 +837,16 @@ export default function CalendarClient() {
             inline: true,
             disableMobile: false,
             monthSelectorType: "static" as const,
+            minDate: todayYmd || undefined,
             locale: resolvedLocale,
+            disable: [
+                (d: Date) => {
+                    const ymd = ymdFromDateLocal(d);
+                    return isDisabledYmd(ymd);
+                },
+            ],
         };
-    }, [resolvedLocale]);
+    }, [isDisabledYmd, resolvedLocale, todayYmd]);
 
     return (
         <div className="space-y-6">

@@ -124,6 +124,7 @@
   --primary: 0.63 0.24 258;
   --primary-foreground: 1 0 0;
   --ring: 0.63 0.24 258;
+  --bottom-nav-height: 88px;
 }
 
 .app-shell [data-slot="button"][data-variant="default"] {
@@ -278,9 +279,13 @@ html[dir="rtl"] ol {
 
 .flatpickr-day.flatpickr-disabled,
 .flatpickr-day.flatpickr-disabled:hover,
+.flatpickr-day.notAllowed,
+.flatpickr-day.notAllowed:hover,
 .flatpickr-day.prevMonthDay,
 .flatpickr-day.nextMonthDay {
-  opacity: 0.45;
+  opacity: 0.4;
+  pointer-events: none;
+  cursor: default;
 }
 
 /* Selected day: smaller centered circle (single-date booking UX) */
@@ -309,14 +314,22 @@ html[dir="rtl"] ol {
   z-index: -1;
 }
 
+/* Today indicator: circle border around day */
+.flatpickr-day.today:not(.selected):not(.startRange):not(.endRange):not(.inRange) {
+  border: 2px solid #165CF0;
+  border-radius: 9999px;
+  background: transparent;
+  box-shadow: none;
+}
+
 /* Hover day: same size circle as selected (but muted color) */
-.flatpickr-day:not(.flatpickr-disabled):not(.prevMonthDay):not(.nextMonthDay):not(.selected):not(.startRange):not(.endRange):not(.inRange):hover {
+.flatpickr-day:not(.flatpickr-disabled):not(.notAllowed):not(.prevMonthDay):not(.nextMonthDay):not(.selected):not(.startRange):not(.endRange):not(.inRange):hover {
   position: relative;
   background: transparent;
   border-color: transparent;
 }
 
-.flatpickr-day:not(.flatpickr-disabled):not(.prevMonthDay):not(.nextMonthDay):not(.selected):not(.startRange):not(.endRange):not(.inRange):hover::after {
+.flatpickr-day:not(.flatpickr-disabled):not(.notAllowed):not(.prevMonthDay):not(.nextMonthDay):not(.selected):not(.startRange):not(.endRange):not(.inRange):hover::after {
   content: "";
   position: absolute;
   inset: 50% auto auto 50%;
@@ -326,31 +339,6 @@ html[dir="rtl"] ol {
   border-radius: 9999px;
   background: var(--muted);
   z-index: -1;
-}
-
-/* Today: circular outline (same size as selected), but not filled */
-.flatpickr-day.today:not(.flatpickr-disabled):not(.prevMonthDay):not(.nextMonthDay):not(.selected):not(.startRange):not(.endRange):not(.inRange) {
-  position: relative;
-  background: transparent;
-  border-color: transparent;
-}
-
-.flatpickr-day.today:not(.flatpickr-disabled):not(.prevMonthDay):not(.nextMonthDay):not(.selected):not(.startRange):not(.endRange):not(.inRange)::after {
-  content: "";
-  position: absolute;
-  inset: 50% auto auto 50%;
-  width: 30px;
-  height: 30px;
-  transform: translate(-50%, -50%);
-  border-radius: 9999px;
-  background: transparent;
-  border: 2px solid var(--primary);
-  z-index: -1;
-}
-
-/* Keep today's number color unchanged on hover (Flatpickr may set it to white). */
-.flatpickr-day.today:not(.flatpickr-disabled):not(.prevMonthDay):not(.nextMonthDay):not(.selected):not(.startRange):not(.endRange):not(.inRange):hover {
-  color: #111827 !important;
 }
 
 

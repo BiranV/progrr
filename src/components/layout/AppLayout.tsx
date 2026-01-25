@@ -207,7 +207,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <main
           ref={mainRef}
           tabIndex={-1}
-          className="flex-1 px-6 pt-5 pb-24 w-full max-w-md mx-auto focus:outline-none"
+          className="flex-1 px-6 pt-5 pb-[calc(88px+env(safe-area-inset-bottom))] w-full max-w-md mx-auto focus:outline-none"
         >
           {shouldBlockChildren
             ? blockingFallback
