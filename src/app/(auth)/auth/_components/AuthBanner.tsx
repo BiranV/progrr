@@ -26,7 +26,7 @@ export default function AuthBanner({
                 flex items-center gap-3 rounded-xl border px-4 py-3 shadow-sm mb-4 text-start
                 ${isError
           ? "bg-[#FDE8EC] border-[#FDE8EC] text-[#B42318]"
-          : "bg-emerald-500/10 border-emerald-500/20 text-white backdrop-blur-md"
+          : "bg-emerald-50 border-emerald-200 text-emerald-700"
         }
             `}
     >
@@ -40,7 +40,7 @@ export default function AuthBanner({
           className={
             (isError
               ? "-m-1 rounded-md p-1 text-[#B42318]/70 hover:text-[#B42318] hover:bg-[#B42318]/10"
-              : "-m-1 rounded-md p-1 text-white/70 hover:text-white hover:bg-white/10") +
+              : "-m-1 rounded-md p-1 text-emerald-600/70 hover:text-emerald-700 hover:bg-emerald-100") +
             " ms-auto"
           }
         >

@@ -1,11 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Zap } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -53,10 +50,14 @@ export default function AdminAuthStep({
   nextPath,
   initialView,
   initialEmail,
+  onViewChange,
+  registerBackHandler,
 }: {
   nextPath: string;
   initialView?: InitialView;
   initialEmail?: string;
+  onViewChange?: (view: ViewState) => void;
+  registerBackHandler?: (handler: () => void) => void;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -91,9 +92,6 @@ export default function AdminAuthStep({
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
-  // Fun: click the logo to "turn on" a glow
-  const [logoLit, setLogoLit] = useState(false);
-
   // Initial Error/Message handling
   useEffect(() => {
     const authError = searchParams.get("authError");
@@ -119,13 +117,21 @@ export default function AdminAuthStep({
     setView("signup");
   };
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     resetError();
     if (view === "login" || view === "signup") setView("landing");
     if (view === "login-verify") setView("login");
     if (view === "signup-verify") setView("signup");
     if (view === "existing-account") setView("signup");
-  };
+  }, [view]);
+
+  useEffect(() => {
+    registerBackHandler?.(handleBack);
+  }, [handleBack, registerBackHandler]);
+
+  useEffect(() => {
+    onViewChange?.(view);
+  }, [onViewChange, view]);
 
   // --- Actions ---
 
@@ -310,7 +316,7 @@ export default function AdminAuthStep({
   // Inline Helper using requested styles
   const InlineError = ({ message }: { message: string | null }) => {
     if (!message) return null;
-    return <p className="text-[13px] text-red-200/80 ms-1">{message}</p>;
+    return <p className="text-[13px] text-red-500 ms-1">{message}</p>;
   };
 
   // Only show global errors in banner, field errors are inline
@@ -321,324 +327,281 @@ export default function AdminAuthStep({
       : null;
 
   // For inputs
-  const inputErrorClass = "border-red-300/50 ring-1 ring-red-300/20";
+  const inputErrorClass = "border-red-300 ring-1 ring-red-200";
+
+  const StepIndicator = () => (
+    <div className="flex justify-center gap-2 pt-6">
+      {view === "landing" ? (
+        <>
+          <div className="w-6 h-2 bg-[#165CF0] rounded-full" />
+          <div className="w-2 h-2 bg-slate-300 rounded-full" />
+        </>
+      ) : (
+        <>
+          <div className="w-2 h-2 bg-slate-300 rounded-full" />
+          <div className="w-6 h-2 bg-[#165CF0] rounded-full" />
+        </>
+      )}
+    </div>
+  );
 
   return (
-    <div className="w-full flex flex-col items-center">
-      <motion.div
-        initial={{ opacity: 0, y: -100 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ type: "spring", stiffness: 260, damping: 20 }}
-        className="mb-10 relative flex flex-col items-center"
-      >
-        <button
-          type="button"
-          aria-label={t("auth.toggleLogoLight")}
-          aria-pressed={logoLit}
-          data-lit={logoLit ? "true" : "false"}
-          onClick={() => setLogoLit((v) => !v)}
-          className="progrr-auth-logo relative z-10 w-24 h-24 rounded-full bg-[#165CF0] flex items-center justify-center mb-4 cursor-pointer transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
-        >
-          <div className="w-22 h-22 rounded-full bg-[#165CF0] flex items-center justify-center overflow-hidden p-1.5">
-            <Image
-              src="/logo-new2.png"
-              alt={t("common.appName")}
-              width={92}
-              height={92}
-              className="object-contain"
-            />
-          </div>
-        </button>
-
-        <h1 className="text-2xl font-bold text-white tracking-tight">
-          {t("common.appName")}
-        </h1>
-        <p className="text-white/70 text-sm mt-1 font-medium">
-          {t("auth.landingTitle")}
-        </p>
-      </motion.div>
-
-      <div className="w-full">
-        <AnimatePresence mode="wait">
-          {view === "landing" && (
-            <motion.div
-              key="landing"
-              initial={{ opacity: 0, y: 100 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="space-y-4 pt-12"
-            >
+    <div className="w-full">
+      <AnimatePresence mode="wait">
+        {view === "landing" && (
+          <motion.div
+            key="landing"
+            initial={{ opacity: 0, y: 100 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-8"
+          >
+            <div className="text-center">
+              <h1 className="text-2xl md:text-3xl font-bold text-slate-800 mb-3">
+                {t("common.appName")}
+              </h1>
+              <p className="text-slate-500 text-sm md:text-base max-w-sm mx-auto">
+                {t("auth.landingTitle")}
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 max-w-xs mx-auto w-full">
               <Button
-                className="w-full h-14 text-lg font-semibold bg-white text-neutral-900 hover:bg-white/90 rounded-2xl"
+                className="w-full py-6 text-base font-semibold bg-gradient-to-r from-[#165CF0] to-[#0E4FDB] hover:from-[#0E4FDB] hover:to-[#0A46C8] rounded-xl shadow-lg shadow-blue-500/20 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/30 hover:-translate-y-0.5"
                 onClick={() => setView("login")}
               >
                 {t("auth.login")}
               </Button>
               <Button
-                className="w-full h-14 text-lg font-semibold bg-transparent text-white border-2 border-white/20 hover:bg-white/10 rounded-2xl"
+                variant="outline"
+                className="w-full py-6 text-base font-semibold border-2 border-[#165CF0] text-[#165CF0] hover:bg-blue-50 rounded-xl transition-all duration-300 hover:-translate-y-0.5"
                 onClick={() => setView("signup")}
               >
                 {t("auth.createAccountCta")}
               </Button>
-            </motion.div>
-          )}
+            </div>
+          </motion.div>
+        )}
 
-          {(view === "login" || view === "login-verify") && (
-            <motion.div
-              key="login"
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -50 }}
-              className="space-y-6"
-            >
-              <div className="flex items-center gap-4 mb-8">
-                {/* A11y: icon-only button needs an accessible name */}
+        {(view === "login" || view === "login-verify") && (
+          <motion.div
+            key="login"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            className="space-y-6"
+          >
+            <h2 className="text-xl font-bold text-slate-800 mb-6">
+              {view === "login" ? t("auth.welcomeBack") : t("auth.verifyLogin")}
+            </h2>
+
+            <AuthBanner
+              banner={bannerState}
+              onClose={() => {
+                setGlobalError(null);
+                setInfo(null);
+              }}
+            />
+
+            {view === "login" ? (
+              <form onSubmit={sendLoginCode} className="space-y-6">
+                <div className="space-y-2">
+                  <Label className="text-slate-600 ms-1">
+                    {t("auth.emailAddress")}
+                  </Label>
+                  <Input
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    className={`h-14 bg-white text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
+                      loginError ? inputErrorClass : "border-slate-200"
+                    }`}
+                    placeholder={t("auth.emailPlaceholder")}
+                    autoFocus
+                  />
+                  <InlineError message={loginError} />
+                </div>
                 <Button
-                  size="icon"
-                  variant="ghost"
-                  className="text-white hover:text-white hover:bg-white/10 -ms-2"
-                  onClick={handleBack}
-                  aria-label={t("common.back")}
+                  disabled={loading}
+                  className="w-full h-14 bg-[#165CF0] text-white hover:bg-[#0E4FDB] rounded-xl text-lg font-medium shadow-md shadow-blue-500/20"
                 >
-                  <ChevronLeft className="w-6 h-6 rtl:rotate-180" />
+                  {loading ? t("common.sending") : t("common.continue")}
                 </Button>
-                <h2 className="text-xl font-bold text-white">
-                  {view === "login"
-                    ? t("auth.welcomeBack")
-                    : t("auth.verifyLogin")}
-                </h2>
-              </div>
-
-              <AuthBanner
-                banner={bannerState}
-                onClose={() => {
-                  setGlobalError(null);
-                  setInfo(null);
-                }}
-              />
-
-              {view === "login" ? (
-                <form onSubmit={sendLoginCode} className="space-y-6">
-                  <div className="space-y-2">
-                    <Label className="text-white/80 ms-1">
-                      {t("auth.emailAddress")}
-                    </Label>
-                    <Input
-                      value={loginEmail}
-                      onChange={(e) => setLoginEmail(e.target.value)}
-                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${
-                        loginError ? inputErrorClass : "border-white/20"
-                      }`}
-                      placeholder={t("auth.emailPlaceholder")}
-                      autoFocus
-                    />
-                    <InlineError message={loginError} />
-                  </div>
-                  <Button
+              </form>
+            ) : (
+              <form onSubmit={verifyLoginCode} className="space-y-6">
+                <div className="space-y-2">
+                  <Label className="text-slate-600 ms-1">
+                    {t("auth.enterCode")}
+                  </Label>
+                  <OtpInput
+                    id="otp-login"
+                    name="code"
+                    value={loginCode}
+                    onChange={setLoginCode}
+                    length={6}
                     disabled={loading}
-                    className="w-full h-14 bg-white text-neutral-900 hover:bg-white/90 rounded-xl text-lg font-medium"
-                  >
-                    {loading ? t("common.sending") : t("common.continue")}
-                  </Button>
-                </form>
-              ) : (
-                <form onSubmit={verifyLoginCode} className="space-y-6">
-                  <div className="space-y-2">
-                    <Label className="text-white/80 ms-1">
-                      {t("auth.enterCode")}
-                    </Label>
-                    <OtpInput
-                      id="otp-login"
-                      name="code"
-                      value={loginCode}
-                      onChange={setLoginCode}
-                      length={6}
-                      disabled={loading}
-                      inputClassName={`bg-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent ${
-                        loginCodeError ? inputErrorClass : "border-white/20"
-                      }`}
-                    />
-                    <InlineError message={loginCodeError} />
-                    <p className="text-xs text-white/60 ms-1 pt-1">
-                      {t("auth.codeSentToEmail", { email: loginEmail })}
-                    </p>
-                  </div>
-                  <Button
+                    inputClassName={`bg-white text-slate-900 placeholder:text-slate-400 rounded-xl focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
+                      loginCodeError ? inputErrorClass : "border-slate-200"
+                    }`}
+                  />
+                  <InlineError message={loginCodeError} />
+                  <p className="text-xs text-slate-500 ms-1 pt-1">
+                    {t("auth.codeSentToEmail", { email: loginEmail })}
+                  </p>
+                </div>
+                <Button
+                  disabled={loading}
+                  className="w-full h-14 bg-[#165CF0] text-white hover:bg-[#0E4FDB] rounded-xl text-lg font-medium shadow-md shadow-blue-500/20"
+                >
+                  {loading ? t("common.verifying") : t("auth.login")}
+                </Button>
+              </form>
+            )}
+          </motion.div>
+        )}
+
+        {view === "existing-account" && (
+          <motion.div
+            key="existing-account"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-6"
+          >
+            <h2 className="text-xl font-bold text-slate-800 mb-2">
+              {t("auth.createAccount")}
+            </h2>
+
+            <div className="rounded-3xl border border-slate-200 bg-white px-6 py-7 shadow-lg text-center">
+              <h3 className="text-xl font-semibold text-slate-800">
+                {t("auth.existingEmailTitle")}
+              </h3>
+              <p className="text-sm text-slate-500 mt-2">
+                {t("auth.existingEmailBody")}
+              </p>
+              <p className="text-sm text-slate-600 mt-3 font-medium break-all">
+                {signupEmail}
+              </p>
+
+              <Button
+                type="button"
+                className="mt-6 w-full h-12 bg-[#165CF0] text-white hover:bg-[#0E4FDB] rounded-2xl text-base font-semibold shadow-md shadow-blue-500/20"
+                onClick={() =>
+                  router.push(
+                    `/login?email=${encodeURIComponent(
+                      String(signupEmail || "").trim(),
+                    )}`,
+                  )
+                }
+              >
+                {t("auth.continueToLogin")}
+              </Button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                className="mt-2 w-full h-11 rounded-2xl text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                onClick={useDifferentEmail}
+              >
+                {t("auth.useDifferentEmail")}
+              </Button>
+            </div>
+          </motion.div>
+        )}
+
+        {(view === "signup" || view === "signup-verify") && (
+          <motion.div
+            key="signup"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            className="space-y-6"
+          >
+            <h2 className="text-xl font-bold text-slate-800 mb-8">
+              {view === "signup"
+                ? t("auth.createAccount")
+                : t("auth.verifyEmail")}
+            </h2>
+
+            <AuthBanner
+              banner={bannerState}
+              onClose={() => {
+                setGlobalError(null);
+                setInfo(null);
+              }}
+            />
+
+            {view === "signup" ? (
+              <form onSubmit={sendSignupCode} className="space-y-6">
+                <div className="space-y-2">
+                  <Label className="text-slate-600 ms-1">
+                    {t("auth.fullName")}
+                  </Label>
+                  <Input
+                    value={signupName}
+                    onChange={(e) => setSignupName(e.target.value)}
+                    className={`h-14 bg-white text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
+                      signupNameError ? inputErrorClass : "border-slate-200"
+                    }`}
+                    placeholder={t("auth.fullNamePlaceholder")}
+                    autoFocus
+                  />
+                  <InlineError message={signupNameError} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-slate-600 ms-1">
+                    {t("auth.emailAddress")}
+                  </Label>
+                  <Input
+                    value={signupEmail}
+                    onChange={(e) => setSignupEmail(e.target.value)}
+                    className={`h-14 bg-white text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
+                      signupEmailError ? inputErrorClass : "border-slate-200"
+                    }`}
+                    placeholder={t("auth.emailPlaceholder")}
+                  />
+                  <InlineError message={signupEmailError} />
+                </div>
+                <Button
+                  disabled={loading}
+                  className="w-full h-14 bg-[#165CF0] text-white hover:bg-[#0E4FDB] rounded-xl text-lg font-medium shadow-md shadow-blue-500/20"
+                >
+                  {loading ? t("common.sending") : t("common.continue")}
+                </Button>
+              </form>
+            ) : (
+              <form onSubmit={verifySignupCode} className="space-y-6">
+                <div className="space-y-2">
+                  <Label className="text-slate-600 ms-1">
+                    {t("auth.enterCode")}
+                  </Label>
+                  <OtpInput
+                    id="otp-signup"
+                    name="code"
+                    value={signupCode}
+                    onChange={setSignupCode}
+                    length={6}
                     disabled={loading}
-                    className="w-full h-14 bg-white text-neutral-900 hover:bg-white/90 rounded-xl text-lg font-medium"
-                  >
-                    {loading ? t("common.verifying") : t("auth.login")}
-                  </Button>
-                </form>
-              )}
-            </motion.div>
-          )}
-
-          {view === "existing-account" && (
-            <motion.div
-              key="existing-account"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="space-y-6"
-            >
-              <div className="flex items-center gap-4 mb-2">
+                    inputClassName={`bg-white text-slate-900 placeholder:text-slate-400 rounded-xl focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
+                      signupCodeError ? inputErrorClass : "border-slate-200"
+                    }`}
+                  />
+                  <InlineError message={signupCodeError} />
+                  <p className="text-xs text-slate-500 ms-1 pt-1">
+                    {t("auth.codeSentToEmail", { email: signupEmail })}
+                  </p>
+                </div>
                 <Button
-                  size="icon"
-                  variant="ghost"
-                  className="text-white hover:text-white hover:bg-white/10 -ms-2"
-                  onClick={handleBack}
-                  aria-label={t("common.back")}
+                  disabled={loading}
+                  className="w-full h-14 bg-[#165CF0] text-white hover:bg-[#0E4FDB] rounded-xl text-lg font-medium shadow-md shadow-blue-500/20"
                 >
-                  <ChevronLeft className="w-6 h-6 rtl:rotate-180" />
+                  {loading ? t("common.verifying") : t("auth.createAccount")}
                 </Button>
-                <h2 className="text-xl font-bold text-white">
-                  {t("auth.createAccount")}
-                </h2>
-              </div>
-
-              <div className="rounded-3xl border border-white/15 bg-white/5 backdrop-blur-md px-6 py-7 shadow-xl text-center">
-                <h3 className="text-xl font-semibold text-white">
-                  {t("auth.existingEmailTitle")}
-                </h3>
-                <p className="text-sm text-white/70 mt-2">
-                  {t("auth.existingEmailBody")}
-                </p>
-                <p className="text-sm text-white/80 mt-3 font-medium break-all">
-                  {signupEmail}
-                </p>
-
-                <Button
-                  type="button"
-                  className="mt-6 w-full h-12 bg-white text-neutral-900 hover:bg-white/90 rounded-2xl text-base font-semibold"
-                  onClick={() =>
-                    router.push(
-                      `/login?email=${encodeURIComponent(
-                        String(signupEmail || "").trim(),
-                      )}`,
-                    )
-                  }
-                >
-                  {t("auth.continueToLogin")}
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="mt-2 w-full h-11 rounded-2xl text-white/80 hover:text-white hover:bg-white/10"
-                  onClick={useDifferentEmail}
-                >
-                  {t("auth.useDifferentEmail")}
-                </Button>
-              </div>
-            </motion.div>
-          )}
-
-          {(view === "signup" || view === "signup-verify") && (
-            <motion.div
-              key="signup"
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -50 }}
-              className="space-y-6"
-            >
-              <div className="flex items-center gap-4 mb-8">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="text-white hover:text-white hover:bg-white/10 -ms-2"
-                  onClick={handleBack}
-                  aria-label={t("common.back")}
-                >
-                  <ChevronLeft className="w-6 h-6 rtl:rotate-180" />
-                </Button>
-                <h2 className="text-xl font-bold text-white">
-                  {view === "signup"
-                    ? t("auth.createAccount")
-                    : t("auth.verifyEmail")}
-                </h2>
-              </div>
-
-              <AuthBanner
-                banner={bannerState}
-                onClose={() => {
-                  setGlobalError(null);
-                  setInfo(null);
-                }}
-              />
-
-              {view === "signup" ? (
-                <form onSubmit={sendSignupCode} className="space-y-6">
-                  <div className="space-y-2">
-                    <Label className="text-white/80 ms-1">
-                      {t("auth.fullName")}
-                    </Label>
-                    <Input
-                      value={signupName}
-                      onChange={(e) => setSignupName(e.target.value)}
-                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${
-                        signupNameError ? inputErrorClass : "border-white/20"
-                      }`}
-                      placeholder={t("auth.fullNamePlaceholder")}
-                      autoFocus
-                    />
-                    <InlineError message={signupNameError} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-white/80 ms-1">
-                      {t("auth.emailAddress")}
-                    </Label>
-                    <Input
-                      value={signupEmail}
-                      onChange={(e) => setSignupEmail(e.target.value)}
-                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${
-                        signupEmailError ? inputErrorClass : "border-white/20"
-                      }`}
-                      placeholder={t("auth.emailPlaceholder")}
-                    />
-                    <InlineError message={signupEmailError} />
-                  </div>
-                  <Button
-                    disabled={loading}
-                    className="w-full h-14 bg-white text-neutral-900 hover:bg-white/90 rounded-xl text-lg font-medium"
-                  >
-                    {loading ? t("common.sending") : t("common.continue")}
-                  </Button>
-                </form>
-              ) : (
-                <form onSubmit={verifySignupCode} className="space-y-6">
-                  <div className="space-y-2">
-                    <Label className="text-white/80 ms-1">
-                      {t("auth.enterCode")}
-                    </Label>
-                    <OtpInput
-                      id="otp-signup"
-                      name="code"
-                      value={signupCode}
-                      onChange={setSignupCode}
-                      length={6}
-                      disabled={loading}
-                      inputClassName={`bg-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent ${
-                        signupCodeError ? inputErrorClass : "border-white/20"
-                      }`}
-                    />
-                    <InlineError message={signupCodeError} />
-                    <p className="text-xs text-white/60 ms-1 pt-1">
-                      {t("auth.codeSentToEmail", { email: signupEmail })}
-                    </p>
-                  </div>
-                  <Button
-                    disabled={loading}
-                    className="w-full h-14 bg-white text-neutral-900 hover:bg-white/90 rounded-xl text-lg font-medium"
-                  >
-                    {loading ? t("common.verifying") : t("auth.createAccount")}
-                  </Button>
-                </form>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+              </form>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <StepIndicator />
     </div>
   );
 }
