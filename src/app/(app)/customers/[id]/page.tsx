@@ -74,24 +74,25 @@ export default function CustomerDetailsPage() {
       if (status === "BOOKED") {
         return {
           label: t("customers.details.status.booked"),
-          className: "bg-emerald-600 text-white",
+          className: "border backdrop-blur-sm bg-emerald-50/80 text-emerald-700 border-emerald-200/70",
         };
       }
       if (status === "COMPLETED") {
         return {
           label: t("customers.details.status.completed"),
-          className: "bg-blue-600 text-white",
+          className: "border backdrop-blur-sm bg-blue-50/80 text-blue-700 border-blue-200/70",
         };
       }
       if (status === "NO_SHOW") {
         return {
           label: t("customers.details.status.noShow"),
-          className: "bg-amber-600 text-white",
+          className: "border backdrop-blur-sm bg-amber-50/80 text-amber-700 border-amber-200/70",
         };
       }
       return {
         label: t("customers.details.status.canceled"),
-        className: "bg-gray-500 text-white dark:bg-gray-700",
+        className:
+          "border backdrop-blur-sm bg-gray-100/80 text-gray-600 border-gray-200/70 dark:bg-gray-800/60 dark:text-gray-200 dark:border-gray-700/60",
       };
     },
     [t]
@@ -315,10 +316,10 @@ export default function CustomerDetailsPage() {
 
           <Badge
             className={
-              "shrink-0 text-white " +
+              "shrink-0 border backdrop-blur-sm " +
               (String(data.customer.status ?? "ACTIVE") === "BLOCKED"
-                ? "bg-rose-600"
-                : "bg-emerald-600")
+                ? "bg-rose-50/80 text-rose-700 border-rose-200/70"
+                : "bg-emerald-50/80 text-emerald-700 border-emerald-200/70")
             }
           >
             {String(data.customer.status ?? "ACTIVE") === "BLOCKED"

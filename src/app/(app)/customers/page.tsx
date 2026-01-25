@@ -217,10 +217,10 @@ export default function CustomersPage() {
             <Badge
               variant={"secondary"}
               className={
-                "shrink-0 rounded-full px-2 py-0.5 text-xs " +
+                "shrink-0 rounded-full px-2 py-0.5 text-xs border backdrop-blur-sm " +
                 (status === "BLOCKED"
-                  ? "bg-rose-600 text-white"
-                  : "bg-emerald-600 text-white")
+                  ? "bg-rose-50/80 text-rose-700 border-rose-200/70"
+                  : "bg-emerald-50/80 text-emerald-700 border-emerald-200/70")
               }
             >
               {status === "BLOCKED"
@@ -233,7 +233,8 @@ export default function CustomersPage() {
       {
         key: "actions",
         header: "",
-        cellClassName: "w-[1%] whitespace-nowrap text-end",
+        headerClassName: "ps-0 pe-3 text-end",
+        cellClassName: "w-[1%] whitespace-nowrap text-end ps-0 pe-3",
         renderCell: (c) => {
           const status =
             optimisticStatusById[c._id] ??
@@ -577,10 +578,10 @@ export default function CustomersPage() {
               <Badge
                 variant={"secondary"}
                 className={
-                  "rounded-full px-2 py-0.5 text-xs " +
+                  "rounded-full px-2 py-0.5 text-xs border backdrop-blur-sm " +
                   (String(selectedCustomer.status ?? "ACTIVE") === "BLOCKED"
-                    ? "bg-rose-600 text-white"
-                    : "bg-emerald-600 text-white")
+                    ? "bg-rose-50/80 text-rose-700 border-rose-200/70"
+                    : "bg-emerald-50/80 text-emerald-700 border-emerald-200/70")
                 }
               >
                 {String(selectedCustomer.status ?? "ACTIVE") === "BLOCKED"
@@ -707,13 +708,14 @@ export default function CustomersPage() {
                       header: t("customers.table.status"),
                       renderCell: (row) => {
                         const badgeClass =
-                          row.status === "BOOKED"
-                            ? "bg-emerald-600 text-white"
+                          "border backdrop-blur-sm " +
+                          (row.status === "BOOKED"
+                            ? "bg-emerald-50/80 text-emerald-700 border-emerald-200/70"
                             : row.status === "COMPLETED"
-                              ? "bg-blue-600 text-white"
+                              ? "bg-blue-50/80 text-blue-700 border-blue-200/70"
                               : row.status === "NO_SHOW"
-                                ? "bg-amber-500 text-white"
-                                : "bg-gray-500 text-white dark:bg-gray-700";
+                                ? "bg-amber-50/80 text-amber-700 border-amber-200/70"
+                                : "bg-gray-100/80 text-gray-600 border-gray-200/70 dark:bg-gray-800/60 dark:text-gray-200 dark:border-gray-700/60");
 
                         const badgeLabel =
                           row.status === "BOOKED"

@@ -1251,15 +1251,16 @@ export default function CalendarClient() {
                                 <div className="flex items-center gap-2 shrink-0">
                                     <Badge
                                         className={
-                                            String(a.status) === "BOOKED"
-                                                ? "bg-emerald-600 text-white"
+                                            "border backdrop-blur-sm " +
+                                            (String(a.status) === "BOOKED"
+                                                ? "bg-emerald-50/80 text-emerald-700 border-emerald-200/70"
                                                 : String(a.status) === "COMPLETED"
-                                                    ? "bg-blue-600 text-white"
+                                                    ? "bg-blue-50/80 text-blue-700 border-blue-200/70"
                                                     : isNoShowStatus(a.status)
-                                                        ? "bg-red-600 text-white"
+                                                        ? "bg-rose-50/80 text-rose-700 border-rose-200/70"
                                                         : isCanceledStatus(a.status)
-                                                            ? "bg-gray-500 text-white dark:bg-gray-700"
-                                                            : "bg-gray-600 text-white"
+                                                            ? "bg-gray-100/80 text-gray-600 border-gray-200/70 dark:bg-gray-800/60 dark:text-gray-200 dark:border-gray-700/60"
+                                                            : "bg-gray-100/80 text-gray-600 border-gray-200/70 dark:bg-gray-800/60 dark:text-gray-200 dark:border-gray-700/60")
                                         }
                                     >
                                         {statusLabel(a.status)}

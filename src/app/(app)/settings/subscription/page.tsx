@@ -71,7 +71,7 @@ export default function SubscriptionPage() {
                 <div className="flex items-center justify-between gap-2">
                   <CardTitle className="text-base">{plan.label}</CardTitle>
                   {plan.recommended ? (
-                    <Badge className="bg-primary text-primary-foreground">
+                    <Badge className="border backdrop-blur-sm bg-blue-50/80 text-blue-700 border-blue-200/70">
                       {t("subscription.recommended")}
                     </Badge>
                   ) : null}

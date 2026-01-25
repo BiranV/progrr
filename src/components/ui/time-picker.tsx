@@ -177,10 +177,10 @@ export function TimePicker({
                                             }}
                                             className={cn(
                                                 "w-full snap-center rounded-md px-2 py-1.5 text-[13px] text-center tabular-nums",
-                                                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                                                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#165CF0]/40",
                                                 selected
-                                                    ? "bg-primary text-primary-foreground"
-                                                    : "hover:bg-primary/10"
+                                                    ? "bg-[#165CF0] text-white shadow-sm"
+                                                    : "hover:bg-blue-50"
                                             )}
                                         >
                                             {String(h).padStart(2, "0")}
@@ -213,10 +213,10 @@ export function TimePicker({
                                             }}
                                             className={cn(
                                                 "w-full snap-center rounded-md px-2 py-1.5 text-[13px] text-center tabular-nums",
-                                                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                                                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#165CF0]/40",
                                                 selected
-                                                    ? "bg-primary text-primary-foreground"
-                                                    : "hover:bg-primary/10"
+                                                    ? "bg-[#165CF0] text-white shadow-sm"
+                                                    : "hover:bg-blue-50"
                                             )}
                                         >
                                             {String(m).padStart(2, "0")}
@@ -230,11 +230,20 @@ export function TimePicker({
 
                 <DialogFooter className="gap-2">
                     <DialogClose asChild>
-                        <Button type="button" variant="ghost" size="sm">
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                        >
                             {t("common.cancel")}
                         </Button>
                     </DialogClose>
-                    <Button type="button" onClick={commit} size="sm">
+                    <Button
+                        type="button"
+                        onClick={commit}
+                        size="sm"
+                        className="bg-[#165CF0] text-white hover:bg-[#0E4FDB]"
+                    >
                         {t("common.done")}
                     </Button>
                 </DialogFooter>

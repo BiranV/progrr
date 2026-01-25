@@ -54,7 +54,7 @@ export default function LanguageSwitcher({
                     aria-haspopup="listbox"
                     aria-label={t("common.languageSwitcher")}
                     className={
-                        "inline-flex items-center gap-2 rounded-full border px-4 py-1 text-xs font-semibold backdrop-blur-md transition " +
+                        "inline-flex items-center gap-2 rounded-full border px-4 py-1 text-xs font-semibold backdrop-blur-md transition cursor-pointer " +
                         (isDark
                             ? "border-white/20 bg-white/10 text-white hover:bg-white/15"
                             : "border-gray-200 bg-white text-gray-900 hover:bg-gray-50")
