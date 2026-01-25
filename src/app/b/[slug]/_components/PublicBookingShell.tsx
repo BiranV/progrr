@@ -212,17 +212,26 @@ export default function PublicBookingShell({
           </div>
         ) : null}
         <div className="absolute inset-x-0 bottom-3 z-20 px-6">
-          <div className="mx-auto max-w-[480px] text-white flex justify-center">
-            <div className="text-sm font-semibold max-w-full">
-              <span className="truncate text-center">{businessName}</span>
-            </div>
-          </div>
+          <div className="mx-auto max-w-[480px] text-white flex justify-center" />
         </div>
       </div>
 
       <div className="flex-1 flex flex-col items-center">
         <div className="flex-1 px-6 pt-5 pb-24 w-full max-w-md mx-auto relative">
           <div className="space-y-1 mt-4 mb-6">
+            <h1 className="text-lg font-semibold text-gray-900 dark:text-white text-center">
+              {businessName}
+            </h1>
+
+            {business?.branding?.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={business.branding.logoUrl}
+                alt={t("publicBooking.logoAlt")}
+                className="mx-auto h-20 w-20 rounded-full border border-gray-200/70 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 object-contain"
+                draggable={false}
+              />
+            ) : null}
 
             {businessDescription ? (
               <p className="text-sm text-gray-600 dark:text-gray-300 text-center">

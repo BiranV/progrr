@@ -3,15 +3,9 @@
 import * as React from "react";
 import Cropper, { type Area } from "react-easy-crop";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import SidePanel from "@/components/ui/side-panel";
 import {
   cropImageToBlob,
   cropImageToFile,
@@ -185,18 +179,22 @@ export default function ImageCropperModal({
     mode === "logo" ? "w-28 h-28 rounded-full" : "w-full h-[90px] rounded-xl";
 
   return (
-    <Dialog open={open} onOpenChange={(next) => (!next ? onCancel() : null)}>
-      <DialogContent className="max-w-[900px]">
-        <DialogHeader>
-          <DialogTitle>{cfg.title}</DialogTitle>
-        </DialogHeader>
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_280px]">
-          <div className="space-y-3">
+    <SidePanel
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onCancel();
+      }}
+      title={cfg.title}
+      description={undefined}
+      widthClassName="w-full sm:w-[720px]"
+    >
+      <div className="space-y-4">
+        <div className="flex w-full flex-row items-start gap-4">
+          <div className="space-y-3 w-[240px] sm:w-[300px]">
             <div
               className={
                 "relative w-full overflow-hidden rounded-2xl border bg-black/90 " +
-                (mode === "logo" ? "h-[420px]" : "h-[360px]")
+                (mode === "logo" ? "h-[260px]" : "h-[220px]")
               }
             >
               {imageSrc ? (
@@ -235,7 +233,7 @@ export default function ImageCropperModal({
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-3 w-[200px] sm:w-[220px]">
             <div className="text-sm font-medium">Final preview</div>
             <div
               className={
@@ -266,7 +264,7 @@ export default function ImageCropperModal({
           </div>
         </div>
 
-        <DialogFooter>
+        <div className="flex items-center justify-end gap-2">
           <Button
             type="button"
             variant="outline"
@@ -279,11 +277,12 @@ export default function ImageCropperModal({
             type="button"
             onClick={confirm}
             disabled={!file || !imageSrc || !croppedAreaPixels || isConfirming}
+            data-panel-primary="true"
           >
             {isConfirming ? "Cropping…" : "Use cropped image"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </div>
+    </SidePanel>
   );
 }
