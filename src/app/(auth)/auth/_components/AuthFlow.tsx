@@ -57,7 +57,7 @@ export default function AuthFlow({
         >
           <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-inner overflow-hidden p-1.5">
             <Image
-              src="/logo-new.png"
+              src="/logo-new2.png"
               alt={t("common.appLogoAlt")}
               width={40}
               height={40}
@@ -80,7 +80,7 @@ export default function AuthFlow({
         >
           <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-inner overflow-hidden p-1.5">
             <Image
-              src="/logo-new.png"
+              src="/logo-new2.png"
               alt={t("common.appLogoAlt")}
               width={40}
               height={40}

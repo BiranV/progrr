@@ -120,8 +120,8 @@ export default function PublicBookingShell({
 
   const wazeHref = businessAddress
     ? `https://waze.com/ul?q=${encodeURIComponent(
-      businessAddress,
-    )}&navigate=yes`
+        businessAddress,
+      )}&navigate=yes`
     : "";
 
   const telHref = businessPhone ? `tel:${businessPhone}` : "";
@@ -249,7 +249,7 @@ export default function PublicBookingShell({
                   />
                 ) : (
                   <Image
-                    src="/logo-new.png"
+                    src="/logo-new2.png"
                     alt={t("common.appName")}
                     width={48}
                     height={48}
@@ -332,11 +332,9 @@ export default function PublicBookingShell({
                       <button
                         type="button"
                         key={`${src}-${idx}`}
-                        aria-label={
-                          t("publicBooking.openGalleryImage", {
-                            index: idx + 1,
-                          })
-                        }
+                        aria-label={t("publicBooking.openGalleryImage", {
+                          index: idx + 1,
+                        })}
                         onClick={() => setPreviewSrc(src)}
                         className={cn(
                           "group relative overflow-hidden",
@@ -356,11 +354,9 @@ export default function PublicBookingShell({
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={src}
-                          alt={
-                            t("publicBooking.galleryImageAlt", {
-                              index: idx + 1,
-                            })
-                          }
+                          alt={t("publicBooking.galleryImageAlt", {
+                            index: idx + 1,
+                          })}
                           className={cn(
                             "h-full w-full object-cover",
                             "transition duration-300",
@@ -403,11 +399,9 @@ export default function PublicBookingShell({
                             <button
                               type="button"
                               key={`${src}-${pageIdx}-${idx}`}
-                              aria-label={
-                                t("publicBooking.openGalleryImage", {
-                                  index: pageIdx * galleryMaxVisible + idx + 1,
-                                })
-                              }
+                              aria-label={t("publicBooking.openGalleryImage", {
+                                index: pageIdx * galleryMaxVisible + idx + 1,
+                              })}
                               onClick={() => setPreviewSrc(src)}
                               className={cn(
                                 "group relative overflow-hidden",
@@ -424,11 +418,9 @@ export default function PublicBookingShell({
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
                                 src={src}
-                                alt={
-                                  t("publicBooking.galleryImageAlt", {
-                                    index: pageIdx * galleryMaxVisible + idx + 1,
-                                  })
-                                }
+                                alt={t("publicBooking.galleryImageAlt", {
+                                  index: pageIdx * galleryMaxVisible + idx + 1,
+                                })}
                                 className={cn(
                                   "h-full w-full object-cover",
                                   "transition duration-300",
@@ -503,9 +495,9 @@ export default function PublicBookingShell({
                         key={i}
                         type="button"
                         onClick={() => scrollGalleryToPage(i)}
-                        aria-label={
-                          t("publicBooking.galleryGoTo", { index: i + 1 })
-                        }
+                        aria-label={t("publicBooking.galleryGoTo", {
+                          index: i + 1,
+                        })}
                         className={cn(
                           "h-1.5 rounded-full transition",
                           i === galleryPage

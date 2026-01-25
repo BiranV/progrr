@@ -27,9 +27,12 @@ const AUTH_ERROR_KEY_MAP = {
   "Too many requests": "auth.tooManyAttempts",
 } as const;
 
-type AuthErrorKey = (typeof AUTH_ERROR_KEY_MAP)[keyof typeof AUTH_ERROR_KEY_MAP];
+type AuthErrorKey =
+  (typeof AUTH_ERROR_KEY_MAP)[keyof typeof AUTH_ERROR_KEY_MAP];
 
-const getAuthErrorKey = (error: unknown): AuthErrorKey | "errors.somethingWentWrong" => {
+const getAuthErrorKey = (
+  error: unknown,
+): AuthErrorKey | "errors.somethingWentWrong" => {
   if (typeof error === "string" && error in AUTH_ERROR_KEY_MAP) {
     return AUTH_ERROR_KEY_MAP[error as keyof typeof AUTH_ERROR_KEY_MAP];
   }
@@ -334,19 +337,18 @@ export default function AdminAuthStep({
           aria-pressed={logoLit}
           data-lit={logoLit ? "true" : "false"}
           onClick={() => setLogoLit((v) => !v)}
-          className="progrr-auth-logo relative z-10 w-24 h-24 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-xl mb-4 cursor-pointer transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+          className="progrr-auth-logo relative z-10 w-24 h-24 rounded-full bg-[#165CF0] flex items-center justify-center mb-4 cursor-pointer transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
         >
-          <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center shadow-inner overflow-hidden p-3">
+          <div className="w-22 h-22 rounded-full bg-[#165CF0] flex items-center justify-center overflow-hidden p-1.5">
             <Image
-              src="/logo-new.png"
+              src="/logo-new2.png"
               alt={t("common.appName")}
-              width={64}
-              height={64}
+              width={92}
+              height={92}
               className="object-contain"
             />
           </div>
         </button>
-        <div className="progrr-auth-logo-aura absolute top-0 start-1/2 -translate-x-1/2 w-24 h-24 bg-white/20 blur-xl rounded-full -z-10" />
 
         <h1 className="text-2xl font-bold text-white tracking-tight">
           {t("common.appName")}
@@ -424,8 +426,9 @@ export default function AdminAuthStep({
                     <Input
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
-                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${loginError ? inputErrorClass : "border-white/20"
-                        }`}
+                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${
+                        loginError ? inputErrorClass : "border-white/20"
+                      }`}
                       placeholder={t("auth.emailPlaceholder")}
                       autoFocus
                     />
@@ -451,8 +454,9 @@ export default function AdminAuthStep({
                       onChange={setLoginCode}
                       length={6}
                       disabled={loading}
-                      inputClassName={`bg-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent ${loginCodeError ? inputErrorClass : "border-white/20"
-                        }`}
+                      inputClassName={`bg-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent ${
+                        loginCodeError ? inputErrorClass : "border-white/20"
+                      }`}
                     />
                     <InlineError message={loginCodeError} />
                     <p className="text-xs text-white/60 ms-1 pt-1">
@@ -510,8 +514,8 @@ export default function AdminAuthStep({
                   onClick={() =>
                     router.push(
                       `/login?email=${encodeURIComponent(
-                        String(signupEmail || "").trim()
-                      )}`
+                        String(signupEmail || "").trim(),
+                      )}`,
                     )
                   }
                 >
@@ -572,8 +576,9 @@ export default function AdminAuthStep({
                     <Input
                       value={signupName}
                       onChange={(e) => setSignupName(e.target.value)}
-                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${signupNameError ? inputErrorClass : "border-white/20"
-                        }`}
+                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${
+                        signupNameError ? inputErrorClass : "border-white/20"
+                      }`}
                       placeholder={t("auth.fullNamePlaceholder")}
                       autoFocus
                     />
@@ -586,8 +591,9 @@ export default function AdminAuthStep({
                     <Input
                       value={signupEmail}
                       onChange={(e) => setSignupEmail(e.target.value)}
-                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${signupEmailError ? inputErrorClass : "border-white/20"
-                        }`}
+                      className={`h-14 bg-white/10 text-white placeholder:text-white/40 rounded-xl px-4 focus-visible:ring-offset-0 focus-visible:border-white/60 ${
+                        signupEmailError ? inputErrorClass : "border-white/20"
+                      }`}
                       placeholder={t("auth.emailPlaceholder")}
                     />
                     <InlineError message={signupEmailError} />
@@ -612,8 +618,9 @@ export default function AdminAuthStep({
                       onChange={setSignupCode}
                       length={6}
                       disabled={loading}
-                      inputClassName={`bg-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent ${signupCodeError ? inputErrorClass : "border-white/20"
-                        }`}
+                      inputClassName={`bg-white/10 text-white placeholder:text-white/40 rounded-xl focus-visible:ring-offset-0 focus-visible:border-white/60 ring-offset-transparent ${
+                        signupCodeError ? inputErrorClass : "border-white/20"
+                      }`}
                     />
                     <InlineError message={signupCodeError} />
                     <p className="text-xs text-white/60 ms-1 pt-1">

@@ -1,5 +1,5 @@
 /* Generates padded PWA icons so the logo appears smaller inside the square.
-  Input:  public/logo-new.png
+  Input:  public/logo-new2.png
    Output: public/icons/*.png
 */
 
@@ -8,7 +8,7 @@ const path = require("path");
 const sharp = require("sharp");
 
 const root = path.join(__dirname, "..");
-const inputPath = path.join(root, "public", "logo-new.png");
+const inputPath = path.join(root, "public", "logo-new2.png");
 const outputDir = path.join(root, "public", "icons");
 
 const BG = "#ffffff";

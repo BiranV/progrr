@@ -1,5 +1,5 @@
 /* Generates favicon assets from the transparent logo.
-  Input:  public/logo-new.png
+  Input:  public/logo-new2.png
    Output: public/favicon.ico, public/favicon-16.png, public/favicon-32.png, public/favicon-48.png
 */
 
@@ -9,7 +9,7 @@ const sharp = require("sharp");
 const pngToIco = require("png-to-ico");
 
 const root = path.join(__dirname, "..");
-const inputPath = path.join(root, "public", "logo-new.png");
+const inputPath = path.join(root, "public", "logo-new2.png");
 const outputDir = path.join(root, "public");
 
 const LOGO_SCALE = 0.9; // keep some padding for small sizes
