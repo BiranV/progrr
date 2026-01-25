@@ -465,7 +465,7 @@ export default function CustomersPage() {
   const appointmentsPagination = appointmentsQuery.data?.bookingsPagination;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-5">
       <div className="space-y-2">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
           {t("customers.title")}

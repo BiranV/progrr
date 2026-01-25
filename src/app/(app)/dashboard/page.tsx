@@ -14,6 +14,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { RevenueLineChart } from "@/components/dashboard/RevenueLineChart";
 import { useLocale } from "@/context/LocaleContext";
 import { useI18n } from "@/i18n/useI18n";
+import { useAuth } from "@/context/AuthContext";
+import { getTrialInfo } from "@/lib/trial";
 
 type DashboardSummary = {
   ok: true;
@@ -48,6 +50,7 @@ type RevenueSeriesResponse = {
 
 export default function DashboardPage() {
   const businessQuery = useBusiness();
+  const { user } = useAuth();
   const { locale } = useLocale();
   const { t } = useI18n();
   const business = businessQuery.data;
@@ -155,6 +158,20 @@ export default function DashboardPage() {
   const revenueToday = summary?.revenueToday ?? 0;
   const currencySymbol = String(summary?.currency?.symbol ?? "").trim();
 
+  const subscriptionStatus = user?.business?.subscriptionStatus ?? "trial";
+  const trialTimeZone =
+    summary?.businessStatus?.timeZone ||
+    (user as any)?.onboarding?.availability?.timezone ||
+    (user as any)?.onboarding?.business?.timezone ||
+    "UTC";
+  const { daysLeft: trialDaysLeft, isActive: isTrialActive } = getTrialInfo({
+    trialStartAt: user?.business?.trialStartAt,
+    trialEndAt: user?.business?.trialEndAt,
+    timeZone: trialTimeZone,
+  });
+  const isTrial = subscriptionStatus === "trial" && isTrialActive;
+  const isTrialEndingSoon = trialDaysLeft > 0 && trialDaysLeft <= 3;
+
   const [weekOffset, setWeekOffset] = React.useState(0);
   const [monthOffset, setMonthOffset] = React.useState(0);
 
@@ -204,7 +221,7 @@ export default function DashboardPage() {
   const monthLoading = monthSeriesQuery.isPending && !monthSeriesQuery.data;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-5">
       <div className="space-y-2">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
           {t("dashboard.title")}
@@ -224,16 +241,30 @@ export default function DashboardPage() {
             {summaryLoading ? (
               <Skeleton className="h-5 w-16" />
             ) : typeof isOpenNow === "boolean" ? (
-              <Badge
-                variant="outline"
-                className={
-                  isOpenNow
-                    ? "border-emerald-200 bg-emerald-500/10 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-500/15 dark:text-emerald-200"
-                    : "border-red-200 bg-red-500/10 text-red-700 dark:border-red-900/50 dark:bg-red-500/15 dark:text-red-200"
-                }
-              >
-                {isOpenNow ? t("dashboard.open") : t("dashboard.closed")}
-              </Badge>
+              <div className="inline-flex items-center gap-2">
+                <Badge
+                  variant="outline"
+                  className={
+                    isOpenNow
+                      ? "border-emerald-200 bg-emerald-500/10 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-500/15 dark:text-emerald-200"
+                      : "border-red-200 bg-red-500/10 text-red-700 dark:border-red-900/50 dark:bg-red-500/15 dark:text-red-200"
+                  }
+                >
+                  {isOpenNow ? t("dashboard.open") : t("dashboard.closed")}
+                </Badge>
+                {isTrial ? (
+                  <Badge
+                    className={
+                      "border backdrop-blur-sm " +
+                      (isTrialEndingSoon
+                        ? "bg-rose-50/80 text-rose-700 border-rose-200/70"
+                        : "bg-gray-100/80 text-gray-700 border-gray-200/70 dark:bg-gray-800/60 dark:text-gray-200 dark:border-gray-700/60")
+                    }
+                  >
+                    {t("subscription.trialBadge", { days: trialDaysLeft })}
+                  </Badge>
+                ) : null}
+              </div>
             ) : null}
           </Link>
         </div>

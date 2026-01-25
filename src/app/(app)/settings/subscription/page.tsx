@@ -4,12 +4,25 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useI18n } from "@/i18n/useI18n";
+import { useAuth } from "@/context/AuthContext";
+import { getTrialInfo } from "@/lib/trial";
 
 export default function SubscriptionPage() {
   const { t } = useI18n();
-  const isTrial = true;
-  const trialDaysLeft = 10;
-  const isPaid = false;
+  const { user } = useAuth();
+  const subscriptionStatus = user?.business?.subscriptionStatus ?? "trial";
+  const timeZone =
+    (user as any)?.onboarding?.availability?.timezone ||
+    (user as any)?.onboarding?.business?.timezone ||
+    "UTC";
+  const { daysLeft: trialDaysLeft, isActive: isTrialActive } = getTrialInfo({
+    trialStartAt: user?.business?.trialStartAt,
+    trialEndAt: user?.business?.trialEndAt,
+    timeZone,
+  });
+  const isTrial = subscriptionStatus === "trial" && isTrialActive;
+  const isPaid = subscriptionStatus === "active";
+  const isTrialEndingSoon = trialDaysLeft > 0 && trialDaysLeft <= 3;
 
   const pricing = [
     {
@@ -46,7 +59,14 @@ export default function SubscriptionPage() {
             {t("subscription.title")}
           </h1>
           {isTrial ? (
-            <Badge variant="secondary">
+            <Badge
+              className={
+                "border backdrop-blur-sm " +
+                (isTrialEndingSoon
+                  ? "bg-rose-50/80 text-rose-700 border-rose-200/70"
+                  : "bg-gray-100/80 text-gray-700 border-gray-200/70 dark:bg-gray-800/60 dark:text-gray-200 dark:border-gray-700/60")
+              }
+            >
               {t("subscription.trialBadge", { days: trialDaysLeft })}
             </Badge>
           ) : null}
