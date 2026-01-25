@@ -346,7 +346,7 @@ export default function AdminAuthStep({
   );
 
   return (
-    <div className="w-full">
+    <div className="w-full flex flex-col h-full min-h-[480px]">
       <AnimatePresence mode="wait">
         {view === "landing" && (
           <motion.div

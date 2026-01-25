@@ -43,6 +43,13 @@ export default function AuthFlow({
   >(initialView ?? "landing");
   const [headerBack, setHeaderBack] = React.useState<(() => void) | null>(null);
 
+  const headerHeightVh = React.useMemo(() => {
+    if (currentView === "landing") return 50;
+    if (currentView === "login" || currentView === "login-verify") return 45;
+    if (currentView === "signup" || currentView === "signup-verify") return 38;
+    return 40;
+  }, [currentView]);
+
   const nextPath = React.useMemo(() => {
     const fromQuery = searchParams.get("next") || initialNext || "";
     return fromQuery && isSafeNextPath(fromQuery) ? fromQuery : "";
@@ -74,7 +81,11 @@ export default function AuthFlow({
 
   return (
     <div className="min-h-screen w-full bg-white flex flex-col">
-      <header className="relative w-full h-[50vh] md:h-[33vh] bg-gradient-to-br from-[#165CF0] via-[#1E6CF2] to-[#2B79F5] rounded-b-[40px] px-6 pt-6 pb-10 overflow-hidden">
+      <motion.header
+        className="relative w-full bg-gradient-to-br from-[#165CF0] via-[#1E6CF2] to-[#2B79F5] rounded-b-[40px] px-6 pt-6 pb-10 overflow-hidden"
+        animate={{ height: `${headerHeightVh}vh` }}
+        transition={{ duration: 0.25, ease: "easeInOut" }}
+      >
         <div className="absolute top-10 right-10 w-32 h-32 bg-white/15 rounded-full blur-2xl" />
         <div className="absolute bottom-8 left-6 w-24 h-24 bg-white/15 rounded-full blur-xl" />
 
@@ -126,10 +137,10 @@ export default function AuthFlow({
             </div>
           </div>
         </div>
-      </header>
+      </motion.header>
 
-      <section className="flex-1 w-full px-6 sm:px-8 py-10 flex flex-col items-center">
-        <div className="w-full max-w-md">
+      <section className="flex-1 w-full px-6 sm:px-8 py-10 flex flex-col items-center overflow-hidden">
+        <div className="w-full max-w-md h-full overflow-y-auto">
           {currentView !== "landing" ? (
             <div className="flex items-center justify-start mb-6">
               <button
