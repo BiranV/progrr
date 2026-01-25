@@ -14,13 +14,13 @@ export default function SettingsLayout({
     const showBackHeader = pathname !== "/settings";
 
     return (
-        <>
+        <div className="pb-5">
             {showBackHeader ? (
                 <div className="mb-4">
                     <SettingsBackHeader />
                 </div>
             ) : null}
             {children}
-        </>
+        </div>
     );
 }
