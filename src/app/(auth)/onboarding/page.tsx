@@ -271,6 +271,7 @@ function OnboardingContent() {
   const galleryAddInputId = React.useId();
 
   const [loading, setLoading] = useState(false);
+  const formScrollRef = useRef<HTMLDivElement | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -326,6 +327,12 @@ function OnboardingContent() {
   };
 
   const inputErrorClass = "border-rose-300 ring-1 ring-rose-300/20";
+  const primaryButtonClass =
+    "bg-[#165CF0] text-white hover:bg-[#0E4FDB] rounded-xl shadow-md shadow-blue-500/20";
+  const outlineButtonClass =
+    "border-2 border-[#165CF0] text-[#165CF0] hover:text-[#165CF0] hover:bg-blue-50 rounded-xl";
+  const ghostButtonClass =
+    "text-[#165CF0] hover:text-[#165CF0] hover:bg-blue-50 rounded-xl";
 
   const [businessPhoneValid, setBusinessPhoneValid] = useState(true);
   const { t, dict } = useI18n();
@@ -687,6 +694,10 @@ function OnboardingContent() {
   useEffect(() => {
     setLoading(false);
   }, []);
+
+  useEffect(() => {
+    formScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, [step]);
 
   const uploadLogo = async (file: File) => {
     setUploadingLogo(true);
@@ -1218,10 +1229,10 @@ function OnboardingContent() {
                         });
                       }}
                       className={
-                        "w-[160px] min-h-[90px] h-auto rounded-xl border px-4 py-3 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-neutral-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 overflow-hidden text-start " +
+                        "w-[160px] min-h-[90px] h-auto rounded-xl border-2 px-4 py-3 transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-[#165CF0]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-950 overflow-hidden text-start " +
                         (selected
-                          ? "border-neutral-900 bg-neutral-50/70 dark:bg-neutral-900/30 shadow-sm"
-                          : "border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/30 hover:border-gray-300 dark:hover:border-gray-700")
+                          ? "border-[#165CF0] bg-blue-50/70 shadow-sm"
+                          : "border-gray-200 bg-white/60 hover:border-[#165CF0] hover:bg-blue-50/40")
                       }
                     >
                       <div className="flex flex-col items-center justify-center gap-2 text-center">
@@ -1944,6 +1955,7 @@ function OnboardingContent() {
                       ],
                     }));
                   }}
+                  className={outlineButtonClass}
                 >
                   {t("onboarding.addService")}
                 </Button>
@@ -2105,7 +2117,7 @@ function OnboardingContent() {
                               <Button
                                 type="button"
                                 variant="ghost"
-                                size="icon-sm"
+                                className={outlineButtonClass}
                                 onClick={() =>
                                   deleteAvailabilityRange(d.day, r.id)
                                 }
@@ -2412,7 +2424,7 @@ function OnboardingContent() {
         <div className="absolute top-4 inset-x-0 z-20 flex justify-center">
           <LanguageSwitcher variant={isStepOne ? "light" : "dark"} />
         </div>
-        <div className="absolute inset-0 flex items-start justify-start pt-4 ps-6">
+        {/* <div className="absolute inset-0 flex items-start justify-start pt-4 ps-6">
           <div className="relative flex flex-col items-start">
             <div className="w-24 h-24 sm:w-28 sm:h-28 relative">
               <div className="absolute inset-0 flex items-center justify-center">
@@ -2440,7 +2452,7 @@ function OnboardingContent() {
               </div>
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
 
       <section className="flex-1 w-full px-6 sm:px-8 py-10 flex flex-col items-center">
@@ -2469,7 +2481,7 @@ function OnboardingContent() {
             <Stepper totalSteps={totalSteps} currentStep={step} />
           </div>
 
-          <div className="w-full">
+          <div className="w-full pb-[88px]" ref={formScrollRef}>
             <AuthBanner
               banner={error ? { type: "error", text: error } : null}
               onClose={error ? () => setError(null) : undefined}
@@ -2504,10 +2516,10 @@ function OnboardingContent() {
           {step > 0 && (
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               onClick={back}
               disabled={saving}
-              className="h-14 flex-1 rounded-2xl text-lg font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+              className={`h-14 flex-1 text-lg font-medium ${outlineButtonClass}`}
             >
               {t("common.back")}
             </Button>
@@ -2521,7 +2533,7 @@ function OnboardingContent() {
                 loading ||
                 (step === 0 && (data.businessTypes || []).length === 0)
               }
-              className="h-14 flex-[2] rounded-2xl text-lg font-bold bg-neutral-900 hover:bg-neutral-800 text-white shadow-lg shadow-black/10 dark:shadow-none transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className={`h-14 flex-[2] text-lg font-bold transition-all hover:scale-[1.02] active:scale-[0.98] ${primaryButtonClass}`}
             >
               {saving ? (
                 <Loader2 className="h-6 w-6 animate-spin" />
@@ -2534,7 +2546,7 @@ function OnboardingContent() {
               type="button"
               onClick={complete}
               disabled={saving || loading}
-              className="h-14 flex-1 rounded-2xl text-lg font-bold bg-neutral-900 hover:bg-neutral-800 text-white shadow-lg shadow-black/10 dark:shadow-none transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className={`h-14 flex-1 text-lg font-bold transition-all hover:scale-[1.02] active:scale-[0.98] ${primaryButtonClass}`}
             >
               {saving ? (
                 <Loader2 className="h-6 w-6 animate-spin" />
