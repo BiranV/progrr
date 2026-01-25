@@ -318,6 +318,10 @@ export function PhoneInput({
         }
     }, [currentE164, onChangeDetails]);
 
+    const errorInputClass = ariaInvalid
+        ? "!border-rose-300 !focus-visible:border-rose-300 !focus-visible:ring-rose-200/60"
+        : "";
+
     return (
         <PhoneInputBase
             international
@@ -339,7 +343,7 @@ export function PhoneInput({
                 disabled,
                 onBlur,
                 onFocus,
-                className: cn("flex-1", inputClassName),
+                className: cn("flex-1", inputClassName, errorInputClass),
                 "aria-invalid": ariaInvalid ? true : undefined,
             }}
         />
