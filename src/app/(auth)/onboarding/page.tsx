@@ -2405,74 +2405,98 @@ function OnboardingContent() {
   const isStepOne = step === 0;
 
   const card = (
-    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-black pb-safe">
+    <div className="min-h-screen w-full bg-white flex flex-col pb-safe">
       {/* Header Container */}
-      <div
-        className={`relative w-full z-0 shrink-0 ${
-          isStepOne
-            ? "h-[50vh] bg-gradient-to-br from-[#165CF0] via-[#1E6CF2] to-[#2B79F5]"
-            : "h-[140px] bg-gradient-to-br from-neutral-950 via-zinc-900 to-zinc-800"
-        }`}
-      >
+      <div className="relative w-full z-0 shrink-0 h-[20vh] bg-gradient-to-br from-[#165CF0] via-[#1E6CF2] to-[#2B79F5] rounded-b-[40px] overflow-hidden">
         <div className="absolute inset-0 opacity-20 mix-blend-overlay"></div>
         <div className="absolute top-4 inset-x-0 z-20 flex justify-center">
           <LanguageSwitcher variant={isStepOne ? "light" : "dark"} />
         </div>
-      </div>
+        <div className="absolute inset-0 flex items-start justify-start pt-4 ps-6">
+          <div className="relative flex flex-col items-start">
+            <div className="w-24 h-24 sm:w-28 sm:h-28 relative">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="relative">
+                  <div className="w-16 h-11 bg-gradient-to-br from-amber-300 to-amber-400 rounded-lg -rotate-6 shadow-lg">
+                    <div className="absolute inset-1 bg-gradient-to-br from-blue-100 to-blue-200 rounded" />
+                  </div>
 
-      {/* Main Content Area with Convex Curve (Sides lower than center) */}
-      <div className="flex-1 -mt-10 bg-gray-50 dark:bg-zinc-900 rounded-t-[40px] relative z-10 flex flex-col items-center shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
-        {/* User & Step Info */}
-        <div className="text-center space-y-1 mt-6 mb-6 px-6 w-full max-w-md">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
-            {user?.full_name
-              ? t("onboarding.welcomeUser", { name: user.full_name })
-              : t("onboarding.welcome")}
-          </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
-            {step === 0
-              ? t("onboarding.stepBusinessType")
-              : step === 1
-                ? t("onboarding.stepBusinessDetails")
-                : step === 2
-                  ? t("onboarding.stepServices")
-                  : step === 3
-                    ? t("onboarding.stepBookingHours")
-                    : step === 4
-                      ? t("onboarding.stepBranding")
-                      : t("onboarding.stepReview")}
-          </p>
+                  <div className="absolute -top-9 left-4">
+                    <div className="w-8 h-8 bg-gradient-to-br from-amber-200 to-amber-300 rounded-full" />
+                    <div className="absolute top-6 -left-2 w-12 h-8 bg-gradient-to-br from-teal-400 to-teal-500 rounded-t-3xl" />
+                  </div>
 
-          <Stepper totalSteps={totalSteps} currentStep={step} />
-        </div>
+                  <div className="absolute -bottom-4 -left-2 flex flex-col gap-1">
+                    <div className="w-8 h-2 bg-gradient-to-r from-rose-400 to-rose-500 rounded-sm -rotate-3" />
+                    <div className="w-8 h-2 bg-gradient-to-r from-amber-400 to-amber-500 rounded-sm rotate-1" />
+                    <div className="w-7 h-2 bg-gradient-to-r from-teal-400 to-teal-500 rounded-sm -rotate-2" />
+                  </div>
 
-        <div className="flex-1 px-6 pb-28 w-full max-w-md mx-auto">
-          <AuthBanner
-            banner={error ? { type: "error", text: error } : null}
-            onClose={error ? () => setError(null) : undefined}
-          />
-
-          <AnimatePresence mode="wait" initial={false}>
-            {loading ? (
-              <div className="py-20 text-center text-muted-foreground flex flex-col items-center">
-                <Loader2 className="w-8 h-8 animate-spin mb-3 text-neutral-900 dark:text-white" />
-                <p>{t("onboarding.loadingDetails")}</p>
+                  <div className="absolute -bottom-3 -left-6">
+                    <div className="w-4 h-6 bg-gradient-to-t from-green-600 to-green-500 rounded-t-full" />
+                    <div className="absolute top-1 -left-2 w-3.5 h-4 bg-gradient-to-t from-green-500 to-green-400 rounded-full -rotate-45" />
+                  </div>
+                </div>
               </div>
-            ) : (
-              <motion.div
-                key={`step-${step}`}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.3 }}
-                className="space-y-6"
-              >
-                {content()}
-              </motion.div>
-            )}
-          </AnimatePresence>
+            </div>
+          </div>
         </div>
       </div>
+
+      <section className="flex-1 w-full px-6 sm:px-8 py-10 flex flex-col items-center">
+        <div className="w-full max-w-md">
+          {/* User & Step Info */}
+          <div className="text-center space-y-1 mb-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">
+              {user?.full_name
+                ? t("onboarding.welcomeUser", { name: user.full_name })
+                : t("onboarding.welcome")}
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">
+              {step === 0
+                ? t("onboarding.stepBusinessType")
+                : step === 1
+                  ? t("onboarding.stepBusinessDetails")
+                  : step === 2
+                    ? t("onboarding.stepServices")
+                    : step === 3
+                      ? t("onboarding.stepBookingHours")
+                      : step === 4
+                        ? t("onboarding.stepBranding")
+                        : t("onboarding.stepReview")}
+            </p>
+
+            <Stepper totalSteps={totalSteps} currentStep={step} />
+          </div>
+
+          <div className="w-full">
+            <AuthBanner
+              banner={error ? { type: "error", text: error } : null}
+              onClose={error ? () => setError(null) : undefined}
+            />
+
+            <AnimatePresence mode="wait" initial={false}>
+              {loading ? (
+                <div className="py-20 text-center text-muted-foreground flex flex-col items-center">
+                  <Loader2 className="w-8 h-8 animate-spin mb-3 text-neutral-900 dark:text-white" />
+                  <p>{t("onboarding.loadingDetails")}</p>
+                </div>
+              ) : (
+                <motion.div
+                  key={`step-${step}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                  className="space-y-6"
+                >
+                  {content()}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </section>
 
       {/* Sticky Bottom Actions */}
       <div className="fixed bottom-0 inset-x-0 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-lg border-t border-gray-100 dark:border-gray-800 p-4 z-40 shadow-[0_-4px_8px_-1px_rgba(0,0,0,0.02)]">
