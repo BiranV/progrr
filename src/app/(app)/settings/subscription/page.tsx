@@ -63,7 +63,7 @@ export default function SubscriptionPage() {
               key={plan.id}
               className={
                 plan.recommended
-                  ? "border-primary/50 shadow-[0_0_0_1px_rgba(59,130,246,0.25)]"
+                  ? "border-[#165CF0] shadow-[0_0_0_1px_rgba(22,92,240,0.35),0_12px_28px_-18px_rgba(22,92,240,0.55)]"
                   : undefined
               }
             >
