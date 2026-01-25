@@ -956,6 +956,7 @@ const en = {
         uploadBanner: "Upload banner",
         replaceBanner: "Replace banner",
         remove: "Remove",
+        removing: "Removing...",
         galleryTitle: "Business gallery",
         galleryHelp: "Up to {{max}} images of your space, work, products, or services.",
         uploading: "Uploading",

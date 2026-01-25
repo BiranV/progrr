@@ -950,6 +950,7 @@ const he = {
         uploadBanner: "העלאת באנר",
         replaceBanner: "החלפת באנר",
         remove: "הסרה",
+        removing: "מסיר...",
         galleryTitle: "גלריית העסק",
         galleryHelp: "עד {{max}} תמונות של המקום, העבודה, המוצרים או השירותים שלך.",
         uploading: "מעלה",

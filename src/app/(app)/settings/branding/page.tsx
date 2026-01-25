@@ -90,7 +90,9 @@ export default function BrandingSettingsPage() {
   const { t } = useI18n();
 
   const [uploadingLogo, setUploadingLogo] = React.useState(false);
+  const [removingLogo, setRemovingLogo] = React.useState(false);
   const [uploadingBanner, setUploadingBanner] = React.useState(false);
+  const [removingBanner, setRemovingBanner] = React.useState(false);
   const [uploadingGallery, setUploadingGallery] = React.useState(false);
   const [removingGalleryIndex, setRemovingGalleryIndex] = React.useState<number | null>(null);
   const [galleryPendingPreviews, setGalleryPendingPreviews] = React.useState<
@@ -201,7 +203,7 @@ export default function BrandingSettingsPage() {
   };
 
   const removeLogo = async () => {
-    setUploadingLogo(true);
+    setRemovingLogo(true);
     try {
       const res = await fetch("/api/branding/logo", {
         method: "DELETE",
@@ -214,7 +216,7 @@ export default function BrandingSettingsPage() {
       syncUserBranding({ logo: undefined, logoUrl: undefined });
       toast.success(t("branding.toast.logoRemoved"));
     } finally {
-      setUploadingLogo(false);
+      setRemovingLogo(false);
     }
   };
 
@@ -244,7 +246,7 @@ export default function BrandingSettingsPage() {
   };
 
   const removeBanner = async () => {
-    setUploadingBanner(true);
+    setRemovingBanner(true);
     try {
       const res = await fetch("/api/branding/banner", {
         method: "DELETE",
@@ -257,7 +259,7 @@ export default function BrandingSettingsPage() {
       syncUserBranding({ banner: undefined });
       toast.success(t("branding.toast.bannerRemoved"));
     } finally {
-      setUploadingBanner(false);
+      setRemovingBanner(false);
     }
   };
 
@@ -468,7 +470,7 @@ export default function BrandingSettingsPage() {
           type="file"
           accept="image/png,image/jpeg,image/webp"
           className="hidden"
-          disabled={uploadingLogo}
+          disabled={uploadingLogo || removingLogo}
           onChange={(e) => {
             const file = e.target.files?.[0];
             e.target.value = "";
@@ -500,12 +502,12 @@ export default function BrandingSettingsPage() {
               asChild
               type="button"
               variant="outline"
-              disabled={uploadingLogo}
+              disabled={uploadingLogo || removingLogo}
               className="rounded-xl"
             >
               <label htmlFor={logoInputId} className="cursor-pointer">
                 <span className="inline-flex items-center gap-2">
-                  {uploadingLogo ? (
+                  {uploadingLogo && !removingLogo ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : null}
                   <span>
@@ -519,7 +521,7 @@ export default function BrandingSettingsPage() {
               <Button
                 type="button"
                 variant="ghost"
-                disabled={uploadingLogo}
+                disabled={uploadingLogo || removingLogo}
                 className="rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
                 onClick={() =>
                   removeLogo().catch((err: any) =>
@@ -527,7 +529,7 @@ export default function BrandingSettingsPage() {
                   )
                 }
               >
-                {t("branding.remove")}
+                {removingLogo ? t("branding.removing") : t("branding.remove")}
               </Button>
             ) : null}
           </div>
@@ -549,7 +551,7 @@ export default function BrandingSettingsPage() {
           type="file"
           accept="image/png,image/jpeg,image/webp"
           className="hidden"
-          disabled={uploadingBanner}
+          disabled={uploadingBanner || removingBanner}
           onChange={(e) => {
             const file = e.target.files?.[0];
             e.target.value = "";
@@ -561,7 +563,7 @@ export default function BrandingSettingsPage() {
         />
 
         <div className="space-y-3">
-          <div className="relative w-full h-[140px] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 bg-gradient-to-br from-neutral-950 via-zinc-900 to-zinc-800">
+          <div className="relative w-full h-[140px] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-800">
             {bannerUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -570,10 +572,12 @@ export default function BrandingSettingsPage() {
                 className="absolute inset-0 w-full h-full object-cover"
               />
             ) : null}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/15 to-transparent" />
+            {bannerUrl ? (
+              <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/15 to-transparent" />
+            ) : null}
             {!bannerUrl ? (
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-xs font-medium text-white/80">
+                <div className="text-xs font-medium text-gray-500 dark:text-gray-300">
                   {t("branding.noBanner")}
                 </div>
               </div>
@@ -585,12 +589,12 @@ export default function BrandingSettingsPage() {
               asChild
               type="button"
               variant="outline"
-              disabled={uploadingBanner}
+              disabled={uploadingBanner || removingBanner}
               className="rounded-xl"
             >
               <label htmlFor={bannerInputId} className="cursor-pointer">
                 <span className="inline-flex items-center gap-2">
-                  {uploadingBanner ? (
+                  {uploadingBanner && !removingBanner ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : null}
                   <span>
@@ -604,7 +608,7 @@ export default function BrandingSettingsPage() {
               <Button
                 type="button"
                 variant="ghost"
-                disabled={uploadingBanner}
+                disabled={uploadingBanner || removingBanner}
                 className="rounded-xl text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
                 onClick={() =>
                   removeBanner().catch((err: any) =>
@@ -612,7 +616,7 @@ export default function BrandingSettingsPage() {
                   )
                 }
               >
-                {t("branding.remove")}
+                {removingBanner ? t("branding.removing") : t("branding.remove")}
               </Button>
             ) : null}
           </div>
