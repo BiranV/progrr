@@ -287,12 +287,11 @@ export default function PublicBookingShell({
               {!galleryPaged ? (
                 <div
                   className={cn(
-                    "grid grid-cols-3 gap-2",
-                    "auto-rows-[84px] sm:auto-rows-[92px]",
+                    "flex gap-2 overflow-x-auto",
+                    "[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
                   )}
                 >
                   {gallery.map((src, idx) => {
-                    const isHero = idx === 0 && gallery.length >= 3;
                     return (
                       <button
                         type="button"
@@ -304,6 +303,7 @@ export default function PublicBookingShell({
                         className={cn(
                           "group relative overflow-hidden",
                           "rounded-2xl",
+                          "shrink-0 h-[84px] w-[84px] sm:h-[92px] sm:w-[92px]",
                           "border border-gray-200/70 dark:border-gray-800",
                           "bg-gray-100 dark:bg-gray-800",
                           "shadow-sm",
@@ -311,9 +311,6 @@ export default function PublicBookingShell({
                           "hover:shadow-md",
                           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-900/30 dark:focus-visible:ring-white/30",
                           "cursor-zoom-in",
-                          isHero
-                            ? "col-span-2 row-span-2"
-                            : "col-span-1 row-span-1",
                         )}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -356,8 +353,7 @@ export default function PublicBookingShell({
                       <div key={pageIdx} className="shrink-0 w-full snap-start">
                         <div
                           className={cn(
-                            "grid grid-cols-3 gap-2",
-                            "auto-rows-[84px] sm:auto-rows-[92px]",
+                            "flex gap-2",
                           )}
                         >
                           {page.map((src, idx) => (
@@ -371,6 +367,7 @@ export default function PublicBookingShell({
                               className={cn(
                                 "group relative overflow-hidden",
                                 "rounded-2xl",
+                                "shrink-0 h-[84px] w-[84px] sm:h-[92px] sm:w-[92px]",
                                 "border border-gray-200/70 dark:border-gray-800",
                                 "bg-gray-100 dark:bg-gray-800",
                                 "shadow-sm",
