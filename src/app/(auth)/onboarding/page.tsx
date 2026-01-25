@@ -2455,7 +2455,7 @@ function OnboardingContent() {
         </div> */}
       </div>
 
-      <section className="flex-1 w-full px-6 sm:px-8 py-10 flex flex-col items-center">
+      <section className="flex-1 w-full px-6 sm:px-8 py-10 flex flex-col items-center bg-gray-50 dark:bg-black">
         <div className="w-full max-w-md">
           {/* User & Step Info */}
           <div className="text-center space-y-1 mb-6">

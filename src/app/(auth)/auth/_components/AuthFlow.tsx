@@ -80,7 +80,7 @@ export default function AuthFlow({
   // We'll let AdminAuthStep handle it completely for the "Modern" feel.
 
   return (
-    <div className="min-h-screen w-full bg-white flex flex-col">
+    <div className="min-h-screen w-full bg-gray-50 dark:bg-black flex flex-col">
       <motion.header
         className="relative w-full bg-gradient-to-br from-[#165CF0] via-[#1E6CF2] to-[#2B79F5] rounded-b-[40px] px-6 pt-6 pb-10 overflow-hidden"
         animate={{ height: `${headerHeightVh}vh` }}
