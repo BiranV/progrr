@@ -183,7 +183,13 @@ export default function ImageCropperModal({
   };
 
   const previewBox =
-    mode === "logo" ? "w-28 h-28 rounded-full" : "w-full h-[90px] rounded-xl";
+    mode === "logo"
+      ? "w-28 h-28 rounded-full"
+      : "w-full aspect-[1600/560]";
+  const previewContainerClass =
+    mode === "logo"
+      ? "relative overflow-hidden border bg-muted/40"
+      : "relative overflow-hidden bg-transparent";
 
   return (
     <SidePanel
@@ -196,7 +202,13 @@ export default function ImageCropperModal({
       widthClassName="w-full sm:w-[720px]"
     >
       <div className="space-y-4">
-        <div className="flex w-full flex-row items-start gap-4">
+        <div
+          className={
+            mode === "banner"
+              ? "flex w-full flex-col items-start gap-4"
+              : "flex w-full flex-row items-start gap-4"
+          }
+        >
           <div className="space-y-3 w-[240px] sm:w-[300px]">
             <div
               className={
@@ -240,15 +252,17 @@ export default function ImageCropperModal({
             </div>
           </div>
 
-          <div className="space-y-3 w-[200px] sm:w-[220px]">
+          <div
+            className={
+              mode === "banner"
+                ? "space-y-3 w-full"
+                : "space-y-3 w-[200px] sm:w-[220px]"
+            }
+          >
             <div className="text-sm font-medium">
               {t("branding.cropper.finalPreview")}
             </div>
-            <div
-              className={
-                "relative overflow-hidden border bg-muted/40 " + previewBox
-              }
-            >
+            <div className={previewContainerClass + " " + previewBox}>
               {previewUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img

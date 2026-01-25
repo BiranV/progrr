@@ -563,7 +563,7 @@ export default function BrandingSettingsPage() {
         />
 
         <div className="space-y-3">
-          <div className="relative w-full h-[140px] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-800">
+          <div className="relative w-full h-[10vh] min-h-[120px] rounded-b-[40px] overflow-hidden bg-gray-100 dark:bg-gray-800">
             {bannerUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -571,9 +571,6 @@ export default function BrandingSettingsPage() {
                 alt={t("branding.bannerAlt")}
                 className="absolute inset-0 w-full h-full object-cover"
               />
-            ) : null}
-            {bannerUrl ? (
-              <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/15 to-transparent" />
             ) : null}
             {!bannerUrl ? (
               <div className="absolute inset-0 flex items-center justify-center">

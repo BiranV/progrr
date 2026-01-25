@@ -310,11 +310,9 @@ export default function PublicBookingShell({
             : undefined
         }
       >
-        {hasBanner ? (
-          <div className="absolute inset-0 bg-black/35 pointer-events-none" />
-        ) : (
+        {!hasBanner ? (
           <div className="absolute inset-0 opacity-20 mix-blend-overlay pointer-events-none" />
-        )}
+        ) : null}
         <div className="absolute top-4 inset-x-0 z-20 flex justify-center">
           <LanguageSwitcher variant="light" />
         </div>

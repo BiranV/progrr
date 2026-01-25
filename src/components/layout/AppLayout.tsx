@@ -209,11 +209,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             : undefined
         }
       >
-        {hasBanner ? (
-          <div className="absolute inset-0 bg-black/35" />
-        ) : (
+        {!hasBanner ? (
           <div className="absolute inset-0 opacity-20 mix-blend-overlay" />
-        )}
+        ) : null}
         <div className="absolute top-4 inset-x-0 z-20 flex justify-center">
           {showLanguageSwitcher ? (
             <LanguageSwitcher variant="light" />
