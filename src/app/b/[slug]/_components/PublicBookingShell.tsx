@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
 import {
   ArrowLeft,
   ChevronLeft,
@@ -41,10 +40,6 @@ export default function PublicBookingShell({
   const { t } = useI18n();
   const [previewSrc, setPreviewSrc] = React.useState<string | null>(null);
 
-  const logoUrl = String(business?.branding?.logoUrl ?? "").trim();
-  const bannerUrl = String(
-    business?.branding?.bannerUrl ?? business?.branding?.banner?.url ?? "",
-  ).trim();
   const gallery = Array.isArray(business?.branding?.gallery)
     ? (business?.branding?.gallery || []).filter(Boolean).slice(0, 10)
     : [];
@@ -120,8 +115,8 @@ export default function PublicBookingShell({
 
   const wazeHref = businessAddress
     ? `https://waze.com/ul?q=${encodeURIComponent(
-        businessAddress,
-      )}&navigate=yes`
+      businessAddress,
+    )}&navigate=yes`
     : "";
 
   const telHref = businessPhone ? `tel:${businessPhone}` : "";
@@ -170,7 +165,7 @@ export default function PublicBookingShell({
   ].filter((a) => !!a.href);
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-black pb-safe">
+    <div className="app-shell flex flex-col min-h-screen bg-gray-50 dark:bg-black pb-safe">
       <SidePanel
         open={Boolean(previewSrc)}
         onOpenChange={(open) => {
@@ -190,83 +185,44 @@ export default function PublicBookingShell({
         ) : null}
       </SidePanel>
 
-      <div className="relative w-full z-0 h-[140px] bg-gradient-to-br from-neutral-950 via-zinc-900 to-zinc-800 shrink-0 overflow-hidden">
-        {bannerUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={bannerUrl}
-            alt={t("publicBooking.businessBannerAlt")}
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-        ) : null}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/15 to-transparent" />
-        <div className="absolute inset-0 opacity-20 mix-blend-overlay" />
+      <div className="relative w-full z-10 h-[10vh] bg-gradient-to-br from-[#165CF0] via-[#1E6CF2] to-[#2B79F5] rounded-b-[40px] overflow-visible">
+        <div className="absolute inset-0 opacity-20 mix-blend-overlay"></div>
         <div className="absolute top-4 inset-x-0 z-20 flex justify-center">
-          <LanguageSwitcher variant="dark" />
+          <LanguageSwitcher variant="light" />
+        </div>
+        {onBack ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onBack}
+            className={cn(
+              "absolute top-3 rounded-xl",
+              "text-white/90 hover:text-white hover:bg-white/10",
+              "start-4",
+            )}
+            aria-label={t("common.back")}
+          >
+            <ArrowLeft className="h-5 w-5 rtl:rotate-180" />
+          </Button>
+        ) : null}
+        {headerRight ? (
+          <div className="absolute top-3 end-4 flex items-center justify-end">
+            {headerRight}
+          </div>
+        ) : null}
+        <div className="absolute inset-x-0 bottom-3 z-20 px-6">
+          <div className="mx-auto max-w-[480px] text-white flex justify-center">
+            <div className="text-sm font-semibold max-w-full">
+              <span className="truncate text-center">{businessName}</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 -mt-10 bg-gray-50 dark:bg-zinc-900 rounded-t-[40px] relative z-10 flex flex-col items-center shadow-[0_-10px_30px_rgba(0,0,0,0.08)]">
-        <div className="flex-1 px-6 pt-6 pb-24 w-full max-w-md mx-auto relative">
-          {onBack ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={onBack}
-              className={cn(
-                "absolute top-5 rounded-xl",
-                "text-gray-900 hover:bg-gray-100",
-                "dark:text-white dark:hover:bg-white/10",
-                "start-6",
-              )}
-              aria-label={t("common.back")}
-            >
-              <ArrowLeft className="h-5 w-5 rtl:rotate-180" />
-            </Button>
-          ) : null}
-
-          {headerRight ? (
-            <div className="absolute top-5 end-6 flex items-center justify-end">
-              {headerRight}
-            </div>
-          ) : null}
-
-          <div className="flex items-center justify-between">
-            <div className="w-10">
-              {/* Back button is rendered in the top header for consistent placement */}
-            </div>
-
-            {/*
-            <div className="p-1.5 rounded-full bg-transparent">
-              <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center overflow-hidden border-2 border-gray-100 dark:border-gray-800 shadow-xl">
-                {logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={logoUrl}
-                    alt={t("publicBooking.businessLogoAlt")}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <Image
-                    src="/progrr-logo.png"
-                    alt={t("common.appName")}
-                    width={48}
-                    height={48}
-                    className="object-contain"
-                  />
-                )}
-              </div>
-            </div>
-            */}
-
-            <div className="w-10" />
-          </div>
-
-          <div className="space-y-1 mt-6 mb-6">
-            <h1 className="text-xl font-semibold text-gray-900 dark:text-white tracking-tight text-center w-full">
-              {businessName}
-            </h1>
+      <div className="flex-1 flex flex-col items-center">
+        <div className="flex-1 px-6 pt-5 pb-24 w-full max-w-md mx-auto relative">
+          <div className="space-y-1 mt-4 mb-6">
 
             {businessDescription ? (
               <p className="text-sm text-gray-600 dark:text-gray-300 text-center">

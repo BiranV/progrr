@@ -17,7 +17,7 @@ import { PhoneInput } from "@/components/ui/phone-input";
 
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 import OtpInput from "@/components/OtpInput";
-import ProgressBar from "@/components/onboarding/ProgressBar";
+import Stepper from "@/components/onboarding/Stepper";
 import Flatpickr from "react-flatpickr";
 import PublicBookingShell from "./PublicBookingShell";
 import { usePublicBusiness } from "./usePublicBusiness";
@@ -32,6 +32,7 @@ import {
   Briefcase,
   Calendar,
   CalendarDays,
+  ChevronLeft,
   Clock,
   Banknote,
   LogIn,
@@ -335,10 +336,6 @@ export default function PublicBookingFlow({
     [step, stepsOrder]
   );
   const totalSteps = stepsOrder.length;
-  const progress = React.useMemo(
-    () => Math.round(((stepIndex + 1) / totalSteps) * 100),
-    [stepIndex, totalSteps]
-  );
 
   const [serviceId, setServiceId] = React.useState<string>("");
   const [date, setDate] = React.useState<string>("");
@@ -1633,7 +1630,7 @@ export default function PublicBookingFlow({
                 value={loginCode}
                 onChange={setLoginCode}
                 disabled={loginSubmitting}
-                inputClassName="h-10 w-10 sm:h-11 sm:w-11 text-base sm:text-lg"
+                inputClassName="bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] border-[#165CF0]"
               />
             </div>
             {loginPurpose === "booking" && loginRequiresDetails ? (
@@ -1949,6 +1946,7 @@ export default function PublicBookingFlow({
                 value={profileCode}
                 onChange={setProfileCode}
                 disabled={profileSubmitting}
+                inputClassName="bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] border-[#165CF0]"
               />
             </div>
 
@@ -1990,13 +1988,21 @@ export default function PublicBookingFlow({
         )}
       </SidePanel>
 
-      <ProgressBar
-        progress={progress}
-        stepCountLabel={t("onboarding.stepCount", {
-          current: stepIndex + 1,
-          total: totalSteps,
-        })}
-      />
+      <div className="space-y-3">
+        {step !== "service" ? (
+          <div className="flex items-center justify-start">
+            <button
+              type="button"
+              onClick={onBack}
+              className="inline-flex items-center justify-center h-9 w-9 rounded-full bg-white text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              aria-label={t("common.back")}
+            >
+              <ChevronLeft className="h-5 w-5 rtl:rotate-180" />
+            </button>
+          </div>
+        ) : null}
+        <Stepper totalSteps={totalSteps} currentStep={stepIndex} />
+      </div>
 
       {/* Service selection */}
       {step === "service" ? (
