@@ -2419,40 +2419,45 @@ function OnboardingContent() {
   const card = (
     <div className="min-h-screen w-full bg-white flex flex-col pb-safe">
       {/* Header Container */}
-      <div className="relative w-full z-0 shrink-0 h-[20vh] bg-gradient-to-br from-[#165CF0] via-[#1E6CF2] to-[#2B79F5] rounded-b-[40px] overflow-hidden">
+      <div className="relative w-full z-0 shrink-0 h-[10vh] bg-gradient-to-br from-[#165CF0] via-[#1E6CF2] to-[#2B79F5] rounded-b-[40px] overflow-hidden">
         <div className="absolute inset-0 opacity-20 mix-blend-overlay"></div>
         <div className="absolute top-4 inset-x-0 z-20 flex justify-center">
           <LanguageSwitcher variant={isStepOne ? "light" : "dark"} />
         </div>
-        {/* <div className="absolute inset-0 flex items-start justify-start pt-4 ps-6">
+        <div className="absolute inset-0 flex items-start justify-start pt-4 ps-6">
           <div className="relative flex flex-col items-start">
             <div className="w-24 h-24 sm:w-28 sm:h-28 relative">
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="relative">
-                  <div className="w-16 h-11 bg-gradient-to-br from-amber-300 to-amber-400 rounded-lg -rotate-6 shadow-lg">
-                    <div className="absolute inset-1 bg-gradient-to-br from-blue-100 to-blue-200 rounded" />
+                  {/* Laptop with Logo */}
+                  <div className="w-24 h-16 bg-gradient-to-br from-amber-300 to-amber-400 rounded-lg transform -rotate-6 shadow-lg">
+                    <div className="absolute inset-2 bg-gradient-to-br from-blue-100 to-blue-200 rounded flex items-center justify-center">
+                      <span
+                        className="text-black-800 font-bold text-lg tracking-wide"
+                        style={{ fontFamily: "Comic Sans MS, cursive" }}
+                      >
+                        proggr
+                      </span>
+                    </div>
                   </div>
-
-                  <div className="absolute -top-9 left-4">
+                  {/* <div className="absolute -top-9 left-4">
                     <div className="w-8 h-8 bg-gradient-to-br from-amber-200 to-amber-300 rounded-full" />
                     <div className="absolute top-6 -left-2 w-12 h-8 bg-gradient-to-br from-teal-400 to-teal-500 rounded-t-3xl" />
-                  </div>
-
-                  <div className="absolute -bottom-4 -left-2 flex flex-col gap-1">
+                  </div> */}
+                  {/* <div className="absolute -bottom-4 -left-2 flex flex-col gap-1">
                     <div className="w-8 h-2 bg-gradient-to-r from-rose-400 to-rose-500 rounded-sm -rotate-3" />
                     <div className="w-8 h-2 bg-gradient-to-r from-amber-400 to-amber-500 rounded-sm rotate-1" />
                     <div className="w-7 h-2 bg-gradient-to-r from-teal-400 to-teal-500 rounded-sm -rotate-2" />
-                  </div>
-
-                  <div className="absolute -bottom-3 -left-6">
+                  </div> */}
+                  {/* <div className="absolute -bottom-3 -left-6">
                     <div className="w-4 h-6 bg-gradient-to-t from-green-600 to-green-500 rounded-t-full" />
                     <div className="absolute top-1 -left-2 w-3.5 h-4 bg-gradient-to-t from-green-500 to-green-400 rounded-full -rotate-45" />
-                  </div>
+                  </div> */}
                 </div>
               </div>
             </div>
           </div>
-        </div> */}
+        </div>
       </div>
 
       <section className="flex-1 w-full px-6 sm:px-8 py-10 flex flex-col items-center bg-gray-50 dark:bg-black">
