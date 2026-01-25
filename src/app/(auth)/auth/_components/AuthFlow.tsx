@@ -8,6 +8,7 @@ import AdminAuthStep from "./AdminAuthStep";
 import { useAuth } from "@/context/AuthContext";
 import { type AuthBannerState } from "./AuthBanner";
 import { useI18n } from "@/i18n/useI18n";
+import Stepper from "@/components/onboarding/Stepper";
 
 function isSafeNextPath(next: string): boolean {
   if (!next.startsWith("/")) return false;
@@ -45,10 +46,12 @@ export default function AuthFlow({
 
   const headerHeightVh = React.useMemo(() => {
     if (currentView === "landing") return 50;
-    if (currentView === "login" || currentView === "login-verify") return 45;
-    if (currentView === "signup" || currentView === "signup-verify") return 38;
-    return 40;
+    if (currentView === "login" || currentView === "login-verify") return 34;
+    if (currentView === "signup" || currentView === "signup-verify") return 30;
+    return 32;
   }, [currentView]);
+
+  const authStepIndex = currentView === "landing" ? 0 : 1;
 
   const nextPath = React.useMemo(() => {
     const fromQuery = searchParams.get("next") || initialNext || "";
@@ -89,7 +92,7 @@ export default function AuthFlow({
         <div className="absolute top-10 right-10 w-32 h-32 bg-white/15 rounded-full blur-2xl" />
         <div className="absolute bottom-8 left-6 w-24 h-24 bg-white/15 rounded-full blur-xl" />
 
-        <div className="flex items-center justify-center h-full">
+        <div className="flex items-start justify-center h-full">
           <div className="relative flex flex-col items-center">
             <div className="w-56 h-56 sm:w-64 sm:h-64 relative">
               <div className="absolute inset-0 flex items-center justify-center">
@@ -139,8 +142,8 @@ export default function AuthFlow({
         </div>
       </motion.header>
 
-      <section className="flex-1 w-full px-6 sm:px-8 py-10 flex flex-col items-center overflow-hidden">
-        <div className="w-full max-w-md h-full overflow-y-auto">
+      <section className="flex-1 w-full px-6 sm:px-8 pt-6 pb-4 flex flex-col items-center min-h-0">
+        <div className="w-full max-w-md flex-1 min-h-0 overflow-y-auto pb-6">
           {currentView !== "landing" ? (
             <div className="flex items-center justify-start mb-6">
               <button
@@ -160,6 +163,9 @@ export default function AuthFlow({
             onViewChange={setCurrentView}
             registerBackHandler={(handler) => setHeaderBack(() => handler)}
           />
+        </div>
+        <div className="w-full max-w-md pt-4 pb-6 mt-auto">
+          <Stepper totalSteps={2} currentStep={authStepIndex} />
         </div>
       </section>
     </div>

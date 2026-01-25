@@ -8,7 +8,6 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import Stepper from "@/components/onboarding/Stepper";
 
 import AuthBanner, { type AuthBannerState } from "./AuthBanner";
 import OtpInput from "@/components/OtpInput";
@@ -333,10 +332,8 @@ export default function AdminAuthStep({
 
   const slideInY = 50;
   const slideOutY = -50;
-  const authStepIndex = view === "landing" ? 0 : 1;
-
   return (
-    <div className="w-full flex flex-col h-full min-h-[480px]">
+    <div className="w-full flex flex-col h-full min-h-0">
       <AnimatePresence mode="wait">
         {view === "landing" && (
           <motion.div
@@ -591,7 +588,6 @@ export default function AdminAuthStep({
           </motion.div>
         )}
       </AnimatePresence>
-      <Stepper totalSteps={2} currentStep={authStepIndex} />
     </div>
   );
 }
