@@ -92,6 +92,7 @@ export default function BrandingSettingsPage() {
   const [uploadingLogo, setUploadingLogo] = React.useState(false);
   const [uploadingBanner, setUploadingBanner] = React.useState(false);
   const [uploadingGallery, setUploadingGallery] = React.useState(false);
+  const [removingGalleryIndex, setRemovingGalleryIndex] = React.useState<number | null>(null);
   const [galleryPendingPreviews, setGalleryPendingPreviews] = React.useState<
     string[]
   >([]);
@@ -358,8 +359,11 @@ export default function BrandingSettingsPage() {
   const removeGalleryImage = async (item: {
     url: string;
     publicId?: string;
+    index?: number;
   }) => {
-    setUploadingGallery(true);
+    if (typeof item.index === "number") {
+      setRemovingGalleryIndex(item.index);
+    }
     setGalleryError(null);
     try {
       const res = await fetch("/api/branding/gallery", {
@@ -384,7 +388,7 @@ export default function BrandingSettingsPage() {
       toast.error(msg);
       throw e;
     } finally {
-      setUploadingGallery(false);
+      setRemovingGalleryIndex(null);
     }
   };
 
@@ -711,14 +715,18 @@ export default function BrandingSettingsPage() {
 
                   <button
                     type="button"
-                    disabled={uploadingGallery}
+                    disabled={uploadingGallery || removingGalleryIndex === idx}
                     onClick={() =>
-                      removeGalleryImage({ url, publicId }).catch(() => null)
+                      removeGalleryImage({ url, publicId, index: idx }).catch(() => null)
                     }
                     className="rounded-lg bg-black/45 text-white p-1.5 backdrop-blur-sm hover:bg-black/55 transition disabled:opacity-60"
                     aria-label={t("branding.removeImage")}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    {removingGalleryIndex === idx ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
               </div>
