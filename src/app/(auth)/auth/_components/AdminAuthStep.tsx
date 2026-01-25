@@ -62,7 +62,8 @@ export default function AdminAuthStep({
   const router = useRouter();
   const searchParams = useSearchParams();
   const { setSessionUser } = useAuth();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const isRtl = language === "he";
 
   // State
   const [view, setView] = useState<ViewState>(() => {
@@ -345,6 +346,9 @@ export default function AdminAuthStep({
     </div>
   );
 
+  const slideInX = isRtl ? -50 : 50;
+  const slideOutX = isRtl ? 50 : -50;
+
   return (
     <div className="w-full flex flex-col h-full min-h-[480px]">
       <AnimatePresence mode="wait">
@@ -385,9 +389,9 @@ export default function AdminAuthStep({
         {(view === "login" || view === "login-verify") && (
           <motion.div
             key="login"
-            initial={{ opacity: 0, x: 50 }}
+            initial={{ opacity: 0, x: slideInX }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -50 }}
+            exit={{ opacity: 0, x: slideOutX }}
             className="space-y-6 max-w-xs mx-auto w-full"
           >
             <h2 className="text-xl font-bold text-slate-800 mb-6">
@@ -511,9 +515,9 @@ export default function AdminAuthStep({
         {(view === "signup" || view === "signup-verify") && (
           <motion.div
             key="signup"
-            initial={{ opacity: 0, x: 50 }}
+            initial={{ opacity: 0, x: slideInX }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -50 }}
+            exit={{ opacity: 0, x: slideOutX }}
             className="space-y-6 max-w-xs mx-auto w-full"
           >
             <h2 className="text-xl font-bold text-slate-800 mb-8">
