@@ -317,22 +317,48 @@ function OnboardingContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const InlineError = ({ message }: { message?: string }) => {
-    if (!message) return null;
-    return (
-      <p className="text-[13px] text-rose-500 dark:text-rose-400 mt-0.5 ms-1">
-        {message}
-      </p>
-    );
-  };
-
-  const inputErrorClass = "border-rose-300 ring-1 ring-rose-300/20";
+  const inputErrorClass =
+    "border-rose-300 focus-visible:border-rose-300 focus-visible:ring-rose-200/60";
   const primaryButtonClass =
     "bg-[#165CF0] text-white hover:bg-[#0E4FDB] rounded-xl shadow-md shadow-blue-500/20";
   const outlineButtonClass =
     "border-2 border-[#165CF0] text-[#165CF0] hover:text-[#165CF0] hover:bg-blue-50 rounded-xl";
   const ghostButtonClass =
     "text-[#165CF0] hover:text-[#165CF0] hover:bg-blue-50 rounded-xl";
+
+  const clearFieldError = React.useCallback((key: string) => {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }, []);
+
+  const focusFirstFieldError = React.useCallback(
+    (errors: Record<string, string>) => {
+      const keys = Object.keys(errors);
+      if (!keys.length || typeof document === "undefined") return;
+      const firstKey = keys[0];
+      requestAnimationFrame(() => {
+        const container = document.querySelector(
+          `[data-field="${firstKey}"]`,
+        ) as HTMLElement | null;
+        if (!container) return;
+        const focusable = container.matches(
+          "input, textarea, button, [role='combobox']",
+        )
+          ? container
+          : (container.querySelector(
+            "input, textarea, button, [role='combobox']",
+          ) as HTMLElement | null);
+        if (!focusable) return;
+        focusable.focus();
+        focusable.scrollIntoView({ block: "center", behavior: "smooth" });
+      });
+    },
+    [],
+  );
 
   const [businessPhoneValid, setBusinessPhoneValid] = useState(true);
   const { t, dict } = useI18n();
@@ -443,7 +469,7 @@ function OnboardingContent() {
         name,
         durationMinutes:
           typeof preset.durationMinutes === "number" &&
-          preset.durationMinutes > 0
+            preset.durationMinutes > 0
             ? preset.durationMinutes
             : 30,
         price: undefined,
@@ -547,10 +573,10 @@ function OnboardingContent() {
     return Array.from({ length: 7 }, (_, i) => i)
       .map((day) => byDay.get(day))
       .filter(Boolean) as Array<{
-      day: number;
-      enabled: boolean;
-      ranges: Array<{ id: string; start: string; end: string }>;
-    }>;
+        day: number;
+        enabled: boolean;
+        ranges: Array<{ id: string; start: string; end: string }>;
+      }>;
   }, [data.availability?.days]);
 
   const updateAvailabilityRangeTime = (
@@ -991,6 +1017,7 @@ function OnboardingContent() {
 
         if (Object.keys(newErrors).length > 0) {
           setFieldErrors(newErrors);
+          focusFirstFieldError(newErrors);
           return;
         }
       }
@@ -1026,6 +1053,7 @@ function OnboardingContent() {
 
         if (Object.keys(newErrors).length > 0) {
           setFieldErrors(newErrors);
+          focusFirstFieldError(newErrors);
           return;
         }
       }
@@ -1155,9 +1183,9 @@ function OnboardingContent() {
         customCurrency:
           normalizeCurrency(data.currency) === OTHER_CURRENCY_CODE
             ? {
-                name: String(data.customCurrency?.name ?? "").trim(),
-                symbol: String(data.customCurrency?.symbol ?? "").trim(),
-              }
+              name: String(data.customCurrency?.name ?? "").trim(),
+              symbol: String(data.customCurrency?.symbol ?? "").trim(),
+            }
             : undefined,
       };
 
@@ -1209,7 +1237,9 @@ function OnboardingContent() {
             </div>
 
             <div className="space-y-2">
-              <Label>{t("onboarding.selectOne")}</Label>
+              <Label className="text-slate-600 ms-1">
+                {t("onboarding.selectOne")}
+              </Label>
               <div className="flex flex-wrap justify-center gap-3">
                 {BUSINESS_TYPE_OPTIONS.map((opt) => {
                   const selected = (data.businessTypes || []).includes(opt.key);
@@ -1278,33 +1308,39 @@ function OnboardingContent() {
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>{t("onboarding.businessName")}</Label>
+                <Label className="text-slate-600 ms-1">
+                  {t("onboarding.businessName")} <span className="text-rose-400">*</span>
+                </Label>
                 <Input
+                  data-field="businessName"
                   className={fieldErrors.businessName ? inputErrorClass : ""}
                   value={data.business?.name || ""}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    clearFieldError("businessName");
                     setData((d) => ({
                       ...d,
                       business: { ...(d.business || {}), name: e.target.value },
-                    }))
-                  }
+                    }));
+                  }}
                   placeholder={t("onboarding.businessNamePlaceholder")}
                 />
-                <InlineError message={fieldErrors.businessName} />
               </div>
-              <div className="space-y-2">
-                <Label>{t("onboarding.businessPhone")}</Label>
+              <div className="space-y-2" data-field="businessPhone">
+                <Label className="text-slate-600 ms-1">
+                  {t("onboarding.businessPhone")} <span className="text-rose-400">*</span>
+                </Label>
                 <PhoneInput
                   value={data.business?.phone || ""}
-                  onChange={(v) =>
+                  onChange={(v) => {
+                    clearFieldError("businessPhone");
                     setData((d) => ({
                       ...d,
                       business: {
                         ...(d.business || {}),
                         phone: v,
                       },
-                    }))
-                  }
+                    }));
+                  }}
                   onValidityChange={setBusinessPhoneValid}
                   inputClassName={
                     fieldErrors.businessPhone ? inputErrorClass : ""
@@ -1312,32 +1348,35 @@ function OnboardingContent() {
                   aria-invalid={Boolean(fieldErrors.businessPhone)}
                   placeholder={t("onboarding.businessPhonePlaceholder")}
                 />
-                <InlineError message={fieldErrors.businessPhone} />
               </div>
               <div className="space-y-2">
-                <Label>{t("onboarding.businessAddressOptional")}</Label>
+                <Label className="text-slate-600 ms-1">
+                  {t("onboarding.businessAddressOptional")}
+                </Label>
                 <Input
                   className={fieldErrors.businessAddress ? inputErrorClass : ""}
                   value={data.business?.address || ""}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    clearFieldError("businessAddress");
                     setData((d) => ({
                       ...d,
                       business: {
                         ...(d.business || {}),
                         address: e.target.value,
                       },
-                    }))
-                  }
+                    }));
+                  }}
                   placeholder={t("onboarding.businessAddressPlaceholder")}
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   {t("onboarding.businessAddressHelp")}
                 </p>
-                <InlineError message={fieldErrors.businessAddress} />
               </div>
 
               <div className="space-y-2">
-                <Label>{t("onboarding.businessDescriptionLabel")}</Label>
+                <Label className="text-slate-600 ms-1">
+                  {t("onboarding.businessDescriptionLabel")}
+                </Label>
                 <Textarea
                   value={data.business?.description || ""}
                   onChange={(e) =>
@@ -1355,23 +1394,27 @@ function OnboardingContent() {
               </div>
 
               <div className="space-y-2">
-                <Label>{t("onboarding.timezone")}</Label>
+                <Label className="text-slate-600 ms-1">
+                  {t("onboarding.timezone")} <span className="text-rose-400">*</span>
+                </Label>
                 <Select
                   value={
                     String(data.availability?.timezone || "").trim() ||
                     DEFAULT_TIMEZONE
                   }
-                  onValueChange={(v) =>
+                  onValueChange={(v) => {
+                    clearFieldError("businessTimezone");
                     setData((d) => ({
                       ...d,
                       availability: {
                         ...(d.availability || {}),
                         timezone: String(v || "").trim(),
                       },
-                    }))
-                  }
+                    }));
+                  }}
                 >
                   <SelectTrigger
+                    data-field="businessTimezone"
                     className={
                       (fieldErrors.businessTimezone ? inputErrorClass : "") +
                       " w-full"
@@ -1387,7 +1430,6 @@ function OnboardingContent() {
                     ))}
                   </SelectContent>
                 </Select>
-                <InlineError message={fieldErrors.businessTimezone} />
               </div>
             </div>
           </div>
@@ -1668,7 +1710,7 @@ function OnboardingContent() {
                           replaceGalleryImage(idx, file).catch((err) =>
                             setError(
                               err?.message ||
-                                t("onboarding.errors.replaceImageFailed"),
+                              t("onboarding.errors.replaceImageFailed"),
                             ),
                           );
                         }}
@@ -1690,8 +1732,8 @@ function OnboardingContent() {
                           className={
                             "rounded-lg bg-black/45 text-white text-[11px] px-2 py-1 backdrop-blur-sm hover:bg-black/55 transition " +
                             (uploadingGallery ||
-                            saving ||
-                            replacingIndex === idx
+                              saving ||
+                              replacingIndex === idx
                               ? "opacity-60 pointer-events-none"
                               : "cursor-pointer")
                           }
@@ -1708,7 +1750,7 @@ function OnboardingContent() {
                             removeGalleryImage({ url, publicId }).catch((err) =>
                               setError(
                                 err?.message ||
-                                  t("onboarding.removeImageFailed"),
+                                t("onboarding.removeImageFailed"),
                               ),
                             )
                           }
@@ -1754,11 +1796,6 @@ function OnboardingContent() {
                 {t("onboarding.galleryPublicNote")}
               </div>
 
-              {galleryError ? (
-                <div className="mt-2 text-xs text-rose-600 dark:text-rose-400">
-                  {galleryError}
-                </div>
-              ) : null}
             </div>
           </div>
         );
@@ -1782,11 +1819,13 @@ function OnboardingContent() {
 
             <div className="space-y-4">
               <div className="flex items-center gap-2 px-1">
-                <Label className="flex-1">{t("onboarding.serviceName")}</Label>
-                <Label className="w-[70px] shrink-0 text-center">
-                  {t("onboarding.time")}
+                <Label className="flex-1 text-slate-600 ms-1">
+                  {t("onboarding.serviceName")} <span className="text-rose-400">*</span>
                 </Label>
-                <Label className="w-[70px] shrink-0 text-center">
+                <Label className="w-[70px] shrink-0 text-center text-slate-600">
+                  {t("onboarding.time")} <span className="text-rose-400">*</span>
+                </Label>
+                <Label className="w-[70px] shrink-0 text-center text-slate-600">
                   {t("onboarding.price")}
                 </Label>
                 <div className="w-8 shrink-0"></div>
@@ -1798,6 +1837,7 @@ function OnboardingContent() {
                     <div className="flex items-start gap-2">
                       <div className="flex-1 min-w-0">
                         <Input
+                          data-field={`serviceName_${s.id}`}
                           className={
                             fieldErrors[`serviceName_${s.id}`]
                               ? inputErrorClass
@@ -1806,6 +1846,7 @@ function OnboardingContent() {
                           value={s.name}
                           onChange={(e) => {
                             setServicesAutoGenerated(false);
+                            clearFieldError(`serviceName_${s.id}`);
                             setData((d) => ({
                               ...d,
                               services: (d.services || []).map((x) =>
@@ -1824,11 +1865,11 @@ function OnboardingContent() {
                           type="text"
                           inputMode="numeric"
                           pattern="[0-9]*"
-                          className={`px-2 text-center ${
-                            fieldErrors[`serviceDuration_${s.id}`]
-                              ? inputErrorClass
-                              : ""
-                          }`}
+                          data-field={`serviceDuration_${s.id}`}
+                          className={`px-2 text-center ${fieldErrors[`serviceDuration_${s.id}`]
+                            ? inputErrorClass
+                            : ""
+                            }`}
                           value={
                             Object.prototype.hasOwnProperty.call(
                               durationDrafts,
@@ -1839,6 +1880,7 @@ function OnboardingContent() {
                           }
                           onChange={(e) => {
                             setServicesAutoGenerated(false);
+                            clearFieldError(`serviceDuration_${s.id}`);
                             const raw = sanitizeDurationDraft(e.target.value);
                             setDurationDrafts((prev) => ({
                               ...prev,
@@ -1856,9 +1898,9 @@ function OnboardingContent() {
                               services: (d.services || []).map((x) =>
                                 x.id === s.id
                                   ? {
-                                      ...x,
-                                      durationMinutes: nextValue,
-                                    }
+                                    ...x,
+                                    durationMinutes: nextValue,
+                                  }
                                   : x,
                               ),
                             }));
@@ -1873,27 +1915,28 @@ function OnboardingContent() {
 
                       <div className="w-[70px] shrink-0">
                         <Input
-                          className={`px-2 text-center ${
-                            fieldErrors[`servicePrice_${s.id}`]
-                              ? inputErrorClass
-                              : ""
-                          }`}
+                          data-field={`servicePrice_${s.id}`}
+                          className={`px-2 text-center ${fieldErrors[`servicePrice_${s.id}`]
+                            ? inputErrorClass
+                            : ""
+                            }`}
                           type="number"
                           min={0}
                           value={typeof s.price === "number" ? s.price : ""}
                           onChange={(e) => {
                             setServicesAutoGenerated(false);
+                            clearFieldError(`servicePrice_${s.id}`);
                             setData((d) => ({
                               ...d,
                               services: (d.services || []).map((x) =>
                                 x.id === s.id
                                   ? {
-                                      ...x,
-                                      price:
-                                        e.target.value === ""
-                                          ? undefined
-                                          : Number(e.target.value),
-                                    }
+                                    ...x,
+                                    price:
+                                      e.target.value === ""
+                                        ? undefined
+                                        : Number(e.target.value),
+                                  }
                                   : x,
                               ),
                             }));
@@ -1924,15 +1967,6 @@ function OnboardingContent() {
                         </Button>
                       </div>
                     </div>
-                    {(fieldErrors[`serviceName_${s.id}`] ||
-                      fieldErrors[`serviceDuration_${s.id}`] ||
-                      fieldErrors[`servicePrice_${s.id}`]) && (
-                      <div className="text-xs text-rose-500 mt-1 px-1">
-                        {fieldErrors[`serviceName_${s.id}`] ||
-                          fieldErrors[`serviceDuration_${s.id}`] ||
-                          fieldErrors[`servicePrice_${s.id}`]}
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
@@ -2165,13 +2199,13 @@ function OnboardingContent() {
                 <div className="text-sm text-gray-700 dark:text-gray-200">
                   {data.businessTypes && data.businessTypes.length > 0
                     ? data.businessTypes
-                        .map((v) => {
-                          const matched = BUSINESS_TYPE_OPTIONS.find(
-                            (o) => o.key === v,
-                          );
-                          return matched ? t(matched.titleKey) : v;
-                        })
-                        .join(", ")
+                      .map((v) => {
+                        const matched = BUSINESS_TYPE_OPTIONS.find(
+                          (o) => o.key === v,
+                        );
+                        return matched ? t(matched.titleKey) : v;
+                      })
+                      .join(", ")
                     : t("common.emptyDash")}
                 </div>
               </div>
@@ -2362,16 +2396,16 @@ function OnboardingContent() {
                     const ordered = Array.from({ length: 7 }, (_, i) => i)
                       .map((day) => byDay.get(day))
                       .filter(Boolean) as Array<{
-                      day: number;
-                      enabled: boolean;
-                      ranges?: Array<{
-                        id?: string;
+                        day: number;
+                        enabled: boolean;
+                        ranges?: Array<{
+                          id?: string;
+                          start?: string;
+                          end?: string;
+                        }>;
                         start?: string;
                         end?: string;
                       }>;
-                      start?: string;
-                      end?: string;
-                    }>;
 
                     return ordered.map((d) => (
                       <div
@@ -2384,20 +2418,20 @@ function OnboardingContent() {
                         <div className="text-sm text-gray-700 dark:text-gray-200">
                           {d.enabled
                             ? (() => {
-                                const ranges = normalizeRangesForUi(
-                                  (d as any).ranges ?? {
-                                    start: (d as any).start,
-                                    end: (d as any).end,
-                                  },
-                                );
-                                return ranges.map((r, idx) => (
-                                  <span key={r.id || idx} dir="ltr">
-                                    {`${String(r.start || t("common.emptyDash"))} – ${String(
-                                      r.end || t("common.emptyDash"),
-                                    )}${idx < ranges.length - 1 ? ", " : ""}`}
-                                  </span>
-                                ));
-                              })()
+                              const ranges = normalizeRangesForUi(
+                                (d as any).ranges ?? {
+                                  start: (d as any).start,
+                                  end: (d as any).end,
+                                },
+                              );
+                              return ranges.map((r, idx) => (
+                                <span key={r.id || idx} dir="ltr">
+                                  {`${String(r.start || t("common.emptyDash"))} – ${String(
+                                    r.end || t("common.emptyDash"),
+                                  )}${idx < ranges.length - 1 ? ", " : ""}`}
+                                </span>
+                              ));
+                            })()
                             : t("onboarding.closed")}
                         </div>
                       </div>

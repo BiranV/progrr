@@ -12,6 +12,7 @@ export default function OtpInput({
   length,
   disabled,
   inputClassName,
+  firstInputRef,
 }: {
   id: string;
   name: string;
@@ -20,6 +21,7 @@ export default function OtpInput({
   length: number;
   disabled?: boolean;
   inputClassName?: string;
+  firstInputRef?: React.MutableRefObject<HTMLInputElement | null>;
 }) {
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
   const didAutoFocusRef = useRef(false);
@@ -132,6 +134,9 @@ export default function OtpInput({
           }}
           ref={(el) => {
             inputsRef.current[index] = el;
+            if (index === 0 && firstInputRef) {
+              firstInputRef.current = el;
+            }
           }}
           className={`h-12 w-12 sm:h-14 sm:w-14 p-0 text-center text-lg sm:text-xl font-medium ${inputClassName || ""
             }`}

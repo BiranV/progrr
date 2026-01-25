@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -88,6 +88,12 @@ export default function AdminAuthStep({
   const [signupCodeError, setSignupCodeError] = useState<string | null>(null);
   const [loginCodeError, setLoginCodeError] = useState<string | null>(null);
 
+  const loginEmailRef = useRef<HTMLInputElement | null>(null);
+  const signupNameRef = useRef<HTMLInputElement | null>(null);
+  const signupEmailRef = useRef<HTMLInputElement | null>(null);
+  const loginCodeRef = useRef<HTMLInputElement | null>(null);
+  const signupCodeRef = useRef<HTMLInputElement | null>(null);
+
   // UI State
   const [loading, setLoading] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
@@ -141,6 +147,7 @@ export default function AdminAuthStep({
     resetError();
     if (!isValidEmail(loginEmail)) {
       setLoginError(t("errors.invalidEmail"));
+      loginEmailRef.current?.focus();
       return;
     }
 
@@ -172,6 +179,7 @@ export default function AdminAuthStep({
     resetError();
     if (!loginCode) {
       setLoginCodeError(t("errors.codeRequired"));
+      loginCodeRef.current?.focus();
       return;
     }
 
@@ -228,7 +236,14 @@ export default function AdminAuthStep({
       hasError = true;
     }
 
-    if (hasError) return;
+    if (hasError) {
+      if (!isValidFullName(signupName)) {
+        signupNameRef.current?.focus();
+      } else if (!isValidEmail(signupEmail)) {
+        signupEmailRef.current?.focus();
+      }
+      return;
+    }
 
     setLoading(true);
     try {
@@ -264,6 +279,7 @@ export default function AdminAuthStep({
     resetError();
     if (!signupCode) {
       setSignupCodeError(t("errors.codeRequired"));
+      signupCodeRef.current?.focus();
       return;
     }
 
@@ -314,13 +330,7 @@ export default function AdminAuthStep({
 
   // --- Renderers ---
 
-  // Inline Helper using requested styles
-  const InlineError = ({ message }: { message: string | null }) => {
-    if (!message) return null;
-    return <p className="text-[13px] text-red-500 ms-1">{message}</p>;
-  };
-
-  // Only show global errors in banner, field errors are inline
+  // Only show global errors in banner, field errors are border-only
   const bannerState: AuthBannerState = globalError
     ? { type: "error", text: globalError }
     : info
@@ -328,7 +338,8 @@ export default function AdminAuthStep({
       : null;
 
   // For inputs
-  const inputErrorClass = "border-red-300 ring-1 ring-red-200";
+  const inputErrorClass =
+    "border-rose-300 focus-visible:border-rose-300 focus-visible:ring-rose-200/60";
 
   const slideInY = 50;
   const slideOutY = -50;
@@ -393,18 +404,20 @@ export default function AdminAuthStep({
               <form onSubmit={sendLoginCode} className="space-y-6">
                 <div className="space-y-2">
                   <Label className="text-slate-600 ms-1">
-                    {t("auth.emailAddress")}
+                    {t("auth.emailAddress")} <span className="text-rose-400">*</span>
                   </Label>
                   <Input
                     value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    className={`h-14 bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
-                      loginError ? inputErrorClass : "border-[#165CF0]"
-                    }`}
+                    onChange={(e) => {
+                      setLoginEmail(e.target.value);
+                      if (loginError) setLoginError(null);
+                    }}
+                    ref={loginEmailRef}
+                    className={`h-14 bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${loginError ? inputErrorClass : "border-[#165CF0]"
+                      }`}
                     placeholder={t("auth.emailPlaceholder")}
                     autoFocus
                   />
-                  <InlineError message={loginError} />
                 </div>
                 <Button
                   disabled={loading}
@@ -417,20 +430,22 @@ export default function AdminAuthStep({
               <form onSubmit={verifyLoginCode} className="space-y-6">
                 <div className="space-y-2">
                   <Label className="text-slate-600 ms-1">
-                    {t("auth.enterCode")}
+                    {t("auth.enterCode")} <span className="text-rose-400">*</span>
                   </Label>
                   <OtpInput
                     id="otp-login"
                     name="code"
                     value={loginCode}
-                    onChange={setLoginCode}
+                    onChange={(value) => {
+                      setLoginCode(value);
+                      if (loginCodeError) setLoginCodeError(null);
+                    }}
                     length={6}
                     disabled={loading}
-                    inputClassName={`bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
-                      loginCodeError ? inputErrorClass : "border-[#165CF0]"
-                    }`}
+                    firstInputRef={loginCodeRef}
+                    inputClassName={`bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${loginCodeError ? inputErrorClass : "border-[#165CF0]"
+                      }`}
                   />
-                  <InlineError message={loginCodeError} />
                   <p className="text-xs text-slate-500 ms-1 pt-1">
                     {t("auth.codeSentToEmail", { email: loginEmail })}
                   </p>
@@ -521,32 +536,36 @@ export default function AdminAuthStep({
               <form onSubmit={sendSignupCode} className="space-y-6">
                 <div className="space-y-2">
                   <Label className="text-slate-600 ms-1">
-                    {t("auth.fullName")}
+                    {t("auth.fullName")} <span className="text-rose-400">*</span>
                   </Label>
                   <Input
                     value={signupName}
-                    onChange={(e) => setSignupName(e.target.value)}
-                    className={`h-14 bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
-                      signupNameError ? inputErrorClass : "border-[#165CF0]"
-                    }`}
+                    onChange={(e) => {
+                      setSignupName(e.target.value);
+                      if (signupNameError) setSignupNameError(null);
+                    }}
+                    ref={signupNameRef}
+                    className={`h-14 bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${signupNameError ? inputErrorClass : "border-[#165CF0]"
+                      }`}
                     placeholder={t("auth.fullNamePlaceholder")}
                     autoFocus
                   />
-                  <InlineError message={signupNameError} />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-slate-600 ms-1">
-                    {t("auth.emailAddress")}
+                    {t("auth.emailAddress")} <span className="text-rose-400">*</span>
                   </Label>
                   <Input
                     value={signupEmail}
-                    onChange={(e) => setSignupEmail(e.target.value)}
-                    className={`h-14 bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
-                      signupEmailError ? inputErrorClass : "border-[#165CF0]"
-                    }`}
+                    onChange={(e) => {
+                      setSignupEmail(e.target.value);
+                      if (signupEmailError) setSignupEmailError(null);
+                    }}
+                    ref={signupEmailRef}
+                    className={`h-14 bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${signupEmailError ? inputErrorClass : "border-[#165CF0]"
+                      }`}
                     placeholder={t("auth.emailPlaceholder")}
                   />
-                  <InlineError message={signupEmailError} />
                 </div>
                 <Button
                   disabled={loading}
@@ -559,20 +578,22 @@ export default function AdminAuthStep({
               <form onSubmit={verifySignupCode} className="space-y-6">
                 <div className="space-y-2">
                   <Label className="text-slate-600 ms-1">
-                    {t("auth.enterCode")}
+                    {t("auth.enterCode")} <span className="text-rose-400">*</span>
                   </Label>
                   <OtpInput
                     id="otp-signup"
                     name="code"
                     value={signupCode}
-                    onChange={setSignupCode}
+                    onChange={(value) => {
+                      setSignupCode(value);
+                      if (signupCodeError) setSignupCodeError(null);
+                    }}
                     length={6}
                     disabled={loading}
-                    inputClassName={`bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
-                      signupCodeError ? inputErrorClass : "border-[#165CF0]"
-                    }`}
+                    firstInputRef={signupCodeRef}
+                    inputClassName={`bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${signupCodeError ? inputErrorClass : "border-[#165CF0]"
+                      }`}
                   />
-                  <InlineError message={signupCodeError} />
                   <p className="text-xs text-slate-500 ms-1 pt-1">
                     {t("auth.codeSentToEmail", { email: signupEmail })}
                   </p>

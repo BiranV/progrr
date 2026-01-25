@@ -51,7 +51,13 @@ export default function AuthFlow({
     return 32;
   }, [currentView]);
 
-  const authStepIndex = currentView === "landing" ? 0 : 1;
+  const authStepIndex = React.useMemo(() => {
+    if (currentView === "landing") return 0;
+    if (currentView === "login-verify" || currentView === "signup-verify") {
+      return 2;
+    }
+    return 1;
+  }, [currentView]);
 
   const nextPath = React.useMemo(() => {
     const fromQuery = searchParams.get("next") || initialNext || "";
@@ -165,7 +171,7 @@ export default function AuthFlow({
           />
         </div>
         <div className="w-full max-w-md pt-4 pb-6 mt-auto">
-          <Stepper totalSteps={2} currentStep={authStepIndex} />
+          <Stepper totalSteps={3} currentStep={authStepIndex} />
         </div>
       </section>
     </div>
