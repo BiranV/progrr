@@ -324,6 +324,8 @@ const en = {
         useDifferentEmail: "Use a different email",
         continueToLogin: "Continue to Login",
         createAccountCta: "Create Account",
+        getStartedTitle: "Let’s get started",
+        getStartedSubtitle: "Log in or create your account to continue",
         existingEmailTitle: "This email is already registered",
         existingEmailBody: "You already have an account with this email.",
         landingTitle: "Simple appointment scheduling for your business",

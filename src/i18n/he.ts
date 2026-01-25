@@ -318,6 +318,8 @@ const he = {
         useDifferentEmail: "להשתמש באימייל אחר",
         continueToLogin: "המשך להתחברות",
         createAccountCta: "יצירת חשבון",
+        getStartedTitle: "בוא/י נתחיל",
+        getStartedSubtitle: "התחבר/י או צור/י חשבון כדי להמשיך",
         existingEmailTitle: "האימייל הזה כבר רשום",
         existingEmailBody: "כבר יש חשבון עם האימייל הזה.",
         landingTitle: "תיאום תורים פשוט לעסק שלך",

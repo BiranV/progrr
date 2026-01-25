@@ -356,10 +356,10 @@ export default function AdminAuthStep({
           >
             <div className="text-center">
               <h1 className="text-2xl md:text-3xl font-bold text-slate-800 mb-3">
-                Let’s get started
+                {t("auth.getStartedTitle")}
               </h1>
               <p className="text-slate-500 text-sm md:text-base max-w-sm mx-auto">
-                Log in or create your account to continue
+                {t("auth.getStartedSubtitle")}
               </p>
             </div>
             <div className="flex flex-col gap-3 max-w-xs mx-auto w-full">
