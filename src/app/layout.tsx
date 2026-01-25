@@ -30,7 +30,7 @@ export const metadata: Metadata = {
       { url: "/favicon-32.png", type: "image/png", sizes: "32x32" },
       { url: "/favicon-16.png", type: "image/png", sizes: "16x16" },
       // Keep a larger icon for higher-DPI contexts.
-      { url: "/logo-new2.png", type: "image/png" },
+      { url: "/progrr-logo.png", type: "image/png" },
     ],
     shortcut: [{ url: "/favicon-32.png", type: "image/png", sizes: "32x32" }],
     apple: "/apple-touch-icon.png",

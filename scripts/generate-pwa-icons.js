@@ -1,5 +1,5 @@
-/* Generates full-bleed PWA icons from a custom SVG.
-  Input:  public/pwa-icon.svg
+/* Generates full-bleed PWA icons from the official logo.
+  Input:  public/progrr-logo.png
    Output: public/*.png
 */
 
@@ -8,10 +8,10 @@ const path = require("path");
 const sharp = require("sharp");
 
 const root = path.join(__dirname, "..");
-const inputPath = path.join(root, "public", "pwa-icon.svg");
+const inputPath = path.join(root, "public", "progrr-logo.png");
 const outputDir = path.join(root, "public");
 
-const BG = "#165CF0";
+const BG = "#216FF3";
 
 async function ensureInput() {
   if (!fs.existsSync(inputPath)) {

@@ -249,7 +249,7 @@ export default function PublicBookingShell({
                   />
                 ) : (
                   <Image
-                    src="/logo-new2.png"
+                    src="/progrr-logo.png"
                     alt={t("common.appName")}
                     width={48}
                     height={48}

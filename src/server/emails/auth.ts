@@ -42,7 +42,7 @@ function progrrLogoUrl(): string {
 
   const origin = pickPublicAppOrigin();
   if (!origin) return "";
-  return safeUrl(`${origin}/logo-new2.png`);
+  return safeUrl(`${origin}/progrr-logo.png`);
 }
 
 function renderLayout(args: {
@@ -61,7 +61,7 @@ function renderLayout(args: {
   const logoAlign = args.logoAlign === "left" ? "left" : "center";
   const footerText = escapeHtml(
     args.footerText ??
-      `If you didn’t request this email, you can safely ignore it.`,
+    `If you didn’t request this email, you can safely ignore it.`,
   );
 
   // Note: Keep styles inline and conservative for Gmail/Outlook compatibility.
@@ -85,13 +85,12 @@ function renderLayout(args: {
           <table role="presentation" width="560" cellspacing="0" cellpadding="0" border="0" style="width:560px;max-width:560px;">
             <tr>
               <td align="${logoAlign}" style="padding:0 4px 16px 4px;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#111827;">
-                ${
-                  logoUrl
-                    ? `<img src="${escapeHtml(
-                        logoUrl,
-                      )}" alt="${productName}" width="140" style="display:block;width:140px;max-width:160px;height:auto;border:0;outline:none;text-decoration:none;" />`
-                    : `<div style="font-size:16px;font-weight:700;letter-spacing:0.2px;">${productName}</div>`
-                }
+                ${logoUrl
+      ? `<img src="${escapeHtml(
+        logoUrl,
+      )}" alt="${productName}" width="140" style="display:block;width:140px;max-width:160px;height:auto;border:0;outline:none;text-decoration:none;" />`
+      : `<div style="font-size:16px;font-weight:700;letter-spacing:0.2px;">${productName}</div>`
+    }
               </td>
             </tr>
 
@@ -146,8 +145,8 @@ export function buildOtpEmail(args: {
     <div style="margin:0 0 14px 0;">
       <div style="display:inline-block;background-color:#f3f4f6;border-radius:12px;padding:14px 16px;">
         <div style="font-size:26px;letter-spacing:6px;font-weight:800;color:#111827;">${escapeHtml(
-          code,
-        )}</div>
+    code,
+  )}</div>
       </div>
     </div>
 
@@ -199,8 +198,8 @@ export function buildInviteEmail(args: {
     ? `
       <div style="margin:0 0 16px 0;">
         <a href="${escapeHtml(
-          inviteLink,
-        )}" style="display:inline-block;padding:12px 16px;background-color:#111827;color:#ffffff;text-decoration:none;border-radius:12px;font-size:14px;font-weight:750;">
+      inviteLink,
+    )}" style="display:inline-block;padding:12px 16px;background-color:#111827;color:#ffffff;text-decoration:none;border-radius:12px;font-size:14px;font-weight:750;">
           Accept invitation
         </a>
       </div>
@@ -212,8 +211,8 @@ export function buildInviteEmail(args: {
       <div style="font-size:12px;line-height:1.6;color:#374151;word-break:break-all;">
         Or copy and paste this link into your browser:<br />
         <a href="${escapeHtml(inviteLink)}" style="color:#111827;">${escapeHtml(
-          inviteLink,
-        )}</a>
+      inviteLink,
+    )}</a>
       </div>
     `
     : "";
