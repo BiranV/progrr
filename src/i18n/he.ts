@@ -1026,6 +1026,13 @@ const he = {
     dashboard: {
         title: "דשבורד",
         subtitle: "סקירה של פעילות העסק.",
+        greeting: {
+            morning: "בוקר טוב",
+            noon: "צהריים טובים",
+            afternoon: "אחר הצהריים טובים",
+            evening: "ערב טוב",
+            night: "לילה טוב",
+        },
         businessStatus: "סטטוס העסק",
         open: "פתוח",
         closed: "סגור",

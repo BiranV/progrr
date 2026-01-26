@@ -1032,6 +1032,13 @@ const en = {
     dashboard: {
         title: "Dashboard",
         subtitle: "Overview of your business activity.",
+        greeting: {
+            morning: "Good morning",
+            noon: "Good afternoon",
+            afternoon: "Good late afternoon",
+            evening: "Good evening",
+            night: "Good night",
+        },
         businessStatus: "Business status",
         open: "Open",
         closed: "Closed",

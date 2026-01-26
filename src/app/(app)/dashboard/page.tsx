@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { useBusiness } from "@/hooks/useBusiness";
+import { useGreeting } from "@/hooks/useGreeting";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import React from "react";
@@ -70,6 +71,7 @@ export default function DashboardPage() {
   const { locale } = useLocale();
   const { t } = useI18n();
   const queryClient = useQueryClient();
+  const greeting = useGreeting();
   const business = businessQuery.data;
   const businessLoading = businessQuery.isPending && !businessQuery.data;
   const [copyStatus, setCopyStatus] = React.useState<"idle" | "copied">("idle");
@@ -323,13 +325,18 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 pb-5">
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+        {t("dashboard.title")}
+      </h1>
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          {t("dashboard.title")}
-        </h1>
-        <p className="text-sm text-gray-600 dark:text-gray-300">
+        {greeting ? (
+          <div className="text-sm font-semibold text-gray-600 dark:text-gray-300">
+            {greeting} {String(business?.name ?? "") || t("dashboard.title")}
+          </div>
+        ) : null}
+        {/* <p className="text-sm text-gray-600 dark:text-gray-300">
           {t("dashboard.subtitle")}
-        </p>
+        </p> */}
 
         <div className="flex items-center justify-between gap-3">
           <div className="text-xs text-muted-foreground">
