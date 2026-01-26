@@ -78,7 +78,16 @@ export async function GET(req: Request) {
                     status: "BOOKED",
                     date,
                 } as any,
-                { $set: { status: "COMPLETED" } }
+                [
+                    {
+                        $set: {
+                            status: "COMPLETED",
+                            paymentStatus: {
+                                $ifNull: ["$paymentStatus", "UNPAID"],
+                            },
+                        },
+                    },
+                ] as any
             );
         } else if (date === todayStr) {
             await c.appointments.updateMany(
@@ -88,7 +97,16 @@ export async function GET(req: Request) {
                     date,
                     endTime: { $lte: nowTimeStr },
                 } as any,
-                { $set: { status: "COMPLETED" } }
+                [
+                    {
+                        $set: {
+                            status: "COMPLETED",
+                            paymentStatus: {
+                                $ifNull: ["$paymentStatus", "UNPAID"],
+                            },
+                        },
+                    },
+                ] as any
             );
         }
 
@@ -101,6 +119,7 @@ export async function GET(req: Request) {
                         startTime: 1,
                         endTime: 1,
                         status: 1,
+                        paymentStatus: 1,
                         cancelledBy: 1,
                         customer: 1,
                         notes: 1,
@@ -125,6 +144,7 @@ export async function GET(req: Request) {
                 phone: String(a?.customer?.phone ?? ""),
                 email: String(a?.customer?.email ?? "") || undefined,
             },
+            paymentStatus: String(a?.paymentStatus ?? "") || undefined,
             notes: String(a?.notes ?? "") || undefined,
         }));
 

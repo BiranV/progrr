@@ -220,6 +220,7 @@ export async function POST(req: Request) {
                 date,
                 startTime,
                 endTime,
+                paymentStatus: "UNPAID",
                 customer: {
                     id: customerDocId.toHexString(),
                     fullName: customerFullName,

@@ -457,6 +457,7 @@ export async function POST(req: Request) {
         date,
         startTime,
         endTime,
+        paymentStatus: "UNPAID",
         customer: {
           id: customerIdHex,
           fullName: effectiveFullName,

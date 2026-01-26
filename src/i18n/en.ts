@@ -1090,6 +1090,18 @@ const en = {
         bookedByYou: "Booked by you",
         fillRequired: "Please fill all required fields",
         appointmentCreated: "Appointment created",
+        paid: "Paid",
+        manualOverride: "Manual override",
+        statusWarnings: {
+            previouslyNoShowCompleted:
+                "This appointment was previously marked as no-show and is now marked as completed.",
+            previouslyCanceledCompleted:
+                "This appointment was previously canceled and is now marked as completed.",
+            futureCompleted: "You are marking a future appointment as completed.",
+            futureNoShow: "You are marking a future appointment as no-show.",
+            pastBackToScheduled:
+                "This appointment is in the past and is being set back to scheduled.",
+        },
         status: {
             booked: "BOOKED",
             canceled: "CANCELED",

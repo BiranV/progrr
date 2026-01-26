@@ -1082,6 +1082,17 @@ const he = {
         bookedByYou: "נקבע על ידך",
         fillRequired: "יש למלא את כל השדות הנדרשים",
         appointmentCreated: "התור נוצר",
+        paid: "שולם",
+        manualOverride: "שינוי ידני",
+        statusWarnings: {
+            previouslyNoShowCompleted:
+                "תור זה סומן בעבר כלא הגיע וכעת מסומן כהושלם.",
+            previouslyCanceledCompleted:
+                "תור זה בוטל בעבר וכעת מסומן כהושלם.",
+            futureCompleted: "את/ה מסמן/ת תור עתידי כהושלם.",
+            futureNoShow: "את/ה מסמן/ת תור עתידי כלא הגיע.",
+            pastBackToScheduled: "התור עבר וכעת מוחזר לסטטוס נקבע.",
+        },
         status: {
             booked: "נקבע",
             canceled: "בוטל",

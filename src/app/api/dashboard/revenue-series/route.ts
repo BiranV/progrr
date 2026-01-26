@@ -126,6 +126,7 @@ export async function GET(req: Request) {
                     $match: {
                         businessUserId,
                         status: "COMPLETED",
+                        paymentStatus: "PAID",
                         date: { $gte: from, $lte: to },
                     },
                 },

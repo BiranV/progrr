@@ -169,7 +169,14 @@ export async function GET() {
                     status: "BOOKED",
                     date: { $lt: todayStr },
                 } as any,
-                { $set: { status: "COMPLETED" } }
+                [
+                    {
+                        $set: {
+                            status: "COMPLETED",
+                            paymentStatus: { $ifNull: ["$paymentStatus", "UNPAID"] },
+                        },
+                    },
+                ] as any
             ),
             // Today's bookings become completed once their end time has passed.
             c.appointments.updateMany(
@@ -179,7 +186,14 @@ export async function GET() {
                     date: todayStr,
                     endTime: { $lte: nowTimeStr },
                 } as any,
-                { $set: { status: "COMPLETED" } }
+                [
+                    {
+                        $set: {
+                            status: "COMPLETED",
+                            paymentStatus: { $ifNull: ["$paymentStatus", "UNPAID"] },
+                        },
+                    },
+                ] as any
             ),
         ]);
 
@@ -209,6 +223,7 @@ export async function GET() {
                             $match: {
                                 businessUserId,
                                 status: "COMPLETED",
+                                paymentStatus: "PAID",
                                 date: todayStr,
                             },
                         },

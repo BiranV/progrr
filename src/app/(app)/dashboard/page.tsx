@@ -48,6 +48,21 @@ type RevenueSeriesResponse = {
   points: Array<{ date: string; revenue: number; completedCount: number }>;
 };
 
+type OutstandingPaymentsResponse = {
+  ok: true;
+  count: number;
+  totalAmount: number;
+  items: Array<{
+    id: string;
+    date: string;
+    customerName: string;
+    serviceName: string;
+    price: number;
+    currency: string;
+    daysSinceCompleted: number;
+  }>;
+};
+
 export default function DashboardPage() {
   const businessQuery = useBusiness();
   const { user } = useAuth();
@@ -210,6 +225,23 @@ export default function DashboardPage() {
         throw new Error(json?.error || "Failed to load revenue series");
       }
       return json as RevenueSeriesResponse;
+    },
+  });
+
+  const outstandingQuery = useQuery({
+    queryKey: ["outstandingPayments"],
+    staleTime: 30 * 1000,
+    placeholderData: (prev) => prev,
+    queryFn: async (): Promise<OutstandingPaymentsResponse> => {
+      const res = await fetch("/api/appointments/outstanding", {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      });
+      const json = (await res.json().catch(() => null)) as any;
+      if (!res.ok || !json || json.ok !== true) {
+        throw new Error(json?.error || "Failed to load outstanding payments");
+      }
+      return json as OutstandingPaymentsResponse;
     },
   });
 
@@ -465,6 +497,71 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 2.5) Outstanding payments */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base">Outstanding payments</CardTitle>
+            <div className="text-xs text-muted-foreground">
+              {outstandingQuery.isLoading ? (
+                <Skeleton className="h-4 w-24" />
+              ) : (
+                <>Open payments: {outstandingQuery.data?.count ?? 0}</>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-2">
+          {outstandingQuery.isError ? (
+            <div className="text-sm text-red-600 dark:text-red-400">
+              {t("dashboard.loadingFailed")}
+            </div>
+          ) : null}
+
+          {outstandingQuery.isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
+          ) : (outstandingQuery.data?.items?.length ?? 0) > 0 ? (
+            <div className="space-y-3">
+              <div className="text-xs text-muted-foreground">
+                Open total: {currencySymbol || ""}
+                {(outstandingQuery.data?.totalAmount ?? 0).toLocaleString(locale, {
+                  maximumFractionDigits: 2,
+                })}
+              </div>
+              <div className="divide-y divide-gray-200 dark:divide-gray-800 rounded-xl border border-gray-200 dark:border-gray-800">
+                {outstandingQuery.data?.items?.map((item) => (
+                  <div key={item.id} className="p-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {item.customerName || "Unnamed customer"}
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {item.serviceName || ""}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {item.date} • {item.daysSinceCompleted} days
+                      </div>
+                    </div>
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {currencySymbol || ""}
+                      {Number(item.price || 0).toLocaleString(locale, {
+                        maximumFractionDigits: 2,
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground">No outstanding payments.</div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* 3) Public booking link */}
       <Card>

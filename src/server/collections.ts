@@ -72,6 +72,7 @@ export type AppointmentDoc = {
   };
   notes?: string;
   status: "BOOKED" | "COMPLETED" | "NO_SHOW" | "CANCELED" | "CANCELLED";
+  paymentStatus?: "UNPAID" | "PAID";
   createdBy?: "BUSINESS" | "CUSTOMER";
   createdAt: Date;
   cancelledAt?: Date;
