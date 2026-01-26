@@ -30,6 +30,7 @@ const en = {
         languageArabic: "Arabic",
         appLogoAlt: "Logo",
         redirecting: "Redirecting...",
+        callCustomer: "Call customer",
     },
     timePicker: {
         title: "Select time",
@@ -114,7 +115,6 @@ const en = {
                 blocked: "Blocked",
                 booked: "BOOKED",
                 completed: "COMPLETED",
-                noShow: "NO SHOW",
                 canceled: "CANCELED",
             },
             activeBookings: "Active bookings: {{count}}",
@@ -1091,21 +1091,15 @@ const en = {
         fillRequired: "Please fill all required fields",
         appointmentCreated: "Appointment created",
         paid: "Paid",
-        manualOverride: "Manual override",
-        statusWarnings: {
-            previouslyNoShowCompleted:
-                "This appointment was previously marked as no-show and is now marked as completed.",
-            previouslyCanceledCompleted:
-                "This appointment was previously canceled and is now marked as completed.",
-            futureCompleted: "You are marking a future appointment as completed.",
-            futureNoShow: "You are marking a future appointment as no-show.",
-            pastBackToScheduled:
-                "This appointment is in the past and is being set back to scheduled.",
+        statusConfirm: {
+            futureCompleted: "Future appointment. Mark as completed?",
+            canceledToCompleted: "Canceled appointment. Mark as completed?",
+            confirm: "Yes",
+            cancel: "Cancel",
         },
         status: {
             booked: "BOOKED",
             canceled: "CANCELED",
-            noShow: "NO SHOW",
             completed: "COMPLETED",
         },
         cancelledBy: {
@@ -1119,13 +1113,12 @@ const en = {
             changeStatus: "Change status",
             setAsBooked: "Set as booked",
             setAsCompleted: "Set as completed",
-            setAsNoShow: "Set as no show",
             setAsCanceled: "Set as canceled",
         },
         toast: {
             markedBooked: "Marked as booked",
             markedCompleted: "Marked as completed",
-            markedNoShow: "Marked as no show",
+            markedCanceled: "Marked as canceled",
         },
         cancelModal: {
             title: "Cancel appointment?",

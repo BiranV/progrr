@@ -8,13 +8,15 @@ import { Arabic } from "flatpickr/dist/l10n/ar";
 import { Hebrew } from "flatpickr/dist/l10n/he";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, ChevronsUpDown, Loader2, MoreVertical } from "lucide-react";
+import { ChevronsUpDown, Loader2, MoreVertical, User } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/i18n/useI18n";
 import { formatTimeRange } from "@/lib/utils";
 import { normalizeEmail } from "@/lib/email";
+import { formatPhoneNumber } from "@/lib/phone-format";
 
 import { CenteredSpinner } from "@/components/CenteredSpinner";
+import { PhoneLink } from "@/components/PhoneLink";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -123,6 +125,9 @@ export default function CalendarClient() {
         notes?: string;
     };
 
+    type AppointmentStatus = "BOOKED" | "COMPLETED" | "CANCELED";
+    type ManualStatus = "COMPLETED" | "CANCELED";
+
     const appointmentsQuery = useQuery({
         queryKey: ["appointments", date],
         staleTime: 30 * 1000,
@@ -173,8 +178,8 @@ export default function CalendarClient() {
     const [paymentUpdatingId, setPaymentUpdatingId] = React.useState<string | null>(
         null,
     );
-    const [statusWarningsById, setStatusWarningsById] = React.useState<
-        Record<string, { from: "BOOKED" | "COMPLETED" | "NO_SHOW" | "CANCELED"; to: "BOOKED" | "COMPLETED" | "NO_SHOW" | "CANCELED" }>
+    const [statusConfirmationsById, setStatusConfirmationsById] = React.useState<
+        Record<string, { from: AppointmentStatus; to: ManualStatus }>
     >({});
 
     const [createOpen, setCreateOpen] = React.useState(false);
@@ -361,12 +366,12 @@ export default function CalendarClient() {
     const normalizeStatusKey = React.useCallback(
         (
             status: unknown,
-        ): "BOOKED" | "COMPLETED" | "NO_SHOW" | "CANCELED" => {
+        ): AppointmentStatus => {
             const s = String(status ?? "").toUpperCase();
-            if (s === "NO_SHOW" || s === "NO SHOW") return "NO_SHOW";
             if (s === "COMPLETED") return "COMPLETED";
             if (s === "CANCELED" || s === "CANCELLED") return "CANCELED";
-            return "BOOKED";
+            if (s === "BOOKED") return "BOOKED";
+            return "CANCELED";
         },
         [],
     );
@@ -376,20 +381,12 @@ export default function CalendarClient() {
         return s === "CANCELED" || s === "CANCELLED";
     }, []);
 
-    const isNoShowStatus = React.useCallback((status: unknown) => {
-        const s = String(status ?? "").toUpperCase();
-        return s === "NO_SHOW" || s === "NO SHOW";
-    }, []);
-
     const statusLabel = React.useCallback((status: unknown) => {
-        const s = String(status ?? "").toUpperCase();
-        if (s === "NO_SHOW" || s === "NO SHOW") return t("calendar.status.noShow");
+        const s = normalizeStatusKey(status);
         if (s === "COMPLETED") return t("calendar.status.completed");
-        if (s === "BOOKED") return t("calendar.status.booked");
-        if (s === "CANCELLED" || s === "CANCELED")
-            return t("calendar.status.canceled");
+        if (s === "CANCELED") return t("calendar.status.canceled");
         return t("calendar.status.booked");
-    }, [t]);
+    }, [normalizeStatusKey, t]);
 
     const translateCalendarError = React.useCallback(
         (message: string) => {
@@ -402,10 +399,7 @@ export default function CalendarClient() {
     );
 
     const updateStatus = React.useCallback(
-        async (
-            appointment: Appointment,
-            nextStatus: "BOOKED" | "COMPLETED" | "NO_SHOW",
-        ) => {
+        async (appointment: Appointment, nextStatus: ManualStatus) => {
             setError(null);
             setStatusUpdatingId(appointment.id);
             try {
@@ -426,19 +420,10 @@ export default function CalendarClient() {
                 }
 
                 toast.success(
-                    nextStatus === "NO_SHOW"
-                        ? t("calendar.toast.markedNoShow")
-                        : nextStatus === "COMPLETED"
-                            ? t("calendar.toast.markedCompleted")
-                            : t("calendar.toast.markedBooked"),
+                    nextStatus === "COMPLETED"
+                        ? t("calendar.toast.markedCompleted")
+                        : t("calendar.toast.markedCanceled"),
                 );
-
-                const from = normalizeStatusKey(appointment.status);
-                const to = nextStatus;
-                setStatusWarningsById((prev) => ({
-                    ...prev,
-                    [appointment.id]: { from, to },
-                }));
 
                 await queryClient.invalidateQueries({
                     queryKey: ["appointments", date],
@@ -456,7 +441,7 @@ export default function CalendarClient() {
                 setStatusUpdatingId(null);
             }
         },
-        [date, normalizeStatusKey, queryClient, t, translateCalendarError],
+        [date, queryClient, t, translateCalendarError],
     );
 
     const updatePaymentStatus = React.useCallback(
@@ -682,57 +667,74 @@ export default function CalendarClient() {
         [nowTimeLocal, parseTimeToMinutes, todayLocal],
     );
 
-    const getStatusWarningForAppointment = React.useCallback(
+    const getStatusConfirmationMessage = React.useCallback(
         (
             appt: Appointment,
-            change: { from: "BOOKED" | "COMPLETED" | "NO_SHOW" | "CANCELED"; to: "BOOKED" | "COMPLETED" | "NO_SHOW" | "CANCELED" },
+            change: { from: AppointmentStatus; to: ManualStatus },
         ) => {
-            const current = normalizeStatusKey(appt.status);
-            if (current !== change.to) return null;
-
             const isIncoming = isIncomingAppointment({
                 date: String(appt.date ?? ""),
                 endTime: String(appt.endTime ?? ""),
             });
-            const isPast = !isIncoming;
 
-            if ((change.from === "CANCELED" || change.from === "NO_SHOW") && change.to === "COMPLETED") {
-                return change.from === "NO_SHOW"
-                    ? t("calendar.statusWarnings.previouslyNoShowCompleted")
-                    : t("calendar.statusWarnings.previouslyCanceledCompleted");
+            if (change.from === "CANCELED" && change.to === "COMPLETED") {
+                return t("calendar.statusConfirm.canceledToCompleted");
             }
-            if (isIncoming && (change.to === "COMPLETED" || change.to === "NO_SHOW")) {
-                return change.to === "COMPLETED"
-                    ? t("calendar.statusWarnings.futureCompleted")
-                    : t("calendar.statusWarnings.futureNoShow");
-            }
-            if (isPast && change.to === "BOOKED") {
-                return t("calendar.statusWarnings.pastBackToScheduled");
+            if (isIncoming && change.to === "COMPLETED") {
+                return t("calendar.statusConfirm.futureCompleted");
             }
 
             return null;
         },
-        [isIncomingAppointment, normalizeStatusKey, t],
+        [isIncomingAppointment, t],
     );
 
-    React.useEffect(() => {
-        const items = appointmentsQuery.data;
-        if (!items || !items.length) return;
-        setStatusWarningsById((prev) => {
-            let changed = false;
-            const next = { ...prev };
-            for (const appt of items) {
-                const warning = next[appt.id];
-                if (!warning) continue;
-                const msg = getStatusWarningForAppointment(appt, warning);
-                if (!msg) {
-                    delete next[appt.id];
-                    changed = true;
-                }
+    const requestStatusChange = React.useCallback(
+        (appointment: Appointment, nextStatus: ManualStatus) => {
+            const from = normalizeStatusKey(appointment.status);
+            if (from === nextStatus) return;
+            const change = { from, to: nextStatus };
+            const message = getStatusConfirmationMessage(appointment, change);
+            if (message) {
+                setStatusConfirmationsById((prev) => ({
+                    ...prev,
+                    [appointment.id]: change,
+                }));
+                return;
             }
-            return changed ? next : prev;
+            updateStatus(appointment, nextStatus);
+        },
+        [getStatusConfirmationMessage, normalizeStatusKey, updateStatus],
+    );
+
+    const clearStatusConfirmation = React.useCallback((appointmentId: string) => {
+        setStatusConfirmationsById((prev) => {
+            if (!prev[appointmentId]) return prev;
+            const next = { ...prev };
+            delete next[appointmentId];
+            return next;
         });
-    }, [appointmentsQuery.data, getStatusWarningForAppointment, nowTimeLocal]);
+    }, []);
+
+    const confirmStatusChange = React.useCallback(
+        async (appointment: Appointment) => {
+            const pending = statusConfirmationsById[appointment.id];
+            if (!pending) return;
+            try {
+                await updateStatus(appointment, pending.to);
+            } finally {
+                clearStatusConfirmation(appointment.id);
+            }
+        },
+        [clearStatusConfirmation, statusConfirmationsById, updateStatus],
+    );
+
+    const cancelStatusChange = React.useCallback(
+        (appointmentId: string) => {
+            clearStatusConfirmation(appointmentId);
+        },
+        [clearStatusConfirmation],
+    );
 
     const cancelAppointmentById = React.useCallback(
         async (appointmentId: string, notifyCustomer: boolean) => {
@@ -811,7 +813,7 @@ export default function CalendarClient() {
 
         // Default view: show only remaining meetings.
         // - Past date: none
-        // - Future date: only BOOKED (exclude COMPLETED / NO SHOW)
+        // - Future date: only BOOKED (exclude COMPLETED)
         // - Today: only BOOKED with endTime after now
         const nonCanceledBooked = appointments
             .filter((a) => !isCanceledStatus(a.status))
@@ -1161,7 +1163,7 @@ export default function CalendarClient() {
                                             {customersPickerQuery.isPending
                                                 ? t("calendar.customersLoading")
                                                 : selectedCustomerForPicker
-                                                    ? `${selectedCustomerForPicker.fullName || t("calendar.noName")} • ${selectedCustomerForPicker.phone}${selectedCustomerForPicker.email ? ` • ${selectedCustomerForPicker.email}` : ""}`
+                                                    ? `${selectedCustomerForPicker.fullName || t("calendar.noName")} • ${formatPhoneNumber(selectedCustomerForPicker.phone, language) || selectedCustomerForPicker.phone}${selectedCustomerForPicker.email ? ` • ${selectedCustomerForPicker.email}` : ""}`
                                                     : customersForPicker.length
                                                         ? t("calendar.customerChoose")
                                                         : t("calendar.customerNone")}
@@ -1191,12 +1193,21 @@ export default function CalendarClient() {
                                                     const isSelected = c._id === createExistingCustomerId;
 
                                                     return (
-                                                        <button
+                                                        <div
                                                             key={c._id}
-                                                            type="button"
-                                                            disabled={disabled}
+                                                            role="button"
+                                                            tabIndex={disabled ? -1 : 0}
+                                                            aria-disabled={disabled}
                                                             onClick={() => {
                                                                 if (disabled) return;
+                                                                setCreateExistingCustomerId(c._id);
+                                                                setCreateCustomerPickerOpen(false);
+                                                                setCreateCustomerSearch("");
+                                                            }}
+                                                            onKeyDown={(e) => {
+                                                                if (disabled) return;
+                                                                if (e.key !== "Enter" && e.key !== " ") return;
+                                                                e.preventDefault();
                                                                 setCreateExistingCustomerId(c._id);
                                                                 setCreateCustomerPickerOpen(false);
                                                                 setCreateCustomerSearch("");
@@ -1209,8 +1220,16 @@ export default function CalendarClient() {
                                                                 (isSelected ? " bg-muted" : "")
                                                             }
                                                         >
-                                                            <div className="truncate">
-                                                                {c.fullName || t("calendar.noName")} • {c.phone}
+                                                            <div className="truncate flex items-center gap-1">
+                                                                <span className="truncate">
+                                                                    {c.fullName || t("calendar.noName")}
+                                                                </span>
+                                                                <span className="text-muted-foreground">•</span>
+                                                                <PhoneLink
+                                                                    phone={c.phone}
+                                                                    className="text-xs"
+                                                                    stopPropagation
+                                                                />
                                                             </div>
                                                             <div className="truncate text-xs text-muted-foreground">
                                                                 {c.email ? c.email : t("calendar.missingEmail")}
@@ -1222,7 +1241,7 @@ export default function CalendarClient() {
                                                                         ? ` • ${t("calendar.customerIncomplete")}`
                                                                         : ""}
                                                             </div>
-                                                        </button>
+                                                        </div>
                                                     );
                                                 })}
                                             </div>
@@ -1281,90 +1300,57 @@ export default function CalendarClient() {
             ) : (
                 <div className="space-y-2">
                     {visibleAppointments.map((a) => {
-                        const statusWarning = statusWarningsById[a.id]
-                            ? getStatusWarningForAppointment(
-                                a,
-                                statusWarningsById[a.id],
-                            )
+                        const statusConfirmation = statusConfirmationsById[a.id];
+                        const confirmationMessage = statusConfirmation
+                            ? getStatusConfirmationMessage(a, statusConfirmation)
                             : null;
+                        const isStatusConfirming = Boolean(confirmationMessage);
 
                         return (
                             <div
                                 key={a.id}
-                                className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-3 shadow-sm"
+                                className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 shadow-sm overflow-hidden"
                             >
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                        <div className="font-semibold text-gray-900 dark:text-white truncate">
-                                            <span dir="ltr">
-                                                {formatTimeRange(a.startTime, a.endTime)}
-                                            </span>
+                                <div className="flex items-center justify-between gap-3 px-3 py-1.5 bg-gray-100/80 dark:bg-gray-900/40 relative overflow-hidden">
+                                    <div
+                                        className={
+                                            "absolute inset-0 z-10 flex items-center justify-between gap-2 px-3 py-2 bg-gray-200 dark:bg-gray-900 transition-transform duration-200 " +
+                                            (isStatusConfirming
+                                                ? "translate-y-0 pointer-events-auto"
+                                                : "-translate-y-full pointer-events-none")
+                                        }
+                                        aria-hidden={!isStatusConfirming}
+                                    >
+                                        <div className="text-xs font-medium text-gray-900 dark:text-white leading-snug min-w-0 flex-1">
+                                            {confirmationMessage}
                                         </div>
-                                        <div className="text-sm text-gray-700 dark:text-gray-200 truncate">
-                                            {a.serviceName}
-                                        </div>
-
-                                        {a.bookedByYou ? (
-                                            <div className="text-xs text-muted-foreground mt-1">
-                                                {t("calendar.bookedByYou")}
-                                            </div>
-                                        ) : null}
-
-                                        {isCanceledStatus(a.status) ? (
-                                            <div className="text-xs text-muted-foreground mt-1">
-                                                {String(a.cancelledBy || "").toUpperCase() === "BUSINESS"
-                                                    ? t("calendar.cancelledBy.business")
-                                                    : String(a.cancelledBy || "").toUpperCase() === "CUSTOMER"
-                                                        ? t("calendar.cancelledBy.customer")
-                                                        : t("calendar.cancelledBy.unknown")}
-                                            </div>
-                                        ) : null}
-                                        <div className="text-sm text-gray-600 dark:text-gray-300 truncate">
-                                            {a.customer.fullName}
-                                        </div>
-                                        {a.customer.phone ? (
-                                            <div
-                                                className="text-xs text-gray-600 dark:text-gray-300 break-words"
-                                                dir="ltr"
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="default"
+                                                className="rounded-md whitespace-nowrap h-7 px-3 text-[11px]"
+                                                onClick={() => confirmStatusChange(a)}
+                                                disabled={statusUpdatingId === a.id}
                                             >
-                                                {a.customer.phone}
-                                            </div>
-                                        ) : null}
-                                        {a.notes ? (
-                                            <div className="text-xs text-muted-foreground mt-1">
-                                                {a.notes}
-                                            </div>
-                                        ) : null}
-
-                                        {String(a.status) === "BOOKED" ? (
-                                            <div className="flex items-center justify-between gap-2 mt-2">
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="rounded-xl"
-                                                    onClick={() => openReschedule(a)}
-                                                >
-                                                    {t("calendar.actions.changeHour")}
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    className="rounded-xl ms-auto text-gray-900 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-800"
-                                                    onClick={() => {
-                                                        const incoming = isIncomingAppointment({
-                                                            date: a.date,
-                                                            endTime: a.endTime,
-                                                        });
-                                                        if (incoming) setCancelId(a.id);
-                                                        else cancelAppointmentById(a.id, false);
-                                                    }}
-                                                >
-                                                    {t("calendar.actions.cancel")}
-                                                </Button>
-                                            </div>
-                                        ) : null}
+                                                {t("calendar.statusConfirm.confirm")}
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="ghost"
+                                                className="rounded-lg whitespace-nowrap h-7 px-2 text-[11px]"
+                                                onClick={() => cancelStatusChange(a.id)}
+                                                disabled={statusUpdatingId === a.id}
+                                            >
+                                                {t("calendar.statusConfirm.cancel")}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                    <div className="font-semibold text-gray-900 dark:text-white truncate">
+                                        <span dir="ltr">
+                                            {formatTimeRange(a.startTime, a.endTime)}
+                                        </span>
                                     </div>
 
                                     <div className="flex items-center gap-2 shrink-0">
@@ -1375,34 +1361,13 @@ export default function CalendarClient() {
                                                     ? "bg-emerald-50/80 text-emerald-700 border-emerald-200/70"
                                                     : String(a.status) === "COMPLETED"
                                                         ? "bg-blue-50/80 text-blue-700 border-blue-200/70"
-                                                        : isNoShowStatus(a.status)
-                                                            ? "bg-rose-50/80 text-rose-700 border-rose-200/70"
-                                                            : isCanceledStatus(a.status)
-                                                                ? "bg-gray-100/80 text-gray-600 border-gray-200/70 dark:bg-gray-800/60 dark:text-gray-200 dark:border-gray-700/60"
-                                                                : "bg-gray-100/80 text-gray-600 border-gray-200/70 dark:bg-gray-800/60 dark:text-gray-200 dark:border-gray-700/60")
+                                                        : isCanceledStatus(a.status)
+                                                            ? "bg-gray-100/80 text-gray-600 border-gray-200/70 dark:bg-gray-800/60 dark:text-gray-200 dark:border-gray-700/60"
+                                                            : "bg-gray-100/80 text-gray-600 border-gray-200/70 dark:bg-gray-800/60 dark:text-gray-200 dark:border-gray-700/60")
                                             }
                                         >
                                             {statusLabel(a.status)}
                                         </Badge>
-
-                                        {normalizeStatusKey(a.status) === "COMPLETED" ? (
-                                            <div className="flex items-center gap-2 ms-2">
-                                                <Switch
-                                                    checked={String(a.paymentStatus ?? "UNPAID").toUpperCase() === "PAID"}
-                                                    onCheckedChange={(checked) =>
-                                                        updatePaymentStatus(
-                                                            a,
-                                                            checked ? "PAID" : "UNPAID",
-                                                        )
-                                                    }
-                                                    disabled={paymentUpdatingId === a.id}
-                                                    aria-label="Paid"
-                                                />
-                                                <span className="text-xs text-gray-600 dark:text-gray-300 select-none">
-                                                    {t("calendar.paid")}
-                                                </span>
-                                            </div>
-                                        ) : null}
 
                                         {showAll || !isCanceledStatus(a.status) ? (
                                             <DropdownMenu>
@@ -1412,7 +1377,7 @@ export default function CalendarClient() {
                                                         size="icon"
                                                         variant="ghost"
                                                         className="h-8 w-8 rounded-xl"
-                                                        disabled={statusUpdatingId === a.id}
+                                                        disabled={statusUpdatingId === a.id || isStatusConfirming}
                                                         aria-label={t("calendar.actions.changeStatus")}
                                                         title={t("calendar.actions.changeStatus")}
                                                     >
@@ -1429,30 +1394,12 @@ export default function CalendarClient() {
 
                                                         return (
                                                             <>
-                                                                {current !== "BOOKED" ? (
-                                                                    <DropdownMenuItem
-                                                                        onClick={() => updateStatus(a, "BOOKED")}
-                                                                        disabled={statusUpdatingId === a.id}
-                                                                    >
-                                                                        {t("calendar.actions.setAsBooked")}
-                                                                    </DropdownMenuItem>
-                                                                ) : null}
-
                                                                 {current !== "COMPLETED" ? (
                                                                     <DropdownMenuItem
-                                                                        onClick={() => updateStatus(a, "COMPLETED")}
+                                                                        onClick={() => requestStatusChange(a, "COMPLETED")}
                                                                         disabled={statusUpdatingId === a.id}
                                                                     >
                                                                         {t("calendar.actions.setAsCompleted")}
-                                                                    </DropdownMenuItem>
-                                                                ) : null}
-
-                                                                {current !== "NO_SHOW" ? (
-                                                                    <DropdownMenuItem
-                                                                        onClick={() => updateStatus(a, "NO_SHOW")}
-                                                                        disabled={statusUpdatingId === a.id}
-                                                                    >
-                                                                        {t("calendar.actions.setAsNoShow")}
                                                                     </DropdownMenuItem>
                                                                 ) : null}
 
@@ -1482,17 +1429,91 @@ export default function CalendarClient() {
                                         ) : null}
                                     </div>
                                 </div>
-                                {statusWarning ? (
-                                    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 px-3 py-2 text-sm flex gap-2 items-start">
-                                        <AlertTriangle className="h-4 w-4 mt-0.5" />
-                                        <div className="space-y-1">
-                                            <span className="inline-flex text-[11px] text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
-                                                {t("calendar.manualOverride")}
-                                            </span>
-                                            <div>{statusWarning}</div>
+
+                                <div className="flex items-start gap-3 p-3">
+                                    <div className="min-w-0 w-full">
+                                        <div className="flex items-center justify-between gap-3 w-full">
+                                            <div className="text-sm text-gray-700 dark:text-gray-200 truncate">
+                                                {a.serviceName}
+                                            </div>
+                                            <div className="flex items-center gap-3 shrink-0 ms-auto">
+                                                {isCanceledStatus(a.status) ? (
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {String(a.cancelledBy || "").toUpperCase() === "BUSINESS"
+                                                            ? t("calendar.cancelledBy.business")
+                                                            : String(a.cancelledBy || "").toUpperCase() === "CUSTOMER"
+                                                                ? t("calendar.cancelledBy.customer")
+                                                                : t("calendar.cancelledBy.unknown")}
+                                                    </span>
+                                                ) : null}
+                                                {normalizeStatusKey(a.status) === "COMPLETED" ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <Switch
+                                                            checked={String(a.paymentStatus ?? "UNPAID").toUpperCase() === "PAID"}
+                                                            onCheckedChange={(checked) =>
+                                                                updatePaymentStatus(
+                                                                    a,
+                                                                    checked ? "PAID" : "UNPAID",
+                                                                )
+                                                            }
+                                                            disabled={paymentUpdatingId === a.id}
+                                                            aria-label={t("calendar.paid")}
+                                                            className="scale-90"
+                                                        />
+                                                        <span className="text-xs text-gray-600 dark:text-gray-300 select-none">
+                                                            {t("calendar.paid")}
+                                                        </span>
+                                                    </div>
+                                                ) : null}
+                                            </div>
                                         </div>
+
+                                        {a.bookedByYou ? (
+                                            <div className="text-xs text-muted-foreground mt-1">
+                                                {t("calendar.bookedByYou")}
+                                            </div>
+                                        ) : null}
+
+                                        <div className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-3 w-full">
+                                            <span
+                                                className={
+                                                    "flex items-center gap-1 min-w-0" +
+                                                    (isRtl ? " flex-row-reverse" : "")
+                                                }
+                                            >
+                                                <User className="h-3.5 w-3.5 text-gray-500" />
+                                                <span className="truncate">{a.customer.fullName}</span>
+                                            </span>
+                                            {a.customer.phone ? (
+                                                <PhoneLink
+                                                    phone={a.customer.phone}
+                                                    className="text-xs ms-auto"
+                                                />
+                                            ) : null}
+                                        </div>
+                                        {a.notes ? (
+                                            <div className="text-xs text-muted-foreground mt-1">
+                                                {a.notes}
+                                            </div>
+                                        ) : null}
+
+                                        {String(a.status) === "BOOKED" ? (
+                                            <div className="flex items-center justify-start gap-2 mt-2">
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="rounded-xl"
+                                                    onClick={() => openReschedule(a)}
+                                                >
+                                                    {t("calendar.actions.changeHour")}
+                                                </Button>
+                                            </div>
+                                        ) : null}
                                     </div>
-                                ) : null}
+
+
+                                </div>
                             </div>
                         );
                     })}

@@ -119,11 +119,9 @@ export async function GET(
             const rawStatus = String(a?.status ?? "");
             const cancelled = rawStatus === "CANCELLED" || rawStatus === "CANCELED";
 
-            let status: "BOOKED" | "CANCELED" | "COMPLETED" | "NO_SHOW";
+            let status: "BOOKED" | "CANCELED" | "COMPLETED";
             if (cancelled) {
                 status = "CANCELED";
-            } else if (rawStatus === "NO_SHOW") {
-                status = "NO_SHOW";
             } else if (rawStatus === "COMPLETED") {
                 status = "COMPLETED";
             } else {
@@ -134,7 +132,7 @@ export async function GET(
                     nowTimeStr,
                 })
                     ? "BOOKED"
-                    : "COMPLETED";
+                    : "CANCELED";
             }
 
             return {

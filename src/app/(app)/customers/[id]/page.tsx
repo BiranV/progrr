@@ -11,6 +11,7 @@ import ConfirmModal from "@/components/ui/confirm-modal";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { PhoneLink } from "@/components/PhoneLink";
 import SettingsBackHeader from "@/components/settings/SettingsBackHeader";
 import { toast } from "sonner";
 import { useI18n } from "@/i18n/useI18n";
@@ -22,7 +23,7 @@ type Booking = {
   date: string;
   startTime: string;
   endTime: string;
-  status: "BOOKED" | "CANCELED" | "COMPLETED" | "NO_SHOW";
+  status: "BOOKED" | "CANCELED" | "COMPLETED";
   cancelledBy?: "BUSINESS" | "CUSTOMER" | string;
 };
 
@@ -81,12 +82,6 @@ export default function CustomerDetailsPage() {
         return {
           label: t("customers.details.status.completed"),
           className: "border backdrop-blur-sm bg-blue-50/80 text-blue-700 border-blue-200/70",
-        };
-      }
-      if (status === "NO_SHOW") {
-        return {
-          label: t("customers.details.status.noShow"),
-          className: "border backdrop-blur-sm bg-amber-50/80 text-amber-700 border-amber-200/70",
         };
       }
       return {
@@ -328,7 +323,7 @@ export default function CustomerDetailsPage() {
           </Badge>
         </div>
         <div className="text-sm text-gray-600 dark:text-gray-300 leading-tight space-y-0.5">
-          <div className="truncate">{data.customer.phone}</div>
+          <PhoneLink phone={data.customer.phone} className="text-sm" />
           {data.customer.email ? (
             <div className="truncate">{data.customer.email}</div>
           ) : null}

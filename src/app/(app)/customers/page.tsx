@@ -19,6 +19,7 @@ import { CenteredSpinner } from "@/components/CenteredSpinner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { PhoneLink } from "@/components/PhoneLink";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,7 +61,7 @@ type Booking = {
   date: string;
   startTime: string;
   endTime: string;
-  status: "BOOKED" | "CANCELED" | "COMPLETED" | "NO_SHOW";
+  status: "BOOKED" | "CANCELED" | "COMPLETED";
   cancelledBy?: "BUSINESS" | "CUSTOMER" | string;
 };
 
@@ -198,7 +199,7 @@ export default function CustomersPage() {
               {c.fullName || t("customers.table.noName")}
             </div>
             <div className="text-xs text-gray-600 dark:text-gray-300 leading-tight">
-              <div className="truncate">{c.phone}</div>
+              <PhoneLink phone={c.phone} className="text-xs" />
               {c.email ? <div className="truncate">{c.email}</div> : null}
             </div>
           </div>
@@ -632,7 +633,15 @@ export default function CustomersPage() {
                   {t("customers.drawer.phoneLabel")}
                 </div>
                 <div className="text-sm text-gray-900 dark:text-white">
-                  {selectedCustomer?.phone || t("common.emptyDash")}
+                  {selectedCustomer?.phone ? (
+                    <PhoneLink
+                      phone={selectedCustomer.phone}
+                      showIcon={false}
+                      className="text-sm text-gray-900 dark:text-white"
+                    />
+                  ) : (
+                    t("common.emptyDash")
+                  )}
                 </div>
               </div>
 
@@ -713,18 +722,14 @@ export default function CustomersPage() {
                             ? "bg-emerald-50/80 text-emerald-700 border-emerald-200/70"
                             : row.status === "COMPLETED"
                               ? "bg-blue-50/80 text-blue-700 border-blue-200/70"
-                              : row.status === "NO_SHOW"
-                                ? "bg-amber-50/80 text-amber-700 border-amber-200/70"
-                                : "bg-gray-100/80 text-gray-600 border-gray-200/70 dark:bg-gray-800/60 dark:text-gray-200 dark:border-gray-700/60");
+                              : "bg-gray-100/80 text-gray-600 border-gray-200/70 dark:bg-gray-800/60 dark:text-gray-200 dark:border-gray-700/60");
 
                         const badgeLabel =
                           row.status === "BOOKED"
                             ? t("customers.details.status.booked")
                             : row.status === "COMPLETED"
                               ? t("customers.details.status.completed")
-                              : row.status === "NO_SHOW"
-                                ? t("customers.details.status.noShow")
-                                : t("customers.details.status.canceled");
+                              : t("customers.details.status.canceled");
 
                         return <Badge className={badgeClass}>{badgeLabel}</Badge>;
                       },

@@ -4,7 +4,7 @@ import { ObjectId } from "mongodb";
 import { requireAppUser } from "@/server/auth";
 import { collections, ensureIndexes } from "@/server/collections";
 
-const ALLOWED_STATUSES = ["BOOKED", "COMPLETED", "NO_SHOW", "CANCELED"] as const;
+const ALLOWED_STATUSES = ["COMPLETED", "CANCELED"] as const;
 type AllowedStatus = (typeof ALLOWED_STATUSES)[number];
 
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {

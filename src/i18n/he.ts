@@ -30,6 +30,7 @@ const he = {
         languageArabic: "العربية",
         appLogoAlt: "לוגו",
         redirecting: "מעביר...",
+        callCustomer: "התקשר ללקוח",
     },
     timePicker: {
         title: "בחירת שעה",
@@ -113,7 +114,6 @@ const he = {
                 blocked: "חסום",
                 booked: "נקבע",
                 completed: "הושלם",
-                noShow: "לא הגיע",
                 canceled: "בוטל",
             },
             activeBookings: "תורים פעילים: {{count}}",
@@ -1083,20 +1083,15 @@ const he = {
         fillRequired: "יש למלא את כל השדות הנדרשים",
         appointmentCreated: "התור נוצר",
         paid: "שולם",
-        manualOverride: "שינוי ידני",
-        statusWarnings: {
-            previouslyNoShowCompleted:
-                "תור זה סומן בעבר כלא הגיע וכעת מסומן כהושלם.",
-            previouslyCanceledCompleted:
-                "תור זה בוטל בעבר וכעת מסומן כהושלם.",
-            futureCompleted: "את/ה מסמן/ת תור עתידי כהושלם.",
-            futureNoShow: "את/ה מסמן/ת תור עתידי כלא הגיע.",
-            pastBackToScheduled: "התור עבר וכעת מוחזר לסטטוס נקבע.",
+        statusConfirm: {
+            futureCompleted: "תור עתידי. לסמן כהושלם?",
+            canceledToCompleted: "תור בוטל. לסמן כהושלם?",
+            confirm: "כן",
+            cancel: "ביטול",
         },
         status: {
             booked: "נקבע",
             canceled: "בוטל",
-            noShow: "לא הגיע",
             completed: "הושלם",
         },
         cancelledBy: {
@@ -1110,13 +1105,12 @@ const he = {
             changeStatus: "שינוי סטטוס",
             setAsBooked: "סמן/י כנקבע",
             setAsCompleted: "סמן/י כהושלם",
-            setAsNoShow: "סמן/י כלא הגיע",
             setAsCanceled: "סמן/י כבוטל",
         },
         toast: {
             markedBooked: "סומן כנקבע",
             markedCompleted: "סומן כהושלם",
-            markedNoShow: "סומן כלא הגיע",
+            markedCanceled: "סומן כבוטל",
         },
         cancelModal: {
             title: "לבטל תור?",
