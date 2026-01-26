@@ -32,7 +32,7 @@ export default function AuthBanner({
     >
       <p className="text-sm font-medium leading-tight flex-1">{banner.text}</p>
 
-      {onClose ? (
+      {onClose && !isError ? (
         <button
           type="button"
           onClick={onClose}

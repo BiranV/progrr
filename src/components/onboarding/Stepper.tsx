@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import clsx from "clsx";
 
 export default function Stepper({
   totalSteps,
@@ -14,19 +15,21 @@ export default function Stepper({
 
   return (
     <div className="flex justify-center gap-2 pt-6">
-      {Array.from({ length: steps }).map((_, index) =>
-        index === activeIndex ? (
+      {Array.from({ length: steps }).map((_, index) => {
+        const isActive = index === activeIndex;
+
+        return (
           <div
             key={`step-${index}`}
-            className="w-6 h-2 bg-[#165CF0] rounded-full"
+            className={clsx(
+              "h-2 rounded-full transition-all duration-300 ease-out",
+              isActive
+                ? "w-6 bg-[#165CF0]"
+                : "w-2 bg-slate-300"
+            )}
           />
-        ) : (
-          <div
-            key={`step-${index}`}
-            className="w-2 h-2 bg-slate-300 rounded-full"
-          />
-        ),
-      )}
+        );
+      })}
     </div>
   );
 }

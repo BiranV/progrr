@@ -74,11 +74,20 @@ export default function AdminAuthStep({
   const [loginEmail, setLoginEmail] = useState(() => normalizeEmail(initialEmail));
   const [loginCode, setLoginCode] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [loginEmailTouched, setLoginEmailTouched] = useState(false);
+  const [loginCodeTouched, setLoginCodeTouched] = useState(false);
+  const [loginSubmitAttempted, setLoginSubmitAttempted] = useState(false);
+  const [loginVerifyAttempted, setLoginVerifyAttempted] = useState(false);
 
   // Signup State
   const [signupName, setSignupName] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupCode, setSignupCode] = useState("");
+  const [signupNameTouched, setSignupNameTouched] = useState(false);
+  const [signupEmailTouched, setSignupEmailTouched] = useState(false);
+  const [signupCodeTouched, setSignupCodeTouched] = useState(false);
+  const [signupSubmitAttempted, setSignupSubmitAttempted] = useState(false);
+  const [signupVerifyAttempted, setSignupVerifyAttempted] = useState(false);
 
   // Field Errors
   const [signupNameError, setSignupNameError] = useState<string | null>(null);
@@ -143,6 +152,7 @@ export default function AdminAuthStep({
   const sendLoginCode = async (e: React.FormEvent) => {
     e.preventDefault();
     resetError();
+    setLoginSubmitAttempted(true);
     const email = normalizeEmail(loginEmail);
     setLoginEmail(email);
     if (!isValidEmail(email)) {
@@ -177,6 +187,7 @@ export default function AdminAuthStep({
   const verifyLoginCode = async (e: React.FormEvent) => {
     e.preventDefault();
     resetError();
+    setLoginVerifyAttempted(true);
     if (!loginCode) {
       setLoginCodeError(t("errors.codeRequired"));
       loginCodeRef.current?.focus();
@@ -224,9 +235,12 @@ export default function AdminAuthStep({
   const sendSignupCode = async (e: React.FormEvent) => {
     e.preventDefault();
     resetError();
+    setSignupSubmitAttempted(true);
     let hasError = false;
 
-    if (!isValidFullName(signupName)) {
+    const fullName = signupName.trim();
+    setSignupName(fullName);
+    if (!isValidFullName(fullName)) {
       setSignupNameError(t("errors.fullNameRequired"));
       hasError = true;
     }
@@ -239,7 +253,7 @@ export default function AdminAuthStep({
     }
 
     if (hasError) {
-      if (!isValidFullName(signupName)) {
+      if (!isValidFullName(fullName)) {
         signupNameRef.current?.focus();
       } else if (!isValidEmail(email)) {
         signupEmailRef.current?.focus();
@@ -279,6 +293,7 @@ export default function AdminAuthStep({
   const verifySignupCode = async (e: React.FormEvent) => {
     e.preventDefault();
     resetError();
+    setSignupVerifyAttempted(true);
     if (!signupCode) {
       setSignupCodeError(t("errors.codeRequired"));
       signupCodeRef.current?.focus();
@@ -413,14 +428,24 @@ export default function AdminAuthStep({
                     onChange={(e) => {
                       setLoginEmail(normalizeEmail(e.target.value));
                       if (loginError) setLoginError(null);
+                      if (globalError) setGlobalError(null);
                     }}
-                    onBlur={(e) => setLoginEmail(normalizeEmail(e.target.value))}
+                    onBlur={(e) => {
+                      setLoginEmail(normalizeEmail(e.target.value));
+                      setLoginEmailTouched(true);
+                      if (!isValidEmail(normalizeEmail(e.target.value))) {
+                        setLoginError(t("errors.invalidEmail"));
+                      }
+                    }}
                     ref={loginEmailRef}
                     className={`h-14 bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${loginError ? inputErrorClass : "border-[#165CF0]"
                       }`}
                     placeholder={t("auth.emailPlaceholder")}
                     autoFocus
                   />
+                  {(loginEmailTouched || loginSubmitAttempted) && loginError ? (
+                    <p className="text-xs text-rose-500 ms-1">{loginError}</p>
+                  ) : null}
                 </div>
                 <Button
                   disabled={loading}
@@ -442,6 +467,8 @@ export default function AdminAuthStep({
                     onChange={(value) => {
                       setLoginCode(value);
                       if (loginCodeError) setLoginCodeError(null);
+                      if (globalError) setGlobalError(null);
+                      if (!loginCodeTouched) setLoginCodeTouched(true);
                     }}
                     length={6}
                     disabled={loading}
@@ -452,6 +479,11 @@ export default function AdminAuthStep({
                   <p className="text-xs text-slate-500 ms-1 pt-1">
                     {t("auth.codeSentToEmail", { email: loginEmail })}
                   </p>
+                  {(loginCodeTouched || loginVerifyAttempted) && loginCodeError ? (
+                    <p className="text-xs text-rose-500 ms-1">
+                      {loginCodeError}
+                    </p>
+                  ) : null}
                 </div>
                 <Button
                   disabled={loading}
@@ -546,6 +578,15 @@ export default function AdminAuthStep({
                     onChange={(e) => {
                       setSignupName(e.target.value);
                       if (signupNameError) setSignupNameError(null);
+                      if (globalError) setGlobalError(null);
+                    }}
+                    onBlur={(e) => {
+                      const value = e.target.value.trim();
+                      setSignupName(value);
+                      setSignupNameTouched(true);
+                      if (!isValidFullName(value)) {
+                        setSignupNameError(t("errors.fullNameRequired"));
+                      }
                     }}
                     ref={signupNameRef}
                     className={`h-14 bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${signupNameError ? inputErrorClass : "border-[#165CF0]"
@@ -553,6 +594,9 @@ export default function AdminAuthStep({
                     placeholder={t("auth.fullNamePlaceholder")}
                     autoFocus
                   />
+                  {(signupNameTouched || signupSubmitAttempted) && signupNameError ? (
+                    <p className="text-xs text-rose-500 ms-1">{signupNameError}</p>
+                  ) : null}
                 </div>
                 <div className="space-y-2">
                   <Label className="text-slate-600 ms-1">
@@ -563,13 +607,24 @@ export default function AdminAuthStep({
                     onChange={(e) => {
                       setSignupEmail(normalizeEmail(e.target.value));
                       if (signupEmailError) setSignupEmailError(null);
+                      if (globalError) setGlobalError(null);
                     }}
-                    onBlur={(e) => setSignupEmail(normalizeEmail(e.target.value))}
+                    onBlur={(e) => {
+                      const value = normalizeEmail(e.target.value);
+                      setSignupEmail(value);
+                      setSignupEmailTouched(true);
+                      if (!isValidEmail(value)) {
+                        setSignupEmailError(t("errors.invalidEmail"));
+                      }
+                    }}
                     ref={signupEmailRef}
                     className={`h-14 bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${signupEmailError ? inputErrorClass : "border-[#165CF0]"
                       }`}
                     placeholder={t("auth.emailPlaceholder")}
                   />
+                  {(signupEmailTouched || signupSubmitAttempted) && signupEmailError ? (
+                    <p className="text-xs text-rose-500 ms-1">{signupEmailError}</p>
+                  ) : null}
                 </div>
                 <Button
                   disabled={loading}
@@ -591,6 +646,8 @@ export default function AdminAuthStep({
                     onChange={(value) => {
                       setSignupCode(value);
                       if (signupCodeError) setSignupCodeError(null);
+                      if (globalError) setGlobalError(null);
+                      if (!signupCodeTouched) setSignupCodeTouched(true);
                     }}
                     length={6}
                     disabled={loading}
@@ -601,6 +658,11 @@ export default function AdminAuthStep({
                   <p className="text-xs text-slate-500 ms-1 pt-1">
                     {t("auth.codeSentToEmail", { email: signupEmail })}
                   </p>
+                  {(signupCodeTouched || signupVerifyAttempted) && signupCodeError ? (
+                    <p className="text-xs text-rose-500 ms-1">
+                      {signupCodeError}
+                    </p>
+                  ) : null}
                 </div>
                 <Button
                   disabled={loading}
