@@ -9,17 +9,7 @@ import {
     CUSTOMER_ACCESS_COOKIE_NAME,
     customerAccessCookieOptions,
 } from "@/server/customer-access";
-
-function normalizeEmail(input: unknown): string {
-    return String(input ?? "")
-        .replace(/[\s\u200B\u200C\u200D\uFEFF]/g, "")
-        .trim()
-        .toLowerCase();
-}
-
-function isValidEmail(email: string) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
+import { isValidEmail, normalizeEmail } from "@/lib/email";
 
 export async function POST(req: Request) {
     try {

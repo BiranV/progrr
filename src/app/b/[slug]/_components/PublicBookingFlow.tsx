@@ -18,13 +18,14 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 import OtpInput from "@/components/OtpInput";
 import Stepper from "@/components/onboarding/Stepper";
-import Flatpickr from "react-flatpickr";
 import PublicBookingShell from "./PublicBookingShell";
 import { usePublicBusiness } from "./usePublicBusiness";
 import { formatDateInTimeZone, formatPrice } from "@/lib/public-booking";
 import { formatTimeRange } from "@/lib/utils";
+import { isValidEmail, normalizeEmail } from "@/lib/email";
 import { useLocale } from "@/context/LocaleContext";
 import { useI18n } from "@/i18n/useI18n";
+import Flatpickr from "react-flatpickr";
 import { english } from "flatpickr/dist/l10n/default";
 import { Arabic } from "flatpickr/dist/l10n/ar";
 import { Hebrew } from "flatpickr/dist/l10n/he";
@@ -77,10 +78,6 @@ type BookingResult = {
   }>;
   cancelToken: string;
 };
-
-function isValidEmail(email: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
 
 function normalizeOtpCode(value: string): string {
   const input = String(value ?? "");
@@ -429,8 +426,8 @@ export default function PublicBookingFlow({
         if ((json as any)?.loggedIn) {
           setConnected(true);
           const cust = (json as any)?.customer ?? {};
-          if (!customerEmail.trim() && typeof cust?.email === "string") {
-            setCustomerEmail(String(cust.email));
+          if (!normalizeEmail(customerEmail) && typeof cust?.email === "string") {
+            setCustomerEmail(normalizeEmail(cust.email));
           }
           if (!customerFullName.trim() && typeof cust?.fullName === "string") {
             setCustomerFullName(String(cust.fullName));
@@ -580,8 +577,8 @@ export default function PublicBookingFlow({
         }
 
         const cust = (json as any)?.customer ?? {};
-        if (!customerEmail.trim() && typeof cust?.email === "string") {
-          setCustomerEmail(String(cust.email));
+        if (!normalizeEmail(customerEmail) && typeof cust?.email === "string") {
+          setCustomerEmail(normalizeEmail(cust.email));
         }
         if (!customerFullName.trim() && typeof cust?.fullName === "string") {
           setCustomerFullName(String(cust.fullName));
@@ -635,7 +632,7 @@ export default function PublicBookingFlow({
     const nextServiceId = String(sp.get("serviceId") ?? "").trim();
     const nextDate = String(sp.get("date") ?? "").trim();
     const nextTime = String(sp.get("time") ?? "").trim();
-    const nextEmail = String(sp.get("email") ?? "").trim();
+    const nextEmail = normalizeEmail(sp.get("email"));
     const nextPhone = String(sp.get("phone") ?? "").trim();
 
     if (nextServiceId && !serviceId) setServiceId(nextServiceId);
@@ -648,7 +645,7 @@ export default function PublicBookingFlow({
       if (connected) {
         setStep("confirm");
       } else {
-        setLoginEmail(nextEmail || customerEmail.trim());
+        setLoginEmail(nextEmail || normalizeEmail(customerEmail));
         setLoginStep("email");
         setLoginCode("");
         setLoginError(null);
@@ -840,7 +837,7 @@ export default function PublicBookingFlow({
   }, [date, publicId, serviceId, step]);
 
   const openProfileEditor = React.useCallback(() => {
-    const email = customerEmail.trim();
+    const email = normalizeEmail(customerEmail);
     setProfileOpen(true);
     setProfileStep("form");
     setProfileError(null);
@@ -925,7 +922,7 @@ export default function PublicBookingFlow({
               <DropdownMenuItem
                 className="w-full flex items-center gap-2 rtl:flex-row-reverse rtl:justify-start rtl:text-right ltr:flex-row ltr:justify-start ltr:text-left"
                 onClick={() => {
-                  setLoginEmail(customerEmail.trim());
+                  setLoginEmail(normalizeEmail(customerEmail));
                   setLoginStep("email");
                   setLoginCode("");
                   setLoginError(null);
@@ -1018,7 +1015,7 @@ export default function PublicBookingFlow({
 
   const hasRequiredDetails = Boolean(
     customerFullName.trim() &&
-    customerEmail.trim() &&
+    normalizeEmail(customerEmail) &&
     customerPhone.trim() &&
     customerPhoneValid
   );
@@ -1093,7 +1090,8 @@ export default function PublicBookingFlow({
   const requestLoginOtp = async () => {
     if (!publicId)
       throw { key: "publicBooking.errors.businessNotFound" } as PublicBookingError;
-    const email = loginEmail.trim();
+    const email = normalizeEmail(loginEmail);
+    setLoginEmail(email);
     if (!email)
       throw { key: "publicBooking.errors.emailRequired" } as PublicBookingError;
     if (!isValidEmail(email))
@@ -1120,7 +1118,8 @@ export default function PublicBookingFlow({
   const verifyLoginOtp = async () => {
     if (!publicId)
       throw { key: "publicBooking.errors.businessNotFound" } as PublicBookingError;
-    const email = loginEmail.trim();
+    const email = normalizeEmail(loginEmail);
+    setLoginEmail(email);
     const code = normalizeOtpCode(loginCode);
     if (!email)
       throw { key: "publicBooking.errors.emailRequired" } as PublicBookingError;
@@ -1186,8 +1185,8 @@ export default function PublicBookingFlow({
       throw { key: "publicBooking.errors.businessNotFound" } as PublicBookingError;
     const fullName = profileFullName.trim();
     const phone = profilePhone.trim();
-    const currentEmail = profileCurrentEmail.trim();
-    const newEmail = profileNewEmail.trim();
+    const currentEmail = normalizeEmail(profileCurrentEmail);
+    const newEmail = normalizeEmail(profileNewEmail);
 
     if (!fullName)
       throw { key: "publicBooking.errors.fullNameRequired" } as PublicBookingError;
@@ -1234,8 +1233,8 @@ export default function PublicBookingFlow({
   const submitProfileEmailVerify = async () => {
     if (!publicId)
       throw { key: "publicBooking.errors.businessNotFound" } as PublicBookingError;
-    const currentEmail = profileCurrentEmail.trim();
-    const newEmail = profileNewEmail.trim();
+    const currentEmail = normalizeEmail(profileCurrentEmail);
+    const newEmail = normalizeEmail(profileNewEmail);
     const code = normalizeOtpCode(profileCode);
     if (!currentEmail)
       throw { key: "publicBooking.errors.emailRequired" } as PublicBookingError;
@@ -1258,7 +1257,7 @@ export default function PublicBookingFlow({
     const json = await readJsonOrThrow(res);
 
     const cust = (json as any)?.customer ?? {};
-    const email = String(cust?.email ?? "").trim() || newEmail;
+    const email = normalizeEmail(cust?.email) || newEmail;
 
     setCustomerFullName(String(cust?.fullName ?? profileFullName).trim());
     setCustomerPhone(String(cust?.phone ?? profilePhone).trim());
@@ -1282,7 +1281,7 @@ export default function PublicBookingFlow({
         date,
         startTime,
         customerFullName: customerFullName.trim(),
-        customerEmail: customerEmail.trim(),
+        customerEmail: normalizeEmail(customerEmail),
         customerPhone: customerPhone.trim(),
         notes: notes.trim() || undefined,
       }),
@@ -1320,7 +1319,7 @@ export default function PublicBookingFlow({
     setFormError(null);
     try {
       if (!connected) {
-        setLoginEmail(customerEmail.trim());
+        setLoginEmail(normalizeEmail(customerEmail));
         setLoginStep("email");
         setLoginCode("");
         setLoginError(null);
@@ -1590,14 +1589,15 @@ export default function PublicBookingFlow({
                 id="loginEmail"
                 className="rounded-2xl"
                 value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
+                onChange={(e) => setLoginEmail(normalizeEmail(e.target.value))}
+                onBlur={(e) => setLoginEmail(normalizeEmail(e.target.value))}
                 placeholder={t("publicBooking.login.emailPlaceholder")}
               />
             </div>
 
             <Button
               className="rounded-2xl w-full"
-              disabled={loginSubmitting || !isValidEmail(loginEmail.trim())}
+              disabled={loginSubmitting || !isValidEmail(normalizeEmail(loginEmail))}
               data-panel-primary="true"
               onClick={async () => {
                 setLoginSubmitting(true);
@@ -1876,7 +1876,8 @@ export default function PublicBookingFlow({
                 id="profileEmail"
                 className="rounded-2xl"
                 value={profileNewEmail}
-                onChange={(e) => setProfileNewEmail(e.target.value)}
+                onChange={(e) => setProfileNewEmail(normalizeEmail(e.target.value))}
+                onBlur={(e) => setProfileNewEmail(normalizeEmail(e.target.value))}
                 placeholder={t("publicBooking.profile.emailPlaceholder")}
               />
             </div>
@@ -1910,8 +1911,8 @@ export default function PublicBookingFlow({
                 !profileFullName.trim() ||
                 !profilePhone.trim() ||
                 !profilePhoneValid ||
-                !profileNewEmail.trim() ||
-                !isValidEmail(profileNewEmail.trim())
+                !normalizeEmail(profileNewEmail) ||
+                !isValidEmail(normalizeEmail(profileNewEmail))
               }
               onClick={async () => {
                 setProfileSubmitting(true);
@@ -1934,7 +1935,9 @@ export default function PublicBookingFlow({
           <div className="space-y-3">
             <div className="text-sm text-gray-600 dark:text-gray-300">
               {t("publicBooking.profile.codeSent", {
-                email: profileNewEmail.trim() || t("publicBooking.profile.yourEmail"),
+                email:
+                  normalizeEmail(profileNewEmail) ||
+                  t("publicBooking.profile.yourEmail"),
               })}
             </div>
 
@@ -2129,7 +2132,7 @@ export default function PublicBookingFlow({
                             return;
                           }
 
-                          setLoginEmail(customerEmail.trim());
+                          setLoginEmail(normalizeEmail(customerEmail));
                           setLoginStep("email");
                           setLoginCode("");
                           setLoginError(null);

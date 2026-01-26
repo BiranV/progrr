@@ -12,6 +12,7 @@ import { ChevronsUpDown, Loader2, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/i18n/useI18n";
 import { formatTimeRange } from "@/lib/utils";
+import { normalizeEmail } from "@/lib/email";
 
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 import { Badge } from "@/components/ui/badge";
@@ -50,13 +51,6 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-function normalizeEmail(input: string): string {
-    return String(input ?? "")
-        .replace(/[\s\u200B\u200C\u200D\uFEFF]/g, "")
-        .trim()
-        .toLowerCase();
-}
 
 function formatDateForDisplay(date: string): string {
     const match = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(String(date ?? ""));
@@ -225,11 +219,7 @@ export default function CalendarClient() {
                 _id: String((c as any)?._id ?? ""),
                 fullName: String((c as any)?.fullName ?? ""),
                 phone: String((c as any)?.phone ?? ""),
-                email:
-                    typeof (c as any)?.email === "string" &&
-                        String((c as any).email).trim()
-                        ? String((c as any).email).trim()
-                        : undefined,
+                email: normalizeEmail((c as any)?.email) || undefined,
                 status:
                     String((c as any)?.status ?? "ACTIVE").toUpperCase() === "BLOCKED"
                         ? "BLOCKED"
@@ -265,7 +255,7 @@ export default function CalendarClient() {
             c.status !== "BLOCKED" &&
             Boolean(String(c.fullName || "").trim()) &&
             Boolean(String(c.phone || "").trim()) &&
-            Boolean(String(c.email || "").trim());
+            Boolean(normalizeEmail(c.email || ""));
         return serviceOk && startOk && customerOk;
     }, [createServiceId, createStartTime, selectedCustomerForPicker]);
 

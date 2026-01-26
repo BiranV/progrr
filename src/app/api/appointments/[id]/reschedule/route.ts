@@ -11,6 +11,7 @@ import {
 import { formatDateInTimeZone } from "@/lib/public-booking";
 import { sendEmail } from "@/server/email";
 import { buildAppointmentRescheduledEmail } from "@/server/emails/booking";
+import { isValidEmail, normalizeEmail } from "@/lib/email";
 
 function isValidDateString(s: string): boolean {
     return /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -164,9 +165,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         const updated = update;
         const updatedId = (updated as any)?._id?.toHexString?.() ?? id;
 
-        const customerEmailRaw = String((updated as any)?.customer?.email ?? "").trim();
-        const customerEmail = customerEmailRaw.toLowerCase();
-        const canEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail);
+        const customerEmail = normalizeEmail((updated as any)?.customer?.email);
+        const canEmail = isValidEmail(customerEmail);
 
         let emailSent: boolean | undefined = undefined;
         let emailError: string | undefined = undefined;

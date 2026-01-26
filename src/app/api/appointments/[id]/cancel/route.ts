@@ -5,6 +5,7 @@ import { requireAppUser } from "@/server/auth";
 import { collections, ensureIndexes } from "@/server/collections";
 import { sendEmail } from "@/server/email";
 import { buildAppointmentCanceledEmail } from "@/server/emails/booking";
+import { isValidEmail, normalizeEmail } from "@/lib/email";
 
 export async function POST(
   req: Request,
@@ -50,10 +51,8 @@ export async function POST(
     const onboarding = (owner as any)?.onboarding ?? {};
     const businessName = String((onboarding as any)?.business?.name ?? "").trim();
 
-    const customerEmailRaw = String((appt as any)?.customer?.email ?? "").trim();
-    const customerEmail = customerEmailRaw.toLowerCase();
-    const canEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail);
-
+    const customerEmail = normalizeEmail((appt as any)?.customer?.email);
+    const canEmail = isValidEmail(customerEmail);
     let emailSent: boolean | undefined = undefined;
     let emailError: string | undefined = undefined;
 

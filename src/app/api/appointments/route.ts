@@ -4,6 +4,7 @@ import { ObjectId } from "mongodb";
 import { requireAppUser } from "@/server/auth";
 import { collections, ensureIndexes } from "@/server/collections";
 import { formatDateInTimeZone } from "@/lib/public-booking";
+import { normalizeEmail } from "@/lib/email";
 
 function formatTimeInTimeZone(date: Date, timeZone: string): string {
     // 24-hour, zero-padded HH:mm so string comparisons work.
@@ -31,13 +32,6 @@ function formatTimeInTimeZone(date: Date, timeZone: string): string {
 
 function isYmd(v: string): boolean {
     return /^\d{4}-\d{2}-\d{2}$/.test(String(v || "").trim());
-}
-
-function normalizeEmail(input: unknown): string {
-    return String(input ?? "")
-        .replace(/[\s\u200B\u200C\u200D\uFEFF]/g, "")
-        .trim()
-        .toLowerCase();
 }
 
 export async function GET(req: Request) {

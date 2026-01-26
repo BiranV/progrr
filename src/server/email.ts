@@ -1,3 +1,5 @@
+import { normalizeEmail } from "@/lib/email";
+
 type SendEmailArgs = {
   to: string;
   subject: string;
@@ -15,13 +17,6 @@ function requireEnv(name: string): string {
     });
   }
   return value;
-}
-
-function normalizeEmail(email: string) {
-  return String(email || "")
-    .replace(/[\s\u200B\u200C\u200D\uFEFF]/g, "")
-    .trim()
-    .toLowerCase();
 }
 
 function sleep(ms: number) {

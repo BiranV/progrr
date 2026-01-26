@@ -6,13 +6,7 @@ import { collections, ensureIndexes } from "@/server/collections";
 import { normalizePhone } from "@/server/phone";
 import { verifyBookingCancelToken, verifyCustomerAccessToken } from "@/server/jwt";
 import { CUSTOMER_ACCESS_COOKIE_NAME } from "@/server/customer-access";
-
-function normalizeEmail(input: unknown): string {
-  return String(input ?? "")
-    .replace(/[\s\u200B\u200C\u200D\uFEFF]/g, "")
-    .trim()
-    .toLowerCase();
-}
+import { normalizeEmail } from "@/lib/email";
 
 export async function POST(req: Request) {
   try {

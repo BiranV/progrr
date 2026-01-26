@@ -22,17 +22,7 @@ import {
 } from "@/server/customer-access";
 import { sendEmail } from "@/server/email";
 import { buildAppointmentBookedEmail } from "@/server/emails/booking";
-
-function normalizeEmail(input: unknown): string {
-  return String(input ?? "")
-    .replace(/[\s\u200B\u200C\u200D\uFEFF]/g, "")
-    .trim()
-    .toLowerCase();
-}
-
-function isValidEmail(email: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
+import { isValidEmail, normalizeEmail } from "@/lib/email";
 
 function isValidDateString(s: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(s);

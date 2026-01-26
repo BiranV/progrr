@@ -12,9 +12,7 @@ import { Label } from "@/components/ui/label";
 import AuthBanner, { type AuthBannerState } from "./AuthBanner";
 import OtpInput from "@/components/OtpInput";
 import { useI18n } from "@/i18n/useI18n";
-
-const isValidEmail = (email: string) =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+import { isValidEmail, normalizeEmail } from "@/lib/email";
 const isValidFullName = (fullName: string) =>
   fullName.trim().split(/\s+/).length >= 2;
 
@@ -73,7 +71,7 @@ export default function AdminAuthStep({
   });
 
   // Login State
-  const [loginEmail, setLoginEmail] = useState(() => initialEmail ?? "");
+  const [loginEmail, setLoginEmail] = useState(() => normalizeEmail(initialEmail));
   const [loginCode, setLoginCode] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
 
@@ -145,7 +143,9 @@ export default function AdminAuthStep({
   const sendLoginCode = async (e: React.FormEvent) => {
     e.preventDefault();
     resetError();
-    if (!isValidEmail(loginEmail)) {
+    const email = normalizeEmail(loginEmail);
+    setLoginEmail(email);
+    if (!isValidEmail(email)) {
       setLoginError(t("errors.invalidEmail"));
       loginEmailRef.current?.focus();
       return;
@@ -156,7 +156,7 @@ export default function AdminAuthStep({
       const res = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: loginEmail, flow: "login" }),
+        body: JSON.stringify({ email, flow: "login" }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -189,7 +189,7 @@ export default function AdminAuthStep({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: loginEmail,
+          email: normalizeEmail(loginEmail),
           code: loginCode,
           flow: "login",
         }),
@@ -231,7 +231,9 @@ export default function AdminAuthStep({
       hasError = true;
     }
 
-    if (!isValidEmail(signupEmail)) {
+    const email = normalizeEmail(signupEmail);
+    setSignupEmail(email);
+    if (!isValidEmail(email)) {
       setSignupEmailError(t("errors.invalidEmail"));
       hasError = true;
     }
@@ -239,7 +241,7 @@ export default function AdminAuthStep({
     if (hasError) {
       if (!isValidFullName(signupName)) {
         signupNameRef.current?.focus();
-      } else if (!isValidEmail(signupEmail)) {
+      } else if (!isValidEmail(email)) {
         signupEmailRef.current?.focus();
       }
       return;
@@ -250,7 +252,7 @@ export default function AdminAuthStep({
       const res = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: signupEmail, flow: "signup" }),
+        body: JSON.stringify({ email, flow: "signup" }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.status === 409 && data?.error === "EMAIL_ALREADY_EXISTS") {
@@ -289,7 +291,7 @@ export default function AdminAuthStep({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: signupEmail,
+          email: normalizeEmail(signupEmail),
           code: signupCode,
           full_name: signupName,
           flow: "signup",
@@ -409,9 +411,10 @@ export default function AdminAuthStep({
                   <Input
                     value={loginEmail}
                     onChange={(e) => {
-                      setLoginEmail(e.target.value);
+                      setLoginEmail(normalizeEmail(e.target.value));
                       if (loginError) setLoginError(null);
                     }}
+                    onBlur={(e) => setLoginEmail(normalizeEmail(e.target.value))}
                     ref={loginEmailRef}
                     className={`h-14 bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${loginError ? inputErrorClass : "border-[#165CF0]"
                       }`}
@@ -490,7 +493,7 @@ export default function AdminAuthStep({
                 onClick={() =>
                   router.push(
                     `/login?email=${encodeURIComponent(
-                      String(signupEmail || "").trim(),
+                      normalizeEmail(signupEmail),
                     )}`,
                   )
                 }
@@ -558,9 +561,10 @@ export default function AdminAuthStep({
                   <Input
                     value={signupEmail}
                     onChange={(e) => {
-                      setSignupEmail(e.target.value);
+                      setSignupEmail(normalizeEmail(e.target.value));
                       if (signupEmailError) setSignupEmailError(null);
                     }}
+                    onBlur={(e) => setSignupEmail(normalizeEmail(e.target.value))}
                     ref={signupEmailRef}
                     className={`h-14 bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${signupEmailError ? inputErrorClass : "border-[#165CF0]"
                       }`}

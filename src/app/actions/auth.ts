@@ -9,13 +9,6 @@ function getString(formData: FormData, key: string) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function normalizeEmail(input: string) {
-  return input
-    .replace(/[\s\u200B\u200C\u200D\uFEFF]/g, "")
-    .trim()
-    .toLowerCase();
-}
-
 export async function signInWithPassword(formData: FormData) {
   void formData;
   redirect(

@@ -12,17 +12,7 @@ import {
 import { formatDateInTimeZone } from "@/lib/public-booking";
 import { sendEmail } from "@/server/email";
 import { buildAppointmentBookedEmail } from "@/server/emails/booking";
-
-function normalizeEmail(input: unknown): string {
-    return String(input ?? "")
-        .replace(/[\s\u200B\u200C\u200D\uFEFF]/g, "")
-        .trim()
-        .toLowerCase();
-}
-
-function isValidEmail(email: string) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
+import { isValidEmail, normalizeEmail } from "@/lib/email";
 
 function isValidDateString(s: string): boolean {
     return /^\d{4}-\d{2}-\d{2}$/.test(String(s || "").trim());
@@ -250,7 +240,7 @@ export async function POST(req: Request) {
             );
 
             // Send confirmation email.
-            const canEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail);
+            const canEmail = isValidEmail(customerEmail);
             let emailSent: boolean | undefined = undefined;
             let emailError: string | undefined = undefined;
 
