@@ -200,7 +200,12 @@ export default function CustomersPage() {
             </div>
             <div className="text-xs text-gray-600 dark:text-gray-300 leading-tight">
               <PhoneLink phone={c.phone} className="text-xs" />
-              {c.email ? <div className="truncate">{c.email}</div> : null}
+              {c.email ? (
+                <div className="truncate flex items-center gap-1 rtl:flex-row-reverse">
+                  <Mail className="h-3.5 w-3.5 text-gray-500" />
+                  <span className="truncate">{c.email}</span>
+                </div>
+              ) : null}
             </div>
           </div>
         ),
@@ -628,7 +633,7 @@ export default function CustomersPage() {
           {drawerTab === "details" ? (
             <div className="space-y-4">
               <div className="space-y-1">
-                <div className="text-xs text-muted-foreground flex items-center gap-2">
+                <div className="text-xs text-muted-foreground flex items-center gap-2 rtl:flex-row-reverse">
                   <Phone className="h-3.5 w-3.5" />
                   {t("customers.drawer.phoneLabel")}
                 </div>
@@ -646,7 +651,7 @@ export default function CustomersPage() {
               </div>
 
               <div className="space-y-1">
-                <div className="text-xs text-muted-foreground flex items-center gap-2">
+                <div className="text-xs text-muted-foreground flex items-center gap-2 rtl:flex-row-reverse">
                   <Mail className="h-3.5 w-3.5" />
                   {t("customers.drawer.emailLabel")}
                 </div>
@@ -656,7 +661,7 @@ export default function CustomersPage() {
               </div>
 
               <div className="space-y-1">
-                <div className="text-xs text-muted-foreground flex items-center gap-2">
+                <div className="text-xs text-muted-foreground flex items-center gap-2 rtl:flex-row-reverse">
                   <CalendarCheck className="h-3.5 w-3.5" />
                   {t("customers.drawer.activeBookingsLabel")}
                 </div>
@@ -805,7 +810,7 @@ export default function CustomersPage() {
 
               <Button
                 type="button"
-                className="rounded-xl"
+                className="rounded-xl w-full"
                 disabled={messageSending || !messageText.trim() || !selectedCustomer}
                 onClick={async () => {
                   if (!selectedCustomer) return;

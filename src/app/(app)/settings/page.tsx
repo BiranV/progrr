@@ -592,7 +592,7 @@ export default function SettingsPage() {
         onOpenChange={(open) => !deletePending && setDeleteOpen(open)}
         title={t("settings.deleteDialogTitle")}
         description={t("settings.deleteDialogDescription")}
-        showCloseButton={!deletePending}
+        showCloseButton
         closeOnOutsideClick={!deletePending}
       >
         <div className="space-y-3">

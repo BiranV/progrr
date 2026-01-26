@@ -26,7 +26,7 @@ export function PhoneLink({
     stopPropagation = false,
 }: PhoneLinkProps) {
     const { t } = useI18n();
-    const { locale, dir } = useLocale();
+    const { locale } = useLocale();
 
     const raw = String(phone ?? "").trim();
     if (!raw) return null;
@@ -40,8 +40,7 @@ export function PhoneLink({
             title={title ?? t("common.callCustomer")}
             aria-label={title ?? t("common.callCustomer")}
             className={cn(
-                "inline-flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors",
-                dir === "rtl" ? "flex-row-reverse" : "",
+                "inline-flex items-center gap-1 rtl:flex-row-reverse text-xs text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors",
                 className,
             )}
             onClick={(e) => {

@@ -1476,12 +1476,7 @@ export default function CalendarClient() {
                                         ) : null}
 
                                         <div className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-3 w-full">
-                                            <span
-                                                className={
-                                                    "flex items-center gap-1 min-w-0" +
-                                                    (isRtl ? " flex-row-reverse" : "")
-                                                }
-                                            >
+                                            <span className="flex items-center gap-1 min-w-0 rtl:flex-row-reverse">
                                                 <User className="h-3.5 w-3.5 text-gray-500" />
                                                 <span className="truncate">{a.customer.fullName}</span>
                                             </span>
@@ -1559,7 +1554,7 @@ export default function CalendarClient() {
                         </span>
                     </>
                 }
-                showCloseButton={!rescheduling && !timesLoading}
+                showCloseButton
                 closeOnOutsideClick={!rescheduling && !timesLoading}
             >
                 {timesError ? (
