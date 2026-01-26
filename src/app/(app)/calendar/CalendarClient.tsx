@@ -29,14 +29,6 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
-import {
     Select,
     SelectContent,
     SelectItem,
@@ -1394,6 +1386,15 @@ export default function CalendarClient() {
 
                                                         return (
                                                             <>
+                                                                {current === "BOOKED" && isIncoming ? (
+                                                                    <DropdownMenuItem
+                                                                        onClick={() => openReschedule(a)}
+                                                                        disabled={statusUpdatingId === a.id}
+                                                                    >
+                                                                        {t("calendar.actions.changeHour")}
+                                                                    </DropdownMenuItem>
+                                                                ) : null}
+
                                                                 {current !== "COMPLETED" ? (
                                                                     <DropdownMenuItem
                                                                         onClick={() => requestStatusChange(a, "COMPLETED")}
@@ -1498,17 +1499,7 @@ export default function CalendarClient() {
                                         ) : null}
 
                                         {String(a.status) === "BOOKED" ? (
-                                            <div className="flex items-center justify-start gap-2 mt-2">
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="rounded-xl"
-                                                    onClick={() => openReschedule(a)}
-                                                >
-                                                    {t("calendar.actions.changeHour")}
-                                                </Button>
-                                            </div>
+                                            <div className="mt-2" />
                                         ) : null}
                                     </div>
 
@@ -1539,7 +1530,7 @@ export default function CalendarClient() {
                 }}
             />
 
-            <Dialog
+            <SidePanel
                 open={Boolean(rescheduleId)}
                 onOpenChange={(open) => {
                     if (!open) {
@@ -1550,100 +1541,91 @@ export default function CalendarClient() {
                         setSelectedStartTime("");
                     }
                 }}
-            >
-                <DialogContent showCloseButton={!rescheduling && !timesLoading}>
-                    <DialogHeader>
-                        <DialogTitle>{t("calendar.actions.changeHour")}</DialogTitle>
-                        <DialogDescription>
-                            {rescheduleTitle ? (
-                                <span className="block truncate">
-                                    <span dir="ltr">{rescheduleTitle.timeRange}</span>
-                                    {rescheduleTitle.serviceName
-                                        ? ` • ${rescheduleTitle.serviceName}`
-                                        : ""}
-                                </span>
-                            ) : null}
-                            <span className="block">
-                                {t("calendar.reschedule.chooseTimeForDate", {
-                                    date: formatDateForDisplay(date),
-                                })}
+                title={t("calendar.actions.changeHour")}
+                description={
+                    <>
+                        {rescheduleTitle ? (
+                            <span className="block truncate">
+                                <span dir="ltr">{rescheduleTitle.timeRange}</span>
+                                {rescheduleTitle.serviceName
+                                    ? ` • ${rescheduleTitle.serviceName}`
+                                    : ""}
                             </span>
-                        </DialogDescription>
-                    </DialogHeader>
+                        ) : null}
+                        <span className="block">
+                            {t("calendar.reschedule.chooseTimeForDate", {
+                                date: formatDateForDisplay(date),
+                            })}
+                        </span>
+                    </>
+                }
+                showCloseButton={!rescheduling && !timesLoading}
+                closeOnOutsideClick={!rescheduling && !timesLoading}
+            >
+                {timesError ? (
+                    <div className="text-sm text-red-600 dark:text-red-400">
+                        {timesError}
+                    </div>
+                ) : null}
 
-                    {timesError ? (
-                        <div className="text-sm text-red-600 dark:text-red-400">
-                            {timesError}
+                {timesLoading ? (
+                    <CenteredSpinner className="min-h-[10vh] items-center" />
+                ) : availableTimes.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">
+                        {t("calendar.reschedule.noAvailableTimes")}
+                    </div>
+                ) : (
+                    <div className="space-y-2">
+                        <div className="text-sm font-medium">
+                            {t("calendar.reschedule.availableHours")}
                         </div>
-                    ) : null}
-
-                    {timesLoading ? (
-                        <CenteredSpinner className="min-h-[10vh] items-center" />
-                    ) : availableTimes.length === 0 ? (
-                        <div className="text-sm text-muted-foreground">
-                            {t("calendar.reschedule.noAvailableTimes")}
-                        </div>
-                    ) : (
-                        <div className="space-y-2">
-                            <div className="text-sm font-medium">
-                                {t("calendar.reschedule.availableHours")}
-                            </div>
-                            <Select
-                                value={selectedStartTime}
-                                onValueChange={(v) => setSelectedStartTime(v)}
-                            >
-                                <SelectTrigger className="rounded-xl w-full">
-                                    <SelectValue
-                                        placeholder={t("calendar.reschedule.selectTime")}
-                                    />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {availableTimes.map((t) => (
-                                        <SelectItem key={t.startTime} value={t.startTime}>
-                                            <span dir="ltr">
-                                                {formatTimeRange(t.startTime, t.endTime)}
-                                            </span>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    )}
-
-                    <DialogFooter>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            className="rounded-2xl"
-                            disabled={rescheduling || timesLoading}
-                            onClick={() => setRescheduleId(null)}
+                        <Select
+                            value={selectedStartTime}
+                            onValueChange={(v) => setSelectedStartTime(v)}
                         >
-                            {t("calendar.reschedule.close")}
-                        </Button>
-                        <Button
-                            type="button"
-                            className="rounded-2xl"
-                            disabled={
-                                rescheduling ||
-                                timesLoading ||
-                                availableTimes.length === 0 ||
-                                !selectedStartTime
+                            <SelectTrigger className="rounded-xl w-full">
+                                <SelectValue
+                                    placeholder={t("calendar.reschedule.selectTime")}
+                                />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {availableTimes.map((t) => (
+                                    <SelectItem key={t.startTime} value={t.startTime}>
+                                        <span dir="ltr">
+                                            {formatTimeRange(t.startTime, t.endTime)}
+                                        </span>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
+
+                <div className="pt-4">
+                    <Button
+                        type="button"
+                        className="rounded-2xl w-full"
+                        disabled={
+                            rescheduling ||
+                            timesLoading ||
+                            availableTimes.length === 0 ||
+                            !selectedStartTime
+                        }
+                        onClick={async () => {
+                            try {
+                                await submitReschedule();
+                            } catch (e: any) {
+                                setTimesError(
+                                    e?.message || t("calendar.reschedule.failed")
+                                );
                             }
-                            onClick={async () => {
-                                try {
-                                    await submitReschedule();
-                                } catch (e: any) {
-                                    setTimesError(
-                                        e?.message || t("calendar.reschedule.failed")
-                                    );
-                                }
-                            }}
-                        >
-                            {rescheduling ? t("calendar.saving") : t("calendar.save")}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                        }}
+                        data-panel-primary="true"
+                    >
+                        {rescheduling ? t("calendar.saving") : t("calendar.save")}
+                    </Button>
+                </div>
+            </SidePanel>
         </div>
     );
 }

@@ -1044,6 +1044,13 @@ const he = {
         total: "סה" + "" + "כ",
         publicBookingLink: "קישור להזמנה ציבורית",
         loadingFailed: "טעינה נכשלה",
+        outstandingTitle: "תשלומים פתוחים",
+        outstandingOpenCount: "תשלומים פתוחים: {{count}}",
+        outstandingOpenTotal: "סה" + "" + "כ פתוח:",
+        outstandingEmpty: "אין תשלומים פתוחים.",
+        outstandingUnnamed: "לקוח ללא שם",
+        outstandingDaysAgo: "{{count}} ימים",
+        outstandingPaidSuccess: "התשלום סומן כשולם והוסר מהרשימה.",
     },
     calendar: {
         title: "יומן",

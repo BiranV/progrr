@@ -5,8 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { useBusiness } from "@/hooks/useBusiness";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import React from "react";
 import { toast } from "sonner";
@@ -68,16 +69,31 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const { locale } = useLocale();
   const { t } = useI18n();
+  const queryClient = useQueryClient();
   const business = businessQuery.data;
   const businessLoading = businessQuery.isPending && !businessQuery.data;
   const [copyStatus, setCopyStatus] = React.useState<"idle" | "copied">("idle");
   const copyTimeoutRef = React.useRef<number | null>(null);
   const [origin, setOrigin] = React.useState("");
   const rangeArrow = "→";
+  const [outstandingNotice, setOutstandingNotice] = React.useState<string | null>(null);
+  const [outstandingUpdatingId, setOutstandingUpdatingId] = React.useState<string | null>(null);
+
+  const formatDateForDisplay = React.useCallback((date: string) => {
+    const match = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(String(date ?? ""));
+    if (!match) return date;
+    return `${match[3]}-${match[2]}-${match[1]}`;
+  }, []);
 
   React.useEffect(() => {
     setOrigin(window.location.origin);
   }, []);
+
+  React.useEffect(() => {
+    if (!outstandingNotice) return;
+    const id = window.setTimeout(() => setOutstandingNotice(null), 3500);
+    return () => window.clearTimeout(id);
+  }, [outstandingNotice]);
 
   const bookingLink = React.useMemo(() => {
     const publicId = String((business as any)?.publicId ?? "").trim();
@@ -249,6 +265,59 @@ export default function DashboardPage() {
     ? `/calendar?date=${encodeURIComponent(summary.todayStr)}`
     : "/calendar";
 
+  const markOutstandingPaid = React.useCallback(
+    async (item: OutstandingPaymentsResponse["items"][number]) => {
+      if (outstandingUpdatingId) return;
+      setOutstandingUpdatingId(item.id);
+      try {
+        const res = await fetch(
+          `/api/appointments/${encodeURIComponent(item.id)}/payment-status`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paymentStatus: "PAID" }),
+          }
+        );
+        const json = await res.json().catch(() => null);
+        if (!res.ok) {
+          throw new Error(
+            json?.error || t("errors.requestFailed", { status: res.status })
+          );
+        }
+
+        setOutstandingNotice(t("dashboard.outstandingPaidSuccess"));
+
+        queryClient.setQueryData(
+          ["outstandingPayments"],
+          (prev: OutstandingPaymentsResponse | undefined) => {
+            if (!prev || !Array.isArray(prev.items)) return prev;
+            const nextItems = prev.items.filter((x) => x.id !== item.id);
+            const nextTotal = Math.max(
+              0,
+              Number(prev.totalAmount || 0) - Number(item.price || 0)
+            );
+            return {
+              ...prev,
+              items: nextItems,
+              count: nextItems.length,
+              totalAmount: nextTotal,
+            };
+          }
+        );
+
+        await queryClient.invalidateQueries({ queryKey: ["dashboardSummary"] });
+        await queryClient.invalidateQueries({
+          queryKey: ["dashboardRevenueSeries"],
+        });
+      } catch (e: any) {
+        toast.error(String(e?.message || t("errors.failedToSave")));
+      } finally {
+        setOutstandingUpdatingId(null);
+      }
+    },
+    [outstandingUpdatingId, queryClient, t]
+  );
+
   const weekLoading = weekSeriesQuery.isPending && !weekSeriesQuery.data;
   const monthLoading = monthSeriesQuery.isPending && !monthSeriesQuery.data;
 
@@ -376,11 +445,11 @@ export default function DashboardPage() {
             <div className="text-xs text-muted-foreground">
               {weekSeriesQuery.data ? (
                 <>
-                  {weekSeriesQuery.data.from}{" "}
+                  {formatDateForDisplay(weekSeriesQuery.data.from)}{" "}
                   <span className="inline-block rtl:-scale-x-100" aria-hidden="true">
                     {rangeArrow}
                   </span>{" "}
-                  {weekSeriesQuery.data.to}
+                  {formatDateForDisplay(weekSeriesQuery.data.to)}
                 </>
               ) : (
                 ""
@@ -454,11 +523,11 @@ export default function DashboardPage() {
             <div className="text-xs text-muted-foreground">
               {monthSeriesQuery.data ? (
                 <>
-                  {monthSeriesQuery.data.from}{" "}
+                  {formatDateForDisplay(monthSeriesQuery.data.from)}{" "}
                   <span className="inline-block rtl:-scale-x-100" aria-hidden="true">
                     {rangeArrow}
                   </span>{" "}
-                  {monthSeriesQuery.data.to}
+                  {formatDateForDisplay(monthSeriesQuery.data.to)}
                 </>
               ) : (
                 ""
@@ -502,15 +571,26 @@ export default function DashboardPage() {
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-base">Outstanding payments</CardTitle>
+            <CardTitle className="text-base">
+              {t("dashboard.outstandingTitle")}
+            </CardTitle>
             <div className="text-xs text-muted-foreground">
               {outstandingQuery.isLoading ? (
                 <Skeleton className="h-4 w-24" />
               ) : (
-                <>Open payments: {outstandingQuery.data?.count ?? 0}</>
+                <>
+                  {t("dashboard.outstandingOpenCount", {
+                    count: outstandingQuery.data?.count ?? 0,
+                  })}
+                </>
               )}
             </div>
           </div>
+          {outstandingNotice ? (
+            <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-900/20 dark:text-emerald-200">
+              {outstandingNotice}
+            </div>
+          ) : null}
         </CardHeader>
         <CardContent className="pt-2">
           {outstandingQuery.isError ? (
@@ -528,7 +608,7 @@ export default function DashboardPage() {
           ) : (outstandingQuery.data?.items?.length ?? 0) > 0 ? (
             <div className="space-y-3">
               <div className="text-xs text-muted-foreground">
-                Open total: {currencySymbol || ""}
+                {t("dashboard.outstandingOpenTotal")} {currencySymbol || ""}
                 {(outstandingQuery.data?.totalAmount ?? 0).toLocaleString(locale, {
                   maximumFractionDigits: 2,
                 })}
@@ -538,27 +618,52 @@ export default function DashboardPage() {
                   <div key={item.id} className="p-3 flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                        {item.customerName || "Unnamed customer"}
+                        {item.customerName || t("dashboard.outstandingUnnamed")}
                       </div>
                       <div className="text-xs text-muted-foreground truncate">
                         {item.serviceName || ""}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {item.date} • {item.daysSinceCompleted} days
+                        {formatDateForDisplay(item.date)} •{" "}
+                        {t("dashboard.outstandingDaysAgo", {
+                          count: item.daysSinceCompleted,
+                        })}
                       </div>
                     </div>
-                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                      {currencySymbol || ""}
-                      {Number(item.price || 0).toLocaleString(locale, {
-                        maximumFractionDigits: 2,
-                      })}
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={outstandingUpdatingId === item.id}
+                          onCheckedChange={(checked) => {
+                            if (!checked) return;
+                            markOutstandingPaid(item);
+                          }}
+                          disabled={
+                            outstandingUpdatingId !== null &&
+                            outstandingUpdatingId !== item.id
+                          }
+                          aria-label={t("calendar.paid")}
+                          className="scale-90"
+                        />
+                        <span className="text-xs text-gray-600 dark:text-gray-300 select-none">
+                          {t("calendar.paid")}
+                        </span>
+                      </div>
+                      <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                        {currencySymbol || ""}
+                        {Number(item.price || 0).toLocaleString(locale, {
+                          maximumFractionDigits: 2,
+                        })}
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
           ) : (
-            <div className="text-sm text-muted-foreground">No outstanding payments.</div>
+            <div className="text-sm text-muted-foreground">
+              {t("dashboard.outstandingEmpty")}
+            </div>
           )}
         </CardContent>
       </Card>
