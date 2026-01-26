@@ -1102,6 +1102,7 @@ const en = {
         statusConfirm: {
             futureCompleted: "Future appointment. Mark as completed?",
             canceledToCompleted: "Canceled appointment. Mark as completed?",
+            cancelConfirm: "Are you sure?",
             confirm: "Yes",
             cancel: "Cancel",
         },

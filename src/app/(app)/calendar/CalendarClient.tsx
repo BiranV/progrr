@@ -21,7 +21,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import ConfirmModal from "@/components/ui/confirm-modal";
 import { Switch } from "@/components/ui/switch";
 import {
     Popover,
@@ -149,7 +148,6 @@ export default function CalendarClient() {
 
     const [refreshing, setRefreshing] = React.useState(false);
 
-    const [cancelId, setCancelId] = React.useState<string | null>(null);
     const [cancelling, setCancelling] = React.useState(false);
 
     const [rescheduleId, setRescheduleId] = React.useState<string | null>(null);
@@ -172,6 +170,9 @@ export default function CalendarClient() {
     );
     const [statusConfirmationsById, setStatusConfirmationsById] = React.useState<
         Record<string, { from: AppointmentStatus; to: ManualStatus }>
+    >({});
+    const [cancelConfirmationsById, setCancelConfirmationsById] = React.useState<
+        Record<string, { notifyCustomer: boolean }>
     >({});
 
     const [createOpen, setCreateOpen] = React.useState(false);
@@ -721,11 +722,21 @@ export default function CalendarClient() {
         [clearStatusConfirmation, statusConfirmationsById, updateStatus],
     );
 
+    const clearCancelConfirmation = React.useCallback((appointmentId: string) => {
+        setCancelConfirmationsById((prev) => {
+            if (!prev[appointmentId]) return prev;
+            const next = { ...prev };
+            delete next[appointmentId];
+            return next;
+        });
+    }, []);
+
     const cancelStatusChange = React.useCallback(
         (appointmentId: string) => {
             clearStatusConfirmation(appointmentId);
+            clearCancelConfirmation(appointmentId);
         },
-        [clearStatusConfirmation],
+        [clearStatusConfirmation, clearCancelConfirmation],
     );
 
     const cancelAppointmentById = React.useCallback(
@@ -774,6 +785,17 @@ export default function CalendarClient() {
             }
         },
         [date, queryClient],
+    );
+
+    const confirmCancelChange = React.useCallback(
+        async (appointmentId: string, notifyCustomer: boolean) => {
+            try {
+                await cancelAppointmentById(appointmentId, notifyCustomer);
+            } finally {
+                clearCancelConfirmation(appointmentId);
+            }
+        },
+        [cancelAppointmentById, clearCancelConfirmation],
     );
 
     React.useEffect(() => {
@@ -1293,9 +1315,12 @@ export default function CalendarClient() {
                 <div className="space-y-2">
                     {visibleAppointments.map((a) => {
                         const statusConfirmation = statusConfirmationsById[a.id];
+                        const cancelConfirmation = cancelConfirmationsById[a.id];
                         const confirmationMessage = statusConfirmation
                             ? getStatusConfirmationMessage(a, statusConfirmation)
-                            : null;
+                            : cancelConfirmation
+                                ? t("calendar.statusConfirm.cancelConfirm")
+                                : null;
                         const isStatusConfirming = Boolean(confirmationMessage);
 
                         return (
@@ -1306,23 +1331,32 @@ export default function CalendarClient() {
                                 <div className="flex items-center justify-between gap-3 px-3 py-1.5 bg-gray-100/80 dark:bg-gray-900/40 relative overflow-hidden">
                                     <div
                                         className={
-                                            "absolute inset-0 z-10 flex items-center justify-between gap-2 px-3 py-2 bg-gray-200 dark:bg-gray-900 transition-transform duration-200 " +
+                                            "absolute inset-0 z-10 flex items-center justify-between gap-3 px-3 py-2 bg-slate-100 text-slate-900 dark:bg-slate-900 dark:text-slate-100 transition-transform duration-200 " +
                                             (isStatusConfirming
                                                 ? "translate-y-0 pointer-events-auto"
                                                 : "-translate-y-full pointer-events-none")
                                         }
                                         aria-hidden={!isStatusConfirming}
                                     >
-                                        <div className="text-xs font-medium text-gray-900 dark:text-white leading-snug min-w-0 flex-1">
+                                        <div className="text-sm font-semibold leading-snug min-w-0 flex-1 text-slate-700 dark:text-slate-300">
                                             {confirmationMessage}
                                         </div>
                                         <div className="flex items-center gap-2 shrink-0">
                                             <Button
                                                 type="button"
                                                 size="sm"
-                                                variant="default"
-                                                className="rounded-md whitespace-nowrap h-7 px-3 text-[11px]"
-                                                onClick={() => confirmStatusChange(a)}
+                                                variant="ghost"
+                                                className="rounded-md whitespace-nowrap h-7 px-2 text-xs font-semibold text-slate-900 dark:text-slate-100 hover:bg-transparent"
+                                                onClick={() => {
+                                                    if (statusConfirmation) {
+                                                        confirmStatusChange(a);
+                                                    } else if (cancelConfirmation) {
+                                                        confirmCancelChange(
+                                                            a.id,
+                                                            cancelConfirmation.notifyCustomer,
+                                                        );
+                                                    }
+                                                }}
                                                 disabled={statusUpdatingId === a.id}
                                             >
                                                 {t("calendar.statusConfirm.confirm")}
@@ -1331,7 +1365,7 @@ export default function CalendarClient() {
                                                 type="button"
                                                 size="sm"
                                                 variant="ghost"
-                                                className="rounded-lg whitespace-nowrap h-7 px-2 text-[11px]"
+                                                className="rounded-md whitespace-nowrap h-7 px-2 text-xs !text-slate-600 dark:!text-slate-400 hover:bg-transparent hover:!text-slate-700 dark:hover:!text-slate-300"
                                                 onClick={() => cancelStatusChange(a.id)}
                                                 disabled={statusUpdatingId === a.id}
                                             >
@@ -1412,7 +1446,10 @@ export default function CalendarClient() {
                                                                                 endTime: a.endTime,
                                                                             });
                                                                             if (incoming && current === "BOOKED") {
-                                                                                setCancelId(a.id);
+                                                                                setCancelConfirmationsById((prev) => ({
+                                                                                    ...prev,
+                                                                                    [a.id]: { notifyCustomer: true },
+                                                                                }));
                                                                             } else {
                                                                                 cancelAppointmentById(a.id, false);
                                                                             }
@@ -1505,25 +1542,6 @@ export default function CalendarClient() {
                     })}
                 </div>
             )}
-
-            <ConfirmModal
-                open={Boolean(cancelId)}
-                onOpenChange={(open) => {
-                    if (!open) setCancelId(null);
-                }}
-                title={t("calendar.cancelModal.title")}
-                description={t("calendar.cancelModal.description")}
-                confirmText={t("calendar.cancelModal.confirm")}
-                loadingText={t("common.loading")}
-                cancelText={t("common.cancel")}
-                confirmVariant="default"
-                loading={cancelling}
-                onConfirm={async () => {
-                    if (!cancelId) return;
-                    await cancelAppointmentById(cancelId, true);
-                    setCancelId(null);
-                }}
-            />
 
             <SidePanel
                 open={Boolean(rescheduleId)}
