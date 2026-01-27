@@ -20,8 +20,10 @@ function applyTemplate(args: {
   businessName: string;
   reviewLink: string;
 }): string {
-  return DEFAULT_REVIEW_MESSAGE
-    .replace(/\{\{\s*customerName\s*\}\}/g, args.customerName)
+  return DEFAULT_REVIEW_MESSAGE.replace(
+    /\{\{\s*customerName\s*\}\}/g,
+    args.customerName,
+  )
     .replace(/\{\{\s*businessName\s*\}\}/g, args.businessName)
     .replace(/\{\{\s*reviewLink\s*\}\}/g, args.reviewLink);
 }
@@ -82,6 +84,7 @@ export async function processReviewRequestsForBusiness(args: {
       projection: {
         "onboarding.business.reviewRequestsEnabled": 1,
         "onboarding.business.reviewDelayMinutes": 1,
+        "onboarding.business.reviewRequiresPayment": 1,
         "onboarding.business.name": 1,
         "onboarding.business.publicId": 1,
         "onboarding.business.slug": 1,
@@ -97,6 +100,10 @@ export async function processReviewRequestsForBusiness(args: {
   if (!reviewRequestsEnabled) return;
 
   const reviewDelayMinutes = Number(business.reviewDelayMinutes ?? 15) || 0;
+  const reviewRequiresPayment =
+    typeof business.reviewRequiresPayment === "boolean"
+      ? business.reviewRequiresPayment
+      : true;
   const businessName = String(business.name ?? "").trim() || "Progrr";
   const businessPublicId = String(business.publicId ?? "").trim();
   const businessSlug = String(business.slug ?? "").trim();
@@ -106,10 +113,12 @@ export async function processReviewRequestsForBusiness(args: {
   const match: any = {
     businessUserId: args.businessUserId,
     status: "COMPLETED",
-    paymentStatus: "PAID",
     reviewRequestSent: { $ne: true },
     reviewSubmitted: { $ne: true },
   };
+  if (reviewRequiresPayment) {
+    match.paymentStatus = "PAID";
+  }
   if (args.appointmentId) {
     match._id = args.appointmentId;
   }
@@ -123,7 +132,13 @@ export async function processReviewRequestsForBusiness(args: {
   for (const appt of candidates as any[]) {
     const paymentPaidAt =
       appt.paymentPaidAt instanceof Date ? appt.paymentPaidAt : null;
-    if (!paymentPaidAt) continue;
+    const completedAt =
+      appt.completedAt instanceof Date ? appt.completedAt : null;
+    const baseTime = reviewRequiresPayment
+      ? paymentPaidAt
+      : (completedAt ?? paymentPaidAt ?? (appt.createdAt as Date | undefined));
+    if (!baseTime) continue;
+    if (reviewRequiresPayment && !paymentPaidAt) continue;
 
     const scheduledAt =
       appt.reviewEmailScheduledAt instanceof Date
@@ -132,7 +147,7 @@ export async function processReviewRequestsForBusiness(args: {
 
     if (!scheduledAt) {
       const nextScheduledAt = new Date(
-        paymentPaidAt.getTime() + reviewDelayMinutes * 60_000,
+        baseTime.getTime() + reviewDelayMinutes * 60_000,
       );
       await c.appointments.updateOne(
         { _id: appt._id } as any,
@@ -199,7 +214,7 @@ export async function processReviewRequestsForBusiness(args: {
             reviewEmailScheduled: true,
             reviewEmailScheduledAt:
               scheduledAt ??
-              new Date(paymentPaidAt.getTime() + reviewDelayMinutes * 60_000),
+              new Date(baseTime.getTime() + reviewDelayMinutes * 60_000),
           },
         } as any,
       );

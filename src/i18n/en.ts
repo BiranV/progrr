@@ -1154,6 +1154,11 @@ const en = {
     toggleOn: "ON",
     toggleOff: "OFF",
     settingsTitle: "Review settings",
+    requiresPaymentLabel: "Send review email after",
+    requiresPaymentPaid: "Payment is marked as paid",
+    requiresPaymentCompleted: "Appointment is completed",
+    requiresPaymentHelp:
+      "Choose whether to wait for payment status or send right after completion.",
     delayLabel: "Send delay (minutes)",
     delayHelp: "Default is 15 minutes.",
     listTitle: "Submitted reviews",

@@ -115,6 +115,10 @@ export async function GET() {
       (business as any).reviewDelayMinutes,
       15,
     );
+    const reviewRequiresPayment =
+      typeof (business as any).reviewRequiresPayment === "boolean"
+        ? Boolean((business as any).reviewRequiresPayment)
+        : true;
 
     if (!name || !phone || !publicId) {
       return NextResponse.json(
@@ -138,6 +142,7 @@ export async function GET() {
       revenueInsightsEnabled,
       reviewRequestsEnabled,
       reviewDelayMinutes,
+      reviewRequiresPayment,
     });
   } catch (error: any) {
     const status = typeof error?.status === "number" ? error.status : 500;
@@ -295,6 +300,18 @@ export async function PATCH(req: Request) {
         )
       : currentReviewDelayMinutes;
 
+    const currentReviewRequiresPayment =
+      typeof (business as any).reviewRequiresPayment === "boolean"
+        ? Boolean((business as any).reviewRequiresPayment)
+        : true;
+    const requestedReviewRequiresPayment = Object.prototype.hasOwnProperty.call(
+      body as any,
+      "reviewRequiresPayment",
+    )
+      ? (asBoolean((body as any).reviewRequiresPayment) ??
+        currentReviewRequiresPayment)
+      : currentReviewRequiresPayment;
+
     if (!name) {
       return NextResponse.json(
         { error: "Business name cannot be empty" },
@@ -336,6 +353,8 @@ export async function PATCH(req: Request) {
           "onboarding.business.reviewRequestsEnabled":
             requestedReviewRequestsEnabled,
           "onboarding.business.reviewDelayMinutes": requestedReviewDelayMinutes,
+          "onboarding.business.reviewRequiresPayment":
+            requestedReviewRequiresPayment,
           "onboarding.updatedAt": new Date(),
         },
       },

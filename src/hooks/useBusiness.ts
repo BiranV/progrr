@@ -14,6 +14,7 @@ export type Business = {
   revenueInsightsEnabled?: boolean;
   reviewRequestsEnabled?: boolean;
   reviewDelayMinutes?: number;
+  reviewRequiresPayment?: boolean;
 };
 
 export type UpdateBusinessPayload = {
@@ -28,6 +29,7 @@ export type UpdateBusinessPayload = {
   revenueInsightsEnabled?: boolean;
   reviewRequestsEnabled?: boolean;
   reviewDelayMinutes?: number;
+  reviewRequiresPayment?: boolean;
 };
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -81,9 +83,9 @@ export async function updateBusiness(payload: UpdateBusinessPayload) {
     ...(payload.currency ? { currency: payload.currency } : {}),
     ...(typeof payload.limitCustomerToOneUpcomingAppointment === "boolean"
       ? {
-        limitCustomerToOneUpcomingAppointment:
-          payload.limitCustomerToOneUpcomingAppointment,
-      }
+          limitCustomerToOneUpcomingAppointment:
+            payload.limitCustomerToOneUpcomingAppointment,
+        }
       : {}),
     ...(typeof payload.revenueInsightsEnabled === "boolean"
       ? { revenueInsightsEnabled: payload.revenueInsightsEnabled }
@@ -93,6 +95,9 @@ export async function updateBusiness(payload: UpdateBusinessPayload) {
       : {}),
     ...(typeof payload.reviewDelayMinutes === "number"
       ? { reviewDelayMinutes: payload.reviewDelayMinutes }
+      : {}),
+    ...(typeof payload.reviewRequiresPayment === "boolean"
+      ? { reviewRequiresPayment: payload.reviewRequiresPayment }
       : {}),
   };
 

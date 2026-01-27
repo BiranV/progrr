@@ -105,6 +105,7 @@ export type CustomerDoc = {
 export type BusinessCustomerDoc = {
   reviewRequestsEnabled?: boolean;
   reviewDelayMinutes?: number;
+  reviewRequiresPayment?: boolean;
 };
 
 export type CustomerOtpPurpose =

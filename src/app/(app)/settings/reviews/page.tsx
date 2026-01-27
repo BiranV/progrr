@@ -32,12 +32,14 @@ const DEFAULT_DELAY_MINUTES = 15;
 type ReviewFormState = {
   enabled: boolean;
   delayMinutes: number;
+  requiresPayment: boolean;
 };
 
 function serializeState(state: ReviewFormState): string {
   return JSON.stringify({
     enabled: state.enabled,
     delayMinutes: state.delayMinutes,
+    requiresPayment: state.requiresPayment,
   });
 }
 
@@ -56,6 +58,7 @@ export default function ReviewsSettingsPage() {
   const [form, setForm] = React.useState<ReviewFormState>({
     enabled: true,
     delayMinutes: DEFAULT_DELAY_MINUTES,
+    requiresPayment: true,
   });
   const [errors, setErrors] = React.useState<
     Partial<Record<keyof ReviewFormState, string>>
@@ -93,6 +96,10 @@ export default function ReviewsSettingsPage() {
         typeof business.reviewDelayMinutes === "number"
           ? business.reviewDelayMinutes
           : DEFAULT_DELAY_MINUTES,
+      requiresPayment:
+        typeof business.reviewRequiresPayment === "boolean"
+          ? business.reviewRequiresPayment
+          : true,
     };
 
     setForm((prev) => {
@@ -143,6 +150,7 @@ export default function ReviewsSettingsPage() {
         body: JSON.stringify({
           reviewRequestsEnabled: form.enabled,
           reviewDelayMinutes: Math.round(form.delayMinutes),
+          reviewRequiresPayment: form.requiresPayment,
         }),
       });
       const json = await res.json().catch(() => null);
@@ -154,6 +162,7 @@ export default function ReviewsSettingsPage() {
         ...(prev || {}),
         reviewRequestsEnabled: form.enabled,
         reviewDelayMinutes: Math.round(form.delayMinutes),
+        reviewRequiresPayment: form.requiresPayment,
       }));
       initialRef.current = serializeState(form);
       toast.success(t("settings.toastSaved"));
@@ -260,6 +269,29 @@ export default function ReviewsSettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0 space-y-4">
+          <div className="space-y-2">
+            <Label>{t("reviews.requiresPaymentLabel")}</Label>
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-200/70 px-3 py-2 text-sm text-gray-700 dark:border-gray-800 dark:text-gray-200">
+              <div className="space-y-1">
+                <div className="font-medium">
+                  {form.requiresPayment
+                    ? t("reviews.requiresPaymentPaid")
+                    : t("reviews.requiresPaymentCompleted")}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  {t("reviews.requiresPaymentHelp")}
+                </div>
+              </div>
+              <Switch
+                checked={form.requiresPayment}
+                onCheckedChange={(checked) =>
+                  updateField("requiresPayment", checked)
+                }
+                disabled={isSaving}
+                aria-label={t("reviews.requiresPaymentLabel")}
+              />
+            </div>
+          </div>
           <div className="space-y-2">
             <Label>{t("reviews.delayLabel")}</Label>
             <Input

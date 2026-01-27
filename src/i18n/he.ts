@@ -923,7 +923,7 @@ const he = {
         title: "2. תכונות נגישות נתמכות",
         items: {
           text: {
-            title: "הגדלת טקסט וגופנים",
+            title: "טקסט והגדלת גופן",
             body: "האפליקציה תומכת בשינוי גודל גופן ברמת המערכת, והטקסט מסתגל כראוי בכל הממשק.",
           },
           contrast: {
@@ -1122,6 +1122,11 @@ const he = {
     toggleOn: "פעיל",
     toggleOff: "כבוי",
     settingsTitle: "הגדרות ביקורות",
+    requiresPaymentLabel: "שליחת אימייל ביקורת לאחר",
+    requiresPaymentPaid: "התשלום סומן כשולם",
+    requiresPaymentCompleted: "התור הושלם",
+    requiresPaymentHelp:
+      "בחר/י אם להמתין לסטטוס תשלום או לשלוח מיד לאחר ההשלמה.",
     delayLabel: "עיכוב שליחה (דקות)",
     delayHelp: "ברירת מחדל: 15 דקות.",
     listTitle: "ביקורות שנשלחו",
