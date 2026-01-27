@@ -1717,11 +1717,11 @@ export default function CalendarClient() {
               {isRtl ? (
                 <>
                   <span>{t("calendar.status.canceled")}</span>
-                  <span className="h-2 w-2 rounded-full bg-gray-400/80 dark:bg-gray-500/80" />
+                  <span className="h-2 w-2 rounded-full bg-rose-500/80 dark:bg-rose-400/80" />
                 </>
               ) : (
                 <>
-                  <span className="h-2 w-2 rounded-full bg-gray-400/80 dark:bg-gray-500/80" />
+                  <span className="h-2 w-2 rounded-full bg-rose-500/80 dark:bg-rose-400/80" />
                   <span>{t("calendar.status.canceled")}</span>
                 </>
               )}
