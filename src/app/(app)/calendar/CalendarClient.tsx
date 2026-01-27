@@ -14,7 +14,6 @@ import {
   Loader2,
   MoreVertical,
   RefreshCw,
-  User,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -1830,7 +1829,7 @@ export default function CalendarClient() {
                           }
                           aria-hidden={!isStatusConfirming}
                         >
-                          <div className="text-sm font-semibold leading-snug min-w-0 flex-1 text-slate-700 dark:text-slate-300">
+                          <div className="text-xs font-medium leading-snug min-w-0 flex-1 text-slate-700 dark:text-slate-300">
                             {confirmationMessage}
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
@@ -1947,7 +1946,7 @@ export default function CalendarClient() {
                             </Button>
                           </div>
                         </div>
-                        <div className="font-semibold text-gray-900 dark:text-white truncate">
+                        <div className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">
                           <span dir="ltr">
                             {formatTimeRange(a.startTime, a.endTime)}
                           </span>
@@ -2104,7 +2103,6 @@ export default function CalendarClient() {
 
                           <div className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-3 w-full">
                             <span className="flex items-center gap-1 min-w-0 rtl:flex-row-reverse">
-                              <User className="h-3.5 w-3.5 text-gray-500" />
                               <span className="truncate">
                                 {a.customer.fullName}
                               </span>
@@ -2113,6 +2111,7 @@ export default function CalendarClient() {
                               <PhoneLink
                                 phone={a.customer.phone}
                                 className="text-xs ms-auto"
+                                showIcon={false}
                               />
                             ) : null}
                           </div>

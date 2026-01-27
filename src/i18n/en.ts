@@ -1142,7 +1142,7 @@ const en = {
     paid: "Paid",
     statusConfirm: {
       futureCompleted: "Future appointment. Mark as completed?",
-      canceledToCompleted: "Canceled appointment. Mark as completed?",
+      canceledToCompleted: "Canceled. Mark completed?",
       cancelConfirm: "Are you sure?",
       confirm: "Yes",
       cancel: "Cancel",

@@ -1116,7 +1116,7 @@ const he = {
     paid: "שולם",
     statusConfirm: {
       futureCompleted: "תור עתידי. לסמן כהושלם?",
-      canceledToCompleted: "תור בוטל. לסמן כהושלם?",
+      canceledToCompleted: "בוטל. לסמן כהושלם?",
       cancelConfirm: "בטוח/ה?",
       confirm: "כן",
       cancel: "ביטול",
