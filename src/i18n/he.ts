@@ -95,6 +95,7 @@ const he = {
       channelEmail: "אימייל",
       defaultSubject: "הודעה מ־{{name}}",
       toastSent: "ההודעה נשלחה",
+      updates: "לקבלת עדכונים חשובים",
     },
     serviceLabel: "שירות",
     dateLabel: "תאריך",
