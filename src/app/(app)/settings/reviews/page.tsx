@@ -31,7 +31,7 @@ const DEFAULT_DELAY_MINUTES = 15;
 
 type ReviewFormState = {
   enabled: boolean;
-  delayMinutes: string;
+  delayMinutes: number;
 };
 
 function serializeState(state: ReviewFormState): string {
@@ -55,7 +55,7 @@ export default function ReviewsSettingsPage() {
 
   const [form, setForm] = React.useState<ReviewFormState>({
     enabled: true,
-    delayMinutes: String(DEFAULT_DELAY_MINUTES),
+    delayMinutes: DEFAULT_DELAY_MINUTES,
   });
   const [errors, setErrors] = React.useState<
     Partial<Record<keyof ReviewFormState, string>>
@@ -91,8 +91,8 @@ export default function ReviewsSettingsPage() {
           : true,
       delayMinutes:
         typeof business.reviewDelayMinutes === "number"
-          ? String(business.reviewDelayMinutes)
-          : String(DEFAULT_DELAY_MINUTES),
+          ? business.reviewDelayMinutes
+          : DEFAULT_DELAY_MINUTES,
     };
 
     setForm((prev) => {
@@ -123,12 +123,7 @@ export default function ReviewsSettingsPage() {
 
   const validate = (): boolean => {
     const nextErrors: Partial<Record<keyof ReviewFormState, string>> = {};
-    const parsedDelay = Number(form.delayMinutes);
-    if (
-      !form.delayMinutes.trim() ||
-      !Number.isFinite(parsedDelay) ||
-      parsedDelay < 0
-    ) {
+    if (!Number.isFinite(form.delayMinutes) || form.delayMinutes < 0) {
       nextErrors.delayMinutes = t("reviews.errors.delayInvalid");
     }
 
@@ -147,7 +142,7 @@ export default function ReviewsSettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           reviewRequestsEnabled: form.enabled,
-          reviewDelayMinutes: Math.round(Number(form.delayMinutes)),
+          reviewDelayMinutes: Math.round(form.delayMinutes),
         }),
       });
       const json = await res.json().catch(() => null);
@@ -158,7 +153,7 @@ export default function ReviewsSettingsPage() {
       queryClient.setQueryData(["business"], (prev: any) => ({
         ...(prev || {}),
         reviewRequestsEnabled: form.enabled,
-        reviewDelayMinutes: Math.round(Number(form.delayMinutes)),
+        reviewDelayMinutes: Math.round(form.delayMinutes),
       }));
       initialRef.current = serializeState(form);
       toast.success(t("settings.toastSaved"));
@@ -271,20 +266,13 @@ export default function ReviewsSettingsPage() {
               type="number"
               min={0}
               step={1}
-              value={form.delayMinutes}
-              onChange={(e) => updateField("delayMinutes", e.target.value)}
-              onBlur={() => {
-                const raw = String(form.delayMinutes ?? "");
-                const trimmed = raw.replace(/[^0-9]/g, "");
-                if (!trimmed) {
-                  updateField("delayMinutes", String(DEFAULT_DELAY_MINUTES));
-                  return;
-                }
+              value={Number.isFinite(form.delayMinutes) ? form.delayMinutes : 0}
+              onChange={(e) =>
                 updateField(
                   "delayMinutes",
-                  String(Math.max(0, Number(trimmed))),
-                );
-              }}
+                  e.target.value === "" ? 0 : Number(e.target.value),
+                )
+              }
               disabled={isSaving}
             />
             {errors.delayMinutes ? (
