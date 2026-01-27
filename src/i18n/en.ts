@@ -1063,18 +1063,18 @@ const en = {
       yearly: "Yearly",
     },
     price: {
-      monthly: "₪79 / month",
+      monthly: "₪149 / month",
       semi: "₪399 / 6 months",
-      yearly: "₪749 / year",
+      yearly: "₪1520 / year",
     },
     monthlyEquivalent: {
-      monthly: "₪79 / month",
+      monthly: "₪149 / month",
       semi: "₪66.5 / month",
-      yearly: "₪62 / month",
+      yearly: "₪127 / month",
     },
     savings: {
       semi: "Save ~15%",
-      yearly: "Save ~20%",
+      yearly: "Save ~15%",
     },
   },
   dashboard: {

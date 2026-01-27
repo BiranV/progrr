@@ -33,14 +33,6 @@ export default function SubscriptionPage() {
       cta: t("subscription.cta.continueAfterTrial"),
     },
     {
-      id: "semi",
-      label: t("subscription.plan.semi"),
-      price: t("subscription.price.semi"),
-      monthlyEquivalent: t("subscription.monthlyEquivalent.semi"),
-      savings: t("subscription.savings.semi"),
-      cta: t("subscription.cta.continueAfterTrial"),
-    },
-    {
       id: "yearly",
       label: t("subscription.plan.yearly"),
       price: t("subscription.price.yearly"),
