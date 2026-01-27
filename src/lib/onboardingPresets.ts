@@ -46,6 +46,11 @@ export const BUSINESS_TYPES: BusinessType[] = [
     descriptionKey: "onboarding.businessTypes.nutrition_clinic.description",
   },
   {
+    key: "private_lessons",
+    titleKey: "onboarding.businessTypes.private_lessons.title",
+    descriptionKey: "onboarding.businessTypes.private_lessons.description",
+  },
+  {
     key: "other",
     titleKey: "onboarding.businessTypes.other.title",
     descriptionKey: "onboarding.businessTypes.other.description",
@@ -226,6 +231,28 @@ export const SERVICE_PRESETS: Record<string, ServicePreset[]> = {
     {
       nameKey: "onboarding.servicePresets.nutrition_clinic.planAdjustment",
       durationMinutes: 30,
+    },
+  ],
+  private_lessons: [
+    {
+      nameKey: "onboarding.servicePresets.private_lessons.mathLesson",
+      durationMinutes: 60,
+    },
+    {
+      nameKey: "onboarding.servicePresets.private_lessons.physicsLesson",
+      durationMinutes: 60,
+    },
+    {
+      nameKey: "onboarding.servicePresets.private_lessons.artLesson",
+      durationMinutes: 60,
+    },
+    {
+      nameKey: "onboarding.servicePresets.private_lessons.languageLesson",
+      durationMinutes: 60,
+    },
+    {
+      nameKey: "onboarding.servicePresets.private_lessons.examPrep",
+      durationMinutes: 90,
     },
   ],
 };

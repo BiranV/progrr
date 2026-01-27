@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   Apple,
   Dumbbell,
+  GraduationCap,
   Hand,
   Loader2,
   Flower2 as Lotus,
@@ -159,6 +160,7 @@ const BUSINESS_TYPE_ICONS: Record<string, LucideIcon> = {
   spa_massage: Lotus,
   fitness_coach: Dumbbell,
   nutrition_clinic: Apple,
+  private_lessons: GraduationCap,
   other: Shapes,
 };
 
@@ -350,8 +352,8 @@ function OnboardingContent() {
         )
           ? container
           : (container.querySelector(
-            "input, textarea, button, [role='combobox']",
-          ) as HTMLElement | null);
+              "input, textarea, button, [role='combobox']",
+            ) as HTMLElement | null);
         if (!focusable) return;
         focusable.focus();
         focusable.scrollIntoView({ block: "center", behavior: "smooth" });
@@ -469,7 +471,7 @@ function OnboardingContent() {
         name,
         durationMinutes:
           typeof preset.durationMinutes === "number" &&
-            preset.durationMinutes > 0
+          preset.durationMinutes > 0
             ? preset.durationMinutes
             : 30,
         price: undefined,
@@ -573,10 +575,10 @@ function OnboardingContent() {
     return Array.from({ length: 7 }, (_, i) => i)
       .map((day) => byDay.get(day))
       .filter(Boolean) as Array<{
-        day: number;
-        enabled: boolean;
-        ranges: Array<{ id: string; start: string; end: string }>;
-      }>;
+      day: number;
+      enabled: boolean;
+      ranges: Array<{ id: string; start: string; end: string }>;
+    }>;
   }, [data.availability?.days]);
 
   const updateAvailabilityRangeTime = (
@@ -1183,9 +1185,9 @@ function OnboardingContent() {
         customCurrency:
           normalizeCurrency(data.currency) === OTHER_CURRENCY_CODE
             ? {
-              name: String(data.customCurrency?.name ?? "").trim(),
-              symbol: String(data.customCurrency?.symbol ?? "").trim(),
-            }
+                name: String(data.customCurrency?.name ?? "").trim(),
+                symbol: String(data.customCurrency?.symbol ?? "").trim(),
+              }
             : undefined,
       };
 
@@ -1309,7 +1311,8 @@ function OnboardingContent() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label className="text-slate-600 ms-1">
-                  {t("onboarding.businessName")} <span className="text-rose-400">*</span>
+                  {t("onboarding.businessName")}{" "}
+                  <span className="text-rose-400">*</span>
                 </Label>
                 <Input
                   data-field="businessName"
@@ -1324,10 +1327,16 @@ function OnboardingContent() {
                   }}
                   placeholder={t("onboarding.businessNamePlaceholder")}
                 />
+                {fieldErrors.businessName ? (
+                  <p className="text-xs text-rose-500 ms-1">
+                    {fieldErrors.businessName}
+                  </p>
+                ) : null}
               </div>
               <div className="space-y-2" data-field="businessPhone">
                 <Label className="text-slate-600 ms-1">
-                  {t("onboarding.businessPhone")} <span className="text-rose-400">*</span>
+                  {t("onboarding.businessPhone")}{" "}
+                  <span className="text-rose-400">*</span>
                 </Label>
                 <PhoneInput
                   value={data.business?.phone || ""}
@@ -1348,6 +1357,11 @@ function OnboardingContent() {
                   aria-invalid={Boolean(fieldErrors.businessPhone)}
                   placeholder={t("onboarding.businessPhonePlaceholder")}
                 />
+                {fieldErrors.businessPhone ? (
+                  <p className="text-xs text-rose-500 ms-1">
+                    {fieldErrors.businessPhone}
+                  </p>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <Label className="text-slate-600 ms-1">
@@ -1395,7 +1409,8 @@ function OnboardingContent() {
 
               <div className="space-y-2">
                 <Label className="text-slate-600 ms-1">
-                  {t("onboarding.timezone")} <span className="text-rose-400">*</span>
+                  {t("onboarding.timezone")}{" "}
+                  <span className="text-rose-400">*</span>
                 </Label>
                 <Select
                   value={
@@ -1430,6 +1445,11 @@ function OnboardingContent() {
                     ))}
                   </SelectContent>
                 </Select>
+                {fieldErrors.businessTimezone ? (
+                  <p className="text-xs text-rose-500 ms-1">
+                    {fieldErrors.businessTimezone}
+                  </p>
+                ) : null}
               </div>
             </div>
           </div>
@@ -1710,7 +1730,7 @@ function OnboardingContent() {
                           replaceGalleryImage(idx, file).catch((err) =>
                             setError(
                               err?.message ||
-                              t("onboarding.errors.replaceImageFailed"),
+                                t("onboarding.errors.replaceImageFailed"),
                             ),
                           );
                         }}
@@ -1732,8 +1752,8 @@ function OnboardingContent() {
                           className={
                             "rounded-lg bg-black/45 text-white text-[11px] px-2 py-1 backdrop-blur-sm hover:bg-black/55 transition " +
                             (uploadingGallery ||
-                              saving ||
-                              replacingIndex === idx
+                            saving ||
+                            replacingIndex === idx
                               ? "opacity-60 pointer-events-none"
                               : "cursor-pointer")
                           }
@@ -1750,7 +1770,7 @@ function OnboardingContent() {
                             removeGalleryImage({ url, publicId }).catch((err) =>
                               setError(
                                 err?.message ||
-                                t("onboarding.removeImageFailed"),
+                                  t("onboarding.removeImageFailed"),
                               ),
                             )
                           }
@@ -1795,7 +1815,6 @@ function OnboardingContent() {
               <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
                 {t("onboarding.galleryPublicNote")}
               </div>
-
             </div>
           </div>
         );
@@ -1820,10 +1839,12 @@ function OnboardingContent() {
             <div className="space-y-4">
               <div className="flex items-center gap-2 px-1">
                 <Label className="flex-1 text-slate-600 ms-1">
-                  {t("onboarding.serviceName")} <span className="text-rose-400">*</span>
+                  {t("onboarding.serviceName")}{" "}
+                  <span className="text-rose-400">*</span>
                 </Label>
                 <Label className="w-[70px] shrink-0 text-center text-slate-600">
-                  {t("onboarding.time")} <span className="text-rose-400">*</span>
+                  {t("onboarding.time")}{" "}
+                  <span className="text-rose-400">*</span>
                 </Label>
                 <Label className="w-[70px] shrink-0 text-center text-slate-600">
                   {t("onboarding.price")}
@@ -1858,6 +1879,11 @@ function OnboardingContent() {
                           }}
                           placeholder={t("onboarding.servicePlaceholder")}
                         />
+                        {fieldErrors[`serviceName_${s.id}`] ? (
+                          <p className="text-xs text-rose-500 ms-1 pt-1">
+                            {fieldErrors[`serviceName_${s.id}`]}
+                          </p>
+                        ) : null}
                       </div>
 
                       <div className="w-[70px] shrink-0">
@@ -1866,10 +1892,11 @@ function OnboardingContent() {
                           inputMode="numeric"
                           pattern="[0-9]*"
                           data-field={`serviceDuration_${s.id}`}
-                          className={`px-2 text-center ${fieldErrors[`serviceDuration_${s.id}`]
-                            ? inputErrorClass
-                            : ""
-                            }`}
+                          className={`px-2 text-center ${
+                            fieldErrors[`serviceDuration_${s.id}`]
+                              ? inputErrorClass
+                              : ""
+                          }`}
                           value={
                             Object.prototype.hasOwnProperty.call(
                               durationDrafts,
@@ -1898,9 +1925,9 @@ function OnboardingContent() {
                               services: (d.services || []).map((x) =>
                                 x.id === s.id
                                   ? {
-                                    ...x,
-                                    durationMinutes: nextValue,
-                                  }
+                                      ...x,
+                                      durationMinutes: nextValue,
+                                    }
                                   : x,
                               ),
                             }));
@@ -1911,15 +1938,21 @@ function OnboardingContent() {
                             });
                           }}
                         />
+                        {fieldErrors[`serviceDuration_${s.id}`] ? (
+                          <p className="text-xs text-rose-500 mt-1 text-center">
+                            {fieldErrors[`serviceDuration_${s.id}`]}
+                          </p>
+                        ) : null}
                       </div>
 
                       <div className="w-[70px] shrink-0">
                         <Input
                           data-field={`servicePrice_${s.id}`}
-                          className={`px-2 text-center ${fieldErrors[`servicePrice_${s.id}`]
-                            ? inputErrorClass
-                            : ""
-                            }`}
+                          className={`px-2 text-center ${
+                            fieldErrors[`servicePrice_${s.id}`]
+                              ? inputErrorClass
+                              : ""
+                          }`}
                           type="number"
                           min={0}
                           value={typeof s.price === "number" ? s.price : ""}
@@ -1931,18 +1964,23 @@ function OnboardingContent() {
                               services: (d.services || []).map((x) =>
                                 x.id === s.id
                                   ? {
-                                    ...x,
-                                    price:
-                                      e.target.value === ""
-                                        ? undefined
-                                        : Number(e.target.value),
-                                  }
+                                      ...x,
+                                      price:
+                                        e.target.value === ""
+                                          ? undefined
+                                          : Number(e.target.value),
+                                    }
                                   : x,
                               ),
                             }));
                           }}
                           placeholder={effectiveCurrencySymbol(data)}
                         />
+                        {fieldErrors[`servicePrice_${s.id}`] ? (
+                          <p className="text-xs text-rose-500 mt-1 text-center">
+                            {fieldErrors[`servicePrice_${s.id}`]}
+                          </p>
+                        ) : null}
                       </div>
 
                       <div className="w-8 shrink-0 flex pt-1 justify-center">
@@ -2199,13 +2237,13 @@ function OnboardingContent() {
                 <div className="text-sm text-gray-700 dark:text-gray-200">
                   {data.businessTypes && data.businessTypes.length > 0
                     ? data.businessTypes
-                      .map((v) => {
-                        const matched = BUSINESS_TYPE_OPTIONS.find(
-                          (o) => o.key === v,
-                        );
-                        return matched ? t(matched.titleKey) : v;
-                      })
-                      .join(", ")
+                        .map((v) => {
+                          const matched = BUSINESS_TYPE_OPTIONS.find(
+                            (o) => o.key === v,
+                          );
+                          return matched ? t(matched.titleKey) : v;
+                        })
+                        .join(", ")
                     : t("common.emptyDash")}
                 </div>
               </div>
@@ -2396,16 +2434,16 @@ function OnboardingContent() {
                     const ordered = Array.from({ length: 7 }, (_, i) => i)
                       .map((day) => byDay.get(day))
                       .filter(Boolean) as Array<{
-                        day: number;
-                        enabled: boolean;
-                        ranges?: Array<{
-                          id?: string;
-                          start?: string;
-                          end?: string;
-                        }>;
+                      day: number;
+                      enabled: boolean;
+                      ranges?: Array<{
+                        id?: string;
                         start?: string;
                         end?: string;
                       }>;
+                      start?: string;
+                      end?: string;
+                    }>;
 
                     return ordered.map((d) => (
                       <div
@@ -2418,20 +2456,20 @@ function OnboardingContent() {
                         <div className="text-sm text-gray-700 dark:text-gray-200">
                           {d.enabled
                             ? (() => {
-                              const ranges = normalizeRangesForUi(
-                                (d as any).ranges ?? {
-                                  start: (d as any).start,
-                                  end: (d as any).end,
-                                },
-                              );
-                              return ranges.map((r, idx) => (
-                                <span key={r.id || idx} dir="ltr">
-                                  {`${String(r.start || t("common.emptyDash"))} – ${String(
-                                    r.end || t("common.emptyDash"),
-                                  )}${idx < ranges.length - 1 ? ", " : ""}`}
-                                </span>
-                              ));
-                            })()
+                                const ranges = normalizeRangesForUi(
+                                  (d as any).ranges ?? {
+                                    start: (d as any).start,
+                                    end: (d as any).end,
+                                  },
+                                );
+                                return ranges.map((r, idx) => (
+                                  <span key={r.id || idx} dir="ltr">
+                                    {`${String(r.start || t("common.emptyDash"))} – ${String(
+                                      r.end || t("common.emptyDash"),
+                                    )}${idx < ranges.length - 1 ? ", " : ""}`}
+                                  </span>
+                                ));
+                              })()
                             : t("onboarding.closed")}
                         </div>
                       </div>

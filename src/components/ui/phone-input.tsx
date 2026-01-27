@@ -2,11 +2,11 @@
 
 import * as React from "react";
 import PhoneInputBase, {
-    Country,
-    getCountries,
-    getCountryCallingCode,
-    isValidPhoneNumber,
-    parsePhoneNumber,
+  Country,
+  getCountries,
+  getCountryCallingCode,
+  isValidPhoneNumber,
+  parsePhoneNumber,
 } from "react-phone-number-input";
 import { getTimezone } from "countries-and-timezones";
 import flags from "react-phone-number-input/flags";
@@ -15,337 +15,359 @@ import labelsEn from "react-phone-number-input/locale/en";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Check, ChevronDown } from "lucide-react";
 
 export type PhoneInputDetails = {
-    e164: string;
-    country?: Country;
-    countryCallingCode?: string;
-    nationalNumber?: string;
-    type?: string;
+  e164: string;
+  country?: Country;
+  countryCallingCode?: string;
+  nationalNumber?: string;
+  type?: string;
 };
 
 function detectDefaultCountry(fallback: Country = "IL"): Country {
-    if (typeof navigator === "undefined") return fallback;
+  if (typeof navigator === "undefined") return fallback;
 
-    // Prefer time zone-based detection (more reliable than locale for many users).
-    try {
-        const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        if (timeZone) {
-            const tz = getTimezone(timeZone);
-            const tzCountries = Array.isArray((tz as any)?.countries)
-                ? ((tz as any).countries as string[])
-                : [];
-            if (tzCountries.length) {
-                const supported = new Set(getCountries());
-                for (const c of tzCountries) {
-                    const code = String(c || "").trim().toUpperCase();
-                    if (supported.has(code as Country)) return code as Country;
-                }
-            }
+  // Prefer time zone-based detection (more reliable than locale for many users).
+  try {
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (timeZone) {
+      const tz = getTimezone(timeZone);
+      const tzCountries = Array.isArray((tz as any)?.countries)
+        ? ((tz as any).countries as string[])
+        : [];
+      if (tzCountries.length) {
+        const supported = new Set(getCountries());
+        for (const c of tzCountries) {
+          const code = String(c || "")
+            .trim()
+            .toUpperCase();
+          if (supported.has(code as Country)) return code as Country;
         }
-    } catch {
-        // Ignore and fall back to locale.
+      }
     }
+  } catch {
+    // Ignore and fall back to locale.
+  }
 
-    const locale =
-        (Array.isArray((navigator as any).languages)
-            ? (navigator as any).languages[0]
-            : navigator.language) ?? "";
+  const locale =
+    (Array.isArray((navigator as any).languages)
+      ? (navigator as any).languages[0]
+      : navigator.language) ?? "";
 
-    const raw = String(locale).trim();
-    const match = raw.match(/-([A-Za-z]{2})\b/);
-    const region = match?.[1]?.toUpperCase();
-    if (!region) return fallback;
+  const raw = String(locale).trim();
+  const match = raw.match(/-([A-Za-z]{2})\b/);
+  const region = match?.[1]?.toUpperCase();
+  if (!region) return fallback;
 
-    const supported = getCountries();
-    if (supported.includes(region as Country)) return region as Country;
-    return fallback;
+  const supported = getCountries();
+  if (supported.includes(region as Country)) return region as Country;
+  return fallback;
 }
 
 function isValidMobileE164(value: string): boolean {
-    try {
-        const phone = parsePhoneNumber(value);
-        if (!phone) return false;
-        const t = (phone as any).getType?.() as string | undefined;
-        return t === "MOBILE" || t === "FIXED_LINE_OR_MOBILE";
-    } catch {
-        return false;
-    }
+  try {
+    const phone = parsePhoneNumber(value);
+    if (!phone) return false;
+    const t = (phone as any).getType?.() as string | undefined;
+    return t === "MOBILE" || t === "FIXED_LINE_OR_MOBILE";
+  } catch {
+    return false;
+  }
 }
 
 type CountrySelectProps = {
-    value?: Country;
-    onChange: (value?: Country) => void;
-    options: Array<{ value: Country; label: string }>;
-    labels?: Record<string, string>;
-    disabled?: boolean;
+  value?: Country;
+  onChange: (value?: Country) => void;
+  options: Array<{ value: Country; label: string }>;
+  labels?: Record<string, string>;
+  disabled?: boolean;
 };
 
 function CountrySelect({
-    value,
-    onChange,
-    options,
-    labels,
-    disabled,
+  value,
+  onChange,
+  options,
+  labels,
+  disabled,
 }: CountrySelectProps) {
-    const safeLabels = React.useMemo(() => labels ?? {}, [labels]);
-    const [open, setOpen] = React.useState(false);
-    const [q, setQ] = React.useState("");
-    const [activeIndex, setActiveIndex] = React.useState(0);
-    const searchRef = React.useRef<HTMLInputElement | null>(null);
+  const safeLabels = React.useMemo(() => labels ?? {}, [labels]);
+  const [open, setOpen] = React.useState(false);
+  const [q, setQ] = React.useState("");
+  const [activeIndex, setActiveIndex] = React.useState(0);
+  const searchRef = React.useRef<HTMLInputElement | null>(null);
 
-    const items = React.useMemo(() => {
-        const query = q.trim().toLowerCase();
-        const normalized = options.map((o) => {
-            const country = (o as any)?.value as Country | undefined;
-            const label = String((o as any)?.label ?? "");
+  const items = React.useMemo(() => {
+    const query = q.trim().toLowerCase();
+    const normalized = options.map((o) => {
+      const country = (o as any)?.value as Country | undefined;
+      const label = String((o as any)?.label ?? "");
 
-            // react-phone-number-input can include a special "International" option
-            // where country/value is undefined.
-            const name = (country ? safeLabels[country] : undefined) || label;
-            const calling = country ? `+${getCountryCallingCode(country)}` : "+";
+      // react-phone-number-input can include a special "International" option
+      // where country/value is undefined.
+      const name = (country ? safeLabels[country] : undefined) || label;
+      const calling = country ? `+${getCountryCallingCode(country)}` : "+";
 
-            return { ...o, value: country as any, label, name, calling };
-        });
+      return { ...o, value: country as any, label, name, calling };
+    });
 
-        if (!query) return normalized;
+    if (!query) return normalized;
 
-        return normalized.filter((o) => {
-            return (
-                String(o.value ?? "").toLowerCase().includes(query) ||
-                o.name.toLowerCase().includes(query) ||
-                o.calling.replace("+", "").includes(query.replace("+", ""))
-            );
-        });
-    }, [options, q, safeLabels]);
+    return normalized.filter((o) => {
+      return (
+        String(o.value ?? "")
+          .toLowerCase()
+          .includes(query) ||
+        o.name.toLowerCase().includes(query) ||
+        o.calling.replace("+", "").includes(query.replace("+", ""))
+      );
+    });
+  }, [options, q, safeLabels]);
 
-    React.useEffect(() => {
-        if (!open) return;
-        setQ("");
-        setActiveIndex(0);
-        window.setTimeout(() => searchRef.current?.focus(), 0);
-    }, [open]);
+  React.useEffect(() => {
+    if (!open) return;
+    setQ("");
+    setActiveIndex(0);
+    window.setTimeout(() => searchRef.current?.focus(), 0);
+  }, [open]);
 
-    const selected = React.useMemo(() => {
-        if (!value) return undefined;
-        const label = safeLabels[value] ?? value;
-        return {
-            value,
-            label,
-            calling: `+${getCountryCallingCode(value)}`,
-        };
-    }, [safeLabels, value]);
+  const selected = React.useMemo(() => {
+    if (!value) return undefined;
+    const label = safeLabels[value] ?? value;
+    return {
+      value,
+      label,
+      calling: `+${getCountryCallingCode(value)}`,
+    };
+  }, [safeLabels, value]);
 
-    const Flag = value ? (flags as any)[value] : null;
+  const Flag = value ? (flags as any)[value] : null;
 
-    return (
-        <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-                <Button
-                    type="button"
-                    variant="outline"
-                    disabled={disabled}
-                    className="h-9 px-2 gap-2"
-                    aria-label="Select country"
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={disabled}
+          className="h-9 px-2 gap-2"
+          aria-label="Select country"
+        >
+          {Flag ? <Flag className="h-4 w-5 rounded-sm" /> : null}
+          <span className="text-sm tabular-nums">
+            {selected?.calling ?? "+"}
+          </span>
+          <ChevronDown className="h-4 w-4 opacity-70" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="p-2 w-[340px]" align="start">
+        <div className="space-y-2">
+          <Input
+            ref={searchRef}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search country"
+            aria-label="Search country"
+          />
+
+          <div
+            className="max-h-72 overflow-auto rounded-md border"
+            role="listbox"
+            aria-label="Countries"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setActiveIndex((i) => Math.min(i + 1, items.length - 1));
+              }
+              if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setActiveIndex((i) => Math.max(i - 1, 0));
+              }
+              if (e.key === "Enter") {
+                e.preventDefault();
+                const item = items[activeIndex];
+                if (!item) return;
+                onChange(item.value);
+                setOpen(false);
+              }
+            }}
+          >
+            {items.map((o, idx) => {
+              const isSelected = o.value === value;
+              const FlagItem = (flags as any)[o.value];
+              const isActive = idx === activeIndex;
+
+              return (
+                <button
+                  key={o.value}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  className={cn(
+                    "w-full flex items-center justify-between gap-3 px-3 py-2 text-start text-sm",
+                    "hover:bg-accent hover:text-accent-foreground",
+                    isActive ? "bg-accent text-accent-foreground" : "",
+                    isSelected ? "font-medium" : "",
+                  )}
+                  onMouseEnter={() => setActiveIndex(idx)}
+                  onClick={() => {
+                    onChange(o.value);
+                    setOpen(false);
+                  }}
                 >
-                    {Flag ? <Flag className="h-4 w-5 rounded-sm" /> : null}
-                    <span className="text-sm tabular-nums">
-                        {selected?.calling ?? "+"}
+                  <span className="flex items-center gap-2 min-w-0">
+                    {FlagItem ? (
+                      <FlagItem className="h-4 w-5 rounded-sm" />
+                    ) : null}
+                    <span className="truncate">{o.name}</span>
+                  </span>
+                  <span className="flex items-center gap-2 shrink-0">
+                    <span className="text-muted-foreground tabular-nums">
+                      {o.calling}
                     </span>
-                    <ChevronDown className="h-4 w-4 opacity-70" />
-                </Button>
-            </PopoverTrigger>
-            <PopoverContent className="p-2 w-[340px]" align="start">
-                <div className="space-y-2">
-                    <Input
-                        ref={searchRef}
-                        value={q}
-                        onChange={(e) => setQ(e.target.value)}
-                        placeholder="Search country"
-                        aria-label="Search country"
-                    />
+                    {isSelected ? <Check className="h-4 w-4" /> : null}
+                  </span>
+                </button>
+              );
+            })}
 
-                    <div
-                        className="max-h-72 overflow-auto rounded-md border"
-                        role="listbox"
-                        aria-label="Countries"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                            if (e.key === "ArrowDown") {
-                                e.preventDefault();
-                                setActiveIndex((i) => Math.min(i + 1, items.length - 1));
-                            }
-                            if (e.key === "ArrowUp") {
-                                e.preventDefault();
-                                setActiveIndex((i) => Math.max(i - 1, 0));
-                            }
-                            if (e.key === "Enter") {
-                                e.preventDefault();
-                                const item = items[activeIndex];
-                                if (!item) return;
-                                onChange(item.value);
-                                setOpen(false);
-                            }
-                        }}
-                    >
-                        {items.map((o, idx) => {
-                            const isSelected = o.value === value;
-                            const FlagItem = (flags as any)[o.value];
-                            const isActive = idx === activeIndex;
-
-                            return (
-                                <button
-                                    key={o.value}
-                                    type="button"
-                                    role="option"
-                                    aria-selected={isSelected}
-                                    className={cn(
-                                        "w-full flex items-center justify-between gap-3 px-3 py-2 text-start text-sm",
-                                        "hover:bg-accent hover:text-accent-foreground",
-                                        isActive ? "bg-accent text-accent-foreground" : "",
-                                        isSelected ? "font-medium" : ""
-                                    )}
-                                    onMouseEnter={() => setActiveIndex(idx)}
-                                    onClick={() => {
-                                        onChange(o.value);
-                                        setOpen(false);
-                                    }}
-                                >
-                                    <span className="flex items-center gap-2 min-w-0">
-                                        {FlagItem ? <FlagItem className="h-4 w-5 rounded-sm" /> : null}
-                                        <span className="truncate">{o.name}</span>
-                                    </span>
-                                    <span className="flex items-center gap-2 shrink-0">
-                                        <span className="text-muted-foreground tabular-nums">
-                                            {o.calling}
-                                        </span>
-                                        {isSelected ? <Check className="h-4 w-4" /> : null}
-                                    </span>
-                                </button>
-                            );
-                        })}
-
-                        {!items.length ? (
-                            <div className="p-3 text-sm text-muted-foreground">
-                                No countries found.
-                            </div>
-                        ) : null}
-                    </div>
-                </div>
-            </PopoverContent>
-        </Popover>
-    );
+            {!items.length ? (
+              <div className="p-3 text-sm text-muted-foreground">
+                No countries found.
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 export type PhoneInputProps = {
-    id?: string;
-    name?: string;
-    value: string;
-    onChange: (value: string) => void;
-    onChangeDetails?: (details: PhoneInputDetails | null) => void;
-    onValidityChange?: (isValid: boolean) => void;
-    placeholder?: string;
-    required?: boolean;
-    disabled?: boolean;
-    requireMobile?: boolean;
-    defaultCountry?: Country;
-    className?: string;
-    inputClassName?: string;
-    onBlur?: React.FocusEventHandler<HTMLInputElement>;
-    onFocus?: React.FocusEventHandler<HTMLInputElement>;
-    "aria-invalid"?: boolean;
+  id?: string;
+  name?: string;
+  value: string;
+  onChange: (value: string) => void;
+  onChangeDetails?: (details: PhoneInputDetails | null) => void;
+  onValidityChange?: (isValid: boolean) => void;
+  placeholder?: string;
+  required?: boolean;
+  disabled?: boolean;
+  requireMobile?: boolean;
+  defaultCountry?: Country;
+  className?: string;
+  inputClassName?: string;
+  onBlur?: React.FocusEventHandler<HTMLInputElement>;
+  onFocus?: React.FocusEventHandler<HTMLInputElement>;
+  "aria-invalid"?: boolean;
 };
 
 export function PhoneInput({
-    id,
-    name,
-    value,
-    onChange,
-    onChangeDetails,
-    onValidityChange,
-    placeholder,
-    required,
-    disabled,
-    requireMobile,
-    defaultCountry,
-    className,
-    inputClassName,
-    onBlur,
-    onFocus,
-    "aria-invalid": ariaInvalid,
+  id,
+  name,
+  value,
+  onChange,
+  onChangeDetails,
+  onValidityChange,
+  placeholder,
+  required,
+  disabled,
+  requireMobile,
+  defaultCountry,
+  className,
+  inputClassName,
+  onBlur,
+  onFocus,
+  "aria-invalid": ariaInvalid,
 }: PhoneInputProps) {
-    const detectedDefault = React.useMemo<Country>(() => {
-        return defaultCountry ?? detectDefaultCountry("IL");
-    }, [defaultCountry]);
+  const detectedDefault = React.useMemo<Country>(() => {
+    return defaultCountry ?? detectDefaultCountry("IL");
+  }, [defaultCountry]);
 
-    const currentE164 = value?.trim() || undefined;
+  const [selectedCountry, setSelectedCountry] = React.useState<
+    Country | undefined
+  >(detectedDefault);
 
-    const valid = React.useMemo(() => {
-        if (!currentE164) return !required;
-        if (!isValidPhoneNumber(currentE164)) return false;
-        if (requireMobile) return isValidMobileE164(currentE164);
-        return true;
-    }, [currentE164, requireMobile, required]);
+  const currentE164 = value?.trim() || undefined;
 
-    React.useEffect(() => {
-        onValidityChange?.(valid);
-    }, [onValidityChange, valid]);
+  const valid = React.useMemo(() => {
+    if (!currentE164) return !required;
+    if (!isValidPhoneNumber(currentE164)) return false;
+    if (requireMobile) return isValidMobileE164(currentE164);
+    return true;
+  }, [currentE164, requireMobile, required]);
 
-    React.useEffect(() => {
-        if (!currentE164) {
-            onChangeDetails?.(null);
-            return;
-        }
+  React.useEffect(() => {
+    onValidityChange?.(valid);
+  }, [onValidityChange, valid]);
 
-        try {
-            const p = parsePhoneNumber(currentE164);
-            if (!p) {
-                onChangeDetails?.(null);
-                return;
-            }
+  React.useEffect(() => {
+    if (!currentE164) {
+      onChangeDetails?.(null);
+      return;
+    }
 
-            onChangeDetails?.({
-                e164: p.number,
-                country: p.country as any,
-                countryCallingCode: (p as any).countryCallingCode,
-                nationalNumber: (p as any).nationalNumber,
-                type: (p as any).getType?.(),
-            });
-        } catch {
-            onChangeDetails?.(null);
-        }
-    }, [currentE164, onChangeDetails]);
+    try {
+      const p = parsePhoneNumber(currentE164);
+      if (!p) {
+        onChangeDetails?.(null);
+        return;
+      }
 
-    const errorInputClass = ariaInvalid
-        ? "!border-rose-300 !focus-visible:border-rose-300 !focus-visible:ring-rose-200/60"
-        : "";
+      onChangeDetails?.({
+        e164: p.number,
+        country: p.country as any,
+        countryCallingCode: (p as any).countryCallingCode,
+        nationalNumber: (p as any).nationalNumber,
+        type: (p as any).getType?.(),
+      });
+    } catch {
+      onChangeDetails?.(null);
+    }
+  }, [currentE164, onChangeDetails]);
 
-    return (
-        <PhoneInputBase
-            international
-            addInternationalOption={false}
-            countryCallingCodeEditable={false}
-            defaultCountry={detectedDefault}
-            value={currentE164 as any}
-            onChange={(v) => onChange(String(v ?? ""))}
-            disabled={disabled}
-            countrySelectComponent={CountrySelect as any}
-            labels={labelsEn as any}
-            inputComponent={Input as any}
-            className={cn("flex items-center gap-2 w-full", className)}
-            numberInputProps={{
-                id,
-                name,
-                placeholder,
-                required,
-                disabled,
-                onBlur,
-                onFocus,
-                className: cn("flex-1", inputClassName, errorInputClass),
-                "aria-invalid": ariaInvalid ? true : undefined,
-            }}
-        />
-    );
+  const errorInputClass = ariaInvalid
+    ? "!border-rose-300 !focus-visible:border-rose-300 !focus-visible:ring-rose-200/60"
+    : "";
+
+  const resolvedPlaceholder = React.useMemo(() => {
+    if (placeholder) return placeholder;
+    return "050 123 4567";
+  }, [detectedDefault, placeholder, selectedCountry]);
+
+  return (
+    <PhoneInputBase
+      international={false}
+      addInternationalOption={false}
+      countryCallingCodeEditable={false}
+      defaultCountry={detectedDefault}
+      onCountryChange={(next) =>
+        setSelectedCountry((next as Country) ?? detectedDefault)
+      }
+      value={currentE164 as any}
+      onChange={(v) => onChange(String(v ?? ""))}
+      disabled={disabled}
+      countrySelectComponent={CountrySelect as any}
+      labels={labelsEn as any}
+      inputComponent={Input as any}
+      className={cn("flex items-center gap-2 w-full", className)}
+      numberInputProps={{
+        id,
+        name,
+        placeholder: resolvedPlaceholder,
+        required,
+        disabled,
+        onBlur,
+        onFocus,
+        className: cn("flex-1", inputClassName, errorInputClass),
+        "aria-invalid": ariaInvalid ? true : undefined,
+      }}
+    />
+  );
 }

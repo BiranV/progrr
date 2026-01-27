@@ -600,7 +600,7 @@ async function main() {
     const assignedPlans = pickManyUnique(rng, workoutPlanIds, randInt(rng, 0, 2));
     const assignedMealPlans = pickManyUnique(rng, mealPlanIds, randInt(rng, 0, 2));
 
-    const phone = `+1555${String(100000 + i)}`;
+    const phone = `555${String(100000 + i)}`;
 
     // Create matching auth identity in the `clients` collection (used by OTP login)
     const existingAuth = await authClients.findOne({ phone });
