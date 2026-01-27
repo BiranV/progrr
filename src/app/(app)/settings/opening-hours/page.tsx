@@ -567,7 +567,7 @@ export default function OpeningHoursPage() {
                           (isPending && !initialRef.current) ||
                           !d.enabled
                         }
-                        className="h-8 w-[78px] min-w-[78px] px-1.5 text-[13px] shrink-0 cursor-pointer hover:bg-muted/30"
+                        className="h-8 w-[70px] min-w-[70px] px-1.5 text-[13px] shrink-0 cursor-pointer hover:bg-muted/30"
                         aria-label={
                           idx === 0
                             ? t("openingHours.aria.startTime", {
@@ -587,7 +587,7 @@ export default function OpeningHoursPage() {
                           (isPending && !initialRef.current) ||
                           !d.enabled
                         }
-                        className="h-8 w-[78px] min-w-[78px] px-1.5 text-[13px] shrink-0 cursor-pointer hover:bg-muted/30"
+                        className="h-8 w-[70px] min-w-[70px] px-1.5 text-[13px] shrink-0 cursor-pointer hover:bg-muted/30"
                         aria-label={
                           idx === 0
                             ? t("openingHours.aria.endTime", {
@@ -613,6 +613,7 @@ export default function OpeningHoursPage() {
                           type="button"
                           variant="ghost"
                           size="icon-sm"
+                          className="h-8 w-8 p-0"
                           onClick={() => addRange(d.day)}
                           disabled={
                             isSaving ||
@@ -623,13 +624,14 @@ export default function OpeningHoursPage() {
                             day: getDayLabel(d.day),
                           })}
                         >
-                          <Plus className="h-4 w-4 ms-4 text-gray-900 dark:text-white" />
+                          <Plus className="h-4 w-4 text-gray-900 dark:text-white" />
                         </Button>
                       ) : (
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon-sm"
+                          className="h-8 w-8 p-0"
                           onClick={() => deleteRange(d.day, r.id)}
                           disabled={
                             isSaving ||
@@ -641,7 +643,7 @@ export default function OpeningHoursPage() {
                             day: getDayLabel(d.day),
                           })}
                         >
-                          <Trash2 className="h-4 w-4 ms-4 text-gray-900 dark:text-white" />
+                          <Trash2 className="h-4 w-4 text-gray-900 dark:text-white" />
                         </Button>
                       )}
                     </div>

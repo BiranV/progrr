@@ -1993,7 +1993,7 @@ function OnboardingContent() {
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-gray-400 hover:text-red-500"
+                          className="h-8 w-8 p-0"
                           disabled={(data.services || []).length <= 1}
                           aria-label={t("onboarding.removeService")}
                           onClick={() => {
@@ -2006,7 +2006,7 @@ function OnboardingContent() {
                             }));
                           }}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4 text-gray-900 dark:text-white" />
                         </Button>
                       </div>
                     </div>
@@ -2032,7 +2032,7 @@ function OnboardingContent() {
                       ],
                     }));
                   }}
-                  className={outlineButtonClass}
+                  className={`${outlineButtonClass} bg-transparent`}
                 >
                   {t("onboarding.addService")}
                 </Button>
@@ -2253,7 +2253,7 @@ function OnboardingContent() {
                                 )
                               }
                               disabled={loading || saving || !d.enabled}
-                              className="h-8 w-[78px] min-w-[78px] px-1.5 text-[13px] shrink-0"
+                              className="h-8 w-[70px] min-w-[70px] px-1.5 text-[13px] shrink-0"
                               aria-label={t("onboarding.timeRangeStartAria", {
                                 day: getDayLabel(d.day),
                                 index: idx + 1,
@@ -2271,7 +2271,7 @@ function OnboardingContent() {
                                 )
                               }
                               disabled={loading || saving || !d.enabled}
-                              className="h-8 w-[78px] min-w-[78px] px-1.5 text-[13px] shrink-0"
+                              className="h-8 w-[70px] min-w-[70px] px-1.5 text-[13px] shrink-0"
                               aria-label={t("onboarding.timeRangeEndAria", {
                                 day: getDayLabel(d.day),
                                 index: idx + 1,
@@ -2292,17 +2292,21 @@ function OnboardingContent() {
                                 type="button"
                                 variant="ghost"
                                 size="icon-sm"
+                                className="h-8 w-8 p-0 m-0"
                                 onClick={() => addAvailabilityRange(d.day)}
                                 disabled={loading || saving || !d.enabled}
                                 aria-label={t("onboarding.addTimeRange", {
                                   day: getDayLabel(d.day),
                                 })}
                               >
-                                <Plus className="h-4 w-4 ms-4 text-gray-900 dark:text-white" />
+                                <Plus className="h-4 w-4 m-0 text-gray-900 dark:text-white" />
                               </Button>
                             ) : (
-                              <button
+                              <Button
                                 type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                className="h-8 w-8 p-0 m-0"
                                 onClick={() =>
                                   deleteAvailabilityRange(d.day, r.id)
                                 }
@@ -2315,10 +2319,9 @@ function OnboardingContent() {
                                 aria-label={t("onboarding.deleteTimeRange", {
                                   day: getDayLabel(d.day),
                                 })}
-                                className="ms-4 text-gray-900 dark:text-white"
                               >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
+                                <Trash2 className="h-4 w-4 m-0 text-gray-900 dark:text-white" />
+                              </Button>
                             )}
                           </div>
                         ))}
