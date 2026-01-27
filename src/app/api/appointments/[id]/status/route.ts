@@ -78,17 +78,27 @@ export async function POST(
                 "$completedAt",
               ],
             },
+            paymentPaidAt: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: [nextStatus, "COMPLETED"] },
+                    { $eq: ["$paymentStatus", "PAID"] },
+                  ],
+                },
+                { $ifNull: ["$paymentPaidAt", new Date()] },
+                "$paymentPaidAt",
+              ],
+            },
           },
         },
       ] as any,
     );
 
-    if (nextStatus === "COMPLETED") {
-      processReviewRequestsForBusiness({
-        businessUserId: new ObjectId(user.id),
-        appointmentId: apptId,
-      }).catch((err) => console.error("Review request failed", err));
-    }
+    processReviewRequestsForBusiness({
+      businessUserId: new ObjectId(user.id),
+      appointmentId: apptId,
+    }).catch((err) => console.error("Review request failed", err));
 
     return NextResponse.json({ ok: true, status: nextStatus });
   } catch (error: any) {

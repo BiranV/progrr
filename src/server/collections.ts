@@ -77,11 +77,14 @@ export type AppointmentDoc = {
   notes?: string;
   status: "BOOKED" | "COMPLETED" | "CANCELED" | "CANCELLED";
   paymentStatus?: "UNPAID" | "PAID";
+  paymentPaidAt?: Date;
   createdBy?: "BUSINESS" | "CUSTOMER";
   createdAt: Date;
   completedAt?: Date;
   reviewRequestSent?: boolean;
   reviewSentAt?: Date;
+  reviewEmailScheduled?: boolean;
+  reviewEmailScheduledAt?: Date;
   reviewSubmitted?: boolean;
   reviewSubmittedAt?: Date;
   reviewRating?: number;

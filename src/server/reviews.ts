@@ -106,7 +106,9 @@ export async function processReviewRequestsForBusiness(args: {
   const match: any = {
     businessUserId: args.businessUserId,
     status: "COMPLETED",
+    paymentStatus: "PAID",
     reviewRequestSent: { $ne: true },
+    reviewSubmitted: { $ne: true },
   };
   if (args.appointmentId) {
     match._id = args.appointmentId;
@@ -119,19 +121,32 @@ export async function processReviewRequestsForBusiness(args: {
     .toArray();
 
   for (const appt of candidates as any[]) {
-    const completedAt =
-      appt.completedAt instanceof Date
-        ? appt.completedAt
-        : appt.createdAt instanceof Date
-          ? appt.createdAt
-          : null;
+    const paymentPaidAt =
+      appt.paymentPaidAt instanceof Date ? appt.paymentPaidAt : null;
+    if (!paymentPaidAt) continue;
 
-    if (!completedAt) continue;
+    const scheduledAt =
+      appt.reviewEmailScheduledAt instanceof Date
+        ? appt.reviewEmailScheduledAt
+        : null;
 
-    const readyAt = new Date(
-      completedAt.getTime() + reviewDelayMinutes * 60_000,
-    );
-    if (readyAt.getTime() > now.getTime()) continue;
+    if (!scheduledAt) {
+      const nextScheduledAt = new Date(
+        paymentPaidAt.getTime() + reviewDelayMinutes * 60_000,
+      );
+      await c.appointments.updateOne(
+        { _id: appt._id } as any,
+        {
+          $set: {
+            reviewEmailScheduled: true,
+            reviewEmailScheduledAt: nextScheduledAt,
+          },
+        } as any,
+      );
+      if (nextScheduledAt.getTime() > now.getTime()) continue;
+    } else if (scheduledAt.getTime() > now.getTime()) {
+      continue;
+    }
 
     const customerEmail = String(appt.customer?.email ?? "").trim();
     if (!customerEmail) continue;
@@ -181,6 +196,10 @@ export async function processReviewRequestsForBusiness(args: {
           $set: {
             reviewRequestSent: true,
             reviewSentAt: now,
+            reviewEmailScheduled: true,
+            reviewEmailScheduledAt:
+              scheduledAt ??
+              new Date(paymentPaidAt.getTime() + reviewDelayMinutes * 60_000),
           },
         } as any,
       );
