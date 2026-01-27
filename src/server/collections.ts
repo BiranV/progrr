@@ -23,6 +23,10 @@ export type UserDoc = {
       slug?: string;
       description?: string;
       currency?: string;
+      limitCustomerToOneUpcomingAppointment?: boolean;
+      revenueInsightsEnabled?: boolean;
+      reviewRequestsEnabled?: boolean;
+      reviewDelayMinutes?: number;
     };
     services?: Array<{
       id: string;
@@ -75,8 +79,13 @@ export type AppointmentDoc = {
   paymentStatus?: "UNPAID" | "PAID";
   createdBy?: "BUSINESS" | "CUSTOMER";
   createdAt: Date;
-  cancelledAt?: Date;
-  cancelledBy?: "BUSINESS" | "CUSTOMER";
+  completedAt?: Date;
+  reviewRequestSent?: boolean;
+  reviewSentAt?: Date;
+  reviewSubmitted?: boolean;
+  reviewSubmittedAt?: Date;
+  reviewRating?: number;
+  reviewComment?: string;
 };
 
 export type CustomerDoc = {
@@ -91,16 +100,14 @@ export type CustomerDoc = {
 };
 
 export type BusinessCustomerDoc = {
-  _id?: ObjectId;
-  businessUserId: ObjectId;
-  customerId: ObjectId;
-  status?: "ACTIVE" | "BLOCKED";
-  isHidden?: boolean;
-  createdAt: Date;
-  lastAppointmentAt?: Date;
+  reviewRequestsEnabled?: boolean;
+  reviewDelayMinutes?: number;
 };
 
-export type CustomerOtpPurpose = "booking_verify" | "profile_email_change";
+export type CustomerOtpPurpose =
+  | "booking_verify"
+  | "profile_email_change"
+  | "review";
 
 export type CustomerOtpDoc = {
   _id?: ObjectId;
@@ -109,6 +116,7 @@ export type CustomerOtpDoc = {
   codeHash: string;
   verifyToken?: string;
   businessPublicId?: string;
+  appointmentId?: string;
   expiresAt: Date;
   attempts: number;
   createdAt: Date;
@@ -155,11 +163,11 @@ export async function ensureIndexes() {
   await c.users.createIndex({ email: 1 }, { unique: true });
   await c.users.createIndex(
     { "onboarding.business.slug": 1 },
-    { unique: true, sparse: true }
+    { unique: true, sparse: true },
   );
   await c.users.createIndex(
     { "onboarding.business.publicId": 1 },
-    { unique: true, sparse: true }
+    { unique: true, sparse: true },
   );
 
   await c.otps.createIndex({ key: 1, purpose: 1 }, { unique: true });
@@ -168,7 +176,7 @@ export async function ensureIndexes() {
   await c.customerOtps.createIndex({ key: 1, purpose: 1 }, { unique: true });
   await c.customerOtps.createIndex(
     { verifyToken: 1, purpose: 1 },
-    { unique: true, sparse: true }
+    { unique: true, sparse: true },
   );
   await c.customerOtps.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
@@ -177,7 +185,7 @@ export async function ensureIndexes() {
     {
       unique: true,
       partialFilterExpression: { status: "BOOKED" },
-    }
+    },
   );
   await c.appointments.createIndex({ businessUserId: 1, date: 1, status: 1 });
   await c.appointments.createIndex({
@@ -202,11 +210,11 @@ export async function ensureIndexes() {
 
   await c.businessCustomers.createIndex(
     { businessUserId: 1, customerId: 1 },
-    { unique: true }
+    { unique: true },
   );
   await c.businessCustomers.createIndex(
     { businessUserId: 1, createdAt: -1 },
-    { name: "business_customers_admin_list" }
+    { name: "business_customers_admin_list" },
   );
 
   await c.rateLimits.createIndex({ key: 1 }, { unique: true });

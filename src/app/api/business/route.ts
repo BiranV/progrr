@@ -44,6 +44,12 @@ function asBoolean(v: unknown): boolean | undefined {
   return undefined;
 }
 
+function normalizeMinutes(v: unknown, fallback: number): number {
+  const n = typeof v === "number" ? v : Number(v);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.min(7 * 24 * 60, Math.round(n)));
+}
+
 const ALLOWED_CURRENCY_CODES = new Set(["ILS"]);
 
 function normalizeCurrencyCode(v: unknown): string | undefined {
@@ -71,7 +77,7 @@ export async function GET() {
     if (!business || typeof business !== "object") {
       return NextResponse.json(
         { error: "Business not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -82,7 +88,9 @@ export async function GET() {
     }
 
     const name = asString((business as any).name, 120);
-    const phone = normalizePhone((business as any).phone) || asString((business as any).phone, 40);
+    const phone =
+      normalizePhone((business as any).phone) ||
+      asString((business as any).phone, 40);
     const address = asString((business as any).address, 200);
     const slug = asString((business as any).slug, 120);
     const description = asString((business as any).description, 250);
@@ -94,16 +102,24 @@ export async function GET() {
       "ILS";
 
     const limitCustomerToOneUpcomingAppointment = Boolean(
-      (business as any).limitCustomerToOneUpcomingAppointment
+      (business as any).limitCustomerToOneUpcomingAppointment,
     );
     const revenueInsightsEnabled = Boolean(
-      (business as any).revenueInsightsEnabled
+      (business as any).revenueInsightsEnabled,
+    );
+    const reviewRequestsEnabled =
+      typeof (business as any).reviewRequestsEnabled === "boolean"
+        ? Boolean((business as any).reviewRequestsEnabled)
+        : true;
+    const reviewDelayMinutes = normalizeMinutes(
+      (business as any).reviewDelayMinutes,
+      120,
     );
 
     if (!name || !phone || !publicId) {
       return NextResponse.json(
         { error: "Business not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -120,12 +136,14 @@ export async function GET() {
       currency,
       limitCustomerToOneUpcomingAppointment,
       revenueInsightsEnabled,
+      reviewRequestsEnabled,
+      reviewDelayMinutes,
     });
   } catch (error: any) {
     const status = typeof error?.status === "number" ? error.status : 500;
     return NextResponse.json(
       { error: error?.message || "Internal Server Error" },
-      { status }
+      { status },
     );
   }
 }
@@ -144,7 +162,7 @@ export async function PATCH(req: Request) {
     if (!business || typeof business !== "object") {
       return NextResponse.json(
         { error: "Business not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -162,7 +180,8 @@ export async function PATCH(req: Request) {
 
     const currentName = asString((business as any).name, 120);
     const currentPhone =
-      normalizePhone((business as any).phone) || asString((business as any).phone, 40);
+      normalizePhone((business as any).phone) ||
+      asString((business as any).phone, 40);
     const currentAddress = asString((business as any).address, 200) ?? "";
     const currentDescription =
       asString((business as any).description, 250) ?? "";
@@ -172,21 +191,26 @@ export async function PATCH(req: Request) {
       "ILS";
 
     const name = asString((body as any)?.name, 120) ?? currentName;
-    const requestedPhoneRaw =
-      Object.prototype.hasOwnProperty.call(body as any, "phone")
-        ? asString((body as any)?.phone, 40) ?? ""
-        : undefined;
+    const requestedPhoneRaw = Object.prototype.hasOwnProperty.call(
+      body as any,
+      "phone",
+    )
+      ? (asString((body as any)?.phone, 40) ?? "")
+      : undefined;
     const phone =
       (requestedPhoneRaw !== undefined
         ? normalizePhone(requestedPhoneRaw)
         : normalizePhone(currentPhone)) || currentPhone;
-    const addressRaw = Object.prototype.hasOwnProperty.call(body as any, "address")
-      ? asString((body as any)?.address, 200) ?? ""
+    const addressRaw = Object.prototype.hasOwnProperty.call(
+      body as any,
+      "address",
+    )
+      ? (asString((body as any)?.address, 200) ?? "")
       : currentAddress;
     const address = String(addressRaw ?? "").trim();
     const description =
       (Object.prototype.hasOwnProperty.call(body as any, "description")
-        ? asString((body as any)?.description, 250) ?? ""
+        ? (asString((body as any)?.description, 250) ?? "")
         : currentDescription) ?? "";
 
     const currentInstagram =
@@ -195,20 +219,20 @@ export async function PATCH(req: Request) {
 
     const instagram =
       (Object.prototype.hasOwnProperty.call(body as any, "instagram")
-        ? normalizeInstagram((body as any)?.instagram) ?? ""
+        ? (normalizeInstagram((body as any)?.instagram) ?? "")
         : currentInstagram) ?? "";
 
     const requestedWhatsAppRaw = Object.prototype.hasOwnProperty.call(
       body as any,
-      "whatsapp"
+      "whatsapp",
     )
-      ? asString((body as any)?.whatsapp, 40) ?? ""
+      ? (asString((body as any)?.whatsapp, 40) ?? "")
       : undefined;
 
     const whatsapp =
       (requestedWhatsAppRaw !== undefined
         ? requestedWhatsAppRaw
-          ? normalizeWhatsApp(requestedWhatsAppRaw) ?? "__INVALID__"
+          ? (normalizeWhatsApp(requestedWhatsAppRaw) ?? "__INVALID__")
           : ""
         : currentWhatsApp) ?? "";
 
@@ -222,44 +246,73 @@ export async function PATCH(req: Request) {
     const currency = requestedCurrency ?? currentCurrency;
 
     const currentLimitCustomerToOneUpcomingAppointment = Boolean(
-      (business as any).limitCustomerToOneUpcomingAppointment
+      (business as any).limitCustomerToOneUpcomingAppointment,
     );
     const requestedLimitCustomerToOneUpcomingAppointment =
       Object.prototype.hasOwnProperty.call(
         body as any,
-        "limitCustomerToOneUpcomingAppointment"
+        "limitCustomerToOneUpcomingAppointment",
       )
-        ? asBoolean((body as any).limitCustomerToOneUpcomingAppointment) ??
-        currentLimitCustomerToOneUpcomingAppointment
+        ? (asBoolean((body as any).limitCustomerToOneUpcomingAppointment) ??
+          currentLimitCustomerToOneUpcomingAppointment)
         : currentLimitCustomerToOneUpcomingAppointment;
 
     const currentRevenueInsightsEnabled = Boolean(
-      (business as any).revenueInsightsEnabled
+      (business as any).revenueInsightsEnabled,
     );
     const requestedRevenueInsightsEnabled =
-      Object.prototype.hasOwnProperty.call(body as any, "revenueInsightsEnabled")
-        ? asBoolean((body as any).revenueInsightsEnabled) ??
-        currentRevenueInsightsEnabled
+      Object.prototype.hasOwnProperty.call(
+        body as any,
+        "revenueInsightsEnabled",
+      )
+        ? (asBoolean((body as any).revenueInsightsEnabled) ??
+          currentRevenueInsightsEnabled)
         : currentRevenueInsightsEnabled;
+
+    const currentReviewRequestsEnabled =
+      typeof (business as any).reviewRequestsEnabled === "boolean"
+        ? Boolean((business as any).reviewRequestsEnabled)
+        : true;
+    const requestedReviewRequestsEnabled = Object.prototype.hasOwnProperty.call(
+      body as any,
+      "reviewRequestsEnabled",
+    )
+      ? (asBoolean((body as any).reviewRequestsEnabled) ??
+        currentReviewRequestsEnabled)
+      : currentReviewRequestsEnabled;
+
+    const currentReviewDelayMinutes = normalizeMinutes(
+      (business as any).reviewDelayMinutes,
+      120,
+    );
+    const requestedReviewDelayMinutes = Object.prototype.hasOwnProperty.call(
+      body as any,
+      "reviewDelayMinutes",
+    )
+      ? normalizeMinutes(
+          (body as any).reviewDelayMinutes,
+          currentReviewDelayMinutes,
+        )
+      : currentReviewDelayMinutes;
 
     if (!name) {
       return NextResponse.json(
         { error: "Business name cannot be empty" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!phone || !normalizePhone(phone)) {
       return NextResponse.json(
         { error: "Please enter a valid phone number" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (whatsapp === "__INVALID__") {
       return NextResponse.json(
         { error: "WhatsApp number must be a valid phone number" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -280,9 +333,12 @@ export async function PATCH(req: Request) {
             requestedLimitCustomerToOneUpcomingAppointment,
           "onboarding.business.revenueInsightsEnabled":
             requestedRevenueInsightsEnabled,
+          "onboarding.business.reviewRequestsEnabled":
+            requestedReviewRequestsEnabled,
+          "onboarding.business.reviewDelayMinutes": requestedReviewDelayMinutes,
           "onboarding.updatedAt": new Date(),
         },
-      }
+      },
     );
 
     if (!result.matchedCount) {
@@ -294,7 +350,7 @@ export async function PATCH(req: Request) {
     const status = typeof error?.status === "number" ? error.status : 500;
     return NextResponse.json(
       { error: error?.message || "Internal Server Error" },
-      { status }
+      { status },
     );
   }
 }

@@ -25,6 +25,14 @@ export type CustomerAccessClaims = {
   iat?: number;
 };
 
+export type ReviewAccessClaims = {
+  purpose: "review_access";
+  email: string;
+  appointmentId: string;
+  businessPublicId: string;
+  iat?: number;
+};
+
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -92,7 +100,7 @@ export async function signBookingVerifyToken(args: { email: string }) {
 }
 
 export async function verifyBookingVerifyToken(
-  token: string
+  token: string,
 ): Promise<BookingVerifyClaims> {
   const key = getSecretKey();
   const { payload } = await jwtVerify(token, key);
@@ -126,7 +134,7 @@ export async function signBookingCancelToken(args: {
 }
 
 export async function verifyBookingCancelToken(
-  token: string
+  token: string,
 ): Promise<BookingCancelClaims> {
   const key = getSecretKey();
   const { payload } = await jwtVerify(token, key);
@@ -151,9 +159,7 @@ export async function verifyBookingCancelToken(
   };
 }
 
-export async function signCustomerAccessToken(args: {
-  customerId: string;
-}) {
+export async function signCustomerAccessToken(args: { customerId: string }) {
   const key = getSecretKey();
   return await new SignJWT({
     purpose: "customer_access",
@@ -166,7 +172,7 @@ export async function signCustomerAccessToken(args: {
 }
 
 export async function verifyCustomerAccessToken(
-  token: string
+  token: string,
 ): Promise<CustomerAccessClaims> {
   const key = getSecretKey();
   const { payload } = await jwtVerify(token, key);
@@ -185,6 +191,54 @@ export async function verifyCustomerAccessToken(
   return {
     purpose: "customer_access",
     customerId: String(customerId).trim(),
+    iat,
+  };
+}
+
+export async function signReviewAccessToken(args: {
+  email: string;
+  appointmentId: string;
+  businessPublicId: string;
+}) {
+  const key = getSecretKey();
+  return await new SignJWT({
+    purpose: "review_access",
+    email: args.email,
+    appointmentId: args.appointmentId,
+    businessPublicId: args.businessPublicId,
+  })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("30m")
+    .sign(key);
+}
+
+export async function verifyReviewAccessToken(
+  token: string,
+): Promise<ReviewAccessClaims> {
+  const key = getSecretKey();
+  const { payload } = await jwtVerify(token, key);
+  const purpose = (payload as any)?.purpose;
+  const email = (payload as any)?.email;
+  const appointmentId = (payload as any)?.appointmentId;
+  const businessPublicId = (payload as any)?.businessPublicId;
+  if (
+    purpose !== "review_access" ||
+    typeof email !== "string" ||
+    !email.trim() ||
+    typeof appointmentId !== "string" ||
+    !appointmentId.trim() ||
+    typeof businessPublicId !== "string" ||
+    !businessPublicId.trim()
+  ) {
+    throw Object.assign(new Error("Invalid token"), { status: 401 });
+  }
+  const iat = typeof payload.iat === "number" ? payload.iat : undefined;
+  return {
+    purpose: "review_access",
+    email: String(email).trim(),
+    appointmentId: String(appointmentId).trim(),
+    businessPublicId: String(businessPublicId).trim(),
     iat,
   };
 }

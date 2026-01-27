@@ -22,14 +22,21 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useLocale } from "@/context/LocaleContext";
 import { useI18n } from "@/i18n/useI18n";
-import { ONBOARDING_QUERY_KEY, useOnboardingSettings } from "@/hooks/useOnboardingSettings";
+import {
+  ONBOARDING_QUERY_KEY,
+  useOnboardingSettings,
+} from "@/hooks/useOnboardingSettings";
 import SidePanel from "@/components/ui/side-panel";
 
 const DEFAULT_TIMEZONE = "Asia/Jerusalem";
 
 const LANGUAGE_OPTIONS = [
   { code: "he", labelKey: "settings.languageHebrew", flagSrc: "/flags/il.svg" },
-  { code: "en", labelKey: "settings.languageEnglish", flagSrc: "/flags/us.svg" },
+  {
+    code: "en",
+    labelKey: "settings.languageEnglish",
+    flagSrc: "/flags/us.svg",
+  },
 ] as const;
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -191,23 +198,26 @@ export default function SettingsPage() {
 
   const uiTimeZones = React.useMemo(
     () => (supportedTimeZones.length ? supportedTimeZones : [DEFAULT_TIMEZONE]),
-    [supportedTimeZones]
+    [supportedTimeZones],
   );
 
   const currentLanguageOption =
-    LANGUAGE_OPTIONS.find((opt) => opt.code === language) || LANGUAGE_OPTIONS[1];
+    LANGUAGE_OPTIONS.find((opt) => opt.code === language) ||
+    LANGUAGE_OPTIONS[1];
 
   React.useEffect(() => {
     if (!onboardingRes) return;
     const rawTz = String(
-      (onboardingRes as any)?.onboarding?.availability?.timezone ?? ""
+      (onboardingRes as any)?.onboarding?.availability?.timezone ?? "",
     ).trim();
     setTimeZone(rawTz || DEFAULT_TIMEZONE);
   }, [onboardingRes]);
 
   React.useEffect(() => {
     if (!onboardingError) return;
-    toast.error((onboardingErrorValue as any)?.message || t("errors.failedToLoad"));
+    toast.error(
+      (onboardingErrorValue as any)?.message || t("errors.failedToLoad"),
+    );
   }, [onboardingError, onboardingErrorValue, t]);
 
   const onTimeZoneChange = React.useCallback(
@@ -245,7 +255,7 @@ export default function SettingsPage() {
         setSavingTimeZone(false);
       }
     },
-    [queryClient, t, timeZone]
+    [queryClient, t, timeZone],
   );
 
   const onLogout = async () => {
@@ -296,12 +306,13 @@ export default function SettingsPage() {
     if (exportPending) return;
     setExportPending(true);
     try {
-      const [onboardingRes, businessRes, customersRes, meRes] = await Promise.all([
-        fetch("/api/onboarding", { method: "GET" }),
-        fetch("/api/business", { method: "GET" }),
-        fetch("/api/customers", { method: "GET" }),
-        fetch("/api/me", { method: "GET" }),
-      ]);
+      const [onboardingRes, businessRes, customersRes, meRes] =
+        await Promise.all([
+          fetch("/api/onboarding", { method: "GET" }),
+          fetch("/api/business", { method: "GET" }),
+          fetch("/api/customers", { method: "GET" }),
+          fetch("/api/me", { method: "GET" }),
+        ]);
 
       const onboardingPayload = onboardingRes.ok
         ? await onboardingRes.json().catch(() => null)
@@ -314,55 +325,58 @@ export default function SettingsPage() {
         : null;
       const mePayload = meRes.ok ? await meRes.json().catch(() => null) : null;
 
-      const onboarding = onboardingPayload && typeof onboardingPayload === "object"
-        ? (onboardingPayload as any).onboarding
-        : null;
+      const onboarding =
+        onboardingPayload && typeof onboardingPayload === "object"
+          ? (onboardingPayload as any).onboarding
+          : null;
 
       const services = Array.isArray(onboarding?.services)
         ? onboarding.services.map((s: any) => ({
-          id: String(s?.id ?? "").trim(),
-          name: String(s?.name ?? "").trim(),
-          durationMinutes: Number(s?.durationMinutes),
-          price: typeof s?.price === "number" ? s.price : Number(s?.price) || 0,
-          description: typeof s?.description === "string" ? s.description : undefined,
-          isActive: s?.isActive !== false,
-        }))
+            id: String(s?.id ?? "").trim(),
+            name: String(s?.name ?? "").trim(),
+            durationMinutes: Number(s?.durationMinutes),
+            price:
+              typeof s?.price === "number" ? s.price : Number(s?.price) || 0,
+            description:
+              typeof s?.description === "string" ? s.description : undefined,
+            isActive: s?.isActive !== false,
+          }))
         : [];
 
       const availability = onboarding?.availability
         ? {
-          timezone: String(onboarding?.availability?.timezone ?? "").trim(),
-          weekStartsOn:
-            onboarding?.availability?.weekStartsOn === 0 ||
+            timezone: String(onboarding?.availability?.timezone ?? "").trim(),
+            weekStartsOn:
+              onboarding?.availability?.weekStartsOn === 0 ||
               onboarding?.availability?.weekStartsOn === 1
-              ? onboarding.availability.weekStartsOn
-              : undefined,
-          days: Array.isArray(onboarding?.availability?.days)
-            ? onboarding.availability.days.map((d: any) => ({
-              day: Number(d?.day),
-              enabled: Boolean(d?.enabled),
-              ranges: Array.isArray(d?.ranges)
-                ? d.ranges.map((r: any) => ({
-                  start: String(r?.start ?? "").trim(),
-                  end: String(r?.end ?? "").trim(),
-                }))
+                ? onboarding.availability.weekStartsOn
                 : undefined,
-            }))
-            : [],
-        }
+            days: Array.isArray(onboarding?.availability?.days)
+              ? onboarding.availability.days.map((d: any) => ({
+                  day: Number(d?.day),
+                  enabled: Boolean(d?.enabled),
+                  ranges: Array.isArray(d?.ranges)
+                    ? d.ranges.map((r: any) => ({
+                        start: String(r?.start ?? "").trim(),
+                        end: String(r?.end ?? "").trim(),
+                      }))
+                    : undefined,
+                }))
+              : [],
+          }
         : { timezone: "", days: [] };
 
       const customers = Array.isArray(customersPayload?.customers)
         ? customersPayload.customers.map((c: any) => ({
-          externalId: String(c?._id ?? "").trim(),
-          fullName: String(c?.fullName ?? "").trim(),
-          phone: String(c?.phone ?? "").trim(),
-          email: String(c?.email ?? "").trim() || undefined,
-          status: String(c?.status ?? "ACTIVE"),
-          activeBookingsCount: Number(c?.activeBookingsCount ?? 0),
-          lastAppointmentAt: c?.lastAppointmentAt,
-          createdAt: c?.createdAt,
-        }))
+            externalId: String(c?._id ?? "").trim(),
+            fullName: String(c?.fullName ?? "").trim(),
+            phone: String(c?.phone ?? "").trim(),
+            email: String(c?.email ?? "").trim() || undefined,
+            status: String(c?.status ?? "ACTIVE"),
+            activeBookingsCount: Number(c?.activeBookingsCount ?? 0),
+            lastAppointmentAt: c?.lastAppointmentAt,
+            createdAt: c?.createdAt,
+          }))
         : [];
 
       const payload = {
@@ -411,7 +425,9 @@ export default function SettingsPage() {
       {/* Section 1: Business */}
       <Card className="gap-0 py-4">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t("settings.businessSection")}</CardTitle>
+          <CardTitle className="text-base">
+            {t("settings.businessSection")}
+          </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="divide-y">
@@ -440,6 +456,11 @@ export default function SettingsPage() {
               title={t("settings.insights")}
               description={t("settings.insightsDesc")}
             />
+            <SettingsLinkRow
+              href="/settings/reviews"
+              title={t("settings.reviews")}
+              description={t("settings.reviewsDesc")}
+            />
           </div>
         </CardContent>
       </Card>
@@ -447,7 +468,9 @@ export default function SettingsPage() {
       {/* Section 2: Subscription */}
       <Card className="gap-0 py-4">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t("settings.languageRegion")}</CardTitle>
+          <CardTitle className="text-base">
+            {t("settings.languageRegion")}
+          </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="divide-y">
@@ -521,7 +544,9 @@ export default function SettingsPage() {
       {/* Section 3: Subscription */}
       <Card className="gap-0 py-4">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t("settings.subscriptionSection")}</CardTitle>
+          <CardTitle className="text-base">
+            {t("settings.subscriptionSection")}
+          </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="divide-y">
@@ -542,7 +567,9 @@ export default function SettingsPage() {
       {/* Section 4: Support & Legal */}
       <Card className="gap-0 py-4">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t("settings.supportSection")}</CardTitle>
+          <CardTitle className="text-base">
+            {t("settings.supportSection")}
+          </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="divide-y">
@@ -573,7 +600,9 @@ export default function SettingsPage() {
       {/* Section 5: Account */}
       <Card className="gap-0 py-4">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t("settings.accountSection")}</CardTitle>
+          <CardTitle className="text-base">
+            {t("settings.accountSection")}
+          </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           <div className="divide-y">

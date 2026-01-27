@@ -657,6 +657,8 @@ const en = {
     brandingDesc: "Logo, gallery and brand color",
     insights: "Insights",
     insightsDesc: "Business insights and estimated revenue",
+    reviews: "Reviews",
+    reviewsDesc: "Automatic review requests",
     insightsTitle: "Insights",
     insightsSubtitle: "Manage optional business insights.",
     revenueInsightsTitle: "Revenue Insights (Optional)",
@@ -1128,6 +1130,46 @@ const en = {
       uploadImageFailed: "Failed to upload image",
     },
   },
+  reviews: {
+    title: "Reviews",
+    subtitle:
+      "Automatic Progrr review requests sent after completed appointments.",
+    toggleTitle: "Automatic review requests",
+    toggleDescription:
+      "Requests are sent automatically after appointments are completed.",
+    toggleOn: "ON",
+    toggleOff: "OFF",
+    settingsTitle: "Review settings",
+    delayLabel: "Send delay (minutes)",
+    delayHelp: "Default is 120 minutes (2 hours).",
+    errors: {
+      delayInvalid: "Delay must be 0 or more",
+    },
+  },
+  reviewPage: {
+    title: "Leave a review",
+    verifyTitle: "Verify your email",
+    emailLabel: "Email",
+    emailPlaceholder: "name@example.com",
+    sendCode: "Send code",
+    codeTitle: "Enter verification code",
+    codeSent: "We sent a code to {{email}}.",
+    verify: "Verify",
+    resendCode: "Resend code",
+    formTitle: "Your review",
+    ratingLabel: "Rating",
+    ratingAria: "Rate {{rating}} out of 5",
+    commentLabel: "Comment (optional)",
+    commentPlaceholder: "Share anything that would help us improve.",
+    submit: "Submit review",
+    thanksTitle: "Thank you!",
+    thanksDescription: "Your review has been submitted.",
+    unavailableTitle: "Review unavailable",
+    unavailableDescription: "This appointment is not eligible for review.",
+    errors: {
+      invalidLink: "This review link is invalid or expired.",
+    },
+  },
   subscription: {
     title: "Plans & Pricing",
     subtitle: "Start with a 14-day free trial. No feature restrictions.",
@@ -1197,6 +1239,11 @@ const en = {
     outstandingPaidSuccess:
       "Payment marked as paid and removed from outstanding list.",
     publicBookingLink: "Public booking link",
+    reviewAutoNote:
+      "Review requests are sent automatically after completed appointments.",
+    reviewsAverage: "Average rating",
+    reviewsCount: "{{count}} reviews",
+    reviewsEmpty: "No reviews yet",
     loadingFailed: "Failed to load",
   },
   calendar: {

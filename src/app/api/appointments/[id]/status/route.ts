@@ -3,6 +3,7 @@ import { ObjectId } from "mongodb";
 
 import { requireAppUser } from "@/server/auth";
 import { collections, ensureIndexes } from "@/server/collections";
+import { processReviewRequestsForBusiness } from "@/server/reviews";
 
 const ALLOWED_STATUSES = ["BOOKED", "COMPLETED", "CANCELED"] as const;
 type AllowedStatus = (typeof ALLOWED_STATUSES)[number];
@@ -70,10 +71,24 @@ export async function POST(
                 },
               ],
             },
+            completedAt: {
+              $cond: [
+                { $eq: [nextStatus, "COMPLETED"] },
+                { $ifNull: ["$completedAt", new Date()] },
+                "$completedAt",
+              ],
+            },
           },
         },
       ] as any,
     );
+
+    if (nextStatus === "COMPLETED") {
+      processReviewRequestsForBusiness({
+        businessUserId: new ObjectId(user.id),
+        appointmentId: apptId,
+      }).catch((err) => console.error("Review request failed", err));
+    }
 
     return NextResponse.json({ ok: true, status: nextStatus });
   } catch (error: any) {
