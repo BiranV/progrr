@@ -50,7 +50,7 @@ function normalizeMinutes(v: unknown, fallback: number): number {
   return Math.max(0, Math.min(7 * 24 * 60, Math.round(n)));
 }
 
-const ALLOWED_CURRENCY_CODES = new Set(["ILS"]);
+const ALLOWED_CURRENCY_CODES = new Set(["ILS", "USD", "EUR", "OTHER"]);
 
 function normalizeCurrencyCode(v: unknown): string | undefined {
   const raw = String(v ?? "")
@@ -194,6 +194,14 @@ export async function PATCH(req: Request) {
       normalizeCurrencyCode((business as any).currency) ??
       normalizeCurrencyCode((user as any)?.onboarding?.currency) ??
       "ILS";
+    const currentCustomCurrencyName = asString(
+      (user as any)?.onboarding?.customCurrency?.name,
+      40,
+    );
+    const currentCustomCurrencySymbol = asString(
+      (user as any)?.onboarding?.customCurrency?.symbol,
+      10,
+    );
 
     const name = asString((body as any)?.name, 120) ?? currentName;
     const requestedPhoneRaw = Object.prototype.hasOwnProperty.call(
@@ -242,6 +250,14 @@ export async function PATCH(req: Request) {
         : currentWhatsApp) ?? "";
 
     const requestedCurrency = normalizeCurrencyCode((body as any)?.currency);
+    const requestedCustomCurrencyName = asString(
+      (body as any)?.customCurrency?.name,
+      40,
+    );
+    const requestedCustomCurrencySymbol = asString(
+      (body as any)?.customCurrency?.symbol,
+      10,
+    );
     if (
       Object.prototype.hasOwnProperty.call(body as any, "currency") &&
       !requestedCurrency
@@ -249,6 +265,25 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Invalid currency" }, { status: 400 });
     }
     const currency = requestedCurrency ?? currentCurrency;
+    const customCurrencyName =
+      requestedCustomCurrencyName ?? currentCustomCurrencyName;
+    const customCurrencySymbol =
+      requestedCustomCurrencySymbol ?? currentCustomCurrencySymbol;
+
+    if (currency === "OTHER") {
+      if (!customCurrencyName) {
+        return NextResponse.json(
+          { error: "Currency name is required" },
+          { status: 400 },
+        );
+      }
+      if (!customCurrencySymbol) {
+        return NextResponse.json(
+          { error: "Currency symbol is required" },
+          { status: 400 },
+        );
+      }
+    }
 
     const currentLimitCustomerToOneUpcomingAppointment = Boolean(
       (business as any).limitCustomerToOneUpcomingAppointment,
@@ -335,28 +370,40 @@ export async function PATCH(req: Request) {
 
     const addressValue = address ? address : null;
 
+    const updateSet: any = {
+      "onboarding.business.name": name,
+      "onboarding.business.phone": phone,
+      "onboarding.business.address": addressValue,
+      "onboarding.business.description": description,
+      "onboarding.business.instagram": instagram,
+      "onboarding.business.whatsapp": whatsapp,
+      "onboarding.business.currency": currency,
+      "onboarding.currency": currency,
+      "onboarding.business.limitCustomerToOneUpcomingAppointment":
+        requestedLimitCustomerToOneUpcomingAppointment,
+      "onboarding.business.revenueInsightsEnabled":
+        requestedRevenueInsightsEnabled,
+      "onboarding.business.reviewRequestsEnabled":
+        requestedReviewRequestsEnabled,
+      "onboarding.business.reviewDelayMinutes": requestedReviewDelayMinutes,
+      "onboarding.business.reviewRequiresPayment":
+        requestedReviewRequiresPayment,
+      "onboarding.updatedAt": new Date(),
+    };
+
+    const updateUnset: any = {};
+    if (currency === "OTHER") {
+      updateSet["onboarding.customCurrency.name"] = customCurrencyName;
+      updateSet["onboarding.customCurrency.symbol"] = customCurrencySymbol;
+    } else {
+      updateUnset["onboarding.customCurrency"] = "";
+    }
+
     const result = await c.users.updateOne(
       { _id: new ObjectId(appUser.id) },
       {
-        $set: {
-          "onboarding.business.name": name,
-          "onboarding.business.phone": phone,
-          "onboarding.business.address": addressValue,
-          "onboarding.business.description": description,
-          "onboarding.business.instagram": instagram,
-          "onboarding.business.whatsapp": whatsapp,
-          "onboarding.business.currency": currency,
-          "onboarding.business.limitCustomerToOneUpcomingAppointment":
-            requestedLimitCustomerToOneUpcomingAppointment,
-          "onboarding.business.revenueInsightsEnabled":
-            requestedRevenueInsightsEnabled,
-          "onboarding.business.reviewRequestsEnabled":
-            requestedReviewRequestsEnabled,
-          "onboarding.business.reviewDelayMinutes": requestedReviewDelayMinutes,
-          "onboarding.business.reviewRequiresPayment":
-            requestedReviewRequiresPayment,
-          "onboarding.updatedAt": new Date(),
-        },
+        $set: updateSet,
+        ...(Object.keys(updateUnset).length ? { $unset: updateUnset } : {}),
       },
     );
 

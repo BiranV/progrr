@@ -15,7 +15,7 @@ const ALLOWED_BUSINESS_TYPES = new Set(BUSINESS_TYPES.map((t) => t.key));
 
 const OTHER_CURRENCY_CODE = "OTHER";
 
-const ALLOWED_CURRENCIES = new Set(["ILS"]);
+const ALLOWED_CURRENCIES = new Set(["ILS", "USD", "EUR", OTHER_CURRENCY_CODE]);
 
 function formatTimeInTimeZone(date: Date, timeZone: string): string {
   const formatter = new Intl.DateTimeFormat("en-US", {

@@ -11,7 +11,7 @@ import { BUSINESS_TYPES } from "@/lib/onboardingPresets";
 
 const ALLOWED_BUSINESS_TYPES = new Set(BUSINESS_TYPES.map((t) => t.key));
 const OTHER_CURRENCY_CODE = "OTHER";
-const ALLOWED_CURRENCIES = new Set(["ILS"]);
+const ALLOWED_CURRENCIES = new Set(["ILS", "USD", "EUR", OTHER_CURRENCY_CODE]);
 
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 const MAX_BANNER_BYTES = 5 * 1024 * 1024;

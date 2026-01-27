@@ -223,6 +223,7 @@ const en = {
       customerFallback: "Customer",
       serviceFallback: "Appointment",
       leaveTitle: "Leave your review",
+      otherCurrency: "Other",
       ratingAria: "Rate {{rating}} out of 5",
       commentLabel: "Comment (optional)",
       commentPlaceholder: "Share anything that would help us improve.",

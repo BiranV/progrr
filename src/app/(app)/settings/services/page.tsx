@@ -33,13 +33,22 @@ type Service = {
   isActive: boolean;
 };
 
+const OTHER_CURRENCY_CODE = "OTHER";
+
 const CURRENCIES: Array<{ code: string; symbol: string; label: string }> = [
   { code: "ILS", symbol: "₪", label: "ILS (₪)" },
+  { code: "USD", symbol: "$", label: "USD ($)" },
+  { code: "EUR", symbol: "€", label: "EUR (€)" },
 ];
 
-const UI_CURRENCIES = CURRENCIES.filter((c) => c.code === "ILS");
+const UI_CURRENCIES = CURRENCIES;
 
-const ALLOWED_CURRENCY_CODES = new Set(["ILS"]);
+const ALLOWED_CURRENCY_CODES = new Set([
+  "ILS",
+  "USD",
+  "EUR",
+  OTHER_CURRENCY_CODE,
+]);
 
 function normalizeCurrency(v: unknown): string {
   const code = String(v ?? "")
@@ -151,8 +160,17 @@ export default function ServicesSettingsPage() {
   >({});
   const initialRef = React.useRef<string | null>(null);
   const initialCurrencyRef = React.useRef<string>("ILS");
+  const initialCustomCurrencyRef = React.useRef<{
+    name: string;
+    symbol: string;
+  }>({
+    name: "",
+    symbol: "",
+  });
 
   const [currencyCode, setCurrencyCode] = React.useState<string>("ILS");
+  const [customCurrencyName, setCustomCurrencyName] = React.useState("");
+  const [customCurrencySymbol, setCustomCurrencySymbol] = React.useState("");
 
   const [globalErrorKey, setGlobalErrorKey] = React.useState<string | null>(
     null,
@@ -176,10 +194,17 @@ export default function ServicesSettingsPage() {
     (list: Service[], currency: string) => {
       return JSON.stringify({
         currency: normalizeCurrency(currency),
+        customCurrency:
+          normalizeCurrency(currency) === OTHER_CURRENCY_CODE
+            ? {
+                name: String(customCurrencyName ?? "").trim(),
+                symbol: String(customCurrencySymbol ?? "").trim(),
+              }
+            : undefined,
         services: stableStringifyServices(list),
       });
     },
-    [stableStringifyServices],
+    [customCurrencyName, customCurrencySymbol, stableStringifyServices],
   );
 
   const isFirstLoad =
@@ -217,12 +242,22 @@ export default function ServicesSettingsPage() {
       (onboardingRes as any)?.onboarding?.services,
     );
 
-    // First hydrate, and background refresh only when user isn't editing.
-    const nextCurrency = "ILS";
+    const onboarding = (onboardingRes as any)?.onboarding ?? {};
+    const businessData = (onboardingRes as any)?.onboarding?.business ?? {};
+    const nextCurrency = normalizeCurrency(
+      (onboarding as any)?.currency ?? (businessData as any)?.currency ?? "ILS",
+    );
+    const nextCustomCurrency = {
+      name: String((onboarding as any)?.customCurrency?.name ?? "").trim(),
+      symbol: String((onboarding as any)?.customCurrency?.symbol ?? "").trim(),
+    };
     if (!initialRef.current) {
       setServices(nextServices);
       initialCurrencyRef.current = nextCurrency;
       setCurrencyCode(nextCurrency);
+      initialCustomCurrencyRef.current = nextCustomCurrency;
+      setCustomCurrencyName(nextCustomCurrency.name);
+      setCustomCurrencySymbol(nextCustomCurrency.symbol);
       initialRef.current = stableStringifyState(nextServices, nextCurrency);
       return;
     }
@@ -231,6 +266,9 @@ export default function ServicesSettingsPage() {
       setServices(nextServices);
       initialCurrencyRef.current = nextCurrency;
       setCurrencyCode(nextCurrency);
+      initialCustomCurrencyRef.current = nextCustomCurrency;
+      setCustomCurrencyName(nextCustomCurrency.name);
+      setCustomCurrencySymbol(nextCustomCurrency.symbol);
       initialRef.current = stableStringifyState(nextServices, nextCurrency);
     }
   }, [onboardingRes, business, isDirty, isSaving, stableStringifyState]);
@@ -259,7 +297,12 @@ export default function ServicesSettingsPage() {
   const hasAnyActiveService = activeServices.length > 0;
   const currencyChanged =
     normalizeCurrency(currencyCode) !==
-    normalizeCurrency(initialCurrencyRef.current);
+      normalizeCurrency(initialCurrencyRef.current) ||
+    (normalizeCurrency(currencyCode) === OTHER_CURRENCY_CODE &&
+      (String(customCurrencyName).trim() !==
+        String(initialCustomCurrencyRef.current.name).trim() ||
+        String(customCurrencySymbol).trim() !==
+          String(initialCustomCurrencyRef.current.symbol).trim()));
 
   const persistServices = async (nextServices: Service[]) => {
     const payload = {
@@ -280,9 +323,26 @@ export default function ServicesSettingsPage() {
   };
 
   const persistCurrency = async (nextCurrency: string) => {
+    const normalized = normalizeCurrency(nextCurrency);
+    const payload: any = { currency: normalized };
+    if (normalized === OTHER_CURRENCY_CODE) {
+      payload.customCurrency = {
+        name: String(customCurrencyName ?? "").trim(),
+        symbol: String(customCurrencySymbol ?? "").trim(),
+      };
+    }
+
+    await apiFetch("/api/onboarding", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+
     await apiFetch("/api/business", {
       method: "PATCH",
-      body: JSON.stringify({ currency: normalizeCurrency(nextCurrency) }),
+      body: JSON.stringify({
+        currency: normalized,
+        customCurrency: payload.customCurrency,
+      }),
     });
   };
 
@@ -364,6 +424,17 @@ export default function ServicesSettingsPage() {
 
   const onSave = async () => {
     const next = [...services];
+    if (normalizeCurrency(currencyCode) === OTHER_CURRENCY_CODE) {
+      const name = String(customCurrencyName ?? "").trim();
+      const symbol = String(customCurrencySymbol ?? "").trim();
+      const nextErrors: Record<string, string> = {};
+      if (!name) nextErrors.currencyName = "required";
+      if (!symbol) nextErrors.currencySymbol = "required";
+      if (Object.keys(nextErrors).length) {
+        setFieldErrors((prev) => ({ ...prev, ...nextErrors }));
+        return;
+      }
+    }
     if (!validateAll(next)) return;
 
     setIsSaving(true);
@@ -375,6 +446,10 @@ export default function ServicesSettingsPage() {
 
       setServices(next);
       initialCurrencyRef.current = normalizeCurrency(currencyCode);
+      initialCustomCurrencyRef.current = {
+        name: String(customCurrencyName ?? "").trim(),
+        symbol: String(customCurrencySymbol ?? "").trim(),
+      };
       initialRef.current = stableStringifyState(next, currencyCode);
 
       // Keep React Query caches in sync so other settings pages render instantly.
@@ -386,6 +461,14 @@ export default function ServicesSettingsPage() {
         ...(prev || {}),
         onboarding: {
           ...((prev as any)?.onboarding || {}),
+          currency: normalizeCurrency(currencyCode),
+          customCurrency:
+            normalizeCurrency(currencyCode) === OTHER_CURRENCY_CODE
+              ? {
+                  name: String(customCurrencyName ?? "").trim(),
+                  symbol: String(customCurrencySymbol ?? "").trim(),
+                }
+              : undefined,
           services: next.map((s) => ({
             id: s.id,
             name: String(s.name ?? "").trim(),
@@ -445,6 +528,11 @@ export default function ServicesSettingsPage() {
           <Select
             value={normalizeCurrency(currencyCode)}
             onValueChange={(v) => {
+              setFieldErrors((prev) => {
+                if (!prev.currencyName && !prev.currencySymbol) return prev;
+                const { currencyName, currencySymbol, ...rest } = prev;
+                return rest;
+              });
               setCurrencyCode(v);
             }}
             disabled={isFirstLoad || isSaving}
@@ -458,12 +546,78 @@ export default function ServicesSettingsPage() {
                   {c.label}
                 </SelectItem>
               ))}
+              <SelectItem value={OTHER_CURRENCY_CODE}>
+                {t("services.otherCurrency")}
+              </SelectItem>
             </SelectContent>
           </Select>
           <div className="text-xs text-gray-600 dark:text-gray-300">
             {t("services.currencyHelp")}
           </div>
         </div>
+
+        {normalizeCurrency(currencyCode) === OTHER_CURRENCY_CODE ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">
+                {t("services.currencyNameLabel")}
+              </Label>
+              <Input
+                value={customCurrencyName}
+                onChange={(e) => {
+                  setFieldErrors((prev) => {
+                    if (!prev.currencyName) return prev;
+                    const { currencyName, ...rest } = prev;
+                    return rest;
+                  });
+                  setCustomCurrencyName(e.target.value);
+                }}
+                placeholder={t("services.currencyNamePlaceholder")}
+                className={
+                  fieldErrors.currencyName
+                    ? "border-rose-500 focus-visible:ring-rose-500"
+                    : ""
+                }
+                aria-invalid={Boolean(fieldErrors.currencyName)}
+                disabled={isSaving}
+              />
+              {fieldErrors.currencyName ? (
+                <p className="text-xs text-rose-500">
+                  {t("onboarding.errors.currencyNameRequired")}
+                </p>
+              ) : null}
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">
+                {t("services.currencySymbolLabel")}
+              </Label>
+              <Input
+                value={customCurrencySymbol}
+                onChange={(e) => {
+                  setFieldErrors((prev) => {
+                    if (!prev.currencySymbol) return prev;
+                    const { currencySymbol, ...rest } = prev;
+                    return rest;
+                  });
+                  setCustomCurrencySymbol(e.target.value);
+                }}
+                placeholder={t("services.currencySymbolPlaceholder")}
+                className={
+                  fieldErrors.currencySymbol
+                    ? "border-rose-500 focus-visible:ring-rose-500"
+                    : ""
+                }
+                aria-invalid={Boolean(fieldErrors.currencySymbol)}
+                disabled={isSaving}
+              />
+              {fieldErrors.currencySymbol ? (
+                <p className="text-xs text-rose-500">
+                  {t("onboarding.errors.currencySymbolRequired")}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
 
         {currencyChanged && hasAnyActiveService ? (
           <div className="text-sm text-amber-700 dark:text-amber-300 rounded-md border border-amber-200 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-950/20 px-3 py-2">
@@ -481,7 +635,10 @@ export default function ServicesSettingsPage() {
           </Label>
           <Label className="w-[70px] shrink-0 text-center">
             {t("services.priceWithSymbol", {
-              symbol: currencySymbol(currencyCode),
+              symbol:
+                normalizeCurrency(currencyCode) === OTHER_CURRENCY_CODE
+                  ? String(customCurrencySymbol || "¤").trim() || "¤"
+                  : currencySymbol(currencyCode),
             })}
           </Label>
           <div className="w-8 shrink-0"></div>

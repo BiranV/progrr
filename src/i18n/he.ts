@@ -221,6 +221,7 @@ const he = {
       customerFallback: "לקוח",
       serviceFallback: "תור",
       leaveTitle: "השאירו ביקורת",
+      otherCurrency: "אחר",
       ratingAria: "דירוג {{rating}} מתוך 5",
       commentLabel: "תגובה (לא חובה)",
       commentPlaceholder: "שתפו אותנו במה שיכול לעזור לנו להשתפר.",
