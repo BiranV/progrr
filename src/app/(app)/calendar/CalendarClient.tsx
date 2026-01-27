@@ -924,6 +924,7 @@ export default function CalendarClient() {
       resetCreateForm();
 
       await queryClient.invalidateQueries({ queryKey: ["appointments", date] });
+      await appointmentsQuery.refetch();
       await queryClient.invalidateQueries({ queryKey: ["customers"] });
       await queryClient.invalidateQueries({ queryKey: ["dashboardSummary"] });
       await queryClient.invalidateQueries({
@@ -936,6 +937,7 @@ export default function CalendarClient() {
       setCreating(false);
     }
   }, [
+    appointmentsQuery,
     canCreateAppointment,
     createExistingCustomerId,
     customersForPicker,
@@ -2057,18 +2059,19 @@ export default function CalendarClient() {
                               {a.serviceName}
                             </div>
                             <div className="flex items-center gap-3 shrink-0 ms-auto">
-                              {isCanceledStatus(a.status) ? (
-                                <span className="text-xs text-muted-foreground">
-                                  {String(a.cancelledBy || "").toUpperCase() ===
-                                  "BUSINESS"
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                {isCanceledStatus(a.status)
+                                  ? String(
+                                      a.cancelledBy || "",
+                                    ).toUpperCase() === "BUSINESS"
                                     ? t("calendar.cancelledBy.business")
                                     : String(
                                           a.cancelledBy || "",
                                         ).toUpperCase() === "CUSTOMER"
                                       ? t("calendar.cancelledBy.customer")
-                                      : t("calendar.cancelledBy.unknown")}
-                                </span>
-                              ) : null}
+                                      : t("calendar.cancelledBy.unknown")
+                                  : statusLabel(a.status)}
+                              </span>
                               {normalizeStatusKey(a.status) === "COMPLETED" ? (
                                 <div className="flex items-center gap-2">
                                   <Switch

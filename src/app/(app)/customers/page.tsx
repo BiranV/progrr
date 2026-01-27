@@ -92,10 +92,12 @@ export default function CustomersPage() {
       const json = await res.json().catch(() => null);
       if (!res.ok) {
         throw new Error(
-          json?.error || t("errors.requestFailed", { status: res.status })
+          json?.error || t("errors.requestFailed", { status: res.status }),
         );
       }
-      return Array.isArray(json?.customers) ? (json.customers as Customer[]) : [];
+      return Array.isArray(json?.customers)
+        ? (json.customers as Customer[])
+        : [];
     },
   });
 
@@ -105,7 +107,7 @@ export default function CustomersPage() {
     : null;
   const customers = React.useMemo(
     () => customersQuery.data ?? [],
-    [customersQuery.data]
+    [customersQuery.data],
   );
 
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -199,13 +201,8 @@ export default function CustomersPage() {
               {c.fullName || t("customers.table.noName")}
             </div>
             <div className="text-xs text-gray-600 dark:text-gray-300 leading-tight">
-              <PhoneLink phone={c.phone} className="text-xs" />
-              {c.email ? (
-                <div className="truncate flex items-center gap-1 rtl:flex-row-reverse">
-                  <Mail className="h-3.5 w-3.5 text-gray-500" />
-                  <span className="truncate">{c.email}</span>
-                </div>
-              ) : null}
+              <PhoneLink phone={c.phone} className="text-xs" showIcon={false} />
+              {c.email ? <div className="truncate">{c.email}</div> : null}
             </div>
           </div>
         ),
@@ -274,7 +271,8 @@ export default function CustomersPage() {
   w-full flex items-center gap-2
   rtl:flex-row-reverse rtl:justify-start rtl:text-right
   ltr:flex-row ltr:justify-start ltr:text-left
-"                  onClick={() => {
+"
+                  onClick={() => {
                     setSelectedCustomer(c);
                     setAppointmentsPage(1);
                     setDrawerTab("details");
@@ -289,7 +287,8 @@ export default function CustomersPage() {
   w-full flex items-center gap-2
   rtl:flex-row-reverse rtl:justify-start rtl:text-right
   ltr:flex-row ltr:justify-start ltr:text-left
-"                  onClick={() => {
+"
+                  onClick={() => {
                     setSelectedCustomer(c);
                     setAppointmentsPage(1);
                     setDrawerTab("appointments");
@@ -304,7 +303,8 @@ export default function CustomersPage() {
   w-full flex items-center gap-2
   rtl:flex-row-reverse rtl:justify-start rtl:text-right
   ltr:flex-row ltr:justify-start ltr:text-left
-"                  onClick={() => {
+"
+                  onClick={() => {
                     setSelectedCustomer(c);
                     setAppointmentsPage(1);
                     setDrawerTab("message");
@@ -319,9 +319,11 @@ export default function CustomersPage() {
   w-full flex items-center gap-2
   rtl:flex-row-reverse rtl:justify-start rtl:text-right
   ltr:flex-row ltr:justify-start ltr:text-left
-  ${isBlocked
-                      ? ""
-                      : "text-red-600 hover:text-red-600 focus:text-red-600 data-[highlighted]:text-red-600"}
+  ${
+    isBlocked
+      ? ""
+      : "text-red-600 hover:text-red-600 focus:text-red-600 data-[highlighted]:text-red-600"
+  }
 `}
                   disabled={isUpdating}
                   onClick={async () => {
@@ -338,13 +340,13 @@ export default function CustomersPage() {
                       return old.map((row: any) =>
                         String(row?._id ?? "") === c._id
                           ? { ...row, status: nextStatus }
-                          : row
+                          : row,
                       );
                     });
                     setSelectedCustomer((prev) =>
                       prev && prev._id === c._id
                         ? { ...prev, status: nextStatus as any }
-                        : prev
+                        : prev,
                     );
 
                     try {
@@ -355,19 +357,19 @@ export default function CustomersPage() {
                           method: "PATCH",
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ action }),
-                        }
+                        },
                       );
                       const json = await res.json().catch(() => null);
                       if (!res.ok) {
                         throw new Error(
                           json?.error ||
-                          t("errors.requestFailed", { status: res.status })
+                            t("errors.requestFailed", { status: res.status }),
                         );
                       }
                       toast.success(
                         action === "block"
                           ? t("customers.details.toastBlocked")
-                          : t("customers.details.toastUnblocked")
+                          : t("customers.details.toastUnblocked"),
                       );
                       setOptimisticStatusById((prev) => {
                         if (!prev[c._id]) return prev;
@@ -381,13 +383,13 @@ export default function CustomersPage() {
                         return old.map((row: any) =>
                           String(row?._id ?? "") === c._id
                             ? { ...row, status: previousStatus }
-                            : row
+                            : row,
                         );
                       });
                       setSelectedCustomer((prev) =>
                         prev && prev._id === c._id
                           ? { ...prev, status: previousStatus as any }
-                          : prev
+                          : prev,
                       );
                       setOptimisticStatusById((prev) => {
                         if (!prev[c._id]) return prev;
@@ -444,19 +446,19 @@ export default function CustomersPage() {
       const id = String(selectedCustomer?._id ?? "");
       const res = await fetch(
         `/api/customers/${encodeURIComponent(
-          id
+          id,
         )}/appointments?page=${encodeURIComponent(
-          appointmentsPage
+          appointmentsPage,
         )}&pageSize=${encodeURIComponent(appointmentsPageSize)}`,
         {
           method: "GET",
           headers: { Accept: "application/json" },
-        }
+        },
       );
       const json = await res.json().catch(() => null);
       if (!res.ok) {
         throw new Error(
-          json?.error || t("errors.requestFailed", { status: res.status })
+          json?.error || t("errors.requestFailed", { status: res.status }),
         );
       }
       return json as CustomerAppointmentsResponse;
@@ -465,7 +467,7 @@ export default function CustomersPage() {
 
   const appointments = React.useMemo(
     () => appointmentsQuery.data?.bookings ?? [],
-    [appointmentsQuery.data]
+    [appointmentsQuery.data],
   );
 
   const appointmentsPagination = appointmentsQuery.data?.bookingsPagination;
@@ -632,12 +634,11 @@ export default function CustomersPage() {
 
           {drawerTab === "details" ? (
             <div className="space-y-4">
-              <div className="space-y-1">
-                <div className="text-xs text-muted-foreground flex items-center gap-2 rtl:flex-row-reverse">
-                  <Phone className="h-3.5 w-3.5" />
+              <div className="space-y-1 rtl:text-right">
+                <div className="text-xs text-muted-foreground flex items-center gap-2 rtl:flex-row-reverse rtl:justify-end">
                   {t("customers.drawer.phoneLabel")}
                 </div>
-                <div className="text-sm text-gray-900 dark:text-white">
+                <div className="text-sm text-gray-900 dark:text-white rtl:text-right">
                   {selectedCustomer?.phone ? (
                     <PhoneLink
                       phone={selectedCustomer.phone}
@@ -650,22 +651,20 @@ export default function CustomersPage() {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <div className="text-xs text-muted-foreground flex items-center gap-2 rtl:flex-row-reverse">
-                  <Mail className="h-3.5 w-3.5" />
+              <div className="space-y-1 rtl:text-right">
+                <div className="text-xs text-muted-foreground flex items-center gap-2 rtl:flex-row-reverse rtl:justify-end">
                   {t("customers.drawer.emailLabel")}
                 </div>
-                <div className="text-sm text-gray-900 dark:text-white">
+                <div className="text-sm text-gray-900 dark:text-white rtl:text-right">
                   {selectedCustomer?.email || t("common.emptyDash")}
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <div className="text-xs text-muted-foreground flex items-center gap-2 rtl:flex-row-reverse">
-                  <CalendarCheck className="h-3.5 w-3.5" />
+              <div className="space-y-1 rtl:text-right">
+                <div className="text-xs text-muted-foreground flex items-center gap-2 rtl:flex-row-reverse rtl:justify-end">
                   {t("customers.drawer.activeBookingsLabel")}
                 </div>
-                <div className="text-sm text-gray-900 dark:text-white">
+                <div className="text-sm text-gray-900 dark:text-white rtl:text-right">
                   {t("customers.drawer.activeBookingsValue", {
                     count: selectedCustomer?.activeBookingsCount ?? 0,
                   })}
@@ -706,10 +705,11 @@ export default function CustomersPage() {
                           {row.status === "CANCELED" ? (
                             <div className="text-xs text-muted-foreground mt-1">
                               {String(row.cancelledBy || "").toUpperCase() ===
-                                "BUSINESS"
+                              "BUSINESS"
                                 ? t("customers.details.canceledBy.business")
-                                : String(row.cancelledBy || "").toUpperCase() ===
-                                  "CUSTOMER"
+                                : String(
+                                      row.cancelledBy || "",
+                                    ).toUpperCase() === "CUSTOMER"
                                   ? t("customers.details.canceledBy.customer")
                                   : t("customers.details.canceledBy.unknown")}
                             </div>
@@ -736,36 +736,41 @@ export default function CustomersPage() {
                               ? t("customers.details.status.completed")
                               : t("customers.details.status.canceled");
 
-                        return <Badge className={badgeClass}>{badgeLabel}</Badge>;
+                        return (
+                          <Badge className={badgeClass}>{badgeLabel}</Badge>
+                        );
                       },
                     },
                   ]}
                   pagination={
                     appointmentsPagination
                       ? {
-                        page: appointmentsPagination.page,
-                        totalPages: appointmentsPagination.totalPages,
-                        onPageChange: (nextPage) =>
-                          setAppointmentsPage(
-                            Math.max(
-                              1,
-                              Math.min(appointmentsPagination.totalPages, nextPage)
-                            )
-                          ),
-                      }
+                          page: appointmentsPagination.page,
+                          totalPages: appointmentsPagination.totalPages,
+                          onPageChange: (nextPage) =>
+                            setAppointmentsPage(
+                              Math.max(
+                                1,
+                                Math.min(
+                                  appointmentsPagination.totalPages,
+                                  nextPage,
+                                ),
+                              ),
+                            ),
+                        }
                       : undefined
                   }
                   paginationLabels={
                     appointmentsPagination
                       ? {
-                        summary: (page, totalPages) =>
-                          t("customers.drawer.appointmentsPagination", {
-                            page,
-                            total: totalPages,
-                          }),
-                        previous: t("customers.drawer.newer"),
-                        next: t("customers.drawer.older"),
-                      }
+                          summary: (page, totalPages) =>
+                            t("customers.drawer.appointmentsPagination", {
+                              page,
+                              total: totalPages,
+                            }),
+                          previous: t("customers.drawer.newer"),
+                          next: t("customers.drawer.older"),
+                        }
                       : undefined
                   }
                 />
@@ -782,7 +787,9 @@ export default function CustomersPage() {
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={t("customers.message.channelLabel")} />
+                    <SelectValue
+                      placeholder={t("customers.message.channelLabel")}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="WHATSAPP">
@@ -811,17 +818,21 @@ export default function CustomersPage() {
               <Button
                 type="button"
                 className="rounded-xl w-full"
-                disabled={messageSending || !messageText.trim() || !selectedCustomer}
+                disabled={
+                  messageSending || !messageText.trim() || !selectedCustomer
+                }
                 onClick={async () => {
                   if (!selectedCustomer) return;
                   setMessageSending(true);
                   try {
                     const subject = t("customers.message.defaultSubject", {
-                      name: selectedCustomer.fullName || t("customers.table.noName"),
+                      name:
+                        selectedCustomer.fullName ||
+                        t("customers.table.noName"),
                     });
                     const res = await fetch(
                       `/api/customers/${encodeURIComponent(
-                        selectedCustomer._id
+                        selectedCustomer._id,
                       )}/message`,
                       {
                         method: "POST",
@@ -831,12 +842,13 @@ export default function CustomersPage() {
                           message: messageText.trim(),
                           channel: messageChannel,
                         }),
-                      }
+                      },
                     );
                     const json = await res.json().catch(() => null);
                     if (!res.ok) {
                       throw new Error(
-                        json?.error || t("errors.requestFailed", { status: res.status })
+                        json?.error ||
+                          t("errors.requestFailed", { status: res.status }),
                       );
                     }
                     toast.success(t("customers.message.toastSent"));
