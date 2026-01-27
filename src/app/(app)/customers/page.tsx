@@ -318,11 +318,10 @@ export default function CustomersPage() {
   w-full flex items-center gap-2
   rtl:flex-row-reverse rtl:justify-start rtl:text-right
   ltr:flex-row ltr:justify-start ltr:text-left
-  ${
-    isBlocked
-      ? ""
-      : "text-red-600 hover:text-red-600 focus:text-red-600 data-[highlighted]:text-red-600"
-  }
+  ${isBlocked
+                      ? ""
+                      : "text-red-600 hover:text-red-600 focus:text-red-600 data-[highlighted]:text-red-600"
+                    }
 `}
                   disabled={isUpdating}
                   onClick={async () => {
@@ -362,7 +361,7 @@ export default function CustomersPage() {
                       if (!res.ok) {
                         throw new Error(
                           json?.error ||
-                            t("errors.requestFailed", { status: res.status }),
+                          t("errors.requestFailed", { status: res.status }),
                         );
                       }
                       toast.success(
@@ -604,12 +603,13 @@ export default function CustomersPage() {
         </Card>
       ) : (
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
+          <div dir={dir} className="flex items-center gap-2">
             <div className="flex-1 min-w-0">
               <Input
                 placeholder={t("customers.table.searchPlaceholder")}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                className="text-start"
               />
             </div>
 
@@ -618,7 +618,7 @@ export default function CustomersPage() {
                 value={String(pageSize)}
                 onValueChange={(v) => setPageSize(Number(v) || 5)}
               >
-                <SelectTrigger size="sm" className="w-[128px]">
+                <SelectTrigger size="sm" className="w-[128px] text-start">
                   <SelectValue placeholder={t("customers.table.rows")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -769,12 +769,13 @@ export default function CustomersPage() {
             </TabsContent>
 
             <TabsContent value="appointments" className="space-y-4">
-              <div className="flex items-center gap-2">
+              <div dir={dir} className="flex items-center gap-2">
                 <div className="flex-1 min-w-0">
                   <Input
                     placeholder={t("customers.drawer.searchPlaceholder")}
                     value={appointmentsQueryText}
                     onChange={(e) => setAppointmentsQueryText(e.target.value)}
+                    className="text-start"
                   />
                 </div>
 
@@ -785,7 +786,7 @@ export default function CustomersPage() {
                       setAppointmentsPageSize(Number(v) || 10)
                     }
                   >
-                    <SelectTrigger size="sm" className="w-[128px]">
+                    <SelectTrigger size="sm" className="w-[128px] text-start">
                       <SelectValue placeholder={t("customers.table.rows")} />
                     </SelectTrigger>
                     <SelectContent>
@@ -833,32 +834,32 @@ export default function CustomersPage() {
                   pagination={
                     appointmentsPagination
                       ? {
-                          page: appointmentsPagination.page,
-                          totalPages: appointmentsPagination.totalPages,
-                          onPageChange: (nextPage) =>
-                            setAppointmentsPage(
-                              Math.max(
-                                1,
-                                Math.min(
-                                  appointmentsPagination.totalPages,
-                                  nextPage,
-                                ),
+                        page: appointmentsPagination.page,
+                        totalPages: appointmentsPagination.totalPages,
+                        onPageChange: (nextPage) =>
+                          setAppointmentsPage(
+                            Math.max(
+                              1,
+                              Math.min(
+                                appointmentsPagination.totalPages,
+                                nextPage,
                               ),
                             ),
-                        }
+                          ),
+                      }
                       : undefined
                   }
                   paginationLabels={
                     appointmentsPagination
                       ? {
-                          summary: (page, totalPages) =>
-                            t("customers.drawer.appointmentsPagination", {
-                              page,
-                              total: totalPages,
-                            }),
-                          previous: t("customers.drawer.newer"),
-                          next: t("customers.drawer.older"),
-                        }
+                        summary: (page, totalPages) =>
+                          t("customers.drawer.appointmentsPagination", {
+                            page,
+                            total: totalPages,
+                          }),
+                        previous: t("customers.drawer.newer"),
+                        next: t("customers.drawer.older"),
+                      }
                       : undefined
                   }
                 />
@@ -941,7 +942,7 @@ export default function CustomersPage() {
                     if (!res.ok) {
                       throw new Error(
                         json?.error ||
-                          t("errors.requestFailed", { status: res.status }),
+                        t("errors.requestFailed", { status: res.status }),
                       );
                     }
                     toast.success(t("customers.message.toastSent"));
