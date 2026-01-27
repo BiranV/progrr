@@ -648,7 +648,7 @@ const he = {
     revenueInsightsToggleOff: "כבוי",
     revenueInsightsConsentTitle: "להפעיל תובנות הכנסות?",
     revenueInsightsConsentBody:
-      "בהפעלת תובנות הכנסות, Progrr תחשב הכנסה משוערת שבועית וחודשית על סמך נתוני התורים שסיפקת.\n\nתובנות אלו גלויות רק לך ואינן משותפות עם Progrr או עם צדדים שלישיים.",
+      "בהפעלת תובנות הכנסות, Progrr תחשב הכנסה משוערת שבועית וחודשית על סמך נתוני התורים שסיפקת.\n\nתובנות אלו גלויות רק לך ואינן משותפות עם Progrr או עם צדדים שלישיים.\n\nניתן לראות את התובנות בדשבורד שלך, יחד עם תשלומים פתוחים.",
     revenueInsightsConsentAgree: "אני מבין/ה ומסכים/ה",
     revenueInsightsEnableCta: "הפעל",
     revenueInsightsEnabledToast: "תובנות הכנסות הופעלו",

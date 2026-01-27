@@ -666,7 +666,7 @@ const en = {
     revenueInsightsToggleOff: "OFF",
     revenueInsightsConsentTitle: "Enable Revenue Insights?",
     revenueInsightsConsentBody:
-      "By enabling revenue insights, Progrr will calculate estimated weekly and monthly revenue based on appointment data you provide.\n\nThese insights are visible only to you and are not shared with Progrr or third parties.",
+      "By enabling revenue insights, Progrr will calculate estimated weekly and monthly revenue based on appointment data you provide.\n\nThese insights are visible only to you and are not shared with Progrr or third parties.\n\nYou can view these insights in your dashboard, along with outstanding payments.",
     revenueInsightsConsentAgree: "I understand and agree",
     revenueInsightsEnableCta: "Enable",
     revenueInsightsEnabledToast: "Revenue insights enabled",

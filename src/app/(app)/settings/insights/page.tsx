@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -49,6 +50,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export default function InsightsSettingsPage() {
   const { t } = useI18n();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const {
     data: business,
@@ -202,6 +204,7 @@ export default function InsightsSettingsPage() {
               checked={consentChecked}
               onCheckedChange={(value) => setConsentChecked(Boolean(value))}
               disabled={saving}
+              className="border-[#165CF0] data-[state=checked]:bg-[#165CF0] data-[state=checked]:text-white"
             />
             <label
               htmlFor="revenue-insights-consent"
@@ -225,8 +228,12 @@ export default function InsightsSettingsPage() {
             <Button
               type="button"
               size="sm"
-              className="rounded-2xl"
-              onClick={() => persist(true)}
+              className="rounded-2xl bg-[#165CF0] text-white hover:bg-[#0E4FDB]"
+              onClick={async () => {
+                await persist(true);
+                setConfirmOpen(false);
+                router.push("/dashboard");
+              }}
               disabled={!consentChecked || saving}
             >
               {saving
