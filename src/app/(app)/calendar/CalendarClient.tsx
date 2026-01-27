@@ -1703,7 +1703,7 @@ export default function CalendarClient() {
         <div className="space-y-2">
           <div
             dir={isRtl ? "rtl" : "ltr"}
-            className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground"
+            className="flex flex-wrap items-center gap-6 text-xs text-muted-foreground"
           >
             <div className="inline-flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-emerald-500/80" />
