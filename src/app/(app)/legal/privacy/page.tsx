@@ -8,7 +8,7 @@ export default function PrivacyPolicyPage() {
   const supportEmail = "support@progrr.io";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       <div className="mb-2">
         <SettingsBackHeader />
       </div>
@@ -16,9 +16,7 @@ export default function PrivacyPolicyPage() {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
           {t("privacy.title")}
         </h1>
-        <p className="text-sm text-muted-foreground">
-          {t("privacy.subtitle")}
-        </p>
+        <p className="text-sm text-muted-foreground">{t("privacy.subtitle")}</p>
         <p className="text-xs text-muted-foreground">
           {t("privacy.lastUpdated", { date: t("privacy.lastUpdatedDate") })}
         </p>
@@ -29,18 +27,14 @@ export default function PrivacyPolicyPage() {
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
             {t("privacy.sections.introduction.title")}
           </h2>
-          <p>
-            {t("privacy.sections.introduction.body")}
-          </p>
+          <p>{t("privacy.sections.introduction.body")}</p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
             {t("privacy.sections.information.title")}
           </h2>
-          <p>
-            {t("privacy.sections.information.body")}
-          </p>
+          <p>{t("privacy.sections.information.body")}</p>
           <ul className="list-disc pl-5 space-y-1">
             <li>{t("privacy.sections.information.items.account")}</li>
             <li>{t("privacy.sections.information.items.business")}</li>
@@ -64,27 +58,21 @@ export default function PrivacyPolicyPage() {
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
             {t("privacy.sections.sharing.title")}
           </h2>
-          <p>
-            {t("privacy.sections.sharing.body")}
-          </p>
+          <p>{t("privacy.sections.sharing.body")}</p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
             {t("privacy.sections.security.title")}
           </h2>
-          <p>
-            {t("privacy.sections.security.body")}
-          </p>
+          <p>{t("privacy.sections.security.body")}</p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
             {t("privacy.sections.retention.title")}
           </h2>
-          <p>
-            {t("privacy.sections.retention.body")}
-          </p>
+          <p>{t("privacy.sections.retention.body")}</p>
         </section>
 
         <section className="space-y-2">
@@ -103,18 +91,14 @@ export default function PrivacyPolicyPage() {
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
             {t("privacy.sections.thirdParty.title")}
           </h2>
-          <p>
-            {t("privacy.sections.thirdParty.body")}
-          </p>
+          <p>{t("privacy.sections.thirdParty.body")}</p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
             {t("privacy.sections.changes.title")}
           </h2>
-          <p>
-            {t("privacy.sections.changes.body")}
-          </p>
+          <p>{t("privacy.sections.changes.body")}</p>
         </section>
 
         <section className="space-y-2">

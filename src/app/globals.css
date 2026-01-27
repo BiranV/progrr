@@ -236,18 +236,8 @@ html[dir="rtl"] [data-radix-select-item] [data-slot="select-item-indicator"] {
 html[dir="rtl"] ul,
 html[dir="rtl"] ol {
   list-style-position: inside;
-  padding-inline-start: 1.25rem;
+  padding-inline-start: 0;
   margin-inline-start: 0;
-}
-
-html[dir="rtl"] ul {
-  padding-right: 1.25rem;
-  padding-left: 0;
-}
-
-html[dir="rtl"] ol {
-  padding-right: 1.25rem;
-  padding-left: 0;
 }
 
 /* Flatpickr (public booking): keep default UI, light theming only */

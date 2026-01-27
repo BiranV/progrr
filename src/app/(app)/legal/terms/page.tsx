@@ -8,7 +8,7 @@ export default function TermsOfServicePage() {
   const supportEmail = "support@progrr.io";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
       <div className="mb-2">
         <SettingsBackHeader />
       </div>
@@ -16,9 +16,7 @@ export default function TermsOfServicePage() {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
           {t("terms.title")}
         </h1>
-        <p className="text-sm text-muted-foreground">
-          {t("terms.subtitle")}
-        </p>
+        <p className="text-sm text-muted-foreground">{t("terms.subtitle")}</p>
         <p className="text-xs text-muted-foreground">
           {t("terms.lastUpdated", { date: t("terms.lastUpdatedDate") })}
         </p>
@@ -29,36 +27,28 @@ export default function TermsOfServicePage() {
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
             {t("terms.sections.acceptance.title")}
           </h2>
-          <p>
-            {t("terms.sections.acceptance.body")}
-          </p>
+          <p>{t("terms.sections.acceptance.body")}</p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
             {t("terms.sections.description.title")}
           </h2>
-          <p>
-            {t("terms.sections.description.body")}
-          </p>
+          <p>{t("terms.sections.description.body")}</p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
             {t("terms.sections.eligibility.title")}
           </h2>
-          <p>
-            {t("terms.sections.eligibility.body")}
-          </p>
+          <p>{t("terms.sections.eligibility.body")}</p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
             {t("terms.sections.accounts.title")}
           </h2>
-          <p>
-            {t("terms.sections.accounts.body")}
-          </p>
+          <p>{t("terms.sections.accounts.body")}</p>
         </section>
 
         <section className="space-y-2">
@@ -76,18 +66,14 @@ export default function TermsOfServicePage() {
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
             {t("terms.sections.payments.title")}
           </h2>
-          <p>
-            {t("terms.sections.payments.body")}
-          </p>
+          <p>{t("terms.sections.payments.body")}</p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
             {t("terms.sections.ip.title")}
           </h2>
-          <p>
-            {t("terms.sections.ip.body")}
-          </p>
+          <p>{t("terms.sections.ip.body")}</p>
         </section>
 
         <section className="space-y-2">
@@ -101,36 +87,28 @@ export default function TermsOfServicePage() {
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
             {t("terms.sections.availability.title")}
           </h2>
-          <p>
-            {t("terms.sections.availability.body")}
-          </p>
+          <p>{t("terms.sections.availability.body")}</p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
             {t("terms.sections.liability.title")}
           </h2>
-          <p>
-            {t("terms.sections.liability.body")}
-          </p>
+          <p>{t("terms.sections.liability.body")}</p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
             {t("terms.sections.termination.title")}
           </h2>
-          <p>
-            {t("terms.sections.termination.body")}
-          </p>
+          <p>{t("terms.sections.termination.body")}</p>
         </section>
 
         <section className="space-y-2">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
             {t("terms.sections.changes.title")}
           </h2>
-          <p>
-            {t("terms.sections.changes.body")}
-          </p>
+          <p>{t("terms.sections.changes.body")}</p>
         </section>
 
         <section className="space-y-2">

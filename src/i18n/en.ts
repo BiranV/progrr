@@ -94,6 +94,7 @@ const en = {
       channelEmail: "Email",
       defaultSubject: "Message from {{name}}",
       toastSent: "Message sent",
+      updates: "To communicate important updates",
     },
     serviceLabel: "Service",
     dateLabel: "Date",
@@ -713,57 +714,103 @@ const en = {
     sections: {
       introduction: {
         title: "1. Introduction",
-        body: "Progrr respects your privacy. This policy explains how we collect and use information when you use our service.",
+        body: "Progrr respects your privacy. This policy explains how we collect, use, and share information when you use our service.",
+        items: {
+          businessOwners: "Business owners and team members who use Progrr",
+          endCustomers: "End customers who book appointments through Progrr",
+          visitors: "Website, app, and public booking page visitors",
+        },
       },
       information: {
         title: "2. Information We Collect",
-        body: "We collect information you provide and basic technical data, such as:",
+        body: "We collect information you provide and data generated through your use of the service, such as:",
         items: {
-          account: "Account information (name, email, phone)",
-          business: "Business-related data you enter into Progrr",
-          technical: "Technical data (device, browser, basic analytics)",
+          account: "Account details (name, email, phone)",
+          business:
+            "Business data you enter (services, availability, pricing, settings)",
+          customers: "End-customer data (appointments, contact details, notes)",
+          technical:
+            "Technical data (device, browser, IP, usage logs, analytics)",
+          support: "Support communications (messages, emails, attachments)",
+          payments:
+            "Payment metadata (billing status, invoices, provider IDs) if/when enabled",
         },
       },
       usage: {
         title: "3. How We Use Information",
         items: {
-          provide: "To provide and operate the service",
-          improve: "To improve the product",
-          updates: "To communicate important updates",
-          support: "To provide support",
+          provide:
+            "To operate the service (appointments, reminders, notifications)",
+          automation: "To run scheduling automation and booking logic",
+          support: "To provide customer support",
+          improve:
+            "To improve the product and analytics (including anonymized insights)",
+          security: "To protect security and prevent fraud or abuse",
+          legal: "To comply with legal obligations",
+        },
+      },
+      cookies: {
+        title: "4. Cookies and Analytics",
+        body: "We use cookies and local storage to keep you signed in, remember preferences, and improve the service.",
+        items: {
+          preferences: "Remember preferences and settings",
+          analytics:
+            "Measure usage with analytics tools (e.g., Google Analytics or similar)",
+          control: "You can control cookies through your browser settings",
+        },
+      },
+      communications: {
+        title: "5. Communications",
+        body: "We send messages related to the service and your appointments.",
+        items: {
+          operational:
+            "Operational messages (system notices, reminders, confirmations)",
+          marketing: "Marketing messages only with consent, where required",
+          optOut: "You can opt out of marketing messages at any time",
         },
       },
       sharing: {
-        title: "4. Data Sharing",
-        body: "We do not sell personal data. We share data only with trusted services (such as hosting, analytics, and email) when required to operate the service.",
+        title: "6. Data Sharing",
+        body: "We do not sell personal data. We share data only when needed to operate Progrr or when required by law.",
+        items: {
+          providers:
+            "Trusted providers (hosting, analytics, email, messaging, payments)",
+          legal: "Legal authorities when required by law",
+          transfers: "Business transfers, mergers, or acquisitions",
+        },
       },
       security: {
-        title: "5. Data Security",
+        title: "7. Data Security",
         body: "We use industry-standard security practices and reasonable measures to protect user data. No method of transmission or storage is 100% secure, so we cannot guarantee absolute security.",
       },
       retention: {
-        title: "6. Data Retention",
-        body: "We keep data only as long as your account is active. You can request deletion of your data at any time.",
+        title: "8. Data Retention",
+        body: "We keep data while your account is active. You can request deletion of your data. We may retain certain records when required by law or for legitimate business purposes.",
       },
       rights: {
-        title: "7. User Rights",
+        title: "9. User Rights",
         body: "You have the right to:",
         items: {
           access: "Access your data",
           correct: "Correct your data",
           delete: "Request deletion of your data",
+          marketing: "Object to marketing communications",
         },
       },
       thirdParty: {
-        title: "8. Third-Party Services",
-        body: "We use third-party services for hosting, analytics, and payments (if applicable). These services only receive the data needed to operate Progrr.",
+        title: "10. Third-Party Services",
+        body: "We use third-party services for hosting, analytics, email, messaging, and payments (if applicable). These services only receive the data needed to operate Progrr.",
+      },
+      children: {
+        title: "11. Children",
+        body: "Progrr is not intended for children and is not designed for use by minors.",
       },
       changes: {
-        title: "9. Changes to This Policy",
+        title: "12. Changes to This Policy",
         body: "We may update this policy from time to time. Changes will be reflected on this page. Continued use of Progrr means you accept the updated policy.",
       },
       contact: {
-        title: "10. Contact Us",
+        title: "13. Contact Us",
         body: "If you have questions about this policy, email us at",
       },
     },
@@ -775,64 +822,83 @@ const en = {
     lastUpdatedDate: "January 2026",
     sections: {
       acceptance: {
-        title: "1. Acceptance of Terms",
-        body: "By accessing or using Progrr, you agree to these terms. If you do not agree, you should not use the service.",
+        title: "1. Parties & Acceptance",
+        body: "These terms are a binding agreement between you and Progrr. By accessing or using Progrr, you agree to these terms. If you do not agree, you must not use the service. We may update these terms from time to time with reasonable notice.",
       },
       description: {
-        title: "2. Description of Service",
-        body: "Progrr provides business management and scheduling tools. The service may evolve over time, and features may be added, changed, or removed.",
+        title: "2. Nature of the Service",
+        body: "Progrr is a SaaS platform for appointment scheduling and business management. Progrr is a technology platform only and is not a party to any relationship, agreement, payment, cancellation, or communication between a business and its end customers.",
+        items: {
+          responsibility:
+            "Businesses are solely responsible for their services, pricing, cancellations and refunds, and communications with customers (messages, reminders, confirmations)",
+          accuracy:
+            "Businesses are responsible for the accuracy of information provided to customers",
+          content:
+            "Progrr does not control, verify, or guarantee the content of messages, notifications, or information sent by businesses",
+          disputes:
+            "Any dispute, complaint, or claim by an end customer must be handled directly with the business, not with Progrr",
+        },
       },
       eligibility: {
-        title: "3. Eligibility",
-        body: "You must be legally able to enter a binding agreement to use Progrr. You are responsible for compliance with local laws.",
+        title: "3. Eligibility and License",
+        body: "You must be legally able to enter a binding agreement to use Progrr and comply with applicable laws.",
+        items: {
+          license:
+            "We grant you a limited, personal, non-exclusive, non-transferable license to use the service",
+          restrictions:
+            "No resale, sublicensing, reverse engineering, scraping, copying, or misuse of the service or data",
+        },
       },
       accounts: {
-        title: "4. User Accounts",
-        body: "You are responsible for maintaining the security of your account and for all activity under it. Progrr is not liable for unauthorized access caused by your negligence.",
+        title: "4. Accounts & Security",
+        body: "You are responsible for maintaining the security of your account and for all activity under it. Do not share credentials. Progrr may suspend or terminate accounts for violations or security risks.",
       },
       acceptableUse: {
         title: "5. Acceptable Use",
         items: {
           illegal: "No illegal use of the service",
-          abuse: "No abuse, misuse, or disruption of the service",
-          unauthorized: "No attempts to access unauthorized systems or data",
+          abuse: "No abuse, fraud, or disruption of the service",
+          unauthorized:
+            "No attempts to bypass security or access unauthorized systems or data",
+          dataMisuse: "No misuse of customer data or confidential information",
+          deception: "No fake identities or misleading content",
         },
       },
       payments: {
         title: "6. Payments and Subscriptions (If Applicable)",
-        body: "Some features may require payment. Pricing and billing terms are presented separately. Subscriptions may renew automatically unless canceled.",
+        body: "Some features may require payment. Pricing, billing cycles, renewals, and cancellation terms are presented at the time of purchase and may change. Payments may be processed by third-party providers, and Progrr is not responsible for their failures.",
       },
       ip: {
-        title: "7. Intellectual Property",
-        body: "Progrr owns the platform, code, design, and branding. You retain ownership of your business data. No rights are granted beyond using the service.",
+        title: "7. User Content & Intellectual Property",
+        body: "Businesses may upload content, schedules, services, and customer data. Progrr does not verify or guarantee the accuracy of such content and may remove content that violates law or these terms. Progrr owns the platform, code, UI, branding, and infrastructure. You retain ownership of your business data. No rights are granted beyond using the service.",
       },
       privacy: {
         title: "8. Data and Privacy",
         body: "Your use of Progrr is also governed by our Privacy Policy.",
       },
       availability: {
-        title: "9. Service Availability",
-        body: "The service is provided “as is” without guarantees of uninterrupted or error-free operation. Maintenance or downtime may occur.",
+        title: "9. Availability & Disclaimer",
+        body: "The service is provided “as is” without guarantees of uninterrupted or error-free operation. Maintenance, downtime, or bugs may occur. We may change, suspend, or discontinue features, and we are not liable for such changes.",
       },
       liability: {
         title: "10. Limitation of Liability",
-        body: "Progrr is not liable for indirect or consequential damages. Liability is limited to the maximum extent permitted by law.",
+        body: "Progrr is not liable for indirect, incidental, or consequential damages, including lost profits or business interruptions. Liability is limited to the maximum extent permitted by law. You agree to indemnify Progrr against claims arising from your misuse, violations, or harm to third parties.",
       },
       termination: {
         title: "11. Termination",
-        body: "You may stop using the service at any time. Progrr may suspend or terminate accounts for violations. Termination does not affect accrued rights or obligations.",
+        body: "You may stop using the service at any time. Progrr may suspend or terminate access for violations or risk. Upon termination, your access to the service ends. Termination does not affect accrued rights or obligations.",
       },
       changes: {
         title: "12. Changes to Terms",
-        body: "We may update these terms from time to time. Updates will be reflected on this page. Continued use means you accept the updated terms.",
+        body: "We may update these terms from time to time. Updates will be reflected on this page or provided with notice. Continued use means you accept the updated terms.",
       },
       law: {
         title: "13. Governing Law",
-        body: "These terms are governed by applicable local law.",
+        body: "These terms are governed by applicable local law, and disputes will be handled by the appropriate jurisdiction as required by law.",
       },
       contact: {
         title: "14. Contact Information",
-        body: "For legal inquiries, email us at",
+        body: "For legal or support inquiries, email us at",
       },
     },
   },
