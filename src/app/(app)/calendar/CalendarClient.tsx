@@ -1785,11 +1785,6 @@ export default function CalendarClient() {
                   {isSwipeFeedbackVisible ? (
                     <div className="relative flex items-center justify-between gap-3 px-4 py-3 overflow-hidden">
                       <div className="flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-gray-100 rtl:flex-row-reverse rtl:text-right">
-                        {swipeFeedback?.nextStatus === "COMPLETED" ? (
-                          <Check className="h-4 w-4 text-emerald-600 no-rtl-flip" />
-                        ) : (
-                          <X className="h-4 w-4 text-rose-600 no-rtl-flip" />
-                        )}
                         <span>{swipeFeedback?.message}</span>
                       </div>
                       <Button
@@ -1816,10 +1811,16 @@ export default function CalendarClient() {
                         className={
                           "flex items-center justify-between gap-3 px-3 py-1.5 relative overflow-hidden " +
                           (statusKey === "BOOKED"
-                            ? "bg-emerald-100 dark:bg-emerald-900/45"
+                            ? isRtl
+                              ? "bg-gradient-to-l from-emerald-100 to-slate-50 dark:from-emerald-900/45 dark:to-slate-900/40"
+                              : "bg-gradient-to-r from-emerald-100 to-slate-50 dark:from-emerald-900/45 dark:to-slate-900/40"
                             : statusKey === "COMPLETED"
-                              ? "bg-blue-100 dark:bg-blue-900/45"
-                              : "bg-rose-100 dark:bg-rose-900/45")
+                              ? isRtl
+                                ? "bg-gradient-to-l from-blue-100 to-slate-50 dark:from-blue-900/45 dark:to-slate-900/40"
+                                : "bg-gradient-to-r from-blue-100 to-slate-50 dark:from-blue-900/45 dark:to-slate-900/40"
+                              : isRtl
+                                ? "bg-gradient-to-l from-rose-100 to-slate-50 dark:from-rose-900/45 dark:to-slate-900/40"
+                                : "bg-gradient-to-r from-rose-100 to-slate-50 dark:from-rose-900/45 dark:to-slate-900/40")
                         }
                       >
                         <div
@@ -2072,29 +2073,6 @@ export default function CalendarClient() {
                                       : t("calendar.cancelledBy.unknown")
                                   : statusLabel(a.status)}
                               </span>
-                              {normalizeStatusKey(a.status) === "COMPLETED" ? (
-                                <div className="flex items-center gap-2">
-                                  <Switch
-                                    checked={
-                                      String(
-                                        a.paymentStatus ?? "UNPAID",
-                                      ).toUpperCase() === "PAID"
-                                    }
-                                    onCheckedChange={(checked) =>
-                                      updatePaymentStatus(
-                                        a,
-                                        checked ? "PAID" : "UNPAID",
-                                      )
-                                    }
-                                    disabled={paymentUpdatingId === a.id}
-                                    aria-label={t("calendar.paid")}
-                                    className="scale-90"
-                                  />
-                                  <span className="text-xs text-gray-600 dark:text-gray-300 select-none">
-                                    {t("calendar.paid")}
-                                  </span>
-                                </div>
-                              ) : null}
                             </div>
                           </div>
 
@@ -2119,8 +2097,64 @@ export default function CalendarClient() {
                             ) : null}
                           </div>
                           {a.notes ? (
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {a.notes}
+                            <div className="mt-1 flex items-center justify-between gap-3">
+                              <div className="text-xs text-muted-foreground min-w-0 truncate">
+                                {a.notes}
+                              </div>
+                              {normalizeStatusKey(a.status) === "COMPLETED" ? (
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <Switch
+                                    checked={
+                                      String(
+                                        a.paymentStatus ?? "UNPAID",
+                                      ).toUpperCase() === "PAID"
+                                    }
+                                    onCheckedChange={(checked) =>
+                                      updatePaymentStatus(
+                                        a,
+                                        checked ? "PAID" : "UNPAID",
+                                      )
+                                    }
+                                    disabled={paymentUpdatingId === a.id}
+                                    aria-label={t("calendar.paid")}
+                                    className="scale-90"
+                                  />
+                                  <span className="text-xs text-gray-600 dark:text-gray-300 select-none">
+                                    {t("calendar.paid")}
+                                  </span>
+                                  {paymentUpdatingId === a.id ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-500 dark:text-gray-300" />
+                                  ) : null}
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
+
+                          {!a.notes &&
+                          normalizeStatusKey(a.status) === "COMPLETED" ? (
+                            <div className="mt-1 flex items-center justify-end gap-2">
+                              <Switch
+                                checked={
+                                  String(
+                                    a.paymentStatus ?? "UNPAID",
+                                  ).toUpperCase() === "PAID"
+                                }
+                                onCheckedChange={(checked) =>
+                                  updatePaymentStatus(
+                                    a,
+                                    checked ? "PAID" : "UNPAID",
+                                  )
+                                }
+                                disabled={paymentUpdatingId === a.id}
+                                aria-label={t("calendar.paid")}
+                                className="scale-90"
+                              />
+                              <span className="text-xs text-gray-600 dark:text-gray-300 select-none">
+                                {t("calendar.paid")}
+                              </span>
+                              {paymentUpdatingId === a.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-500 dark:text-gray-300" />
+                              ) : null}
                             </div>
                           ) : null}
 

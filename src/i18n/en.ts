@@ -1148,9 +1148,9 @@ const en = {
       cancel: "Cancel",
     },
     status: {
-      booked: "BOOKED",
-      canceled: "CANCELED",
-      completed: "COMPLETED",
+      booked: "Booked",
+      canceled: "Canceled",
+      completed: "Completed",
     },
     cancelledBy: {
       business: "Canceled by you",
