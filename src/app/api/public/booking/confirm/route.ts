@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { ObjectId } from "mongodb";
 
 import { collections, ensureIndexes } from "@/server/collections";
+import { canCustomerBook } from "@/server/booking/limits";
 import { normalizePhone, isLikelyValidPhone } from "@/server/phone";
 import {
   computeAvailableSlots,
@@ -292,84 +293,35 @@ export async function POST(req: Request) {
     }
 
     if (!isOwnerBooking) {
-      const sameServiceSameDay = await c.appointments.findOne(
-        {
-          businessUserId: user._id as ObjectId,
-          status: "BOOKED",
-          customerId,
-          date,
-          serviceId,
-        } as any,
-        { sort: { startTime: 1 } },
+      const allowed = await canCustomerBook(
+        user._id as ObjectId,
+        customerId,
+        new Date(),
       );
 
-      if (sameServiceSameDay) {
-        const sameDayList = await c.appointments
-          .find(
-            {
-              businessUserId: user._id as ObjectId,
-              status: "BOOKED",
-              customerId,
-              date,
-            } as any,
-            {
-              projection: { date: 1, startTime: 1, endTime: 1, serviceName: 1 },
-            },
-          )
-          .sort({ startTime: 1 })
-          .limit(50)
-          .toArray();
-
-        return NextResponse.json(
+      if (!allowed) {
+        const existing = await c.appointments.findOne(
           {
-            error: "You already booked this service on this day.",
-            code: "SAME_SERVICE_SAME_DAY_EXISTS",
-            existingAppointment: {
-              id:
-                (sameServiceSameDay as any)?._id?.toHexString?.() ?? undefined,
-              date: (sameServiceSameDay as any)?.date,
-              startTime: (sameServiceSameDay as any)?.startTime,
-              endTime: (sameServiceSameDay as any)?.endTime,
-              serviceName: (sameServiceSameDay as any)?.serviceName,
-            },
-            existingAppointments: sameDayList.map((a: any) => ({
-              id: a?._id?.toHexString?.() ?? "",
-              date: String(a?.date ?? ""),
-              startTime: String(a?.startTime ?? ""),
-              endTime: String(a?.endTime ?? ""),
-              serviceName: String(a?.serviceName ?? ""),
-            })),
-          },
-          { status: 409 },
+            businessUserId: user._id as ObjectId,
+            status: { $nin: ["CANCELLED", "CANCELED", "NO_SHOW"] },
+            customerId,
+            $or: [
+              { date: { $gt: todayStr } },
+              { date: todayStr, startTime: { $gt: nowTimeStr } },
+            ],
+          } as any,
+          { sort: { date: 1, startTime: 1 } },
         );
-      }
-    }
 
-    if (!isOwnerBooking && limitCustomerToOneUpcomingAppointment) {
-      // Conflict check is computed only after identity is verified (OTP or access cookie).
-      const existing = await c.appointments.findOne(
-        {
-          businessUserId: user._id as ObjectId,
-          status: "BOOKED",
-          customerId,
-          $or: [
-            { date: { $gt: todayStr } },
-            { date: todayStr, endTime: { $gt: nowTimeStr } },
-          ],
-        } as any,
-        { sort: { date: 1, startTime: 1 } },
-      );
-
-      if (existing) {
         const upcomingList = await c.appointments
           .find(
             {
               businessUserId: user._id as ObjectId,
-              status: "BOOKED",
+              status: { $nin: ["CANCELLED", "CANCELED", "NO_SHOW"] },
               customerId,
               $or: [
                 { date: { $gt: todayStr } },
-                { date: todayStr, endTime: { $gt: nowTimeStr } },
+                { date: todayStr, startTime: { $gt: nowTimeStr } },
               ],
             } as any,
             {

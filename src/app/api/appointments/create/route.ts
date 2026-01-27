@@ -13,6 +13,7 @@ import { formatDateInTimeZone } from "@/lib/public-booking";
 import { sendEmail } from "@/server/email";
 import { buildAppointmentBookedEmail } from "@/server/emails/booking";
 import { isValidEmail, normalizeEmail } from "@/lib/email";
+import { canCustomerBook } from "@/server/booking/limits";
 
 function isValidDateString(s: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(s || "").trim());
@@ -220,6 +221,25 @@ export async function POST(req: Request) {
           { error: "Failed to create customer" },
           { status: 500 },
         );
+      }
+
+      const overrideLimits = Boolean((body as any)?.overrideLimits);
+      if (!overrideLimits) {
+        const allowed = await canCustomerBook(
+          businessUserId,
+          customerDocId,
+          new Date(),
+        );
+        if (!allowed) {
+          return NextResponse.json(
+            {
+              error:
+                "Customer already has an upcoming appointment. Override to continue.",
+              code: "ACTIVE_APPOINTMENT_EXISTS",
+            },
+            { status: 409 },
+          );
+        }
       }
 
       await c.businessCustomers.updateOne(

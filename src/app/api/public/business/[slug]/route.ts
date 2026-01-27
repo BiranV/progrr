@@ -67,6 +67,10 @@ export async function GET(
     const onboarding = (user as any).onboarding ?? {};
     const business = onboarding.business ?? {};
     const branding = onboarding.branding ?? {};
+    const reviewRequestsEnabled =
+      typeof (business as any)?.reviewRequestsEnabled === "boolean"
+        ? Boolean((business as any)?.reviewRequestsEnabled)
+        : true;
 
     const currencySymbol = (code: string): string => {
       const normalized = String(code || "")
@@ -106,29 +110,31 @@ export async function GET(
       currencyCodeRaw.toUpperCase() === "NIS" ? "ILS" : currencyCodeRaw;
     const customCurrency = onboarding.customCurrency ?? undefined;
 
-    const reviews = await c.appointments
-      .find(
-        {
-          businessUserId: (user as any)?._id,
-          reviewSubmitted: true,
-        } as any,
-        {
-          projection: {
-            _id: 1,
-            serviceName: 1,
-            date: 1,
-            startTime: 1,
-            endTime: 1,
-            "customer.fullName": 1,
-            reviewRating: 1,
-            reviewComment: 1,
-            reviewSubmittedAt: 1,
-          },
-        },
-      )
-      .sort({ reviewSubmittedAt: -1, createdAt: -1 })
-      .limit(50)
-      .toArray();
+    const reviews = reviewRequestsEnabled
+      ? await c.appointments
+          .find(
+            {
+              businessUserId: (user as any)?._id,
+              reviewSubmitted: true,
+            } as any,
+            {
+              projection: {
+                _id: 1,
+                serviceName: 1,
+                date: 1,
+                startTime: 1,
+                endTime: 1,
+                "customer.fullName": 1,
+                reviewRating: 1,
+                reviewComment: 1,
+                reviewSubmittedAt: 1,
+              },
+            },
+          )
+          .sort({ reviewSubmittedAt: -1, createdAt: -1 })
+          .limit(50)
+          .toArray()
+      : [];
 
     return NextResponse.json({
       ok: true,
@@ -182,6 +188,7 @@ export async function GET(
           (business as any)?.limitCustomerToOneUpcomingAppointment
         ),
       },
+      reviewRequestsEnabled,
       reviews: reviews.map((review: any) => ({
         id: String(review._id),
         serviceName: String(review.serviceName ?? "").trim(),

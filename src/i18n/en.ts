@@ -393,7 +393,7 @@ const en = {
     bookingHoursSubtitle: "Set your working days and booking rules.",
     limitCustomersTitle: "Limit customers to 1 upcoming appointment",
     limitCustomersSubtitle:
-      "Customers only: when enabled, 1 upcoming appointment max; same service/day always blocked. Admins can override when creating appointments.",
+      "When enabled, customers can have up to 1 upcoming appointment at a time. Admins can override.",
     brandingTitle: "Business branding",
     brandingSubtitle:
       "Add a logo and a few photos — these will be visible to clients.",
@@ -1069,7 +1069,7 @@ const en = {
       "Used to evaluate your opening hours and show “Open/Closed”.",
     limitCustomersTitle: "Limit customers to 1 upcoming appointment",
     limitCustomersSubtitle:
-      "Customers only: when enabled, 1 upcoming appointment max; same service/day always blocked. Admins can override when creating appointments.",
+      "When enabled, customers can have up to 1 upcoming appointment at a time. Admins can override.",
     selectTimeZone: "Select time zone",
     saveChanges: "Save changes",
     toastSaved: "Changes saved",

@@ -307,6 +307,57 @@ export default function OpeningHoursPage() {
     return null;
   }, [availability.days, getDayLabel, t]);
 
+  const updateInitialLimitRule = (enabled: boolean) => {
+    if (!initialBookingRulesRef.current) {
+      initialBookingRulesRef.current = {
+        limitCustomerToOneUpcomingAppointment: enabled,
+      };
+      return;
+    }
+    initialBookingRulesRef.current = {
+      ...initialBookingRulesRef.current,
+      limitCustomerToOneUpcomingAppointment: enabled,
+    };
+  };
+
+  const handleToggleLimit = async (checked: boolean) => {
+    setBookingRules({ limitCustomerToOneUpcomingAppointment: checked });
+    if (isSaving) return;
+
+    setIsSaving(true);
+    try {
+      const payload = {
+        business: {
+          limitCustomerToOneUpcomingAppointment: checked,
+        },
+      };
+
+      await apiFetch("/api/onboarding", {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      });
+
+      updateInitialLimitRule(checked);
+      queryClient.setQueryData(ONBOARDING_QUERY_KEY, (prev: any) => ({
+        ...(prev || {}),
+        onboarding: {
+          ...((prev as any)?.onboarding || {}),
+          business: {
+            ...((prev as any)?.onboarding?.business || {}),
+            ...payload.business,
+          },
+        },
+      }));
+    } catch (e: any) {
+      setBookingRules((prev) => ({
+        limitCustomerToOneUpcomingAppointment: !checked,
+      }));
+      toast.error(e?.message || t("errors.failedToSave"));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const onSave = async () => {
     if (!initialRef.current || !initialBookingRulesRef.current) return;
 
@@ -515,11 +566,7 @@ export default function OpeningHoursPage() {
             </div>
             <Switch
               checked={bookingRules.limitCustomerToOneUpcomingAppointment}
-              onCheckedChange={(checked) =>
-                setBookingRules({
-                  limitCustomerToOneUpcomingAppointment: checked,
-                })
-              }
+              onCheckedChange={handleToggleLimit}
               disabled={isSaving || (isPending && !initialRef.current)}
             />
           </div>

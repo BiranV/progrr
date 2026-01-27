@@ -337,6 +337,8 @@ export default function PublicBookingFlow({
     return resolvedPublicId;
   }, [raw, resolvedPublicId]);
 
+  const reviewSectionEnabled = data?.reviewRequestsEnabled !== false;
+
   const reviewToken = React.useMemo(() => {
     return String(searchParams.get("reviewToken") ?? "").trim();
   }, [searchParams]);
@@ -412,11 +414,15 @@ export default function PublicBookingFlow({
   );
 
   React.useEffect(() => {
+    if (!reviewSectionEnabled) {
+      setPublicReviews([]);
+      return;
+    }
     const list = Array.isArray((data as any)?.reviews)
       ? ((data as any).reviews as PublicReviewItem[])
       : [];
     setPublicReviews(list);
-  }, [data]);
+  }, [data, reviewSectionEnabled]);
 
   React.useEffect(() => {
     if (!reviewToken) {
@@ -484,13 +490,14 @@ export default function PublicBookingFlow({
   }, [publicId, reviewToken]);
 
   React.useEffect(() => {
+    if (!reviewSectionEnabled) return;
     if (!reviewValidation.reviewAllowed) return;
     if (!reviewSectionRef.current) return;
     reviewSectionRef.current.scrollIntoView({
       behavior: "smooth",
       block: "start",
     });
-  }, [reviewValidation.reviewAllowed]);
+  }, [reviewValidation.reviewAllowed, reviewSectionEnabled]);
 
   // Cookie-based customer identification (server-side): load active appointment if present.
   React.useEffect(() => {
@@ -2038,10 +2045,9 @@ export default function PublicBookingFlow({
                       </div>
                     </div>
 
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="rounded-xl shrink-0"
+                    <button
+                      type="button"
+                      className="shrink-0 text-sm text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white cursor-pointer"
                       disabled={cancellingMyAppointmentId === a.id}
                       onClick={async () => {
                         setCancellingMyAppointmentId(a.id);
@@ -2083,7 +2089,7 @@ export default function PublicBookingFlow({
                       {cancellingMyAppointmentId === a.id
                         ? t("publicBooking.actions.cancelling")
                         : t("publicBooking.actions.cancelAppointment")}
-                    </Button>
+                    </button>
                   </div>
                 </div>
               ))}
@@ -2474,7 +2480,7 @@ export default function PublicBookingFlow({
                       >
                         <div className="text-sm text-amber-900/90 dark:text-amber-200/90">
                           {appt?.serviceName ? `${appt.serviceName} • ` : ""}
-                          {appt?.date || ""}
+                          {appt?.date ? formatDateForDisplay(appt.date) : ""}
                           {timeRange ? (
                             <>
                               {" • "}
@@ -2482,10 +2488,9 @@ export default function PublicBookingFlow({
                             </>
                           ) : null}
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="rounded-2xl w-full mt-2"
+                        <button
+                          type="button"
+                          className="mt-2 w-full rounded-2xl border border-transparent text-sm text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white cursor-pointer"
                           disabled={
                             confirmBookingLoading ||
                             cancellingConflictId === apptId
@@ -2497,7 +2502,7 @@ export default function PublicBookingFlow({
                           {cancellingConflictId === apptId
                             ? t("publicBooking.actions.cancelling")
                             : t("publicBooking.actions.cancelAppointment")}
-                        </Button>
+                        </button>
                       </div>
                     );
                   })}
@@ -2609,7 +2614,7 @@ export default function PublicBookingFlow({
 
                     <button
                       type="button"
-                      className="shrink-0 text-sm text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+                      className="shrink-0 text-sm text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white cursor-pointer"
                       disabled={cancellingSameDayId === a.id || cancelling}
                       onClick={() => handleCancelSameDay(a.id)}
                     >
@@ -2633,7 +2638,7 @@ export default function PublicBookingFlow({
 
               <Button
                 variant="outline"
-                className="rounded-2xl"
+                className="rounded-2xl w-full bg-transparent"
                 onClick={handleAddToGoogle}
               >
                 {t("publicBooking.success.addToGoogle")}
@@ -2649,127 +2654,131 @@ export default function PublicBookingFlow({
         </div>
       ) : null}
 
-      <div className="mt-10 space-y-5">
-        <div className="space-y-1">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {t("publicBooking.reviews.title")}
-          </h2>
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            {t("publicBooking.reviews.subtitle")}
-          </p>
-        </div>
-
-        {publicReviews.length === 0 ? (
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            {t("publicBooking.reviews.empty")}
+      {reviewSectionEnabled ? (
+        <div className="mt-10 space-y-5">
+          <div className="space-y-1">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              {t("publicBooking.reviews.title")}
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              {t("publicBooking.reviews.subtitle")}
+            </p>
           </div>
-        ) : (
-          <div className="space-y-3">
-            {publicReviews.map((review) => (
-              <div
-                key={review.id}
-                className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/10 p-4"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                    {review.customerName ||
-                      t("publicBooking.reviews.customerFallback")}
+
+          {publicReviews.length === 0 ? (
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              {t("publicBooking.reviews.empty")}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {publicReviews.map((review) => (
+                <div
+                  key={review.id}
+                  className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/10 p-4"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {review.customerName ||
+                        t("publicBooking.reviews.customerFallback")}
+                    </div>
+                    <div className="flex items-center gap-1 text-yellow-500">
+                      {Array.from({ length: 5 }).map((_, idx) => (
+                        <Star
+                          key={idx}
+                          className="h-4 w-4"
+                          fill={
+                            idx < Math.round(review.rating)
+                              ? "currentColor"
+                              : "none"
+                          }
+                        />
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1 text-yellow-500">
-                    {Array.from({ length: 5 }).map((_, idx) => (
-                      <Star
-                        key={idx}
-                        className="h-4 w-4"
-                        fill={
-                          idx < Math.round(review.rating)
-                            ? "currentColor"
-                            : "none"
-                        }
-                      />
-                    ))}
+                  {review.comment ? (
+                    <div className="mt-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">
+                      {review.comment}
+                    </div>
+                  ) : null}
+                  <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    {review.serviceName ||
+                      t("publicBooking.reviews.serviceFallback")}
+                    {review.date
+                      ? ` • ${formatDateForDisplay(review.date)}`
+                      : ""}
                   </div>
                 </div>
-                {review.comment ? (
-                  <div className="mt-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">
-                    {review.comment}
-                  </div>
-                ) : null}
-                <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  {review.serviceName ||
-                    t("publicBooking.reviews.serviceFallback")}
-                  {review.date ? ` • ${formatDateForDisplay(review.date)}` : ""}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
 
-        {reviewValidation.valid &&
-        reviewValidation.reviewAllowed &&
-        !reviewSubmitted ? (
-          <div
-            ref={reviewSectionRef}
-            className="rounded-2xl border border-blue-200 dark:border-blue-900/40 bg-blue-50/60 dark:bg-blue-950/20 p-4 space-y-4"
-          >
-            <div className="text-base font-semibold text-gray-900 dark:text-white">
-              {t("publicBooking.reviews.leaveTitle")}
-            </div>
-            <div className="flex items-center justify-center gap-2">
-              {[1, 2, 3, 4, 5].map((value) => {
-                const selected = reviewRating >= value;
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setReviewRating(value)}
-                    className={`rounded-full p-1 transition ${
-                      selected ? "text-yellow-500" : "text-gray-300"
-                    }`}
-                    aria-label={t("publicBooking.reviews.ratingAria", {
-                      rating: value,
-                    })}
-                  >
-                    <Star
-                      className="h-7 w-7"
-                      fill={selected ? "currentColor" : "none"}
-                    />
-                  </button>
-                );
-              })}
-            </div>
-            <div className="space-y-2">
-              <Label>{t("publicBooking.reviews.commentLabel")}</Label>
-              <Textarea
-                value={reviewComment}
-                onChange={(e) => setReviewComment(e.target.value)}
-                rows={4}
-                placeholder={t("publicBooking.reviews.commentPlaceholder")}
-                disabled={reviewSubmitting}
-              />
-            </div>
-            {reviewSubmitError ? (
-              <div className="text-sm text-rose-500">{reviewSubmitError}</div>
-            ) : null}
-            <Button
-              type="button"
-              className="rounded-2xl w-full"
-              onClick={submitPublicReview}
-              disabled={reviewSubmitting || reviewRating === 0}
+          {reviewValidation.valid &&
+          reviewValidation.reviewAllowed &&
+          !reviewSubmitted ? (
+            <div
+              ref={reviewSectionRef}
+              className="rounded-2xl border border-blue-200 dark:border-blue-900/40 bg-blue-50/60 dark:bg-blue-950/20 p-4 space-y-4"
             >
-              {reviewSubmitting
-                ? t("publicBooking.reviews.submitting")
-                : t("publicBooking.reviews.submit")}
-            </Button>
-          </div>
-        ) : null}
+              <div className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("publicBooking.reviews.leaveTitle")}
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                {[1, 2, 3, 4, 5].map((value) => {
+                  const selected = reviewRating >= value;
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setReviewRating(value)}
+                      className={`rounded-full p-1 transition ${
+                        selected ? "text-yellow-500" : "text-gray-300"
+                      }`}
+                      aria-label={t("publicBooking.reviews.ratingAria", {
+                        rating: value,
+                      })}
+                    >
+                      <Star
+                        className="h-7 w-7"
+                        fill={selected ? "currentColor" : "none"}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="space-y-2">
+                <Label>{t("publicBooking.reviews.commentLabel")}</Label>
+                <Textarea
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  rows={4}
+                  placeholder={t("publicBooking.reviews.commentPlaceholder")}
+                  disabled={reviewSubmitting}
+                />
+              </div>
+              {reviewSubmitError ? (
+                <div className="text-sm text-rose-500">{reviewSubmitError}</div>
+              ) : null}
+              <Button
+                type="button"
+                className="rounded-2xl w-full"
+                onClick={submitPublicReview}
+                disabled={reviewSubmitting || reviewRating === 0}
+              >
+                {reviewSubmitting
+                  ? t("publicBooking.reviews.submitting")
+                  : t("publicBooking.reviews.submit")}
+              </Button>
+            </div>
+          ) : null}
 
-        {reviewValidation.valid &&
-        (reviewSubmitted || reviewValidation.reviewSubmitted) ? (
-          <div className="rounded-2xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/60 dark:bg-emerald-950/20 p-4 text-sm text-emerald-800 dark:text-emerald-200">
-            {t("publicBooking.reviews.thanks")}
-          </div>
-        ) : null}
-      </div>
+          {reviewValidation.valid &&
+          (reviewSubmitted || reviewValidation.reviewSubmitted) ? (
+            <div className="rounded-2xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/60 dark:bg-emerald-950/20 p-4 text-sm text-emerald-800 dark:text-emerald-200">
+              {t("publicBooking.reviews.thanks")}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </PublicBookingShell>
   );
 }

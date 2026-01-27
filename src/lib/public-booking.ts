@@ -39,6 +39,7 @@ export type PublicBusiness = {
       end?: string;
     }>;
   };
+  reviewRequestsEnabled?: boolean;
   currency: { code: string; name?: string; symbol?: string };
   reviews?: Array<{
     id: string;
