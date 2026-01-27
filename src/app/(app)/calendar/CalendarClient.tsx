@@ -220,6 +220,10 @@ export default function CalendarClient() {
     Record<string, SwipeFeedback>
   >({});
   const swipeFeedbackTimers = React.useRef<Record<string, number>>({});
+  const swipeRequestVersions = React.useRef<Record<string, number>>({});
+  const swipeRequestControllers = React.useRef<
+    Record<string, AbortController | null>
+  >({});
 
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createServiceId, setCreateServiceId] = React.useState<string>("");
@@ -518,6 +522,20 @@ export default function CalendarClient() {
     };
   }, []);
 
+  const bumpSwipeRequestVersion = React.useCallback((appointmentId: string) => {
+    const next = (swipeRequestVersions.current[appointmentId] ?? 0) + 1;
+    swipeRequestVersions.current[appointmentId] = next;
+    return next;
+  }, []);
+
+  const replaceSwipeController = React.useCallback((appointmentId: string) => {
+    const existing = swipeRequestControllers.current[appointmentId];
+    if (existing) existing.abort();
+    const controller = new AbortController();
+    swipeRequestControllers.current[appointmentId] = controller;
+    return controller;
+  }, []);
+
   const showSwipeFeedback = React.useCallback(
     (appointment: Appointment, nextStatus: AppointmentStatus) => {
       const previousStatus = normalizeStatusKey(appointment.status);
@@ -554,7 +572,14 @@ export default function CalendarClient() {
       if (!feedback) return;
 
       dismissSwipeFeedback(appointmentId);
-      setStatusUpdatingId(appointmentId);
+      const version = bumpSwipeRequestVersion(appointmentId);
+      const pending = swipeRequestControllers.current[appointmentId];
+      if (pending) {
+        pending.abort();
+        swipeRequestControllers.current[appointmentId] = null;
+      }
+
+      setStatusUpdatingId((prev) => (prev === appointmentId ? null : prev));
 
       updateAppointmentCache(appointmentId, (current) => ({
         ...current,
@@ -564,12 +589,14 @@ export default function CalendarClient() {
       }));
 
       try {
+        const controller = replaceSwipeController(appointmentId);
         const res = await fetch(
           `/api/appointments/${encodeURIComponent(appointmentId)}/status`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ status: feedback.previous.status }),
+            signal: controller.signal,
           },
         );
         const json = await res.json().catch(() => null);
@@ -578,12 +605,16 @@ export default function CalendarClient() {
             json?.error || t("errors.requestFailed", { status: res.status }),
           );
         }
+        if (swipeRequestVersions.current[appointmentId] !== version) return;
       } catch (e: any) {
+        if (e?.name === "AbortError") return;
+        if (swipeRequestVersions.current[appointmentId] !== version) return;
         const raw = String(e?.message || t("errors.failedToSave"));
         const msg = translateCalendarError(raw);
         toast.error(msg);
       } finally {
-        setStatusUpdatingId(null);
+        if (swipeRequestVersions.current[appointmentId] !== version) return;
+        setStatusUpdatingId((prev) => (prev === appointmentId ? null : prev));
         await queryClient.invalidateQueries({
           queryKey: ["appointments", date],
         });
@@ -596,9 +627,11 @@ export default function CalendarClient() {
       }
     },
     [
+      bumpSwipeRequestVersion,
       date,
       dismissSwipeFeedback,
       queryClient,
+      replaceSwipeController,
       swipeFeedbackById,
       t,
       translateCalendarError,
@@ -611,6 +644,8 @@ export default function CalendarClient() {
       const from = normalizeStatusKey(appointment.status);
       if (from === nextStatus) return;
 
+      const version = bumpSwipeRequestVersion(appointment.id);
+
       setStatusUpdatingId(appointment.id);
       const previous = updateAppointmentCache(appointment.id, (current) => ({
         ...current,
@@ -620,12 +655,14 @@ export default function CalendarClient() {
       }));
 
       try {
+        const controller = replaceSwipeController(appointment.id);
         const res = await fetch(
           `/api/appointments/${encodeURIComponent(appointment.id)}/status`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ status: nextStatus }),
+            signal: controller.signal,
           },
         );
         const json = await res.json().catch(() => null);
@@ -635,6 +672,8 @@ export default function CalendarClient() {
           );
         }
 
+        if (swipeRequestVersions.current[appointment.id] !== version) return;
+
         await queryClient.invalidateQueries({
           queryKey: ["appointments", date],
         });
@@ -643,6 +682,8 @@ export default function CalendarClient() {
           queryKey: ["dashboardRevenueSeries"],
         });
       } catch (e: any) {
+        if (e?.name === "AbortError") return;
+        if (swipeRequestVersions.current[appointment.id] !== version) return;
         if (previous) {
           queryClient.setQueryData(["appointments", date], previous);
         }
@@ -650,13 +691,16 @@ export default function CalendarClient() {
         const msg = translateCalendarError(raw);
         toast.error(msg);
       } finally {
-        setStatusUpdatingId(null);
+        if (swipeRequestVersions.current[appointment.id] !== version) return;
+        setStatusUpdatingId((prev) => (prev === appointment.id ? null : prev));
       }
     },
     [
+      bumpSwipeRequestVersion,
       date,
       normalizeStatusKey,
       queryClient,
+      replaceSwipeController,
       t,
       translateCalendarError,
       updateAppointmentCache,
@@ -667,6 +711,8 @@ export default function CalendarClient() {
     async (appointment: Appointment, notifyCustomer: boolean) => {
       if (isCanceledStatus(appointment.status)) return;
 
+      const version = bumpSwipeRequestVersion(appointment.id);
+
       setStatusUpdatingId(appointment.id);
       const previous = updateAppointmentCache(appointment.id, (current) => ({
         ...current,
@@ -675,12 +721,14 @@ export default function CalendarClient() {
       }));
 
       try {
+        const controller = replaceSwipeController(appointment.id);
         const res = await fetch(
           `/api/appointments/${encodeURIComponent(appointment.id)}/cancel`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ notifyCustomer }),
+            signal: controller.signal,
           },
         );
         const json = await res.json().catch(() => null);
@@ -689,6 +737,8 @@ export default function CalendarClient() {
             json?.error || t("errors.requestFailed", { status: res.status }),
           );
         }
+
+        if (swipeRequestVersions.current[appointment.id] !== version) return;
 
         if (notifyCustomer && json?.email?.sent === false) {
           toast.error(
@@ -707,6 +757,8 @@ export default function CalendarClient() {
           queryKey: ["dashboardRevenueSeries"],
         });
       } catch (e: any) {
+        if (e?.name === "AbortError") return;
+        if (swipeRequestVersions.current[appointment.id] !== version) return;
         if (previous) {
           queryClient.setQueryData(["appointments", date], previous);
         }
@@ -714,13 +766,16 @@ export default function CalendarClient() {
         const msg = translateCalendarError(raw);
         toast.error(msg);
       } finally {
-        setStatusUpdatingId(null);
+        if (swipeRequestVersions.current[appointment.id] !== version) return;
+        setStatusUpdatingId((prev) => (prev === appointment.id ? null : prev));
       }
     },
     [
+      bumpSwipeRequestVersion,
       date,
       isCanceledStatus,
       queryClient,
+      replaceSwipeController,
       t,
       translateCalendarError,
       updateAppointmentCache,
@@ -1708,7 +1763,6 @@ export default function CalendarClient() {
                         variant="ghost"
                         className="h-8 px-3 rounded-md text-xs font-semibold"
                         onClick={() => undoSwipeFeedback(a.id)}
-                        disabled={statusUpdatingId === a.id}
                       >
                         {t("calendar.inlineFeedback.undo")}
                       </Button>
