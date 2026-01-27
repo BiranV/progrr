@@ -11,6 +11,7 @@ export type Business = {
   whatsapp?: string;
   currency?: string;
   limitCustomerToOneUpcomingAppointment?: boolean;
+  revenueInsightsEnabled?: boolean;
 };
 
 export type UpdateBusinessPayload = {
@@ -22,6 +23,7 @@ export type UpdateBusinessPayload = {
   whatsapp?: string;
   currency?: string;
   limitCustomerToOneUpcomingAppointment?: boolean;
+  revenueInsightsEnabled?: boolean;
 };
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
@@ -78,6 +80,9 @@ export async function updateBusiness(payload: UpdateBusinessPayload) {
         limitCustomerToOneUpcomingAppointment:
           payload.limitCustomerToOneUpcomingAppointment,
       }
+      : {}),
+    ...(typeof payload.revenueInsightsEnabled === "boolean"
+      ? { revenueInsightsEnabled: payload.revenueInsightsEnabled }
       : {}),
   };
 

@@ -81,8 +81,21 @@ export async function GET(req: Request) {
         const businessUserId = new ObjectId(user.id);
 
         const owner = await c.users.findOne({ _id: businessUserId } as any, {
-            projection: { "onboarding.availability.timezone": 1 },
+            projection: {
+                "onboarding.availability.timezone": 1,
+                "onboarding.business.revenueInsightsEnabled": 1,
+            },
         });
+
+        const revenueInsightsEnabled = Boolean(
+            (owner as any)?.onboarding?.business?.revenueInsightsEnabled
+        );
+        if (!revenueInsightsEnabled) {
+            return NextResponse.json(
+                { error: "Revenue insights are not enabled" },
+                { status: 403 }
+            );
+        }
 
         const tz = String((owner as any)?.onboarding?.availability?.timezone ?? "").trim() || "UTC";
 

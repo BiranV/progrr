@@ -96,6 +96,9 @@ export async function GET() {
     const limitCustomerToOneUpcomingAppointment = Boolean(
       (business as any).limitCustomerToOneUpcomingAppointment
     );
+    const revenueInsightsEnabled = Boolean(
+      (business as any).revenueInsightsEnabled
+    );
 
     if (!name || !phone || !publicId) {
       return NextResponse.json(
@@ -116,6 +119,7 @@ export async function GET() {
       whatsapp: whatsapp ?? "",
       currency,
       limitCustomerToOneUpcomingAppointment,
+      revenueInsightsEnabled,
     });
   } catch (error: any) {
     const status = typeof error?.status === "number" ? error.status : 500;
@@ -229,6 +233,15 @@ export async function PATCH(req: Request) {
         currentLimitCustomerToOneUpcomingAppointment
         : currentLimitCustomerToOneUpcomingAppointment;
 
+    const currentRevenueInsightsEnabled = Boolean(
+      (business as any).revenueInsightsEnabled
+    );
+    const requestedRevenueInsightsEnabled =
+      Object.prototype.hasOwnProperty.call(body as any, "revenueInsightsEnabled")
+        ? asBoolean((body as any).revenueInsightsEnabled) ??
+        currentRevenueInsightsEnabled
+        : currentRevenueInsightsEnabled;
+
     if (!name) {
       return NextResponse.json(
         { error: "Business name cannot be empty" },
@@ -265,6 +278,8 @@ export async function PATCH(req: Request) {
           "onboarding.business.currency": currency,
           "onboarding.business.limitCustomerToOneUpcomingAppointment":
             requestedLimitCustomerToOneUpcomingAppointment,
+          "onboarding.business.revenueInsightsEnabled":
+            requestedRevenueInsightsEnabled,
           "onboarding.updatedAt": new Date(),
         },
       }

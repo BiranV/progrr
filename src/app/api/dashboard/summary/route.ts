@@ -146,6 +146,9 @@ export async function GET() {
 
         const onboarding = (owner as any)?.onboarding ?? {};
         const business = onboarding?.business ?? {};
+        const revenueInsightsEnabled = Boolean(
+            (business as any)?.revenueInsightsEnabled
+        );
         const currencyCodeRaw =
             String(business.currency ?? "").trim() ||
             String(onboarding.currency ?? "").trim() ||
@@ -197,7 +200,7 @@ export async function GET() {
             ),
         ]);
 
-        const [todayAppointmentsCount, upcomingAppointmentsCount, totalCustomersCount, revenueAgg] =
+        const [todayAppointmentsCount, upcomingAppointmentsCount, totalCustomersCount] =
             await Promise.all([
                 c.appointments.countDocuments({
                     businessUserId,
@@ -217,34 +220,44 @@ export async function GET() {
                     businessUserId,
                     isHidden: { $ne: true },
                 } as any),
-                c.appointments
-                    .aggregate([
-                        {
-                            $match: {
-                                businessUserId,
-                                status: "COMPLETED",
-                                paymentStatus: "PAID",
-                                date: todayStr,
-                            },
-                        },
-                        {
-                            $group: {
-                                _id: null,
-                                revenue: { $sum: "$price" },
-                                completedCount: { $sum: 1 },
-                            },
-                        },
-                    ])
-                    .toArray(),
             ]);
 
-        const revenueRow = Array.isArray(revenueAgg) ? (revenueAgg[0] as any) : null;
-        const revenueToday = Number.isFinite(Number(revenueRow?.revenue))
-            ? Number(revenueRow.revenue)
-            : 0;
-        const completedAppointmentsCount = Number.isFinite(Number(revenueRow?.completedCount))
-            ? Number(revenueRow.completedCount)
-            : 0;
+        let revenueToday = 0;
+        let completedAppointmentsCount = 0;
+
+        if (revenueInsightsEnabled) {
+            const revenueAgg = await c.appointments
+                .aggregate([
+                    {
+                        $match: {
+                            businessUserId,
+                            status: "COMPLETED",
+                            paymentStatus: "PAID",
+                            date: todayStr,
+                        },
+                    },
+                    {
+                        $group: {
+                            _id: null,
+                            revenue: { $sum: "$price" },
+                            completedCount: { $sum: 1 },
+                        },
+                    },
+                ])
+                .toArray();
+
+            const revenueRow = Array.isArray(revenueAgg)
+                ? (revenueAgg[0] as any)
+                : null;
+            revenueToday = Number.isFinite(Number(revenueRow?.revenue))
+                ? Number(revenueRow.revenue)
+                : 0;
+            completedAppointmentsCount = Number.isFinite(
+                Number(revenueRow?.completedCount)
+            )
+                ? Number(revenueRow.completedCount)
+                : 0;
+        }
 
         const availability = (owner as any)?.onboarding?.availability ?? {};
         const openNow = isOpenNowFromAvailability({ now, timeZone, availability });

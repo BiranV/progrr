@@ -74,6 +74,7 @@ export default function DashboardPage() {
   const greeting = useGreeting();
   const business = businessQuery.data;
   const businessLoading = businessQuery.isPending && !businessQuery.data;
+  const revenueInsightsEnabled = Boolean(business?.revenueInsightsEnabled);
   const [copyStatus, setCopyStatus] = React.useState<"idle" | "copied">("idle");
   const copyTimeoutRef = React.useRef<number | null>(null);
   const [origin, setOrigin] = React.useState("");
@@ -214,6 +215,7 @@ export default function DashboardPage() {
 
   const weekSeriesQuery = useQuery({
     queryKey: ["dashboardRevenueSeries", "week", weekOffset],
+    enabled: revenueInsightsEnabled,
     staleTime: 30 * 1000,
     placeholderData: (prev) => prev,
     queryFn: async (): Promise<RevenueSeriesResponse> => {
@@ -233,6 +235,7 @@ export default function DashboardPage() {
 
   const monthSeriesQuery = useQuery({
     queryKey: ["dashboardRevenueSeries", "month", monthOffset],
+    enabled: revenueInsightsEnabled,
     staleTime: 30 * 1000,
     placeholderData: (prev) => prev,
     queryFn: async (): Promise<RevenueSeriesResponse> => {
@@ -406,211 +409,217 @@ export default function DashboardPage() {
           </Card>
         </Link>
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-xs text-muted-foreground">
-              {t("dashboard.revenueToday")}
-            </div>
-            <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-              {summaryLoading ? (
-                <Skeleton className="h-7 w-20" />
-              ) : (
-                `${currencySymbol || ""}${revenueToday.toLocaleString(locale, {
-                  maximumFractionDigits: 2,
-                })}`
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        {revenueInsightsEnabled ? (
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">
+                {t("dashboard.revenueToday")}
+              </div>
+              <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
+                {summaryLoading ? (
+                  <Skeleton className="h-7 w-20" />
+                ) : (
+                  `${currencySymbol || ""}${revenueToday.toLocaleString(
+                    locale,
+                    {
+                      maximumFractionDigits: 2,
+                    },
+                  )}`
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
 
-      {/* 2) Revenue graphs */}
-      <div className="space-y-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between gap-2">
-              <CardTitle className="text-base">
-                {t("dashboard.revenueLast7Days")}
-              </CardTitle>
-              <div className="flex items-center gap-1">
-                {/* A11y: icon-only buttons need accessible names */}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-none !text-gray-900 hover:!text-gray-900 !bg-transparent hover:!bg-transparent disabled:opacity-40"
-                  onClick={() => setWeekOffset((v) => v - 1)}
-                  disabled={weekSeriesQuery.isFetching}
-                  aria-label={t("dashboard.previousWeek")}
-                >
-                  <ChevronLeft className="h-4 w-4 rtl:rotate-180" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-none !text-gray-900 hover:!text-gray-900 !bg-transparent hover:!bg-transparent disabled:opacity-40"
-                  onClick={() => setWeekOffset((v) => v + 1)}
-                  disabled={weekSeriesQuery.isFetching || weekOffset >= 0}
-                  title={
-                    weekOffset >= 0
-                      ? t("dashboard.nextWeekDisabled")
-                      : t("dashboard.nextWeek")
-                  }
-                  aria-label={
-                    weekOffset >= 0
-                      ? t("dashboard.nextWeekDisabled")
-                      : t("dashboard.nextWeek")
-                  }
-                >
-                  <ChevronRight className="h-4 w-4 rtl:rotate-180" />
-                </Button>
-              </div>
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {weekSeriesQuery.data ? (
-                <>
-                  {formatDateForDisplay(weekSeriesQuery.data.from)}{" "}
-                  <span
-                    className="inline-block rtl:-scale-x-100"
-                    aria-hidden="true"
+      {revenueInsightsEnabled ? (
+        <div className="space-y-3">
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-base">
+                  {t("dashboard.revenueLast7Days")}
+                </CardTitle>
+                <div className="flex items-center gap-1">
+                  {/* A11y: icon-only buttons need accessible names */}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-none !text-gray-900 hover:!text-gray-900 !bg-transparent hover:!bg-transparent disabled:opacity-40"
+                    onClick={() => setWeekOffset((v) => v - 1)}
+                    disabled={weekSeriesQuery.isFetching}
+                    aria-label={t("dashboard.previousWeek")}
                   >
-                    {rangeArrow}
-                  </span>{" "}
-                  {formatDateForDisplay(weekSeriesQuery.data.to)}
-                </>
-              ) : (
-                ""
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="pt-2">
-            {weekSeriesQuery.isError ? (
-              <div className="text-sm text-red-600 dark:text-red-400">
-                {t("dashboard.loadingFailed")}
+                    <ChevronLeft className="h-4 w-4 rtl:rotate-180" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-none !text-gray-900 hover:!text-gray-900 !bg-transparent hover:!bg-transparent disabled:opacity-40"
+                    onClick={() => setWeekOffset((v) => v + 1)}
+                    disabled={weekSeriesQuery.isFetching || weekOffset >= 0}
+                    title={
+                      weekOffset >= 0
+                        ? t("dashboard.nextWeekDisabled")
+                        : t("dashboard.nextWeek")
+                    }
+                    aria-label={
+                      weekOffset >= 0
+                        ? t("dashboard.nextWeekDisabled")
+                        : t("dashboard.nextWeek")
+                    }
+                  >
+                    <ChevronRight className="h-4 w-4 rtl:rotate-180" />
+                  </Button>
+                </div>
               </div>
-            ) : null}
+              <div className="text-xs text-muted-foreground">
+                {weekSeriesQuery.data ? (
+                  <>
+                    {formatDateForDisplay(weekSeriesQuery.data.from)}{" "}
+                    <span
+                      className="inline-block rtl:-scale-x-100"
+                      aria-hidden="true"
+                    >
+                      {rangeArrow}
+                    </span>{" "}
+                    {formatDateForDisplay(weekSeriesQuery.data.to)}
+                  </>
+                ) : (
+                  ""
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="pt-2">
+              {weekSeriesQuery.isError ? (
+                <div className="text-sm text-red-600 dark:text-red-400">
+                  {t("dashboard.loadingFailed")}
+                </div>
+              ) : null}
 
-            {weekLoading ? (
-              <Skeleton className="h-[200px] w-full" />
-            ) : (
-              <RevenueLineChart
-                points={weekSeriesQuery.data?.points ?? []}
-                currencySymbol={currencySymbol}
-              />
-            )}
-
-            <div className="mt-2 text-xs text-muted-foreground">
               {weekLoading ? (
-                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-[200px] w-full" />
               ) : (
-                <>
-                  {t("dashboard.total")}: {currencySymbol || ""}
-                  {(weekSeriesQuery.data?.totalRevenue ?? 0).toLocaleString(
-                    locale,
-                    {
-                      maximumFractionDigits: 2,
-                    },
-                  )}
-                </>
+                <RevenueLineChart
+                  points={weekSeriesQuery.data?.points ?? []}
+                  currencySymbol={currencySymbol}
+                />
               )}
-            </div>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between gap-2">
-              <CardTitle className="text-base">
-                {t("dashboard.revenueMonthly")}
-              </CardTitle>
-              <div className="flex items-center gap-1">
-                {/* A11y: icon-only buttons need accessible names */}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-none !text-gray-900 hover:!text-gray-900 !bg-transparent hover:!bg-transparent disabled:opacity-40"
-                  onClick={() => setMonthOffset((v) => v - 1)}
-                  disabled={monthSeriesQuery.isFetching}
-                  aria-label={t("dashboard.previousMonth")}
-                >
-                  <ChevronLeft className="h-4 w-4 rtl:rotate-180" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-none !text-gray-900 hover:!text-gray-900 !bg-transparent hover:!bg-transparent disabled:opacity-40"
-                  onClick={() => setMonthOffset((v) => v + 1)}
-                  disabled={monthSeriesQuery.isFetching || monthOffset >= 0}
-                  title={
-                    monthOffset >= 0
-                      ? t("dashboard.nextMonthDisabled")
-                      : t("dashboard.nextMonth")
-                  }
-                  aria-label={
-                    monthOffset >= 0
-                      ? t("dashboard.nextMonthDisabled")
-                      : t("dashboard.nextMonth")
-                  }
-                >
-                  <ChevronRight className="h-4 w-4 rtl:rotate-180" />
-                </Button>
+              <div className="mt-2 text-xs text-muted-foreground">
+                {weekLoading ? (
+                  <Skeleton className="h-4 w-24" />
+                ) : (
+                  <>
+                    {t("dashboard.total")}: {currencySymbol || ""}
+                    {(weekSeriesQuery.data?.totalRevenue ?? 0).toLocaleString(
+                      locale,
+                      {
+                        maximumFractionDigits: 2,
+                      },
+                    )}
+                  </>
+                )}
               </div>
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {monthSeriesQuery.data ? (
-                <>
-                  {formatDateForDisplay(monthSeriesQuery.data.from)}{" "}
-                  <span
-                    className="inline-block rtl:-scale-x-100"
-                    aria-hidden="true"
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-base">
+                  {t("dashboard.revenueMonthly")}
+                </CardTitle>
+                <div className="flex items-center gap-1">
+                  {/* A11y: icon-only buttons need accessible names */}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-none !text-gray-900 hover:!text-gray-900 !bg-transparent hover:!bg-transparent disabled:opacity-40"
+                    onClick={() => setMonthOffset((v) => v - 1)}
+                    disabled={monthSeriesQuery.isFetching}
+                    aria-label={t("dashboard.previousMonth")}
                   >
-                    {rangeArrow}
-                  </span>{" "}
-                  {formatDateForDisplay(monthSeriesQuery.data.to)}
-                </>
-              ) : (
-                ""
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="pt-2">
-            {monthSeriesQuery.isError ? (
-              <div className="text-sm text-red-600 dark:text-red-400">
-                {t("dashboard.loadingFailed")}
+                    <ChevronLeft className="h-4 w-4 rtl:rotate-180" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-none !text-gray-900 hover:!text-gray-900 !bg-transparent hover:!bg-transparent disabled:opacity-40"
+                    onClick={() => setMonthOffset((v) => v + 1)}
+                    disabled={monthSeriesQuery.isFetching || monthOffset >= 0}
+                    title={
+                      monthOffset >= 0
+                        ? t("dashboard.nextMonthDisabled")
+                        : t("dashboard.nextMonth")
+                    }
+                    aria-label={
+                      monthOffset >= 0
+                        ? t("dashboard.nextMonthDisabled")
+                        : t("dashboard.nextMonth")
+                    }
+                  >
+                    <ChevronRight className="h-4 w-4 rtl:rotate-180" />
+                  </Button>
+                </div>
               </div>
-            ) : null}
+              <div className="text-xs text-muted-foreground">
+                {monthSeriesQuery.data ? (
+                  <>
+                    {formatDateForDisplay(monthSeriesQuery.data.from)}{" "}
+                    <span
+                      className="inline-block rtl:-scale-x-100"
+                      aria-hidden="true"
+                    >
+                      {rangeArrow}
+                    </span>{" "}
+                    {formatDateForDisplay(monthSeriesQuery.data.to)}
+                  </>
+                ) : (
+                  ""
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="pt-2">
+              {monthSeriesQuery.isError ? (
+                <div className="text-sm text-red-600 dark:text-red-400">
+                  {t("dashboard.loadingFailed")}
+                </div>
+              ) : null}
 
-            {monthLoading ? (
-              <Skeleton className="h-[200px] w-full" />
-            ) : (
-              <RevenueLineChart
-                points={monthSeriesQuery.data?.points ?? []}
-                currencySymbol={currencySymbol}
-                xAxisMode="day"
-              />
-            )}
-
-            <div className="mt-2 text-xs text-muted-foreground">
               {monthLoading ? (
-                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-[200px] w-full" />
               ) : (
-                <>
-                  {t("dashboard.total")}: {currencySymbol || ""}
-                  {(monthSeriesQuery.data?.totalRevenue ?? 0).toLocaleString(
-                    locale,
-                    {
-                      maximumFractionDigits: 2,
-                    },
-                  )}
-                </>
+                <RevenueLineChart
+                  points={monthSeriesQuery.data?.points ?? []}
+                  currencySymbol={currencySymbol}
+                  xAxisMode="day"
+                />
               )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+
+              <div className="mt-2 text-xs text-muted-foreground">
+                {monthLoading ? (
+                  <Skeleton className="h-4 w-24" />
+                ) : (
+                  <>
+                    {t("dashboard.total")}: {currencySymbol || ""}
+                    {(monthSeriesQuery.data?.totalRevenue ?? 0).toLocaleString(
+                      locale,
+                      {
+                        maximumFractionDigits: 2,
+                      },
+                    )}
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
 
       {/* 2.5) Outstanding payments */}
       <Card>

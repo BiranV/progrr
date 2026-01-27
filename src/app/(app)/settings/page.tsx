@@ -435,6 +435,11 @@ export default function SettingsPage() {
               title={t("settings.branding")}
               description={t("settings.brandingDesc")}
             />
+            <SettingsLinkRow
+              href="/settings/insights"
+              title={t("settings.insights")}
+              description={t("settings.insightsDesc")}
+            />
           </div>
         </CardContent>
       </Card>

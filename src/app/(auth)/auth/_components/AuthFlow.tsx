@@ -117,106 +117,86 @@ export default function AuthFlow({
                   : "w-20 h-20 sm:w-20 sm:h-20"
               }`}
             >
-              <AnimatePresence initial={false}>
-                {showBranding ? (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="relative">
-                      <AnimatePresence initial={false}>
-                        <motion.div
-                          initial={{ opacity: 0, x: -16 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: -80 }}
-                          transition={{ ...brandingTransition, delay: 0.02 }}
-                          className="w-32 h-24 bg-gradient-to-br from-amber-300 to-amber-400 rounded-lg -rotate-6 shadow-lg"
-                        >
-                          <div className="absolute inset-2 bg-gradient-to-br from-blue-100 to-blue-200 rounded" />
-                        </motion.div>
-                      </AnimatePresence>
-
-                      <AnimatePresence initial={false}>
-                        <motion.div
-                          initial={{ opacity: 0, y: -16 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -80 }}
-                          transition={{ ...brandingTransition, delay: 0.04 }}
-                          className="absolute -top-20 left-8"
-                        >
-                          <div className="w-14 h-14 bg-gradient-to-br from-amber-200 to-amber-300 rounded-full" />
-                          <div className="absolute top-0 left-2 w-12 h-16 bg-gradient-to-b from-slate-800 to-slate-700 rounded-full -z-10" />
-                          <div className="absolute top-12 -left-2 w-20 h-16 bg-gradient-to-br from-teal-400 to-teal-500 rounded-t-3xl" />
-                        </motion.div>
-                      </AnimatePresence>
-
-                      <AnimatePresence initial={false}>
-                        <motion.div
-                          initial={{ opacity: 0, y: 16 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: 80 }}
-                          transition={{ ...brandingTransition, delay: 0.06 }}
-                          className="absolute -bottom-8 -left-6 flex flex-col gap-1"
-                        >
-                          <div className="w-16 h-4 bg-gradient-to-r from-rose-400 to-rose-500 rounded-sm -rotate-3" />
-                          <div className="w-[72px] h-4 bg-gradient-to-r from-amber-400 to-amber-500 rounded-sm rotate-1" />
-                          <div className="w-14 h-4 bg-gradient-to-r from-teal-400 to-teal-500 rounded-sm -rotate-2" />
-                        </motion.div>
-                      </AnimatePresence>
-
-                      <AnimatePresence initial={false}>
-                        <motion.div
-                          initial={{ opacity: 0, x: -16 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: -80 }}
-                          transition={{ ...brandingTransition, delay: 0.08 }}
-                          className="absolute -bottom-6 -left-16"
-                        >
-                          <div className="w-8 h-12 bg-gradient-to-t from-green-600 to-green-500 rounded-t-full" />
-                          <div className="absolute top-2 -left-2 w-6 h-8 bg-gradient-to-t from-green-500 to-green-400 rounded-full -rotate-45" />
-                        </motion.div>
-                      </AnimatePresence>
-                    </div>
-                  </div>
-                ) : null}
-              </AnimatePresence>
-
-              <AnimatePresence initial={false}>
-                {showBranding ? (
+              <div
+                className={`absolute inset-0 flex items-center justify-center ${
+                  isLanding ? "" : "pointer-events-none"
+                }`}
+              >
+                <div className="relative">
                   <motion.div
-                    initial={{ opacity: 0, x: 16 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 80 }}
-                    transition={{ ...brandingTransition, delay: 0.03 }}
-                    className="absolute top-4 right-4 w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm animate-bounce"
+                    initial={false}
+                    animate={
+                      isLanding
+                        ? { opacity: 1, x: 0, y: 0 }
+                        : { opacity: 0, x: 90, y: 0 }
+                    }
+                    transition={{ ...brandingTransition, delay: 0.02 }}
+                    className="w-32 h-24 bg-gradient-to-br from-amber-300 to-amber-400 rounded-lg -rotate-6 shadow-lg"
                   >
-                    <GraduationCap className="w-5 h-5 text-white" />
+                    <div className="absolute inset-2 bg-gradient-to-br from-blue-100 to-blue-200 rounded" />
                   </motion.div>
-                ) : null}
-              </AnimatePresence>
-              <AnimatePresence initial={false}>
-                {showBranding ? (
+
                   <motion.div
-                    initial={{ opacity: 0, x: 16 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 80 }}
-                    transition={{ ...brandingTransition, delay: 0.05 }}
-                    className="absolute bottom-8 right-8 w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm animate-pulse"
+                    initial={false}
+                    animate={
+                      isLanding
+                        ? { opacity: 1, x: 0, y: 0 }
+                        : { opacity: 0, x: 0, y: -90 }
+                    }
+                    transition={{ ...brandingTransition, delay: 0.04 }}
+                    className="absolute -top-20 left-8"
                   >
-                    <Scissors className="w-4 h-4 text-white" />
+                    <div className="w-14 h-14 bg-gradient-to-br from-amber-200 to-amber-300 rounded-full" />
+                    <div className="absolute top-0 left-2 w-12 h-16 bg-gradient-to-b from-slate-800 to-slate-700 rounded-full -z-10" />
+                    <div className="absolute top-12 -left-2 w-20 h-16 bg-gradient-to-br from-teal-400 to-teal-500 rounded-t-3xl" />
                   </motion.div>
-                ) : null}
-              </AnimatePresence>
-              <AnimatePresence initial={false}>
-                {showBranding ? (
+
                   <motion.div
-                    initial={{ opacity: 0, x: -16 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -80 }}
-                    transition={{ ...brandingTransition, delay: 0.05 }}
-                    className="absolute top-20 left-0 w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm"
+                    initial={false}
+                    animate={
+                      isLanding
+                        ? { opacity: 1, x: 0, y: 0 }
+                        : { opacity: 0, x: 0, y: 90 }
+                    }
+                    transition={{ ...brandingTransition, delay: 0.06 }}
+                    className="absolute -bottom-8 -left-6 flex flex-col gap-1"
                   >
-                    <BookOpen className="w-4 h-4 text-white" />
+                    <div className="w-16 h-4 bg-gradient-to-r from-rose-400 to-rose-500 rounded-sm -rotate-3" />
+                    <div className="w-[72px] h-4 bg-gradient-to-r from-amber-400 to-amber-500 rounded-sm rotate-1" />
+                    <div className="w-14 h-4 bg-gradient-to-r from-teal-400 to-teal-500 rounded-sm -rotate-2" />
                   </motion.div>
-                ) : null}
-              </AnimatePresence>
+
+                  <motion.div
+                    initial={false}
+                    animate={
+                      isLanding
+                        ? { opacity: 1, x: 0, y: 0 }
+                        : { opacity: 0, x: -90, y: 0 }
+                    }
+                    transition={{ ...brandingTransition, delay: 0.08 }}
+                    className="absolute -bottom-6 -left-16"
+                  >
+                    <div className="w-8 h-12 bg-gradient-to-t from-green-600 to-green-500 rounded-t-full" />
+                    <div className="absolute top-2 -left-2 w-6 h-8 bg-gradient-to-t from-green-500 to-green-400 rounded-full -rotate-45" />
+                  </motion.div>
+                </div>
+              </div>
+
+              {showBranding ? (
+                <div className="absolute top-4 right-4 w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                  <GraduationCap className="w-5 h-5 text-white" />
+                </div>
+              ) : null}
+              {showBranding ? (
+                <div className="absolute bottom-8 right-8 w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+                  <Scissors className="w-4 h-4 text-white" />
+                </div>
+              ) : null}
+              {showBranding ? (
+                <div className="absolute top-20 left-0 w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+                  <BookOpen className="w-4 h-4 text-white" />
+                </div>
+              ) : null}
             </div>
             <motion.div
               className={`text-center text-white ${

@@ -71,13 +71,17 @@ export default function AdminAuthStep({
   });
 
   // Login State
-  const [loginEmail, setLoginEmail] = useState(() => normalizeEmail(initialEmail));
+  const [loginEmail, setLoginEmail] = useState(() =>
+    normalizeEmail(initialEmail),
+  );
   const [loginCode, setLoginCode] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loginEmailTouched, setLoginEmailTouched] = useState(false);
   const [loginCodeTouched, setLoginCodeTouched] = useState(false);
   const [loginSubmitAttempted, setLoginSubmitAttempted] = useState(false);
   const [loginVerifyAttempted, setLoginVerifyAttempted] = useState(false);
+  const [loginResendCooldown, setLoginResendCooldown] = useState(0);
+  const [signupResendCooldown, setSignupResendCooldown] = useState(0);
 
   // Signup State
   const [signupName, setSignupName] = useState("");
@@ -102,7 +106,8 @@ export default function AdminAuthStep({
   const signupCodeRef = useRef<HTMLInputElement | null>(null);
 
   // UI State
-  const [loading, setLoading] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [verifyingCode, setVerifyingCode] = useState(false);
   const [globalError, setGlobalError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
@@ -147,7 +152,76 @@ export default function AdminAuthStep({
     onViewChange?.(view);
   }, [onViewChange, view]);
 
+  useEffect(() => {
+    if (loginResendCooldown <= 0 && signupResendCooldown <= 0) return;
+    const id = window.setInterval(() => {
+      setLoginResendCooldown((current) => (current > 0 ? current - 1 : 0));
+      setSignupResendCooldown((current) => (current > 0 ? current - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [loginResendCooldown, signupResendCooldown]);
+
   // --- Actions ---
+
+  const requestLoginCode = async (email: string, showVerifyView: boolean) => {
+    setSendingCode(true);
+    try {
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, flow: "login" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const errorKey = getAuthErrorKey(data?.error);
+        setGlobalError(t(errorKey));
+        return false;
+      }
+
+      setInfo(t("auth.codeSentToEmailShort"));
+      if (showVerifyView) setView("login-verify");
+      setLoginResendCooldown(30);
+      return true;
+    } catch (err: any) {
+      setGlobalError(t("errors.somethingWentWrong"));
+      return false;
+    } finally {
+      setSendingCode(false);
+    }
+  };
+
+  const requestSignupCode = async (email: string, showVerifyView: boolean) => {
+    setSendingCode(true);
+    try {
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, flow: "signup" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data?.error === "EMAIL_ALREADY_EXISTS") {
+        setGlobalError(null);
+        setInfo(null);
+        setView("existing-account");
+        return false;
+      }
+      if (!res.ok) {
+        const errorKey = getAuthErrorKey(data?.error);
+        setGlobalError(t(errorKey));
+        return false;
+      }
+
+      setInfo(t("auth.codeSentToEmailShort"));
+      if (showVerifyView) setView("signup-verify");
+      setSignupResendCooldown(30);
+      return true;
+    } catch (err: any) {
+      setGlobalError(t("errors.signupFailed"));
+      return false;
+    } finally {
+      setSendingCode(false);
+    }
+  };
 
   const sendLoginCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,27 +235,7 @@ export default function AdminAuthStep({
       return;
     }
 
-    setLoading(true);
-    try {
-      const res = await fetch("/api/auth/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, flow: "login" }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const errorKey = getAuthErrorKey(data?.error);
-        setGlobalError(t(errorKey));
-        return;
-      }
-
-      setInfo(t("auth.codeSentToEmailShort"));
-      setView("login-verify");
-    } catch (err: any) {
-      setGlobalError(t("errors.somethingWentWrong"));
-    } finally {
-      setLoading(false);
-    }
+    await requestLoginCode(email, true);
   };
 
   const verifyLoginCode = async (e: React.FormEvent) => {
@@ -194,7 +248,7 @@ export default function AdminAuthStep({
       return;
     }
 
-    setLoading(true);
+    setVerifyingCode(true);
     try {
       const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
@@ -228,7 +282,7 @@ export default function AdminAuthStep({
     } catch (err: any) {
       setGlobalError(t("errors.somethingWentWrong"));
     } finally {
-      setLoading(false);
+      setVerifyingCode(false);
     }
   };
 
@@ -261,33 +315,7 @@ export default function AdminAuthStep({
       return;
     }
 
-    setLoading(true);
-    try {
-      const res = await fetch("/api/auth/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, flow: "signup" }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 409 && data?.error === "EMAIL_ALREADY_EXISTS") {
-        setGlobalError(null);
-        setInfo(null);
-        setView("existing-account");
-        return;
-      }
-      if (!res.ok) {
-        const errorKey = getAuthErrorKey(data?.error);
-        setGlobalError(t(errorKey));
-        return;
-      }
-
-      setInfo(t("auth.codeSentToEmailShort"));
-      setView("signup-verify");
-    } catch (err: any) {
-      setGlobalError(t("errors.signupFailed"));
-    } finally {
-      setLoading(false);
-    }
+    await requestSignupCode(email, true);
   };
 
   const verifySignupCode = async (e: React.FormEvent) => {
@@ -300,7 +328,7 @@ export default function AdminAuthStep({
       return;
     }
 
-    setLoading(true);
+    setVerifyingCode(true);
     try {
       const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
@@ -341,7 +369,7 @@ export default function AdminAuthStep({
     } catch (err: any) {
       setGlobalError(t("errors.verificationFailed"));
     } finally {
-      setLoading(false);
+      setVerifyingCode(false);
     }
   };
 
@@ -421,7 +449,8 @@ export default function AdminAuthStep({
               <form onSubmit={sendLoginCode} className="space-y-6">
                 <div className="space-y-2">
                   <Label className="text-slate-600 ms-1">
-                    {t("auth.emailAddress")} <span className="text-rose-400">*</span>
+                    {t("auth.emailAddress")}{" "}
+                    <span className="text-rose-400">*</span>
                   </Label>
                   <Input
                     value={loginEmail}
@@ -438,8 +467,9 @@ export default function AdminAuthStep({
                       }
                     }}
                     ref={loginEmailRef}
-                    className={`h-14 bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${loginError ? inputErrorClass : "border-[#165CF0]"
-                      }`}
+                    className={`h-14 bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
+                      loginError ? inputErrorClass : "border-[#165CF0]"
+                    }`}
                     placeholder={t("auth.emailPlaceholder")}
                     autoFocus
                   />
@@ -448,17 +478,26 @@ export default function AdminAuthStep({
                   ) : null}
                 </div>
                 <Button
-                  disabled={loading}
+                  disabled={
+                    sendingCode || verifyingCode || loginResendCooldown > 0
+                  }
                   className="w-full h-14 bg-[#165CF0] text-white hover:bg-[#0E4FDB] rounded-xl text-lg font-medium shadow-md shadow-blue-500/20"
                 >
-                  {loading ? t("common.sending") : t("common.continue")}
+                  {sendingCode
+                    ? t("common.sending")
+                    : loginResendCooldown > 0
+                      ? t("auth.resendCodeIn", {
+                          seconds: loginResendCooldown,
+                        })
+                      : t("common.continue")}
                 </Button>
               </form>
             ) : (
               <form onSubmit={verifyLoginCode} className="space-y-6">
                 <div className="space-y-2">
                   <Label className="text-slate-600 ms-1">
-                    {t("auth.enterCode")} <span className="text-rose-400">*</span>
+                    {t("auth.enterCode")}{" "}
+                    <span className="text-rose-400">*</span>
                   </Label>
                   <OtpInput
                     id="otp-login"
@@ -471,25 +510,50 @@ export default function AdminAuthStep({
                       if (!loginCodeTouched) setLoginCodeTouched(true);
                     }}
                     length={6}
-                    disabled={loading}
+                    disabled={verifyingCode}
                     firstInputRef={loginCodeRef}
-                    inputClassName={`bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${loginCodeError ? inputErrorClass : "border-[#165CF0]"
-                      }`}
+                    inputClassName={`bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
+                      loginCodeError ? inputErrorClass : "border-[#165CF0]"
+                    }`}
                   />
                   <p className="text-xs text-slate-500 ms-1 pt-1">
                     {t("auth.codeSentToEmail", { email: loginEmail })}
                   </p>
-                  {(loginCodeTouched || loginVerifyAttempted) && loginCodeError ? (
-                    <p className="text-xs text-rose-500 ms-1">
-                      {loginCodeError}
-                    </p>
-                  ) : null}
+                  <div className="flex items-center justify-between gap-2">
+                    <div />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs text-slate-500 hover:text-slate-800"
+                      disabled={
+                        sendingCode || verifyingCode || loginResendCooldown > 0
+                      }
+                      onClick={async () => {
+                        resetError();
+                        const email = normalizeEmail(loginEmail);
+                        setLoginEmail(email);
+                        if (!isValidEmail(email)) {
+                          setLoginError(t("errors.invalidEmail"));
+                          loginEmailRef.current?.focus();
+                          return;
+                        }
+                        await requestLoginCode(email, false);
+                      }}
+                    >
+                      {loginResendCooldown > 0
+                        ? t("auth.resendCodeIn", {
+                            seconds: loginResendCooldown,
+                          })
+                        : t("auth.resendCode")}
+                    </Button>
+                  </div>
                 </div>
                 <Button
-                  disabled={loading}
+                  disabled={verifyingCode}
                   className="w-full h-14 bg-[#165CF0] text-white hover:bg-[#0E4FDB] rounded-xl text-lg font-medium shadow-md shadow-blue-500/20"
                 >
-                  {loading ? t("common.verifying") : t("auth.login")}
+                  {verifyingCode ? t("common.verifying") : t("auth.login")}
                 </Button>
               </form>
             )}
@@ -571,7 +635,8 @@ export default function AdminAuthStep({
               <form onSubmit={sendSignupCode} className="space-y-6">
                 <div className="space-y-2">
                   <Label className="text-slate-600 ms-1">
-                    {t("auth.fullName")} <span className="text-rose-400">*</span>
+                    {t("auth.fullName")}{" "}
+                    <span className="text-rose-400">*</span>
                   </Label>
                   <Input
                     value={signupName}
@@ -589,18 +654,23 @@ export default function AdminAuthStep({
                       }
                     }}
                     ref={signupNameRef}
-                    className={`h-14 bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${signupNameError ? inputErrorClass : "border-[#165CF0]"
-                      }`}
+                    className={`h-14 bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
+                      signupNameError ? inputErrorClass : "border-[#165CF0]"
+                    }`}
                     placeholder={t("auth.fullNamePlaceholder")}
                     autoFocus
                   />
-                  {(signupNameTouched || signupSubmitAttempted) && signupNameError ? (
-                    <p className="text-xs text-rose-500 ms-1">{signupNameError}</p>
+                  {(signupNameTouched || signupSubmitAttempted) &&
+                  signupNameError ? (
+                    <p className="text-xs text-rose-500 ms-1">
+                      {signupNameError}
+                    </p>
                   ) : null}
                 </div>
                 <div className="space-y-2">
                   <Label className="text-slate-600 ms-1">
-                    {t("auth.emailAddress")} <span className="text-rose-400">*</span>
+                    {t("auth.emailAddress")}{" "}
+                    <span className="text-rose-400">*</span>
                   </Label>
                   <Input
                     value={signupEmail}
@@ -618,26 +688,39 @@ export default function AdminAuthStep({
                       }
                     }}
                     ref={signupEmailRef}
-                    className={`h-14 bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${signupEmailError ? inputErrorClass : "border-[#165CF0]"
-                      }`}
+                    className={`h-14 bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl px-4 border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
+                      signupEmailError ? inputErrorClass : "border-[#165CF0]"
+                    }`}
                     placeholder={t("auth.emailPlaceholder")}
                   />
-                  {(signupEmailTouched || signupSubmitAttempted) && signupEmailError ? (
-                    <p className="text-xs text-rose-500 ms-1">{signupEmailError}</p>
+                  {(signupEmailTouched || signupSubmitAttempted) &&
+                  signupEmailError ? (
+                    <p className="text-xs text-rose-500 ms-1">
+                      {signupEmailError}
+                    </p>
                   ) : null}
                 </div>
                 <Button
-                  disabled={loading}
+                  disabled={
+                    sendingCode || verifyingCode || signupResendCooldown > 0
+                  }
                   className="w-full h-14 bg-[#165CF0] text-white hover:bg-[#0E4FDB] rounded-xl text-lg font-medium shadow-md shadow-blue-500/20"
                 >
-                  {loading ? t("common.sending") : t("common.continue")}
+                  {sendingCode
+                    ? t("common.sending")
+                    : signupResendCooldown > 0
+                      ? t("auth.resendCodeIn", {
+                          seconds: signupResendCooldown,
+                        })
+                      : t("common.continue")}
                 </Button>
               </form>
             ) : (
               <form onSubmit={verifySignupCode} className="space-y-6">
                 <div className="space-y-2">
                   <Label className="text-slate-600 ms-1">
-                    {t("auth.enterCode")} <span className="text-rose-400">*</span>
+                    {t("auth.enterCode")}{" "}
+                    <span className="text-rose-400">*</span>
                   </Label>
                   <OtpInput
                     id="otp-signup"
@@ -650,25 +733,52 @@ export default function AdminAuthStep({
                       if (!signupCodeTouched) setSignupCodeTouched(true);
                     }}
                     length={6}
-                    disabled={loading}
+                    disabled={verifyingCode}
                     firstInputRef={signupCodeRef}
-                    inputClassName={`bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${signupCodeError ? inputErrorClass : "border-[#165CF0]"
-                      }`}
+                    inputClassName={`bg-gray-50 text-slate-900 placeholder:text-slate-400 rounded-xl border-2 focus-visible:ring-2 focus-visible:ring-[#165CF0]/30 focus-visible:border-[#165CF0] ${
+                      signupCodeError ? inputErrorClass : "border-[#165CF0]"
+                    }`}
                   />
                   <p className="text-xs text-slate-500 ms-1 pt-1">
                     {t("auth.codeSentToEmail", { email: signupEmail })}
                   </p>
-                  {(signupCodeTouched || signupVerifyAttempted) && signupCodeError ? (
-                    <p className="text-xs text-rose-500 ms-1">
-                      {signupCodeError}
-                    </p>
-                  ) : null}
+                  <div className="flex items-center justify-between gap-2">
+                    <div />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs text-slate-500 hover:text-slate-800"
+                      disabled={
+                        sendingCode || verifyingCode || signupResendCooldown > 0
+                      }
+                      onClick={async () => {
+                        resetError();
+                        const email = normalizeEmail(signupEmail);
+                        setSignupEmail(email);
+                        if (!isValidEmail(email)) {
+                          setSignupEmailError(t("errors.invalidEmail"));
+                          signupEmailRef.current?.focus();
+                          return;
+                        }
+                        await requestSignupCode(email, false);
+                      }}
+                    >
+                      {signupResendCooldown > 0
+                        ? t("auth.resendCodeIn", {
+                            seconds: signupResendCooldown,
+                          })
+                        : t("auth.resendCode")}
+                    </Button>
+                  </div>
                 </div>
                 <Button
-                  disabled={loading}
+                  disabled={verifyingCode}
                   className="w-full h-14 bg-[#165CF0] text-white hover:bg-[#0E4FDB] rounded-xl text-lg font-medium shadow-md shadow-blue-500/20"
                 >
-                  {loading ? t("common.verifying") : t("auth.createAccount")}
+                  {verifyingCode
+                    ? t("common.verifying")
+                    : t("auth.createAccount")}
                 </Button>
               </form>
             )}
