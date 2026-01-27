@@ -1555,7 +1555,8 @@ export default function CalendarClient() {
                       {customersPickerQuery.isPending
                         ? t("calendar.customersLoading")
                         : selectedCustomerForPicker
-                          ? `${selectedCustomerForPicker.fullName || t("calendar.noName")} • ${formatPhoneNumber(selectedCustomerForPicker.phone, language) || selectedCustomerForPicker.phone}`
+                          ? selectedCustomerForPicker.fullName ||
+                            t("calendar.noName")
                           : customersForPicker.length
                             ? t("calendar.customerChoose")
                             : t("calendar.customerNone")}
@@ -1616,11 +1617,10 @@ export default function CalendarClient() {
                                   {c.fullName || t("calendar.noName")}
                                 </div>
                                 <div className="text-xs text-muted-foreground">
-                                  <PhoneLink
-                                    phone={c.phone}
-                                    className="text-xs"
-                                    stopPropagation
-                                  />
+                                  <span dir="ltr">
+                                    {formatPhoneNumber(c.phone, language) ||
+                                      c.phone}
+                                  </span>
                                   {c.status === "BLOCKED"
                                     ? ` • ${t("calendar.customerBlocked")}`
                                     : !c.fullName.trim() || !c.phone.trim()
