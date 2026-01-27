@@ -78,8 +78,12 @@ export default function DashboardPage() {
   const copyTimeoutRef = React.useRef<number | null>(null);
   const [origin, setOrigin] = React.useState("");
   const rangeArrow = "→";
-  const [outstandingNotice, setOutstandingNotice] = React.useState<string | null>(null);
-  const [outstandingUpdatingId, setOutstandingUpdatingId] = React.useState<string | null>(null);
+  const [outstandingNotice, setOutstandingNotice] = React.useState<
+    string | null
+  >(null);
+  const [outstandingUpdatingId, setOutstandingUpdatingId] = React.useState<
+    string | null
+  >(null);
 
   const formatDateForDisplay = React.useCallback((date: string) => {
     const match = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(String(date ?? ""));
@@ -134,7 +138,7 @@ export default function DashboardPage() {
       if (copyTimeoutRef.current) window.clearTimeout(copyTimeoutRef.current);
       copyTimeoutRef.current = window.setTimeout(
         () => setCopyStatus("idle"),
-        1200
+        1200,
       );
     } catch {
       toast.error("Failed to copy");
@@ -163,8 +167,7 @@ export default function DashboardPage() {
         | null;
 
       if (!res.ok || !json || (json as any).ok !== true) {
-        const msg =
-          (json as any)?.error || "Failed to load dashboard summary";
+        const msg = (json as any)?.error || "Failed to load dashboard summary";
         throw new Error(msg);
       }
 
@@ -176,7 +179,8 @@ export default function DashboardPage() {
   React.useEffect(() => {
     if (!summaryQuery.isError) return;
     const msg =
-      (summaryQuery.error as any)?.message || "Failed to load dashboard summary";
+      (summaryQuery.error as any)?.message ||
+      "Failed to load dashboard summary";
     if (msg && msg !== lastToastRef.current) {
       lastToastRef.current = msg;
       toast.error(msg);
@@ -215,9 +219,9 @@ export default function DashboardPage() {
     queryFn: async (): Promise<RevenueSeriesResponse> => {
       const res = await fetch(
         `/api/dashboard/revenue-series?period=week&offset=${encodeURIComponent(
-          String(weekOffset)
+          String(weekOffset),
         )}`,
-        { method: "GET", headers: { Accept: "application/json" } }
+        { method: "GET", headers: { Accept: "application/json" } },
       );
       const json = (await res.json().catch(() => null)) as any;
       if (!res.ok || !json || json.ok !== true) {
@@ -234,9 +238,9 @@ export default function DashboardPage() {
     queryFn: async (): Promise<RevenueSeriesResponse> => {
       const res = await fetch(
         `/api/dashboard/revenue-series?period=month&offset=${encodeURIComponent(
-          String(monthOffset)
+          String(monthOffset),
         )}`,
-        { method: "GET", headers: { Accept: "application/json" } }
+        { method: "GET", headers: { Accept: "application/json" } },
       );
       const json = (await res.json().catch(() => null)) as any;
       if (!res.ok || !json || json.ok !== true) {
@@ -278,12 +282,12 @@ export default function DashboardPage() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ paymentStatus: "PAID" }),
-          }
+          },
         );
         const json = await res.json().catch(() => null);
         if (!res.ok) {
           throw new Error(
-            json?.error || t("errors.requestFailed", { status: res.status })
+            json?.error || t("errors.requestFailed", { status: res.status }),
           );
         }
 
@@ -296,7 +300,7 @@ export default function DashboardPage() {
             const nextItems = prev.items.filter((x) => x.id !== item.id);
             const nextTotal = Math.max(
               0,
-              Number(prev.totalAmount || 0) - Number(item.price || 0)
+              Number(prev.totalAmount || 0) - Number(item.price || 0),
             );
             return {
               ...prev,
@@ -304,7 +308,7 @@ export default function DashboardPage() {
               count: nextItems.length,
               totalAmount: nextTotal,
             };
-          }
+          },
         );
 
         await queryClient.invalidateQueries({ queryKey: ["dashboardSummary"] });
@@ -317,7 +321,7 @@ export default function DashboardPage() {
         setOutstandingUpdatingId(null);
       }
     },
-    [outstandingUpdatingId, queryClient, t]
+    [outstandingUpdatingId, queryClient, t],
   );
 
   const weekLoading = weekSeriesQuery.isPending && !weekSeriesQuery.data;
@@ -360,22 +364,24 @@ export default function DashboardPage() {
                 >
                   {isOpenNow ? t("dashboard.open") : t("dashboard.closed")}
                 </Badge>
-                {isTrial ? (
-                  <Badge
-                    className={
-                      "border backdrop-blur-sm " +
-                      (isTrialEndingSoon
-                        ? "bg-rose-50/80 text-rose-700 border-rose-200/70"
-                        : "bg-gray-100/80 text-gray-700 border-gray-200/70 dark:bg-gray-800/60 dark:text-gray-200 dark:border-gray-700/60")
-                    }
-                  >
-                    {t("subscription.trialBadge", { days: trialDaysLeft })}
-                  </Badge>
-                ) : null}
               </div>
             ) : null}
           </Link>
         </div>
+        {isTrial ? (
+          <div className="flex justify-center">
+            <Badge
+              className={
+                "border backdrop-blur-sm " +
+                (isTrialEndingSoon
+                  ? "bg-rose-50/80 text-rose-700 border-rose-200/70"
+                  : "bg-gray-100/80 text-gray-700 border-gray-200/70 dark:bg-gray-800/60 dark:text-gray-200 dark:border-gray-700/60")
+              }
+            >
+              {t("subscription.trialBadge", { days: trialDaysLeft })}
+            </Badge>
+          </div>
+        ) : null}
       </div>
 
       {/* 1) Overview Cards */}
@@ -390,7 +396,11 @@ export default function DashboardPage() {
                 {t("dashboard.remainingToday")}
               </div>
               <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-white">
-                {summaryLoading ? <Skeleton className="h-7 w-14" /> : upcomingCount}
+                {summaryLoading ? (
+                  <Skeleton className="h-7 w-14" />
+                ) : (
+                  upcomingCount
+                )}
               </div>
             </CardContent>
           </Card>
@@ -442,8 +452,16 @@ export default function DashboardPage() {
                   className="h-8 w-8 rounded-none !text-gray-900 hover:!text-gray-900 !bg-transparent hover:!bg-transparent disabled:opacity-40"
                   onClick={() => setWeekOffset((v) => v + 1)}
                   disabled={weekSeriesQuery.isFetching || weekOffset >= 0}
-                  title={weekOffset >= 0 ? t("dashboard.nextWeekDisabled") : t("dashboard.nextWeek")}
-                  aria-label={weekOffset >= 0 ? t("dashboard.nextWeekDisabled") : t("dashboard.nextWeek")}
+                  title={
+                    weekOffset >= 0
+                      ? t("dashboard.nextWeekDisabled")
+                      : t("dashboard.nextWeek")
+                  }
+                  aria-label={
+                    weekOffset >= 0
+                      ? t("dashboard.nextWeekDisabled")
+                      : t("dashboard.nextWeek")
+                  }
                 >
                   <ChevronRight className="h-4 w-4 rtl:rotate-180" />
                 </Button>
@@ -453,7 +471,10 @@ export default function DashboardPage() {
               {weekSeriesQuery.data ? (
                 <>
                   {formatDateForDisplay(weekSeriesQuery.data.from)}{" "}
-                  <span className="inline-block rtl:-scale-x-100" aria-hidden="true">
+                  <span
+                    className="inline-block rtl:-scale-x-100"
+                    aria-hidden="true"
+                  >
                     {rangeArrow}
                   </span>{" "}
                   {formatDateForDisplay(weekSeriesQuery.data.to)}
@@ -485,9 +506,12 @@ export default function DashboardPage() {
               ) : (
                 <>
                   {t("dashboard.total")}: {currencySymbol || ""}
-                  {(weekSeriesQuery.data?.totalRevenue ?? 0).toLocaleString(locale, {
-                    maximumFractionDigits: 2,
-                  })}
+                  {(weekSeriesQuery.data?.totalRevenue ?? 0).toLocaleString(
+                    locale,
+                    {
+                      maximumFractionDigits: 2,
+                    },
+                  )}
                 </>
               )}
             </div>
@@ -520,8 +544,16 @@ export default function DashboardPage() {
                   className="h-8 w-8 rounded-none !text-gray-900 hover:!text-gray-900 !bg-transparent hover:!bg-transparent disabled:opacity-40"
                   onClick={() => setMonthOffset((v) => v + 1)}
                   disabled={monthSeriesQuery.isFetching || monthOffset >= 0}
-                  title={monthOffset >= 0 ? t("dashboard.nextMonthDisabled") : t("dashboard.nextMonth")}
-                  aria-label={monthOffset >= 0 ? t("dashboard.nextMonthDisabled") : t("dashboard.nextMonth")}
+                  title={
+                    monthOffset >= 0
+                      ? t("dashboard.nextMonthDisabled")
+                      : t("dashboard.nextMonth")
+                  }
+                  aria-label={
+                    monthOffset >= 0
+                      ? t("dashboard.nextMonthDisabled")
+                      : t("dashboard.nextMonth")
+                  }
                 >
                   <ChevronRight className="h-4 w-4 rtl:rotate-180" />
                 </Button>
@@ -531,7 +563,10 @@ export default function DashboardPage() {
               {monthSeriesQuery.data ? (
                 <>
                   {formatDateForDisplay(monthSeriesQuery.data.from)}{" "}
-                  <span className="inline-block rtl:-scale-x-100" aria-hidden="true">
+                  <span
+                    className="inline-block rtl:-scale-x-100"
+                    aria-hidden="true"
+                  >
                     {rangeArrow}
                   </span>{" "}
                   {formatDateForDisplay(monthSeriesQuery.data.to)}
@@ -564,9 +599,12 @@ export default function DashboardPage() {
               ) : (
                 <>
                   {t("dashboard.total")}: {currencySymbol || ""}
-                  {(monthSeriesQuery.data?.totalRevenue ?? 0).toLocaleString(locale, {
-                    maximumFractionDigits: 2,
-                  })}
+                  {(monthSeriesQuery.data?.totalRevenue ?? 0).toLocaleString(
+                    locale,
+                    {
+                      maximumFractionDigits: 2,
+                    },
+                  )}
                 </>
               )}
             </div>
@@ -616,13 +654,19 @@ export default function DashboardPage() {
             <div className="space-y-3">
               <div className="text-xs text-muted-foreground">
                 {t("dashboard.outstandingOpenTotal")} {currencySymbol || ""}
-                {(outstandingQuery.data?.totalAmount ?? 0).toLocaleString(locale, {
-                  maximumFractionDigits: 2,
-                })}
+                {(outstandingQuery.data?.totalAmount ?? 0).toLocaleString(
+                  locale,
+                  {
+                    maximumFractionDigits: 2,
+                  },
+                )}
               </div>
               <div className="divide-y divide-gray-200 dark:divide-gray-800 rounded-xl border border-gray-200 dark:border-gray-800">
                 {outstandingQuery.data?.items?.map((item) => (
-                  <div key={item.id} className="p-3 flex items-center justify-between gap-3">
+                  <div
+                    key={item.id}
+                    className="p-3 flex items-center justify-between gap-3"
+                  >
                     <div className="min-w-0">
                       <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
                         {item.customerName || t("dashboard.outstandingUnnamed")}
@@ -684,7 +728,11 @@ export default function DashboardPage() {
           {businessLoading ? (
             <Skeleton className="h-10 w-full" />
           ) : (
-            <Input readOnly value={bookingLink} placeholder={t("common.loading")} />
+            <Input
+              readOnly
+              value={bookingLink}
+              placeholder={t("common.loading")}
+            />
           )}
           <div className="flex justify-end gap-2">
             <Button
