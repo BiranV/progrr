@@ -10,28 +10,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 
 import { useBusiness } from "@/hooks/useBusiness";
-import { ONBOARDING_QUERY_KEY, useOnboardingSettings } from "@/hooks/useOnboardingSettings";
+import {
+  ONBOARDING_QUERY_KEY,
+  useOnboardingSettings,
+} from "@/hooks/useOnboardingSettings";
 import { useI18n } from "@/i18n/useI18n";
 
 type Service = {
-    id: string;
-    name: string;
-    durationMinutes: number;
-    price: number;
-    description: string;
-    isActive: boolean;
+  id: string;
+  name: string;
+  durationMinutes: number;
+  price: number;
+  description: string;
+  isActive: boolean;
 };
 
 const CURRENCIES: Array<{ code: string; symbol: string; label: string }> = [
-    { code: "ILS", symbol: "₪", label: "ILS (₪)" },
+  { code: "ILS", symbol: "₪", label: "ILS (₪)" },
 ];
 
 const UI_CURRENCIES = CURRENCIES.filter((c) => c.code === "ILS");
@@ -39,593 +42,638 @@ const UI_CURRENCIES = CURRENCIES.filter((c) => c.code === "ILS");
 const ALLOWED_CURRENCY_CODES = new Set(["ILS"]);
 
 function normalizeCurrency(v: unknown): string {
-    const code = String(v ?? "")
-        .trim()
-        .toUpperCase();
-    if (code === "NIS") return "ILS";
-    if (!ALLOWED_CURRENCY_CODES.has(code)) return "ILS";
-    return code;
+  const code = String(v ?? "")
+    .trim()
+    .toUpperCase();
+  if (code === "NIS") return "ILS";
+  if (!ALLOWED_CURRENCY_CODES.has(code)) return "ILS";
+  return code;
 }
 
 function currencySymbol(code: string): string {
-    const normalized = normalizeCurrency(code);
-    return CURRENCIES.find((c) => c.code === normalized)?.symbol ?? "₪";
+  const normalized = normalizeCurrency(code);
+  return CURRENCIES.find((c) => c.code === normalized)?.symbol ?? "₪";
 }
 
 function newId() {
-    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-        return crypto.randomUUID();
-    }
-    return Math.random().toString(36).slice(2) + Date.now().toString(36);
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
 function asNumber(v: unknown): number | null {
-    const n = typeof v === "number" ? v : Number(v);
-    if (!Number.isFinite(n)) return null;
-    return n;
+  const n = typeof v === "number" ? v : Number(v);
+  if (!Number.isFinite(n)) return null;
+  return n;
 }
 
 function normalizeServices(raw: unknown): Service[] {
-    if (!Array.isArray(raw)) return [];
+  if (!Array.isArray(raw)) return [];
 
-    return raw.map((s: any) => {
-        const id = typeof s?.id === "string" && s.id.trim() ? s.id.trim() : newId();
-        const name = typeof s?.name === "string" ? s.name : "";
-        const duration = asNumber(s?.durationMinutes);
-        const price = asNumber(s?.price);
-        const description = typeof s?.description === "string" ? s.description : "";
-        const isActive = typeof s?.isActive === "boolean" ? s.isActive : true;
+  return raw.map((s: any) => {
+    const id = typeof s?.id === "string" && s.id.trim() ? s.id.trim() : newId();
+    const name = typeof s?.name === "string" ? s.name : "";
+    const duration = asNumber(s?.durationMinutes);
+    const price = asNumber(s?.price);
+    const description = typeof s?.description === "string" ? s.description : "";
+    const isActive = typeof s?.isActive === "boolean" ? s.isActive : true;
 
-        return {
-            id,
-            name,
-            durationMinutes: duration && duration > 0 ? Math.round(duration) : 30,
-            price: price !== null && price >= 0 ? price : 0,
-            description,
-            isActive,
-        };
-    });
+    return {
+      id,
+      name,
+      durationMinutes: duration && duration > 0 ? Math.round(duration) : 30,
+      price: price !== null && price >= 0 ? price : 0,
+      description,
+      isActive,
+    };
+  });
 }
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-    const res = await fetch(path, {
-        credentials: "include",
-        headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
-        ...init,
-    });
+  const res = await fetch(path, {
+    credentials: "include",
+    headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
+    ...init,
+  });
 
-    if (!res.ok) {
-        let message = `Request failed (${res.status})`;
-        let body: any = null;
-        try {
-            body = await res.json();
-            if (body?.message) message = body.message;
-            else if (body?.error) message = body.error;
-        } catch {
-            // ignore
-        }
-        const err: any = new Error(message);
-        err.status = res.status;
-        if (body) {
-            err.code = body.code || body.error;
-            err.reason = body.reason;
-        }
-        throw err;
+  if (!res.ok) {
+    let message = `Request failed (${res.status})`;
+    let body: any = null;
+    try {
+      body = await res.json();
+      if (body?.message) message = body.message;
+      else if (body?.error) message = body.error;
+    } catch {
+      // ignore
     }
+    const err: any = new Error(message);
+    err.status = res.status;
+    if (body) {
+      err.code = body.code || body.error;
+      err.reason = body.reason;
+    }
+    throw err;
+  }
 
-    return (await res.json()) as T;
+  return (await res.json()) as T;
 }
 
 export default function ServicesSettingsPage() {
-    const [isSaving, setIsSaving] = React.useState(false);
-    const queryClient = useQueryClient();
-    const { t } = useI18n();
+  const [isSaving, setIsSaving] = React.useState(false);
+  const queryClient = useQueryClient();
+  const { t } = useI18n();
 
-    const {
-        data: business,
-        isPending: isPendingBusiness,
-        dataUpdatedAt: businessUpdatedAt,
-        refetch: refetchBusiness,
-        isError: isBusinessError,
-        error: businessError,
-    } = useBusiness();
+  const {
+    data: business,
+    isPending: isPendingBusiness,
+    dataUpdatedAt: businessUpdatedAt,
+    refetch: refetchBusiness,
+    isError: isBusinessError,
+    error: businessError,
+  } = useBusiness();
 
-    const {
-        data: onboardingRes,
-        isPending: isPendingOnboarding,
-        dataUpdatedAt: onboardingUpdatedAt,
-        refetch: refetchOnboarding,
-        isError: isOnboardingError,
-        error: onboardingError,
-    } = useOnboardingSettings();
+  const {
+    data: onboardingRes,
+    isPending: isPendingOnboarding,
+    dataUpdatedAt: onboardingUpdatedAt,
+    refetch: refetchOnboarding,
+    isError: isOnboardingError,
+    error: onboardingError,
+  } = useOnboardingSettings();
 
-    const [services, setServices] = React.useState<Service[]>([]);
-    const initialRef = React.useRef<string | null>(null);
-    const initialCurrencyRef = React.useRef<string>("ILS");
+  const [services, setServices] = React.useState<Service[]>([]);
+  const initialRef = React.useRef<string | null>(null);
+  const initialCurrencyRef = React.useRef<string>("ILS");
 
-    const [currencyCode, setCurrencyCode] = React.useState<string>("ILS");
+  const [currencyCode, setCurrencyCode] = React.useState<string>("ILS");
 
-    const [globalErrorKey, setGlobalErrorKey] = React.useState<string | null>(null);
-    const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
+  const [globalErrorKey, setGlobalErrorKey] = React.useState<string | null>(
+    null,
+  );
+  const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>(
+    {},
+  );
 
-    const stableStringifyServices = React.useCallback((list: Service[]) => {
-        return (list || []).map((s) => ({
-            id: String(s.id ?? ""),
+  const stableStringifyServices = React.useCallback((list: Service[]) => {
+    return (list || []).map((s) => ({
+      id: String(s.id ?? ""),
+      name: String(s.name ?? "").trim(),
+      durationMinutes: Number(s.durationMinutes),
+      price: Number(s.price),
+      description: String(s.description ?? "").trim(),
+      isActive: Boolean(s.isActive),
+    }));
+  }, []);
+
+  const stableStringifyState = React.useCallback(
+    (list: Service[], currency: string) => {
+      return JSON.stringify({
+        currency: normalizeCurrency(currency),
+        services: stableStringifyServices(list),
+      });
+    },
+    [stableStringifyServices],
+  );
+
+  const isFirstLoad =
+    !initialRef.current &&
+    (isPendingBusiness || isPendingOnboarding) &&
+    !business &&
+    !onboardingRes;
+
+  const isDirty = React.useMemo(() => {
+    if (!initialRef.current) return false;
+    return stableStringifyState(services, currencyCode) !== initialRef.current;
+  }, [services, currencyCode, stableStringifyState]);
+
+  React.useEffect(() => {
+    if (isBusinessError) {
+      toast.error(
+        (businessError as any)?.message ||
+          t("services.errors.failedToLoadBusiness"),
+      );
+    }
+  }, [isBusinessError, businessError, t]);
+
+  React.useEffect(() => {
+    if (isOnboardingError) {
+      toast.error(
+        (onboardingError as any)?.message || t("services.errors.failedToLoad"),
+      );
+    }
+  }, [isOnboardingError, onboardingError, t]);
+
+  React.useEffect(() => {
+    if (!onboardingRes) return;
+
+    const nextServices = normalizeServices(
+      (onboardingRes as any)?.onboarding?.services,
+    );
+
+    // First hydrate, and background refresh only when user isn't editing.
+    const nextCurrency = "ILS";
+    if (!initialRef.current) {
+      setServices(nextServices);
+      initialCurrencyRef.current = nextCurrency;
+      setCurrencyCode(nextCurrency);
+      initialRef.current = stableStringifyState(nextServices, nextCurrency);
+      return;
+    }
+
+    if (!isDirty && !isSaving) {
+      setServices(nextServices);
+      initialCurrencyRef.current = nextCurrency;
+      setCurrencyCode(nextCurrency);
+      initialRef.current = stableStringifyState(nextServices, nextCurrency);
+    }
+  }, [onboardingRes, business, isDirty, isSaving, stableStringifyState]);
+
+  React.useEffect(() => {
+    if (!business) return;
+    if (Date.now() - businessUpdatedAt < 2 * 60 * 1000) return;
+    refetchBusiness();
+  }, [business, businessUpdatedAt, refetchBusiness]);
+
+  React.useEffect(() => {
+    if (!onboardingRes) return;
+    if (Date.now() - onboardingUpdatedAt < 2 * 60 * 1000) return;
+    refetchOnboarding();
+  }, [onboardingRes, onboardingUpdatedAt, refetchOnboarding]);
+
+  const activeServices = React.useMemo(
+    () => services.filter((s) => s.isActive !== false),
+    [services],
+  );
+  const inactiveServices = React.useMemo(
+    () => services.filter((s) => s.isActive === false),
+    [services],
+  );
+
+  const hasAnyActiveService = activeServices.length > 0;
+  const currencyChanged =
+    normalizeCurrency(currencyCode) !==
+    normalizeCurrency(initialCurrencyRef.current);
+
+  const persistServices = async (nextServices: Service[]) => {
+    const payload = {
+      services: nextServices.map((s) => ({
+        id: s.id,
+        name: String(s.name ?? "").trim(),
+        durationMinutes: Number(s.durationMinutes),
+        price: Number(s.price),
+        description: String(s.description ?? "").trim(),
+        isActive: Boolean(s.isActive),
+      })),
+    };
+
+    await apiFetch("/api/onboarding", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  };
+
+  const persistCurrency = async (nextCurrency: string) => {
+    await apiFetch("/api/business", {
+      method: "PATCH",
+      body: JSON.stringify({ currency: normalizeCurrency(nextCurrency) }),
+    });
+  };
+
+  const validateAll = (nextServices: Service[]) => {
+    const nextFieldErrors: Record<string, string> = {};
+    const nextActive = nextServices.filter((s) => s.isActive !== false);
+
+    if (nextActive.length === 0) {
+      setGlobalErrorKey("onboarding.errors.atLeastOneService");
+      setFieldErrors({});
+      return false;
+    }
+
+    for (const s of nextActive) {
+      const name = String(s.name ?? "").trim();
+      if (!name)
+        nextFieldErrors[`serviceName_${s.id}`] = t(
+          "onboarding.errors.serviceNameRequired",
+        );
+
+      const duration = Number(s.durationMinutes);
+      if (!Number.isFinite(duration) || duration < 10)
+        nextFieldErrors[`serviceDuration_${s.id}`] = t(
+          "services.errors.durationMin",
+          { min: 10 },
+        );
+
+      const price = Number(s.price);
+      if (!Number.isFinite(price) || price < 0)
+        nextFieldErrors[`servicePrice_${s.id}`] = t("services.errors.priceMin");
+    }
+
+    setGlobalErrorKey(null);
+    setFieldErrors(nextFieldErrors);
+    return Object.keys(nextFieldErrors).length === 0;
+  };
+
+  const updateService = (id: string, patch: Partial<Service>) => {
+    setServices((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, ...patch } : s)),
+    );
+    setGlobalErrorKey(null);
+  };
+
+  const addService = () => {
+    setServices((prev) => [
+      ...prev,
+      {
+        id: newId(),
+        name: "",
+        durationMinutes: 30,
+        price: 0,
+        description: "",
+        isActive: true,
+      },
+    ]);
+    setGlobalErrorKey(null);
+  };
+
+  const deactivateService = (id: string) => {
+    updateService(id, { isActive: false });
+  };
+
+  const restoreService = (id: string) => {
+    updateService(id, { isActive: true });
+  };
+
+  const deleteServicePermanently = (id: string) => {
+    setServices((prev) => prev.filter((s) => s.id !== id));
+    setGlobalErrorKey(null);
+    setFieldErrors((prev) => {
+      const next: Record<string, string> = {};
+      for (const [k, v] of Object.entries(prev)) {
+        if (!k.endsWith(`_${id}`)) next[k] = v;
+      }
+      return next;
+    });
+  };
+
+  const onSave = async () => {
+    const next = [...services];
+    if (!validateAll(next)) return;
+
+    setIsSaving(true);
+    try {
+      if (currencyChanged) {
+        await persistCurrency(currencyCode);
+      }
+      await persistServices(next);
+
+      setServices(next);
+      initialCurrencyRef.current = normalizeCurrency(currencyCode);
+      initialRef.current = stableStringifyState(next, currencyCode);
+
+      // Keep React Query caches in sync so other settings pages render instantly.
+      queryClient.setQueryData(["business"], (prev: any) => ({
+        ...(prev || {}),
+        currency: normalizeCurrency(currencyCode),
+      }));
+      queryClient.setQueryData(ONBOARDING_QUERY_KEY, (prev: any) => ({
+        ...(prev || {}),
+        onboarding: {
+          ...((prev as any)?.onboarding || {}),
+          services: next.map((s) => ({
+            id: s.id,
             name: String(s.name ?? "").trim(),
             durationMinutes: Number(s.durationMinutes),
             price: Number(s.price),
             description: String(s.description ?? "").trim(),
             isActive: Boolean(s.isActive),
-        }));
-    }, []);
-
-    const stableStringifyState = React.useCallback(
-        (list: Service[], currency: string) => {
-            return JSON.stringify({
-                currency: normalizeCurrency(currency),
-                services: stableStringifyServices(list),
-            });
+          })),
         },
-        [stableStringifyServices]
-    );
+      }));
 
-    const isFirstLoad =
-        (!initialRef.current && (isPendingBusiness || isPendingOnboarding) && !business && !onboardingRes);
-
-    const isDirty = React.useMemo(() => {
-        if (!initialRef.current) return false;
-        return stableStringifyState(services, currencyCode) !== initialRef.current;
-    }, [services, currencyCode, stableStringifyState]);
-
-    React.useEffect(() => {
-        if (isBusinessError) {
-            toast.error((businessError as any)?.message || t("services.errors.failedToLoadBusiness"));
+      toast.success(t("services.toastSaved"));
+    } catch (e: any) {
+      if (e?.status === 409) {
+        if (String(e?.code || "") === "SERVICE_HAS_FUTURE_APPOINTMENTS") {
+          const reason = String(e?.reason || "").toLowerCase();
+          const key =
+            reason === "price"
+              ? "services.errors.priceHasAppointments"
+              : "services.errors.durationHasAppointments";
+          setGlobalErrorKey(key);
+        } else {
+          setGlobalErrorKey("errors.failedToSave");
         }
-    }, [isBusinessError, businessError, t]);
-
-    React.useEffect(() => {
-        if (isOnboardingError) {
-            toast.error((onboardingError as any)?.message || t("services.errors.failedToLoad"));
-        }
-    }, [isOnboardingError, onboardingError, t]);
-
-    React.useEffect(() => {
-        if (!onboardingRes) return;
-
-        const nextServices = normalizeServices((onboardingRes as any)?.onboarding?.services);
-
-        // First hydrate, and background refresh only when user isn't editing.
-        const nextCurrency = "ILS";
-        if (!initialRef.current) {
-            setServices(nextServices);
-            initialCurrencyRef.current = nextCurrency;
-            setCurrencyCode(nextCurrency);
-            initialRef.current = stableStringifyState(nextServices, nextCurrency);
-            return;
-        }
-
-        if (!isDirty && !isSaving) {
-            setServices(nextServices);
-            initialCurrencyRef.current = nextCurrency;
-            setCurrencyCode(nextCurrency);
-            initialRef.current = stableStringifyState(nextServices, nextCurrency);
-        }
-    }, [onboardingRes, business, isDirty, isSaving, stableStringifyState]);
-
-    React.useEffect(() => {
-        if (!business) return;
-        if (Date.now() - businessUpdatedAt < 2 * 60 * 1000) return;
-        refetchBusiness();
-    }, [business, businessUpdatedAt, refetchBusiness]);
-
-    React.useEffect(() => {
-        if (!onboardingRes) return;
-        if (Date.now() - onboardingUpdatedAt < 2 * 60 * 1000) return;
-        refetchOnboarding();
-    }, [onboardingRes, onboardingUpdatedAt, refetchOnboarding]);
-
-    const activeServices = React.useMemo(() => services.filter((s) => s.isActive !== false), [services]);
-    const inactiveServices = React.useMemo(() => services.filter((s) => s.isActive === false), [services]);
-
-    const hasAnyActiveService = activeServices.length > 0;
-    const currencyChanged =
-        normalizeCurrency(currencyCode) !== normalizeCurrency(initialCurrencyRef.current);
-
-    const persistServices = async (nextServices: Service[]) => {
-        const payload = {
-            services: nextServices.map((s) => ({
-                id: s.id,
-                name: String(s.name ?? "").trim(),
-                durationMinutes: Number(s.durationMinutes),
-                price: Number(s.price),
-                description: String(s.description ?? "").trim(),
-                isActive: Boolean(s.isActive),
-            })),
-        };
-
-        await apiFetch("/api/onboarding", {
-            method: "PATCH",
-            body: JSON.stringify(payload),
-        });
-    };
-
-    const persistCurrency = async (nextCurrency: string) => {
-        await apiFetch("/api/business", {
-            method: "PATCH",
-            body: JSON.stringify({ currency: normalizeCurrency(nextCurrency) }),
-        });
-    };
-
-    const validateAll = (nextServices: Service[]) => {
-        const nextFieldErrors: Record<string, string> = {};
-        const nextActive = nextServices.filter((s) => s.isActive !== false);
-
-        if (nextActive.length === 0) {
-            setGlobalErrorKey("onboarding.errors.atLeastOneService");
-            setFieldErrors({});
-            return false;
-        }
-
-        for (const s of nextActive) {
-            const name = String(s.name ?? "").trim();
-            if (!name) nextFieldErrors[`serviceName_${s.id}`] = t("onboarding.errors.serviceNameRequired");
-
-            const duration = Number(s.durationMinutes);
-            if (!Number.isFinite(duration) || duration < 10)
-                nextFieldErrors[`serviceDuration_${s.id}`] = t("services.errors.durationMin", { min: 10 });
-
-            const price = Number(s.price);
-            if (!Number.isFinite(price) || price < 0)
-                nextFieldErrors[`servicePrice_${s.id}`] = t("services.errors.priceMin");
-        }
-
-        setGlobalErrorKey(null);
-        setFieldErrors(nextFieldErrors);
-        return Object.keys(nextFieldErrors).length === 0;
-    };
-
-    const updateService = (id: string, patch: Partial<Service>) => {
-        setServices((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
-        setGlobalErrorKey(null);
-    };
-
-    const addService = () => {
-        setServices((prev) => [
-            ...prev,
-            {
-                id: newId(),
-                name: "",
-                durationMinutes: 30,
-                price: 0,
-                description: "",
-                isActive: true,
-            },
-        ]);
-        setGlobalErrorKey(null);
-    };
-
-    const deactivateService = (id: string) => {
-        updateService(id, { isActive: false });
-    };
-
-    const restoreService = (id: string) => {
-        updateService(id, { isActive: true });
-    };
-
-    const deleteServicePermanently = (id: string) => {
-        setServices((prev) => prev.filter((s) => s.id !== id));
-        setGlobalErrorKey(null);
-        setFieldErrors((prev) => {
-            const next: Record<string, string> = {};
-            for (const [k, v] of Object.entries(prev)) {
-                if (!k.endsWith(`_${id}`)) next[k] = v;
-            }
-            return next;
-        });
-    };
-
-    const onSave = async () => {
-        const next = [...services];
-        if (!validateAll(next)) return;
-
-        setIsSaving(true);
-        try {
-            if (currencyChanged) {
-                await persistCurrency(currencyCode);
-            }
-            await persistServices(next);
-
-            setServices(next);
-            initialCurrencyRef.current = normalizeCurrency(currencyCode);
-            initialRef.current = stableStringifyState(next, currencyCode);
-
-            // Keep React Query caches in sync so other settings pages render instantly.
-            queryClient.setQueryData(["business"], (prev: any) => ({
-                ...(prev || {}),
-                currency: normalizeCurrency(currencyCode),
-            }));
-            queryClient.setQueryData(ONBOARDING_QUERY_KEY, (prev: any) => ({
-                ...(prev || {}),
-                onboarding: {
-                    ...((prev as any)?.onboarding || {}),
-                    services: next.map((s) => ({
-                        id: s.id,
-                        name: String(s.name ?? "").trim(),
-                        durationMinutes: Number(s.durationMinutes),
-                        price: Number(s.price),
-                        description: String(s.description ?? "").trim(),
-                        isActive: Boolean(s.isActive),
-                    })),
-                },
-            }));
-
-            toast.success(t("services.toastSaved"));
-        } catch (e: any) {
-            if (e?.status === 409) {
-                if (String(e?.code || "") === "SERVICE_HAS_FUTURE_APPOINTMENTS") {
-                    const reason = String(e?.reason || "").toLowerCase();
-                    const key = reason === "price"
-                        ? "services.errors.priceHasAppointments"
-                        : "services.errors.durationHasAppointments";
-                    setGlobalErrorKey(key);
-                } else {
-                    setGlobalErrorKey("errors.failedToSave");
-                }
-                return;
-            }
-            toast.error(e?.message || t("errors.failedToSave"));
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    if (isFirstLoad) {
-        return <CenteredSpinner fullPage />;
+        return;
+      }
+      toast.error(e?.message || t("errors.failedToSave"));
+    } finally {
+      setIsSaving(false);
     }
+  };
 
-    return (
-        <div className="w-full max-w-md mx-auto space-y-4">
-            <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                    {t("services.title")}
-                </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                    {t("services.subtitle")}
-                </p>
+  if (isFirstLoad) {
+    return <CenteredSpinner fullPage />;
+  }
+
+  return (
+    <div className="w-full max-w-md mx-auto space-y-4">
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+          {t("services.title")}
+        </h2>
+        <p className="text-sm text-gray-600 dark:text-gray-300">
+          {t("services.subtitle")}
+        </p>
+      </div>
+
+      {globalErrorKey ? (
+        <div className="rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-3 py-2 text-sm text-red-700 dark:text-red-200">
+          {t(globalErrorKey)}
+        </div>
+      ) : null}
+
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label>{t("services.currency")}</Label>
+          <Select
+            value={normalizeCurrency(currencyCode)}
+            onValueChange={(v) => {
+              setCurrencyCode(v);
+            }}
+            disabled={isFirstLoad || isSaving}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={t("services.selectCurrency")} />
+            </SelectTrigger>
+            <SelectContent>
+              {UI_CURRENCIES.map((c) => (
+                <SelectItem key={c.code} value={c.code}>
+                  {c.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="text-xs text-gray-600 dark:text-gray-300">
+            {t("services.currencyHelp")}
+          </div>
+        </div>
+
+        {currencyChanged && hasAnyActiveService ? (
+          <div className="text-sm text-amber-700 dark:text-amber-300 rounded-md border border-amber-200 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-950/20 px-3 py-2">
+            {t("services.currencyWarning")}
+          </div>
+        ) : null}
+
+        <p className="px-1 text-xs text-gray-500 dark:text-gray-400">
+          {t("services.priceNote")}
+        </p>
+        <div className="flex items-center gap-2 px-1">
+          <Label className="flex-1">{t("services.serviceName")}</Label>
+          <Label className="w-[70px] shrink-0 text-center">
+            {t("services.time")}
+          </Label>
+          <Label className="w-[70px] shrink-0 text-center">
+            {t("services.priceWithSymbol", {
+              symbol: currencySymbol(currencyCode),
+            })}
+          </Label>
+          <div className="w-8 shrink-0"></div>
+        </div>
+
+        <div className="space-y-3">
+          {activeServices.length === 0 ? (
+            <div className="text-sm text-gray-600 dark:text-gray-300 px-1">
+              {t("services.noActiveServices")}
             </div>
-
-            {globalErrorKey ? (
-                <div className="rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 px-3 py-2 text-sm text-red-700 dark:text-red-200">
-                    {t(globalErrorKey)}
+          ) : null}
+          {activeServices.map((s) => (
+            <div key={s.id}>
+              <div className="flex items-start gap-2">
+                <div className="flex-1 min-w-0">
+                  <Input
+                    className={
+                      fieldErrors[`serviceName_${s.id}`]
+                        ? "border-rose-500 focus-visible:ring-rose-500"
+                        : ""
+                    }
+                    value={s.name}
+                    onChange={(e) => {
+                      const nextName = e.target.value;
+                      setServices((prev) =>
+                        prev.map((x) =>
+                          x.id === s.id ? { ...x, name: nextName } : x,
+                        ),
+                      );
+                      setGlobalErrorKey(null);
+                    }}
+                    placeholder={t("services.servicePlaceholder")}
+                    disabled={isSaving}
+                  />
                 </div>
-            ) : null}
 
-            <div className="space-y-4">
-                <div className="space-y-2">
-                    <Label>{t("services.currency")}</Label>
-                    <Select
-                        value={normalizeCurrency(currencyCode)}
-                        onValueChange={(v) => {
-                            setCurrencyCode(v);
-                        }}
-                        disabled={isFirstLoad || isSaving}
-                    >
-                        <SelectTrigger>
-                            <SelectValue placeholder={t("services.selectCurrency")} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {UI_CURRENCIES.map((c) => (
-                                <SelectItem key={c.code} value={c.code}>
-                                    {c.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    <div className="text-xs text-gray-600 dark:text-gray-300">
-                        {t("services.currencyHelp")}
+                <div className="w-[70px] shrink-0">
+                  <Input
+                    type="number"
+                    min={10}
+                    className={`px-2 text-center ${
+                      fieldErrors[`serviceDuration_${s.id}`]
+                        ? "border-rose-500 focus-visible:ring-rose-500"
+                        : ""
+                    }`}
+                    value={s.durationMinutes}
+                    onChange={(e) => {
+                      const nextDuration = Number(e.target.value || 0);
+                      setServices((prev) =>
+                        prev.map((x) =>
+                          x.id === s.id
+                            ? { ...x, durationMinutes: nextDuration }
+                            : x,
+                        ),
+                      );
+                      setGlobalErrorKey(null);
+                    }}
+                    disabled={isSaving}
+                  />
+                </div>
+
+                <div className="w-[70px] shrink-0">
+                  <Input
+                    className={`px-2 text-center ${
+                      fieldErrors[`servicePrice_${s.id}`]
+                        ? "border-rose-500 focus-visible:ring-rose-500"
+                        : ""
+                    }`}
+                    type="number"
+                    min={0}
+                    value={typeof s.price === "number" ? s.price : ""}
+                    onChange={(e) => {
+                      const nextPrice =
+                        e.target.value === "" ? 0 : Number(e.target.value);
+                      setServices((prev) =>
+                        prev.map((x) =>
+                          x.id === s.id ? { ...x, price: nextPrice } : x,
+                        ),
+                      );
+                      setGlobalErrorKey(null);
+                    }}
+                    placeholder={currencySymbol(currencyCode)}
+                    disabled={isSaving}
+                  />
+                </div>
+
+                <div className="w-8 shrink-0 flex pt-1 justify-center">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="h-8 w-8 !text-gray-900 dark:!text-white"
+                    disabled={isSaving || activeServices.length <= 1}
+                    aria-label={t("services.removeService")}
+                    onClick={() => deactivateService(s.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {(fieldErrors[`serviceName_${s.id}`] ||
+                fieldErrors[`serviceDuration_${s.id}`] ||
+                fieldErrors[`servicePrice_${s.id}`]) && (
+                <div className="text-xs text-rose-500 mt-1 px-1">
+                  {fieldErrors[`serviceName_${s.id}`] ||
+                    fieldErrors[`serviceDuration_${s.id}`] ||
+                    fieldErrors[`servicePrice_${s.id}`]}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div>
+          <Button
+            type="button"
+            variant="outline"
+            className="bg-transparent"
+            onClick={addService}
+            disabled={isFirstLoad || isSaving}
+          >
+            {t("services.addService")}
+          </Button>
+        </div>
+
+        {inactiveServices.length ? (
+          <div className="space-y-2">
+            <div className="text-sm font-semibold text-gray-900 dark:text-white">
+              {t("services.inactiveServices")}
+            </div>
+            <div className="space-y-2">
+              {inactiveServices.map((s) => (
+                <div
+                  key={s.id}
+                  className="rounded-md border border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-950/20 px-3 py-2"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                        {String(s.name || "").trim() || "—"}
+                      </div>
+                      <div className="text-xs text-gray-600 dark:text-gray-300">
+                        {t("services.durationLabel", {
+                          minutes: Number.isFinite(s.durationMinutes)
+                            ? s.durationMinutes
+                            : "—",
+                        })}
+                      </div>
                     </div>
-                </div>
-
-                {currencyChanged && hasAnyActiveService ? (
-                    <div className="text-sm text-amber-700 dark:text-amber-300 rounded-md border border-amber-200 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-950/20 px-3 py-2">
-                        {t("services.currencyWarning")}
-                    </div>
-                ) : null}
-
-                <div className="flex items-center gap-2 px-1">
-                    <Label className="flex-1">{t("services.serviceName")}</Label>
-                    <Label className="w-[70px] shrink-0 text-center">{t("services.time")}</Label>
-                    <Label className="w-[70px] shrink-0 text-center">
-                        {t("services.priceWithSymbol", { symbol: currencySymbol(currencyCode) })}
-                    </Label>
-                    <div className="w-8 shrink-0"></div>
-                </div>
-                <p className="px-1 text-xs text-gray-500 dark:text-gray-400">
-                    {t("services.priceNote")}
-                </p>
-
-                <div className="space-y-3">
-                    {activeServices.length === 0 ? (
-                        <div className="text-sm text-gray-600 dark:text-gray-300 px-1">
-                            {t("services.noActiveServices")}
-                        </div>
-                    ) : null}
-                    {activeServices.map((s) => (
-                        <div key={s.id}>
-                            <div className="flex items-start gap-2">
-                                <div className="flex-1 min-w-0">
-                                    <Input
-                                        className={
-                                            fieldErrors[`serviceName_${s.id}`]
-                                                ? "border-rose-500 focus-visible:ring-rose-500"
-                                                : ""
-                                        }
-                                        value={s.name}
-                                        onChange={(e) => {
-                                            const nextName = e.target.value;
-                                            setServices((prev) =>
-                                                prev.map((x) =>
-                                                    x.id === s.id ? { ...x, name: nextName } : x
-                                                )
-                                            );
-                                            setGlobalErrorKey(null);
-                                        }}
-                                        placeholder={t("services.servicePlaceholder")}
-                                        disabled={isSaving}
-                                    />
-                                </div>
-
-                                <div className="w-[70px] shrink-0">
-                                    <Input
-                                        type="number"
-                                        min={10}
-                                        className={`px-2 text-center ${fieldErrors[`serviceDuration_${s.id}`]
-                                            ? "border-rose-500 focus-visible:ring-rose-500"
-                                            : ""
-                                            }`}
-                                        value={s.durationMinutes}
-                                        onChange={(e) => {
-                                            const nextDuration = Number(e.target.value || 0);
-                                            setServices((prev) =>
-                                                prev.map((x) =>
-                                                    x.id === s.id
-                                                        ? { ...x, durationMinutes: nextDuration }
-                                                        : x
-                                                )
-                                            );
-                                            setGlobalErrorKey(null);
-                                        }}
-                                        disabled={isSaving}
-                                    />
-                                </div>
-
-                                <div className="w-[70px] shrink-0">
-                                    <Input
-                                        className={`px-2 text-center ${fieldErrors[`servicePrice_${s.id}`]
-                                            ? "border-rose-500 focus-visible:ring-rose-500"
-                                            : ""
-                                            }`}
-                                        type="number"
-                                        min={0}
-                                        value={typeof s.price === "number" ? s.price : ""}
-                                        onChange={(e) => {
-                                            const nextPrice = e.target.value === "" ? 0 : Number(e.target.value);
-                                            setServices((prev) =>
-                                                prev.map((x) =>
-                                                    x.id === s.id ? { ...x, price: nextPrice } : x
-                                                )
-                                            );
-                                            setGlobalErrorKey(null);
-                                        }}
-                                        placeholder={currencySymbol(currencyCode)}
-                                        disabled={isSaving}
-                                    />
-                                </div>
-
-                                <div className="w-8 shrink-0 flex pt-1 justify-center">
-                                    <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="icon-sm"
-                                        className="h-8 w-8 text-gray-400"
-                                        disabled={isSaving || activeServices.length <= 1}
-                                        aria-label={t("services.removeService")}
-                                        onClick={() => deactivateService(s.id)}
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </div>
-
-                            {(fieldErrors[`serviceName_${s.id}`] ||
-                                fieldErrors[`serviceDuration_${s.id}`] ||
-                                fieldErrors[`servicePrice_${s.id}`]) && (
-                                    <div className="text-xs text-rose-500 mt-1 px-1">
-                                        {fieldErrors[`serviceName_${s.id}`] ||
-                                            fieldErrors[`serviceDuration_${s.id}`] ||
-                                            fieldErrors[`servicePrice_${s.id}`]}
-                                    </div>
-                                )}
-                        </div>
-                    ))}
-                </div>
-
-                <div>
-                    <Button
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
                         type="button"
                         variant="outline"
-                        onClick={addService}
-                        disabled={isFirstLoad || isSaving}
-                    >
-                        {t("services.addService")}
-                    </Button>
-                </div>
-
-                {inactiveServices.length ? (
-                    <div className="space-y-2">
-                        <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                            {t("services.inactiveServices")}
-                        </div>
-                        <div className="space-y-2">
-                            {inactiveServices.map((s) => (
-                                <div
-                                    key={s.id}
-                                    className="rounded-md border border-gray-200 dark:border-gray-800 bg-white/50 dark:bg-gray-950/20 px-3 py-2"
-                                >
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div className="min-w-0">
-                                            <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                                                {String(s.name || "").trim() || "—"}
-                                            </div>
-                                            <div className="text-xs text-gray-600 dark:text-gray-300">
-                                                {t("services.durationLabel", {
-                                                    minutes: Number.isFinite(s.durationMinutes) ? s.durationMinutes : "—",
-                                                })}
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-2 shrink-0">
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => restoreService(s.id)}
-                                                disabled={isSaving}
-                                            >
-                                                {t("services.restoreService")}
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => deleteServicePermanently(s.id)}
-                                                disabled={isSaving}
-                                                aria-label={t("services.deleteServicePermanently")}
-                                            >
-                                                {t("services.deleteService")}
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                ) : null}
-
-                <div className="pt-2">
-                    <Button
+                        size="sm"
+                        onClick={() => restoreService(s.id)}
+                        disabled={isSaving}
+                      >
+                        {t("services.restoreService")}
+                      </Button>
+                      <Button
                         type="button"
-                        className="w-full"
-                        onClick={onSave}
-                        disabled={!isDirty || isFirstLoad || isSaving || !initialRef.current}
-                    >
-                        {isSaving ? (
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : (
-                            t("services.saveChanges")
-                        )}
-                    </Button>
+                        variant="outline"
+                        size="sm"
+                        onClick={() => deleteServicePermanently(s.id)}
+                        disabled={isSaving}
+                        aria-label={t("services.deleteServicePermanently")}
+                      >
+                        {t("services.deleteService")}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
+              ))}
             </div>
+          </div>
+        ) : null}
+
+        <div className="pt-2">
+          <Button
+            type="button"
+            className="w-full"
+            onClick={onSave}
+            disabled={
+              !isDirty || isFirstLoad || isSaving || !initialRef.current
+            }
+          >
+            {isSaving ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              t("services.saveChanges")
+            )}
+          </Button>
         </div>
-    );
+      </div>
+    </div>
+  );
 }
