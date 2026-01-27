@@ -1027,6 +1027,7 @@ const en = {
       "Prices are displayed in this currency. Changing currency will not convert existing numeric prices.",
     currencyWarning:
       "Changing currency will not convert existing service prices (numbers stay the same, symbol changes only).",
+    otherCurrency: "Other",
     currencyNameLabel: "Currency name",
     currencyNamePlaceholder: "e.g. Israeli shekel",
     currencySymbolLabel: "Currency symbol",

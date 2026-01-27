@@ -999,6 +999,7 @@ const he = {
     currencyHelp: "המחירים מוצגים במטבע זה. שינוי מטבע לא ימיר מחירים קיימים.",
     currencyWarning:
       "שינוי מטבע לא ימיר מחירים קיימים (המספרים נשארים זהים, הסמל משתנה בלבד).",
+    otherCurrency: "אחר",
     currencyNameLabel: "שם המטבע",
     currencyNamePlaceholder: "לדוגמה: שקל ישראלי",
     currencySymbolLabel: "סמל המטבע",
