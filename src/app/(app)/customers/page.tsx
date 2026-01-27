@@ -831,6 +831,11 @@ export default function CustomersPage() {
                   }}
                   emptyMessage={t("customers.drawer.emptyAppointments")}
                   columns={appointmentColumns}
+                  footerClassName={
+                    dir === "rtl"
+                      ? "flex-row-reverse [&>div:last-child]:flex-row-reverse"
+                      : undefined
+                  }
                   pagination={
                     appointmentsPagination
                       ? {
