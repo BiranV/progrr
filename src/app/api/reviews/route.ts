@@ -8,13 +8,28 @@ function isValidObjectId(id: string): boolean {
   return ObjectId.isValid(id);
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const user = await requireAppUser();
     await ensureIndexes();
 
+    const url = new URL(req.url);
+    const pageRaw = Number(url.searchParams.get("page") ?? "1");
+    const limitRaw = Number(url.searchParams.get("limit") ?? "10");
+    const page = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : 1;
+    const limit =
+      Number.isFinite(limitRaw) && limitRaw > 0
+        ? Math.min(50, Math.round(limitRaw))
+        : 10;
+    const skip = (page - 1) * limit;
+
     const c = await collections();
     const businessUserId = new ObjectId(user.id);
+
+    const total = await c.appointments.countDocuments({
+      businessUserId,
+      reviewSubmitted: true,
+    } as any);
 
     const reviews = await c.appointments
       .find(
@@ -38,11 +53,18 @@ export async function GET() {
         },
       )
       .sort({ reviewSubmittedAt: -1, createdAt: -1 })
-      .limit(200)
+      .skip(skip)
+      .limit(limit)
       .toArray();
+
+    const totalPages = Math.max(1, Math.ceil(total / limit));
 
     return NextResponse.json({
       ok: true,
+      page,
+      pageSize: limit,
+      total,
+      totalPages,
       reviews: reviews.map((review: any) => ({
         id: String(review._id),
         serviceName: String(review.serviceName ?? "").trim(),

@@ -41,6 +41,7 @@ type DashboardSummary = {
     averageRating: number;
     totalReviews: number;
   };
+  reviewRequestsEnabled?: boolean;
 };
 
 type RevenueSeriesResponse = {
@@ -202,6 +203,7 @@ export default function DashboardPage() {
   const currencySymbol = String(summary?.currency?.symbol ?? "").trim();
   const averageRating = summary?.reviewSummary?.averageRating ?? 0;
   const totalReviews = summary?.reviewSummary?.totalReviews ?? 0;
+  const reviewSummaryEnabled = summary?.reviewRequestsEnabled !== false;
 
   const subscriptionStatus = user?.business?.subscriptionStatus ?? "trial";
   const trialTimeZone =
@@ -443,32 +445,39 @@ export default function DashboardPage() {
           </Card>
         ) : null}
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-xs text-muted-foreground">
-              {t("dashboard.reviewsAverage")}
-            </div>
-            <div className="mt-1 flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
-              {summaryLoading ? (
-                <Skeleton className="h-7 w-20" />
-              ) : totalReviews > 0 ? (
-                <>
-                  <span>{averageRating.toFixed(1)}</span>
-                  <Star className="h-5 w-5 text-yellow-500" fill="currentColor" />
-                </>
-              ) : (
-                <span className="text-base text-gray-500 dark:text-gray-400">
-                  {t("dashboard.reviewsEmpty")}
-                </span>
-              )}
-            </div>
-            {!summaryLoading && totalReviews > 0 ? (
-              <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                {t("dashboard.reviewsCount", { count: totalReviews })}
+        {reviewSummaryEnabled ? (
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">
+                {t("dashboard.reviewsAverage")}
               </div>
-            ) : null}
-          </CardContent>
-        </Card>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
+                  {summaryLoading ? (
+                    <Skeleton className="h-7 w-20" />
+                  ) : totalReviews > 0 ? (
+                    <>
+                      <span>{averageRating.toFixed(1)}</span>
+                      <Star
+                        className="h-5 w-5 text-yellow-500"
+                        fill="currentColor"
+                      />
+                    </>
+                  ) : (
+                    <span className="text-base text-gray-500 dark:text-gray-400">
+                      {t("dashboard.reviewsEmpty")}
+                    </span>
+                  )}
+                </div>
+                {!summaryLoading && totalReviews > 0 ? (
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {t("dashboard.reviewsCount", { count: totalReviews })}
+                  </div>
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
 
       {revenueInsightsEnabled ? (

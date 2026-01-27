@@ -1150,7 +1150,7 @@ const en = {
       "Automatic Progrr review requests sent after completed appointments.",
     toggleTitle: "Automatic review requests",
     toggleDescription:
-      "Requests are sent automatically after appointments are completed.",
+      "When enabled, Progrr emails customers a review link after an appointment is marked completed (and paid if required).",
     toggleOn: "ON",
     toggleOff: "OFF",
     settingsTitle: "Review settings",
@@ -1163,6 +1163,7 @@ const en = {
     delayHelp: "Default is 15 minutes.",
     listTitle: "Submitted reviews",
     listEmpty: "No reviews submitted yet.",
+    paginationSummary: "Page {{page}} of {{total}}",
     deleteAction: "Remove",
     deleteConfirmTitle: "Remove review?",
     deleteConfirmDescription:

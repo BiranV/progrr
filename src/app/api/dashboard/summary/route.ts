@@ -159,6 +159,10 @@ export async function GET() {
     const revenueInsightsEnabled = Boolean(
       (business as any)?.revenueInsightsEnabled,
     );
+    const reviewRequestsEnabled =
+      typeof (business as any)?.reviewRequestsEnabled === "boolean"
+        ? Boolean((business as any)?.reviewRequestsEnabled)
+        : true;
     const currencyCodeRaw =
       String(business.currency ?? "").trim() ||
       String(onboarding.currency ?? "").trim() ||
@@ -240,24 +244,26 @@ export async function GET() {
         businessUserId,
         isHidden: { $ne: true },
       } as any),
-      c.appointments
-        .aggregate([
-          {
-            $match: {
-              businessUserId,
-              reviewSubmitted: true,
-              reviewRating: { $type: "number" },
-            },
-          },
-          {
-            $group: {
-              _id: null,
-              averageRating: { $avg: "$reviewRating" },
-              totalReviews: { $sum: 1 },
-            },
-          },
-        ])
-        .toArray(),
+      reviewRequestsEnabled
+        ? c.appointments
+            .aggregate([
+              {
+                $match: {
+                  businessUserId,
+                  reviewSubmitted: true,
+                  reviewRating: { $type: "number" },
+                },
+              },
+              {
+                $group: {
+                  _id: null,
+                  averageRating: { $avg: "$reviewRating" },
+                  totalReviews: { $sum: 1 },
+                },
+              },
+            ])
+            .toArray()
+        : Promise.resolve([]),
     ]);
 
     let revenueToday = 0;
@@ -323,11 +329,16 @@ export async function GET() {
         label: openNow ? "Open" : "Closed",
         timeZone,
       },
+      reviewRequestsEnabled,
       reviewSummary: {
-        averageRating: Number.isFinite(Number((reviewSummary as any)?.[0]?.averageRating))
+        averageRating: Number.isFinite(
+          Number((reviewSummary as any)?.[0]?.averageRating),
+        )
           ? Number((reviewSummary as any)?.[0]?.averageRating)
           : 0,
-        totalReviews: Number.isFinite(Number((reviewSummary as any)?.[0]?.totalReviews))
+        totalReviews: Number.isFinite(
+          Number((reviewSummary as any)?.[0]?.totalReviews),
+        )
           ? Number((reviewSummary as any)?.[0]?.totalReviews)
           : 0,
       },

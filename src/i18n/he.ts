@@ -1118,7 +1118,8 @@ const he = {
     title: "ביקורות",
     subtitle: "בקשות ביקורת אוטומטיות ב-Progrr נשלחות לאחר תורים שהושלמו.",
     toggleTitle: "בקשות ביקורת אוטומטיות",
-    toggleDescription: "הבקשות נשלחות אוטומטית לאחר השלמת תורים.",
+    toggleDescription:
+      "כשמופעל, פרוגר שולחת ללקוחות אימייל עם קישור לביקורת לאחר שהתור מסומן כהושלם (ובתשלום אם נדרש).",
     toggleOn: "פעיל",
     toggleOff: "כבוי",
     settingsTitle: "הגדרות ביקורות",
@@ -1131,6 +1132,7 @@ const he = {
     delayHelp: "ברירת מחדל: 15 דקות.",
     listTitle: "ביקורות שנשלחו",
     listEmpty: "אין ביקורות שנשלחו עדיין.",
+    paginationSummary: "עמוד {{page}} מתוך {{total}}",
     deleteAction: "הסרה",
     deleteConfirmTitle: "להסיר ביקורת?",
     deleteConfirmDescription: "הביקורת תוסר מהדשבורד ומהרשומות הציבוריות.",
