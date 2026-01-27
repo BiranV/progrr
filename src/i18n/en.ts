@@ -72,7 +72,7 @@ const en = {
       unblockCustomer: "Unblock customer",
     },
     drawer: {
-      subtitle: "Customer details for this business",
+      subtitle: "Customer details",
       detailsTab: "Details",
       appointmentsTab: "Appointments",
       messageTab: "Message",

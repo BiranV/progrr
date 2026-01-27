@@ -72,7 +72,7 @@ const he = {
       unblockCustomer: "ביטול חסימה",
     },
     drawer: {
-      subtitle: "פרטי לקוח לעסק זה",
+      subtitle: "פרטי לקוח",
       detailsTab: "פרטים",
       appointmentsTab: "תורים",
       messageTab: "הודעה",

@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import SidePanel from "@/components/ui/side-panel";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   DataTable,
   type DataTableSortConfig,
@@ -602,38 +603,35 @@ export default function CustomersPage() {
         description={t("customers.drawer.subtitle")}
       >
         <div className="space-y-6">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant={drawerTab === "details" ? "default" : "outline"}
-              size="sm"
-              className="rounded-full"
-              onClick={() => setDrawerTab("details")}
-            >
-              {t("customers.drawer.detailsTab")}
-            </Button>
-            <Button
-              type="button"
-              variant={drawerTab === "appointments" ? "default" : "outline"}
-              size="sm"
-              className="rounded-full"
-              onClick={() => setDrawerTab("appointments")}
-            >
-              {t("customers.drawer.appointmentsTab")}
-            </Button>
-            <Button
-              type="button"
-              variant={drawerTab === "message" ? "default" : "outline"}
-              size="sm"
-              className="rounded-full"
-              onClick={() => setDrawerTab("message")}
-            >
-              {t("customers.drawer.messageTab")}
-            </Button>
-          </div>
+          <Tabs
+            value={drawerTab}
+            onValueChange={(value) =>
+              setDrawerTab(value as "details" | "appointments" | "message")
+            }
+            className="w-full"
+          >
+            <TabsList className="w-full rounded-full bg-muted/40 p-1">
+              <TabsTrigger
+                value="details"
+                className="rounded-full data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+              >
+                {t("customers.drawer.detailsTab")}
+              </TabsTrigger>
+              <TabsTrigger
+                value="appointments"
+                className="rounded-full data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+              >
+                {t("customers.drawer.appointmentsTab")}
+              </TabsTrigger>
+              <TabsTrigger
+                value="message"
+                className="rounded-full data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm"
+              >
+                {t("customers.drawer.messageTab")}
+              </TabsTrigger>
+            </TabsList>
 
-          {drawerTab === "details" ? (
-            <div className="space-y-4">
+            <TabsContent value="details" className="space-y-4">
               <div className="space-y-1 rtl:text-right">
                 <div className="text-xs text-muted-foreground flex items-center gap-2 rtl:flex-row-reverse rtl:justify-end">
                   {t("customers.drawer.phoneLabel")}
@@ -670,9 +668,9 @@ export default function CustomersPage() {
                   })}
                 </div>
               </div>
-            </div>
-          ) : drawerTab === "appointments" ? (
-            <div className="space-y-4">
+            </TabsContent>
+
+            <TabsContent value="appointments" className="space-y-4">
               {appointmentsQuery.isPending ? (
                 <CenteredSpinner size="sm" className="py-6" />
               ) : appointmentsQuery.isError ? (
@@ -775,9 +773,9 @@ export default function CustomersPage() {
                   }
                 />
               )}
-            </div>
-          ) : (
-            <div className="space-y-4">
+            </TabsContent>
+
+            <TabsContent value="message" className="space-y-4">
               <div className="space-y-2">
                 <Label>{t("customers.message.channelLabel")}</Label>
                 <Select
@@ -864,8 +862,8 @@ export default function CustomersPage() {
                   ? t("customers.details.sendingMessage")
                   : t("customers.details.sendMessage")}
               </Button>
-            </div>
-          )}
+            </TabsContent>
+          </Tabs>
         </div>
       </SidePanel>
     </div>
