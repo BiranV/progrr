@@ -9,6 +9,13 @@ import { useAuth } from "@/context/AuthContext";
 import { type AuthBannerState } from "./AuthBanner";
 import { useI18n } from "@/i18n/useI18n";
 import Stepper from "@/components/onboarding/Stepper";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 function isSafeNextPath(next: string): boolean {
   if (!next.startsWith("/")) return false;
@@ -34,6 +41,7 @@ export default function AuthFlow({
   const searchParams = useSearchParams();
   const { isAuthenticated, isLoadingAuth } = useAuth();
   const { t } = useI18n();
+  const supportEmail = "support@progrr.io";
   const [currentView, setCurrentView] = React.useState<
     | "landing"
     | "login"
@@ -43,6 +51,8 @@ export default function AuthFlow({
     | "existing-account"
   >(initialView ?? "landing");
   const [headerBack, setHeaderBack] = React.useState<(() => void) | null>(null);
+  const [privacyOpen, setPrivacyOpen] = React.useState(false);
+  const [termsOpen, setTermsOpen] = React.useState(false);
 
   const headerHeightVh = React.useMemo(() => {
     if (currentView === "landing") return 50;
@@ -239,10 +249,258 @@ export default function AuthFlow({
             registerBackHandler={(handler) => setHeaderBack(() => handler)}
           />
         </div>
-        <div className="w-full max-w-md pt-4 pb-6 mt-auto">
+        <div className="w-full max-w-md pt-4 pb-3 mt-auto">
           <Stepper totalSteps={3} currentStep={authStepIndex} />
         </div>
+        <div className="w-full max-w-md pb-6 text-center text-xs text-slate-500">
+          <button
+            type="button"
+            className="underline underline-offset-4 hover:text-slate-700"
+            onClick={() => setPrivacyOpen(true)}
+          >
+            {t("settings.privacy")}
+          </button>
+          <span className="px-2">•</span>
+          <button
+            type="button"
+            className="underline underline-offset-4 hover:text-slate-700"
+            onClick={() => setTermsOpen(true)}
+          >
+            {t("settings.terms")}
+          </button>
+        </div>
       </section>
+
+      <Dialog open={privacyOpen} onOpenChange={setPrivacyOpen}>
+        <DialogContent showCloseButton className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t("privacy.title")}</DialogTitle>
+            <DialogDescription>{t("privacy.subtitle")}</DialogDescription>
+            <div className="text-xs text-muted-foreground">
+              {t("privacy.lastUpdated", { date: t("privacy.lastUpdatedDate") })}
+            </div>
+          </DialogHeader>
+          <div className="space-y-6 text-sm text-gray-700 dark:text-gray-300 leading-relaxed max-h-[60vh] overflow-y-auto pr-2">
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("privacy.sections.introduction.title")}
+              </h2>
+              <p>{t("privacy.sections.introduction.body")}</p>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("privacy.sections.information.title")}
+              </h2>
+              <p>{t("privacy.sections.information.body")}</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>{t("privacy.sections.information.items.account")}</li>
+                <li>{t("privacy.sections.information.items.business")}</li>
+                <li>{t("privacy.sections.information.items.technical")}</li>
+              </ul>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("privacy.sections.usage.title")}
+              </h2>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>{t("privacy.sections.usage.items.provide")}</li>
+                <li>{t("privacy.sections.usage.items.improve")}</li>
+                <li>{t("privacy.sections.usage.items.updates")}</li>
+                <li>{t("privacy.sections.usage.items.support")}</li>
+              </ul>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("privacy.sections.sharing.title")}
+              </h2>
+              <p>{t("privacy.sections.sharing.body")}</p>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("privacy.sections.security.title")}
+              </h2>
+              <p>{t("privacy.sections.security.body")}</p>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("privacy.sections.retention.title")}
+              </h2>
+              <p>{t("privacy.sections.retention.body")}</p>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("privacy.sections.rights.title")}
+              </h2>
+              <p>{t("privacy.sections.rights.body")}</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>{t("privacy.sections.rights.items.access")}</li>
+                <li>{t("privacy.sections.rights.items.correct")}</li>
+                <li>{t("privacy.sections.rights.items.delete")}</li>
+              </ul>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("privacy.sections.thirdParty.title")}
+              </h2>
+              <p>{t("privacy.sections.thirdParty.body")}</p>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("privacy.sections.changes.title")}
+              </h2>
+              <p>{t("privacy.sections.changes.body")}</p>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("privacy.sections.contact.title")}
+              </h2>
+              <p>
+                {t("privacy.sections.contact.body")}{" "}
+                <a
+                  href={`mailto:${supportEmail}`}
+                  className="text-primary underline-offset-4 hover:underline"
+                >
+                  {supportEmail}
+                </a>
+                .
+              </p>
+            </section>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={termsOpen} onOpenChange={setTermsOpen}>
+        <DialogContent showCloseButton className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t("terms.title")}</DialogTitle>
+            <DialogDescription>{t("terms.subtitle")}</DialogDescription>
+            <div className="text-xs text-muted-foreground">
+              {t("terms.lastUpdated", { date: t("terms.lastUpdatedDate") })}
+            </div>
+          </DialogHeader>
+          <div className="space-y-6 text-sm text-gray-700 dark:text-gray-300 leading-relaxed max-h-[60vh] overflow-y-auto pr-2">
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("terms.sections.acceptance.title")}
+              </h2>
+              <p>{t("terms.sections.acceptance.body")}</p>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("terms.sections.description.title")}
+              </h2>
+              <p>{t("terms.sections.description.body")}</p>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("terms.sections.eligibility.title")}
+              </h2>
+              <p>{t("terms.sections.eligibility.body")}</p>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("terms.sections.accounts.title")}
+              </h2>
+              <p>{t("terms.sections.accounts.body")}</p>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("terms.sections.acceptableUse.title")}
+              </h2>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>{t("terms.sections.acceptableUse.items.illegal")}</li>
+                <li>{t("terms.sections.acceptableUse.items.abuse")}</li>
+                <li>{t("terms.sections.acceptableUse.items.unauthorized")}</li>
+              </ul>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("terms.sections.payments.title")}
+              </h2>
+              <p>{t("terms.sections.payments.body")}</p>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("terms.sections.ip.title")}
+              </h2>
+              <p>{t("terms.sections.ip.body")}</p>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("terms.sections.privacy.title")}
+              </h2>
+              <p>{t("terms.sections.privacy.body")}</p>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("terms.sections.availability.title")}
+              </h2>
+              <p>{t("terms.sections.availability.body")}</p>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("terms.sections.liability.title")}
+              </h2>
+              <p>{t("terms.sections.liability.body")}</p>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("terms.sections.termination.title")}
+              </h2>
+              <p>{t("terms.sections.termination.body")}</p>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("terms.sections.changes.title")}
+              </h2>
+              <p>{t("terms.sections.changes.body")}</p>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("terms.sections.law.title")}
+              </h2>
+              <p>{t("terms.sections.law.body")}</p>
+            </section>
+
+            <section className="space-y-2">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                {t("terms.sections.contact.title")}
+              </h2>
+              <p>
+                {t("terms.sections.contact.body")}{" "}
+                <a
+                  href={`mailto:${supportEmail}`}
+                  className="text-primary underline-offset-4 hover:underline"
+                >
+                  {supportEmail}
+                </a>
+                .
+              </p>
+            </section>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
