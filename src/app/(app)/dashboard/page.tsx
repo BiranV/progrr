@@ -675,10 +675,7 @@ export default function DashboardPage() {
                         {item.serviceName || ""}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {formatDateForDisplay(item.date)} •{" "}
-                        {t("dashboard.outstandingDaysAgo", {
-                          count: item.daysSinceCompleted,
-                        })}
+                        {formatDateForDisplay(item.date)}
                       </div>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">

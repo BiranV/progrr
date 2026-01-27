@@ -116,6 +116,18 @@ export default function CalendarClient() {
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem("calendarShowAll");
+    if (stored === null) return;
+    setShowAll(stored === "true");
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("calendarShowAll", String(showAll));
+  }, [showAll]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
     const mq = window.matchMedia("(pointer: coarse)");
     const update = () => setIsTouch(mq.matches);
     update();

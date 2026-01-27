@@ -203,7 +203,6 @@ export default function CustomersPage() {
             </div>
             <div className="text-xs text-gray-600 dark:text-gray-300 leading-tight">
               <PhoneLink phone={c.phone} className="text-xs" showIcon={false} />
-              {c.email ? <div className="truncate">{c.email}</div> : null}
             </div>
           </div>
         ),
