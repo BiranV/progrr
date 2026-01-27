@@ -106,6 +106,30 @@ export async function GET(
       currencyCodeRaw.toUpperCase() === "NIS" ? "ILS" : currencyCodeRaw;
     const customCurrency = onboarding.customCurrency ?? undefined;
 
+    const reviews = await c.appointments
+      .find(
+        {
+          businessUserId: (user as any)?._id,
+          reviewSubmitted: true,
+        } as any,
+        {
+          projection: {
+            _id: 1,
+            serviceName: 1,
+            date: 1,
+            startTime: 1,
+            endTime: 1,
+            "customer.fullName": 1,
+            reviewRating: 1,
+            reviewComment: 1,
+            reviewSubmittedAt: 1,
+          },
+        },
+      )
+      .sort({ reviewSubmittedAt: -1, createdAt: -1 })
+      .limit(50)
+      .toArray();
+
     return NextResponse.json({
       ok: true,
       business: {
@@ -158,6 +182,20 @@ export async function GET(
           (business as any)?.limitCustomerToOneUpcomingAppointment
         ),
       },
+      reviews: reviews.map((review: any) => ({
+        id: String(review._id),
+        serviceName: String(review.serviceName ?? "").trim(),
+        date: String(review.date ?? "").trim(),
+        startTime: String(review.startTime ?? "").trim(),
+        endTime: String(review.endTime ?? "").trim(),
+        customerName: String(review.customer?.fullName ?? "").trim(),
+        rating: Number(review.reviewRating ?? 0),
+        comment: String(review.reviewComment ?? "").trim(),
+        submittedAt:
+          review.reviewSubmittedAt instanceof Date
+            ? review.reviewSubmittedAt.toISOString()
+            : null,
+      })),
       currency: {
         code: currencyCode,
         symbol: currencySymbol(currencyCode),

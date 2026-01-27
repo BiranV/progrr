@@ -216,6 +216,20 @@ const en = {
       sendingCode: "Sending code…",
       saving: "Saving…",
     },
+    reviews: {
+      title: "Reviews",
+      subtitle: "What customers are saying.",
+      empty: "No reviews yet.",
+      customerFallback: "Customer",
+      serviceFallback: "Appointment",
+      leaveTitle: "Leave your review",
+      ratingAria: "Rate {{rating}} out of 5",
+      commentLabel: "Comment (optional)",
+      commentPlaceholder: "Share anything that would help us improve.",
+      submit: "Submit review",
+      submitting: "Submitting…",
+      thanks: "Thank you for your feedback 💙",
+    },
     profile: {
       title: "Update details",
       description:
@@ -1141,7 +1155,19 @@ const en = {
     toggleOff: "OFF",
     settingsTitle: "Review settings",
     delayLabel: "Send delay (minutes)",
-    delayHelp: "Default is 120 minutes (2 hours).",
+    delayHelp: "Default is 15 minutes.",
+    listTitle: "Submitted reviews",
+    listEmpty: "No reviews submitted yet.",
+    deleteAction: "Remove",
+    deleteConfirmTitle: "Remove review?",
+    deleteConfirmDescription:
+      "This will remove the review from your dashboard and public records.",
+    deleteConfirmAction: "Remove review",
+    toastDeleted: "Review removed",
+    ratingLabel: "Rating",
+    commentLabel: "Comment",
+    customerLabel: "Customer",
+    serviceFallback: "Appointment",
     errors: {
       delayInvalid: "Delay must be 0 or more",
     },
@@ -1165,7 +1191,9 @@ const en = {
     thanksTitle: "Thank you!",
     thanksDescription: "Your review has been submitted.",
     unavailableTitle: "Review unavailable",
-    unavailableDescription: "This appointment is not eligible for review.",
+    unavailableDescription:
+      "This review link has been updated. Please continue on the business page.",
+    publicLink: "Back to booking page",
     errors: {
       invalidLink: "This review link is invalid or expired.",
     },

@@ -40,6 +40,17 @@ export type PublicBusiness = {
     }>;
   };
   currency: { code: string; name?: string; symbol?: string };
+  reviews?: Array<{
+    id: string;
+    serviceName: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    customerName: string;
+    rating: number;
+    comment: string;
+    submittedAt: string | null;
+  }>;
 };
 
 export function currencyLabel(currency: {

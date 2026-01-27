@@ -146,6 +146,9 @@ export default function ServicesSettingsPage() {
   } = useOnboardingSettings();
 
   const [services, setServices] = React.useState<Service[]>([]);
+  const [durationDrafts, setDurationDrafts] = React.useState<
+    Record<string, string>
+  >({});
   const initialRef = React.useRef<string | null>(null);
   const initialCurrencyRef = React.useRef<string>("ILS");
 
@@ -301,10 +304,10 @@ export default function ServicesSettingsPage() {
         );
 
       const duration = Number(s.durationMinutes);
-      if (!Number.isFinite(duration) || duration < 10)
+      if (!Number.isFinite(duration) || duration < 1)
         nextFieldErrors[`serviceDuration_${s.id}`] = t(
           "services.errors.durationMin",
-          { min: 10 },
+          { min: 1 },
         );
 
       const price = Number(s.price);
@@ -517,24 +520,47 @@ export default function ServicesSettingsPage() {
 
                 <div className="w-[70px] shrink-0">
                   <Input
-                    type="number"
-                    min={10}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     className={`px-2 text-center ${
                       fieldErrors[`serviceDuration_${s.id}`]
                         ? "border-rose-500 focus-visible:ring-rose-500"
                         : ""
                     }`}
-                    value={s.durationMinutes}
+                    value={
+                      Object.prototype.hasOwnProperty.call(durationDrafts, s.id)
+                        ? durationDrafts[s.id]
+                        : String(s.durationMinutes ?? "")
+                    }
                     onChange={(e) => {
-                      const nextDuration = Number(e.target.value || 0);
+                      const raw = String(e.target.value ?? "");
+                      setDurationDrafts((prev) => ({
+                        ...prev,
+                        [s.id]: raw.replace(/[^0-9]/g, ""),
+                      }));
+                      setGlobalErrorKey(null);
+                    }}
+                    onBlur={() => {
+                      const raw = durationDrafts[s.id] ?? "";
+                      const trimmed = raw.replace(/[^0-9]/g, "");
+                      const nextValue = trimmed ? Number(trimmed) : 1;
+                      const normalized =
+                        Number.isFinite(nextValue) && nextValue > 0
+                          ? Math.round(nextValue)
+                          : 1;
                       setServices((prev) =>
                         prev.map((x) =>
                           x.id === s.id
-                            ? { ...x, durationMinutes: nextDuration }
+                            ? { ...x, durationMinutes: normalized }
                             : x,
                         ),
                       );
-                      setGlobalErrorKey(null);
+                      setDurationDrafts((prev) => {
+                        const next = { ...prev };
+                        delete next[s.id];
+                        return next;
+                      });
                     }}
                     disabled={isSaving}
                   />

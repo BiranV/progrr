@@ -144,6 +144,18 @@ export type RateLimitDoc = {
   createdAt: Date;
 };
 
+export type ReviewTokenDoc = {
+  _id?: ObjectId;
+  tokenHash: string;
+  appointmentId: string;
+  businessUserId: ObjectId;
+  customerId?: ObjectId;
+  customerEmail?: string;
+  expiresAt: Date;
+  createdAt: Date;
+  usedAt?: Date;
+};
+
 export async function collections() {
   const db = await getDb();
   return {
@@ -154,6 +166,7 @@ export async function collections() {
     customers: db.collection<CustomerDoc>("customers"),
     businessCustomers: db.collection<BusinessCustomerDoc>("business_customers"),
     rateLimits: db.collection<RateLimitDoc>("rate_limits"),
+    reviewTokens: db.collection<ReviewTokenDoc>("review_tokens"),
   };
 }
 
@@ -219,4 +232,8 @@ export async function ensureIndexes() {
 
   await c.rateLimits.createIndex({ key: 1 }, { unique: true });
   await c.rateLimits.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+  await c.reviewTokens.createIndex({ tokenHash: 1 }, { unique: true });
+  await c.reviewTokens.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+  await c.reviewTokens.createIndex({ appointmentId: 1 });
 }

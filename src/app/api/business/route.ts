@@ -113,7 +113,7 @@ export async function GET() {
         : true;
     const reviewDelayMinutes = normalizeMinutes(
       (business as any).reviewDelayMinutes,
-      120,
+      15,
     );
 
     if (!name || !phone || !publicId) {
@@ -283,7 +283,7 @@ export async function PATCH(req: Request) {
 
     const currentReviewDelayMinutes = normalizeMinutes(
       (business as any).reviewDelayMinutes,
-      120,
+      15,
     );
     const requestedReviewDelayMinutes = Object.prototype.hasOwnProperty.call(
       body as any,

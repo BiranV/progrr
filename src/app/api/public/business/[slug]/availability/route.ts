@@ -38,7 +38,7 @@ function formatTimeInTimeZone(date: Date, timeZone: string): string {
 
 export async function GET(
   req: Request,
-  ctx: { params: Promise<{ slug: string }> }
+  ctx: { params: Promise<{ slug: string }> },
 ) {
   try {
     await ensureIndexes();
@@ -53,7 +53,7 @@ export async function GET(
     if (!serviceId) {
       return NextResponse.json(
         { error: "serviceId is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -62,7 +62,7 @@ export async function GET(
     if (!raw) {
       return NextResponse.json(
         { error: "Business not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -75,11 +75,11 @@ export async function GET(
           "onboarding.business.slug": raw,
           onboardingCompleted: true,
         } as any,
-        { projection: { "onboarding.business.publicId": 1 } }
+        { projection: { "onboarding.business.publicId": 1 } },
       );
 
       const publicId = String(
-        (legacy as any)?.onboarding?.business?.publicId ?? ""
+        (legacy as any)?.onboarding?.business?.publicId ?? "",
       ).trim();
 
       if (isValidBusinessPublicId(publicId)) {
@@ -90,7 +90,7 @@ export async function GET(
 
       return NextResponse.json(
         { error: "Business not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -102,7 +102,7 @@ export async function GET(
     if (!user) {
       return NextResponse.json(
         { error: "Business not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -112,21 +112,21 @@ export async function GET(
       : [];
 
     const activeServices = services.filter(
-      (s) => (s as any)?.isActive !== false
+      (s) => (s as any)?.isActive !== false,
     );
 
     const service = activeServices.find(
-      (s) => String(s?.id ?? "") === serviceId
+      (s) => String(s?.id ?? "") === serviceId,
     );
     if (!service) {
       return NextResponse.json({ error: "Service not found" }, { status: 404 });
     }
 
     const durationMinutes = Number(service?.durationMinutes);
-    if (!Number.isFinite(durationMinutes) || durationMinutes < 10) {
+    if (!Number.isFinite(durationMinutes) || durationMinutes < 1) {
       return NextResponse.json(
         { error: "Invalid service duration" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -158,7 +158,7 @@ export async function GET(
         filteredSlots = [];
       } else if (date === todayStr && nowTimeStr) {
         filteredSlots = slots.filter(
-          (s: any) => String(s?.startTime ?? "") >= nowTimeStr
+          (s: any) => String(s?.startTime ?? "") >= nowTimeStr,
         );
       }
     } catch {
@@ -180,7 +180,7 @@ export async function GET(
     const status = typeof error?.status === "number" ? error.status : 500;
     return NextResponse.json(
       { error: error?.message || "Internal Server Error" },
-      { status }
+      { status },
     );
   }
 }

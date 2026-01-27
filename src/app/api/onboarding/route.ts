@@ -133,13 +133,13 @@ function overlaps(
   aStart: number,
   aEnd: number,
   bStart: number,
-  bEnd: number
+  bEnd: number,
 ): boolean {
   return aStart < bEnd && bStart < aEnd;
 }
 
 function normalizeAvailabilityRanges(
-  input: any
+  input: any,
 ): Array<{ start: string; end: string }> {
   if (!Array.isArray(input)) return [];
   const out: Array<{ start: string; end: string }> = [];
@@ -177,7 +177,7 @@ function validateAvailabilityDays(
     day: number;
     enabled: boolean;
     ranges: Array<{ start: string; end: string }>;
-  }>
+  }>,
 ): string | null {
   for (const d of days) {
     if (!d.enabled) continue;
@@ -232,15 +232,15 @@ function normalizeService(s: any) {
   const rawActive = (s as any)?.isActive;
   const isActive =
     rawActive === false ||
-      rawActive === 0 ||
-      String(rawActive ?? "")
-        .trim()
-        .toLowerCase() === "false"
+    rawActive === 0 ||
+    String(rawActive ?? "")
+      .trim()
+      .toLowerCase() === "false"
       ? false
       : true;
 
   if (!name) return null;
-  if (!durationMinutes || durationMinutes < 10 || durationMinutes > 24 * 60)
+  if (!durationMinutes || durationMinutes < 1 || durationMinutes > 24 * 60)
     return null;
   if (price !== undefined && (price < 0 || price > 1_000_000)) return null;
 
@@ -260,8 +260,8 @@ function firstServiceError(services: any[]): string | null {
     if (!name) return `${prefix}name is required`;
 
     const durationMinutes = asNumber(s?.durationMinutes);
-    if (!durationMinutes || durationMinutes < 10 || durationMinutes > 24 * 60) {
-      return `${prefix}duration must be at least 10 minutes`;
+    if (!durationMinutes || durationMinutes < 1 || durationMinutes > 24 * 60) {
+      return `${prefix}duration must be at least 1 minute`;
     }
 
     const price = asNumber(s?.price);
@@ -291,11 +291,11 @@ export async function GET() {
     // Ensure stable business publicId exists (generated once, immutable).
     try {
       const current = String(
-        (user as any)?.onboarding?.business?.publicId ?? ""
+        (user as any)?.onboarding?.business?.publicId ?? "",
       ).trim();
       if (!isValidBusinessPublicId(current)) {
         const allocated = await ensureBusinessPublicIdForUser(
-          new ObjectId(appUser.id)
+          new ObjectId(appUser.id),
         );
         (user as any).onboarding = (user as any).onboarding ?? {};
         (user as any).onboarding.business =
@@ -334,7 +334,7 @@ export async function GET() {
               "onboarding.availability.days": migrated,
               "onboarding.updatedAt": new Date(),
             },
-          }
+          },
         );
         // If invalid, we leave it to the UI to prompt fix.
         void err;
@@ -355,7 +355,7 @@ export async function GET() {
     const status = typeof error?.status === "number" ? error.status : 500;
     return NextResponse.json(
       { error: error?.message || "Internal Server Error" },
-      { status }
+      { status },
     );
   }
 }
@@ -379,7 +379,7 @@ export async function PATCH(req: Request) {
       try {
         // Throws RangeError for unknown IANA time zones.
         new Intl.DateTimeFormat("en-US", { timeZone: candidate }).format(
-          new Date()
+          new Date(),
         );
         return true;
       } catch {
@@ -396,11 +396,11 @@ export async function PATCH(req: Request) {
 
     const customCurrencyName = asString(
       (body as any)?.customCurrency?.name,
-      40
+      40,
     );
     const customCurrencySymbol = asString(
       (body as any)?.customCurrency?.symbol,
-      10
+      10,
     );
 
     const businessTypesRaw = Array.isArray(body?.businessTypes)
@@ -413,7 +413,7 @@ export async function PATCH(req: Request) {
     const businessAddress = asString(body?.business?.address, 200);
     const businessDescription = asString(body?.business?.description, 250);
     const limitCustomerToOneUpcomingAppointment = asBoolean(
-      (body as any)?.business?.limitCustomerToOneUpcomingAppointment
+      (body as any)?.business?.limitCustomerToOneUpcomingAppointment,
     );
 
     const timezone = asString(body?.availability?.timezone, 80);
@@ -438,14 +438,19 @@ export async function PATCH(req: Request) {
     const set: any = {};
     const unset: any = {};
 
-    const existingTimeZone = String((user as any)?.onboarding?.availability?.timezone ?? "").trim();
+    const existingTimeZone = String(
+      (user as any)?.onboarding?.availability?.timezone ?? "",
+    ).trim();
     if (
       !isOnboardingCompleted &&
       body?.business &&
       timezone === undefined &&
       !existingTimeZone
     ) {
-      return NextResponse.json({ error: "Timezone is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Timezone is required" },
+        { status: 400 },
+      );
     }
 
     if (timezone !== undefined) {
@@ -453,7 +458,7 @@ export async function PATCH(req: Request) {
       if (tz && !isValidTimeZone(tz)) {
         return NextResponse.json(
           { error: "Invalid time zone" },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
@@ -462,7 +467,7 @@ export async function PATCH(req: Request) {
       if (!ALLOWED_CURRENCIES.has(currency)) {
         return NextResponse.json(
           { error: "Invalid currency" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -470,13 +475,13 @@ export async function PATCH(req: Request) {
         if (!customCurrencyName) {
           return NextResponse.json(
             { error: "Currency name is required" },
-            { status: 400 }
+            { status: 400 },
           );
         }
         if (!customCurrencySymbol) {
           return NextResponse.json(
             { error: "Currency symbol is required" },
-            { status: 400 }
+            { status: 400 },
           );
         }
         set["onboarding.customCurrency.name"] = customCurrencyName;
@@ -503,7 +508,7 @@ export async function PATCH(req: Request) {
       // Single-select: keep only one business type.
       set["onboarding.businessTypes"] = Array.from(new Set(normalized)).slice(
         0,
-        1
+        1,
       );
     } else if (legacyBusinessType !== undefined) {
       const v = legacyBusinessType.toLowerCase();
@@ -546,7 +551,7 @@ export async function PATCH(req: Request) {
       if (!normalized.length) {
         return NextResponse.json(
           { error: "Service is required" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -554,7 +559,7 @@ export async function PATCH(req: Request) {
         ? ((user as any).onboarding.services as any[])
         : [];
       const currentById = new Map(
-        currentServices.map((s) => [String(s?.id ?? "").trim(), s] as const)
+        currentServices.map((s) => [String(s?.id ?? "").trim(), s] as const),
       );
 
       const durationChangedIds = normalized
@@ -564,7 +569,8 @@ export async function PATCH(req: Request) {
           if (!id || !current) return null;
           const prevDuration = Number((current as any)?.durationMinutes);
           const nextDuration = Number((s as any)?.durationMinutes);
-          if (!Number.isFinite(prevDuration) || !Number.isFinite(nextDuration)) return null;
+          if (!Number.isFinite(prevDuration) || !Number.isFinite(nextDuration))
+            return null;
           return prevDuration !== nextDuration ? id : null;
         })
         .filter(Boolean) as string[];
@@ -576,22 +582,29 @@ export async function PATCH(req: Request) {
           if (!id || !current) return null;
           const prevPrice = Number((current as any)?.price ?? 0);
           const nextPrice = Number((s as any)?.price ?? 0);
-          if (!Number.isFinite(prevPrice) || !Number.isFinite(nextPrice)) return null;
+          if (!Number.isFinite(prevPrice) || !Number.isFinite(nextPrice))
+            return null;
           return prevPrice !== nextPrice ? id : null;
         })
         .filter(Boolean) as string[];
 
-      if (isOnboardingCompleted && (durationChangedIds.length || priceChangedIds.length)) {
+      if (
+        isOnboardingCompleted &&
+        (durationChangedIds.length || priceChangedIds.length)
+      ) {
         const effectiveTimeZone =
           (timezone !== undefined
             ? String(timezone ?? "").trim()
-            : String((user as any)?.onboarding?.availability?.timezone ?? "").trim()) ||
-          "UTC";
+            : String(
+                (user as any)?.onboarding?.availability?.timezone ?? "",
+              ).trim()) || "UTC";
 
         const todayStr = formatDateInTimeZone(new Date(), effectiveTimeZone);
         const nowTimeStr = formatTimeInTimeZone(new Date(), effectiveTimeZone);
 
-        const changedIds = Array.from(new Set([...durationChangedIds, ...priceChangedIds]));
+        const changedIds = Array.from(
+          new Set([...durationChangedIds, ...priceChangedIds]),
+        );
 
         const futureAppointments = await c.appointments
           .find({
@@ -610,19 +623,21 @@ export async function PATCH(req: Request) {
         });
 
         if (hasFuture) {
-          const reason = priceChangedIds.length && !durationChangedIds.length
-            ? "price"
-            : "duration";
-          const message = reason === "price"
-            ? "You can’t change the price of this service because there are already scheduled appointments."
-            : "You can’t change the duration of this service because there are already scheduled appointments.";
+          const reason =
+            priceChangedIds.length && !durationChangedIds.length
+              ? "price"
+              : "duration";
+          const message =
+            reason === "price"
+              ? "You can’t change the price of this service because there are already scheduled appointments."
+              : "You can’t change the duration of this service because there are already scheduled appointments.";
           return NextResponse.json(
             {
               error: "SERVICE_HAS_FUTURE_APPOINTMENTS",
               message,
               reason,
             },
-            { status: 409 }
+            { status: 409 },
           );
         }
       }
@@ -643,8 +658,9 @@ export async function PATCH(req: Request) {
       const effectiveTimeZone =
         (timezone !== undefined
           ? String(timezone ?? "").trim()
-          : String((user as any)?.onboarding?.availability?.timezone ?? "").trim()) ||
-        "UTC";
+          : String(
+              (user as any)?.onboarding?.availability?.timezone ?? "",
+            ).trim()) || "UTC";
 
       const todayStr = formatDateInTimeZone(new Date(), effectiveTimeZone);
       const nowTimeStr = formatTimeInTimeZone(new Date(), effectiveTimeZone);
@@ -674,12 +690,14 @@ export async function PATCH(req: Request) {
         const ranges = Array.isArray(day.ranges) ? day.ranges : [];
         const apptStart = parseTimeToMinutes(String(appt.startTime));
         const apptEnd = parseTimeToMinutes(String(appt.endTime));
-        if (!Number.isFinite(apptStart) || !Number.isFinite(apptEnd)) return true;
+        if (!Number.isFinite(apptStart) || !Number.isFinite(apptEnd))
+          return true;
 
         const within = ranges.some((r: { start?: string; end?: string }) => {
           const rangeStart = parseTimeToMinutes(String(r?.start ?? ""));
           const rangeEnd = parseTimeToMinutes(String(r?.end ?? ""));
-          if (!Number.isFinite(rangeStart) || !Number.isFinite(rangeEnd)) return false;
+          if (!Number.isFinite(rangeStart) || !Number.isFinite(rangeEnd))
+            return false;
           if (rangeEnd <= rangeStart) return false;
           return apptStart >= rangeStart && apptEnd <= rangeEnd;
         });
@@ -694,7 +712,7 @@ export async function PATCH(req: Request) {
               "You can’t change the working hours because there are already scheduled appointments outside the new hours. Please cancel or reschedule those appointments first.",
             code: "WORKING_HOURS_CONFLICT",
           },
-          { status: 409 }
+          { status: 409 },
         );
       }
 
@@ -753,7 +771,7 @@ export async function PATCH(req: Request) {
     const status = typeof error?.status === "number" ? error.status : 500;
     return NextResponse.json(
       { error: error?.message || "Internal Server Error" },
-      { status }
+      { status },
     );
   }
 }

@@ -80,19 +80,19 @@ export async function POST(req: Request) {
     if (!businessPublicId) {
       return NextResponse.json(
         { error: "businessPublicId is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     if (!isValidBusinessPublicId(businessPublicId)) {
       return NextResponse.json(
         { error: "Invalid businessPublicId" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     if (!serviceId) {
       return NextResponse.json(
         { error: "serviceId is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     if (!isValidDateString(date)) {
@@ -105,7 +105,7 @@ export async function POST(req: Request) {
     if (!accessToken) {
       return NextResponse.json(
         { error: "Unauthorized", code: "unauthorized" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -117,7 +117,7 @@ export async function POST(req: Request) {
     } catch {
       return NextResponse.json(
         { error: "Unauthorized", code: "unauthorized" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -127,7 +127,7 @@ export async function POST(req: Request) {
     if (!customerObjectId) {
       return NextResponse.json(
         { error: "Unauthorized", code: "unauthorized" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -139,28 +139,38 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json(
         { error: "Business not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     const businessUserId = (user._id as ObjectId).toHexString();
 
-    const customer = await c.customers.findOne({ _id: customerObjectId } as any);
+    const customer = await c.customers.findOne({
+      _id: customerObjectId,
+    } as any);
     if (!customer) {
       return NextResponse.json(
         { error: "Unauthorized", code: "unauthorized" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     const customerEmailFromSession = normalizeEmail((customer as any)?.email);
-    const customerPhoneFromSession = String((customer as any)?.phone ?? "").trim();
-    const customerFullNameFromSession = String((customer as any)?.fullName ?? "").trim();
+    const customerPhoneFromSession = String(
+      (customer as any)?.phone ?? "",
+    ).trim();
+    const customerFullNameFromSession = String(
+      (customer as any)?.fullName ?? "",
+    ).trim();
 
-    if (customerEmailFromSession && customerEmail && customerEmailFromSession !== customerEmail) {
+    if (
+      customerEmailFromSession &&
+      customerEmail &&
+      customerEmailFromSession !== customerEmail
+    ) {
       return NextResponse.json(
         { error: "Unauthorized", code: "unauthorized" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -171,7 +181,7 @@ export async function POST(req: Request) {
     if (!effectiveFullName) {
       return NextResponse.json(
         { error: "Full Name is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     if (!effectiveEmail) {
@@ -180,7 +190,7 @@ export async function POST(req: Request) {
     if (!isValidEmail(effectiveEmail)) {
       return NextResponse.json(
         { error: "Please enter a valid email address" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     if (!effectivePhone) {
@@ -189,7 +199,7 @@ export async function POST(req: Request) {
     if (!isLikelyValidPhone(effectivePhone)) {
       return NextResponse.json(
         { error: "Please enter a valid phone number" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -206,7 +216,7 @@ export async function POST(req: Request) {
             email: effectiveEmail,
             updatedAt: new Date(),
           },
-        } as any
+        } as any,
       );
     }
     const isOwnerBooking =
@@ -218,11 +228,11 @@ export async function POST(req: Request) {
       : [];
 
     const activeServices = services.filter(
-      (s) => (s as any)?.isActive !== false
+      (s) => (s as any)?.isActive !== false,
     );
 
     const service = activeServices.find(
-      (s) => String(s?.id ?? "") === serviceId
+      (s) => String(s?.id ?? "") === serviceId,
     );
     if (!service) {
       return NextResponse.json({ error: "Service not found" }, { status: 404 });
@@ -231,10 +241,10 @@ export async function POST(req: Request) {
     const durationMinutes = Number(service?.durationMinutes);
     const rawPrice = Number(service?.price);
     const price = Number.isFinite(rawPrice) ? rawPrice : 0;
-    if (!Number.isFinite(durationMinutes) || durationMinutes < 10) {
+    if (!Number.isFinite(durationMinutes) || durationMinutes < 1) {
       return NextResponse.json(
         { error: "Invalid service duration" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     if (!Number.isFinite(price) || price < 0) {
@@ -243,7 +253,7 @@ export async function POST(req: Request) {
 
     const businessSettings = (onboarding as any)?.business ?? {};
     const limitCustomerToOneUpcomingAppointment = Boolean(
-      (businessSettings as any).limitCustomerToOneUpcomingAppointment
+      (businessSettings as any).limitCustomerToOneUpcomingAppointment,
     );
 
     // Customer-only rules: block same service on the same day, and optionally
@@ -259,24 +269,25 @@ export async function POST(req: Request) {
     const existingCustomerForBusiness = isOwnerBooking
       ? null
       : await c.businessCustomers.findOne(
-        {
-          businessUserId: user._id as ObjectId,
-          customerId,
-        } as any,
-        { projection: { status: 1 } }
-      );
+          {
+            businessUserId: user._id as ObjectId,
+            customerId,
+          } as any,
+          { projection: { status: 1 } },
+        );
 
     if (
       !isOwnerBooking &&
-      String((existingCustomerForBusiness as any)?.status ?? "").toUpperCase() ===
-      "BLOCKED"
+      String(
+        (existingCustomerForBusiness as any)?.status ?? "",
+      ).toUpperCase() === "BLOCKED"
     ) {
       return NextResponse.json(
         {
           error: "You cannot book with this business.",
           code: "CUSTOMER_BLOCKED_FOR_THIS_BUSINESS",
         },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -289,7 +300,7 @@ export async function POST(req: Request) {
           date,
           serviceId,
         } as any,
-        { sort: { startTime: 1 } }
+        { sort: { startTime: 1 } },
       );
 
       if (sameServiceSameDay) {
@@ -301,7 +312,9 @@ export async function POST(req: Request) {
               customerId,
               date,
             } as any,
-            { projection: { date: 1, startTime: 1, endTime: 1, serviceName: 1 } }
+            {
+              projection: { date: 1, startTime: 1, endTime: 1, serviceName: 1 },
+            },
           )
           .sort({ startTime: 1 })
           .limit(50)
@@ -327,7 +340,7 @@ export async function POST(req: Request) {
               serviceName: String(a?.serviceName ?? ""),
             })),
           },
-          { status: 409 }
+          { status: 409 },
         );
       }
     }
@@ -344,7 +357,7 @@ export async function POST(req: Request) {
             { date: todayStr, endTime: { $gt: nowTimeStr } },
           ],
         } as any,
-        { sort: { date: 1, startTime: 1 } }
+        { sort: { date: 1, startTime: 1 } },
       );
 
       if (existing) {
@@ -359,7 +372,9 @@ export async function POST(req: Request) {
                 { date: todayStr, endTime: { $gt: nowTimeStr } },
               ],
             } as any,
-            { projection: { date: 1, startTime: 1, endTime: 1, serviceName: 1 } }
+            {
+              projection: { date: 1, startTime: 1, endTime: 1, serviceName: 1 },
+            },
           )
           .sort({ date: 1, startTime: 1 })
           .limit(50)
@@ -385,7 +400,7 @@ export async function POST(req: Request) {
               serviceName: String(a?.serviceName ?? ""),
             })),
           },
-          { status: 409 }
+          { status: 409 },
         );
       }
     }
@@ -409,7 +424,7 @@ export async function POST(req: Request) {
     if (!requested) {
       return NextResponse.json(
         { error: "Selected time is no longer available" },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -443,7 +458,7 @@ export async function POST(req: Request) {
             lastAppointmentAt: new Date(),
           },
         } as any,
-        { upsert: true }
+        { upsert: true },
       );
 
       const insert = await c.appointments.insertOne({
@@ -477,7 +492,9 @@ export async function POST(req: Request) {
       if (canEmail) {
         try {
           const content = buildAppointmentBookedEmail({
-            businessName: String((onboarding as any)?.business?.name ?? "").trim(),
+            businessName: String(
+              (onboarding as any)?.business?.name ?? "",
+            ).trim(),
             serviceName: String(service?.name ?? "").trim(),
             date,
             startTime,
@@ -509,25 +526,25 @@ export async function POST(req: Request) {
 
       const sameDayAppointments = includeSameDayAppointments
         ? await c.appointments
-          .find(
-            {
-              businessUserId: user._id as ObjectId,
-              status: "BOOKED",
-              customerId,
-              date,
-            } as any,
-            {
-              projection: {
-                serviceName: 1,
-                date: 1,
-                startTime: 1,
-                endTime: 1,
+            .find(
+              {
+                businessUserId: user._id as ObjectId,
+                status: "BOOKED",
+                customerId,
+                date,
+              } as any,
+              {
+                projection: {
+                  serviceName: 1,
+                  date: 1,
+                  startTime: 1,
+                  endTime: 1,
+                },
               },
-            }
-          )
-          .sort({ startTime: 1 })
-          .limit(50)
-          .toArray()
+            )
+            .sort({ startTime: 1 })
+            .limit(50)
+            .toArray()
         : null;
 
       const res = NextResponse.json({
@@ -552,12 +569,12 @@ export async function POST(req: Request) {
         },
         sameDayAppointments: Array.isArray(sameDayAppointments)
           ? sameDayAppointments.map((a: any) => ({
-            id: a?._id?.toHexString?.() ?? "",
-            serviceName: String(a?.serviceName ?? ""),
-            date: String(a?.date ?? ""),
-            startTime: String(a?.startTime ?? ""),
-            endTime: String(a?.endTime ?? ""),
-          }))
+              id: a?._id?.toHexString?.() ?? "",
+              serviceName: String(a?.serviceName ?? ""),
+              date: String(a?.date ?? ""),
+              startTime: String(a?.startTime ?? ""),
+              endTime: String(a?.endTime ?? ""),
+            }))
           : undefined,
         cancelToken,
       });
@@ -565,7 +582,7 @@ export async function POST(req: Request) {
       res.cookies.set(
         CUSTOMER_ACCESS_COOKIE_NAME,
         accessToken,
-        customerAccessCookieOptions()
+        customerAccessCookieOptions(),
       );
 
       return res;
@@ -574,7 +591,7 @@ export async function POST(req: Request) {
       if (e?.code === 11000) {
         return NextResponse.json(
           { error: "Selected time is no longer available" },
-          { status: 409 }
+          { status: 409 },
         );
       }
       throw e;
@@ -583,7 +600,7 @@ export async function POST(req: Request) {
     const status = typeof error?.status === "number" ? error.status : 500;
     return NextResponse.json(
       { error: error?.message || "Internal Server Error" },
-      { status }
+      { status },
     );
   }
 }

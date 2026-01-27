@@ -2,6 +2,7 @@ import { ObjectId } from "mongodb";
 
 import { collections } from "@/server/collections";
 import { sendEmail } from "@/server/email";
+import { createReviewToken } from "@/server/review-tokens";
 
 const DEFAULT_REVIEW_MESSAGE =
   "Hi {{customerName}},\n" +
@@ -42,15 +43,13 @@ function pickPublicAppOrigin(): string {
 }
 
 function buildReviewLink(args: {
-  businessPublicId: string;
-  appointmentId: string;
+  businessPath: string;
+  reviewToken: string;
 }): string {
   const origin = pickPublicAppOrigin();
   if (!origin) return "";
-  const params = new URLSearchParams({ appointmentId: args.appointmentId });
-  return `${origin}/review/${encodeURIComponent(
-    args.businessPublicId,
-  )}?${params.toString()}`;
+  const params = new URLSearchParams({ reviewToken: args.reviewToken });
+  return `${origin}/b/${encodeURIComponent(args.businessPath)}?${params.toString()}`;
 }
 
 async function sendReviewEmail(args: {
@@ -85,6 +84,7 @@ export async function processReviewRequestsForBusiness(args: {
         "onboarding.business.reviewDelayMinutes": 1,
         "onboarding.business.name": 1,
         "onboarding.business.publicId": 1,
+        "onboarding.business.slug": 1,
       },
     },
   );
@@ -96,10 +96,12 @@ export async function processReviewRequestsForBusiness(args: {
       : true;
   if (!reviewRequestsEnabled) return;
 
-  const reviewDelayMinutes = Number(business.reviewDelayMinutes ?? 120) || 0;
+  const reviewDelayMinutes = Number(business.reviewDelayMinutes ?? 15) || 0;
   const businessName = String(business.name ?? "").trim() || "Progrr";
   const businessPublicId = String(business.publicId ?? "").trim();
+  const businessSlug = String(business.slug ?? "").trim();
   if (!businessPublicId) return;
+  const businessPath = businessSlug || businessPublicId;
 
   const match: any = {
     businessUserId: args.businessUserId,
@@ -134,9 +136,29 @@ export async function processReviewRequestsForBusiness(args: {
     const customerEmail = String(appt.customer?.email ?? "").trim();
     if (!customerEmail) continue;
 
+    const { token, tokenHash } = createReviewToken();
+    const appointmentId = String(appt._id);
+    const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    try {
+      await c.reviewTokens.deleteMany({ appointmentId } as any);
+      await c.reviewTokens.insertOne({
+        tokenHash,
+        appointmentId,
+        businessUserId: args.businessUserId,
+        customerId: appt.customerId ?? undefined,
+        customerEmail: customerEmail || undefined,
+        expiresAt,
+        createdAt: now,
+      } as any);
+    } catch (err) {
+      console.error("Review token create failed", err);
+      continue;
+    }
+
     const reviewLink = buildReviewLink({
-      businessPublicId,
-      appointmentId: String(appt._id),
+      businessPath,
+      reviewToken: token,
     });
     if (!reviewLink) continue;
 
