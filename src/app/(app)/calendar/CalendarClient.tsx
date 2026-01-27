@@ -110,19 +110,20 @@ export default function CalendarClient() {
   }, [searchParams]);
 
   const [error, setError] = React.useState<string | null>(null);
-  const [showAll, setShowAll] = React.useState(false);
+  const [showAll, setShowAll] = React.useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("calendarShowAll") === "true";
+  });
   const [showSwipeHint, setShowSwipeHint] = React.useState(false);
   const [isTouch, setIsTouch] = React.useState(false);
+  const showAllPersisted = React.useRef(false);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem("calendarShowAll");
-    if (stored === null) return;
-    setShowAll(stored === "true");
-  }, []);
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!showAllPersisted.current) {
+      showAllPersisted.current = true;
+      return;
+    }
     window.localStorage.setItem("calendarShowAll", String(showAll));
   }, [showAll]);
 
