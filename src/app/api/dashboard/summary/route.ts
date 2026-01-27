@@ -176,7 +176,11 @@ export async function GET() {
         .trim()
         .toUpperCase();
       const canonical = normalized === "NIS" ? "ILS" : normalized;
-      return canonical === "ILS" ? "₪" : "";
+      if (canonical === "ILS") return "₪";
+      if (canonical === "USD") return "$";
+      if (canonical === "EUR") return "€";
+      if (canonical === "GBP") return "£";
+      return "";
     };
 
     // Keep appointment statuses in sync: if a booked appointment has passed, mark it completed.
