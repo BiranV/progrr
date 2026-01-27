@@ -112,7 +112,10 @@ export default function SwipeableAppointmentCard({
         className={`absolute inset-0 rounded-2xl transition-colors ${bgClass}`}
         aria-hidden="true"
       >
-        <div className="absolute inset-0 flex items-center justify-between px-4">
+        <div
+          className="absolute inset-0 flex items-center justify-between px-4"
+          style={{ direction: "ltr" }}
+        >
           <Check
             className={`h-8 w-8 text-emerald-600 transition-opacity no-rtl-flip ${
               direction === "right" ? "opacity-100" : "opacity-0"
