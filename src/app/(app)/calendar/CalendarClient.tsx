@@ -372,10 +372,10 @@ export default function CalendarClient() {
       const enabled = Boolean((raw as any)?.enabled);
       const ranges = Array.isArray((raw as any)?.ranges)
         ? ((raw as any).ranges as Array<{ start?: string; end?: string }>).map(
-            (r) => ({ start: r?.start, end: r?.end }),
-          )
+          (r) => ({ start: r?.start, end: r?.end }),
+        )
         : String((raw as any)?.start ?? "").trim() ||
-            String((raw as any)?.end ?? "").trim()
+          String((raw as any)?.end ?? "").trim()
           ? [{ start: (raw as any)?.start, end: (raw as any)?.end }]
           : [];
 
@@ -754,7 +754,7 @@ export default function CalendarClient() {
           toast.error(
             String(
               json?.email?.error ||
-                t("calendar.errors.failedToEmailCustomerCancel"),
+              t("calendar.errors.failedToEmailCustomerCancel"),
             ),
           );
         }
@@ -928,7 +928,7 @@ export default function CalendarClient() {
         toast.error(
           String(
             json?.email?.error ||
-              t("calendar.errors.failedToEmailCustomerCreate"),
+            t("calendar.errors.failedToEmailCustomerCreate"),
           ),
         );
       }
@@ -1129,7 +1129,7 @@ export default function CalendarClient() {
           setError(
             String(
               json?.email?.error ||
-                t("calendar.errors.failedToEmailCustomerCancel"),
+              t("calendar.errors.failedToEmailCustomerCancel"),
             ),
           );
         }
@@ -1313,7 +1313,7 @@ export default function CalendarClient() {
         setError(
           String(
             json?.email?.error ||
-              t("calendar.errors.failedToEmailCustomerReschedule"),
+            t("calendar.errors.failedToEmailCustomerReschedule"),
           ),
         );
       }
@@ -1571,7 +1571,7 @@ export default function CalendarClient() {
                         ? t("calendar.customersLoading")
                         : selectedCustomerForPicker
                           ? selectedCustomerForPicker.fullName ||
-                            t("calendar.noName")
+                          t("calendar.noName")
                           : customersForPicker.length
                             ? t("calendar.customerChoose")
                             : t("calendar.customerNone")}
@@ -1701,45 +1701,21 @@ export default function CalendarClient() {
         </div>
       ) : (
         <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+          <div
+            dir={isRtl ? "rtl" : "ltr"}
+            className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground"
+          >
             <div className="inline-flex items-center gap-2">
-              {isRtl ? (
-                <>
-                  <span>{t("calendar.status.booked")}</span>
-                  <span className="h-2 w-2 rounded-full bg-emerald-500/80" />
-                </>
-              ) : (
-                <>
-                  <span className="h-2 w-2 rounded-full bg-emerald-500/80" />
-                  <span>{t("calendar.status.booked")}</span>
-                </>
-              )}
+              <span className="h-2 w-2 rounded-full bg-emerald-500/80" />
+              <span>{t("calendar.status.booked")}</span>
             </div>
             <div className="inline-flex items-center gap-2">
-              {isRtl ? (
-                <>
-                  <span>{t("calendar.status.completed")}</span>
-                  <span className="h-2 w-2 rounded-full bg-blue-500/80" />
-                </>
-              ) : (
-                <>
-                  <span className="h-2 w-2 rounded-full bg-blue-500/80" />
-                  <span>{t("calendar.status.completed")}</span>
-                </>
-              )}
+              <span className="h-2 w-2 rounded-full bg-blue-500/80" />
+              <span>{t("calendar.status.completed")}</span>
             </div>
             <div className="inline-flex items-center gap-2">
-              {isRtl ? (
-                <>
-                  <span>{t("calendar.status.canceled")}</span>
-                  <span className="h-2 w-2 rounded-full bg-rose-500/80 dark:bg-rose-400/80" />
-                </>
-              ) : (
-                <>
-                  <span className="h-2 w-2 rounded-full bg-rose-500/80 dark:bg-rose-400/80" />
-                  <span>{t("calendar.status.canceled")}</span>
-                </>
-              )}
+              <span className="h-2 w-2 rounded-full bg-rose-500/80 dark:bg-rose-400/80" />
+              <span>{t("calendar.status.canceled")}</span>
             </div>
           </div>
           {visibleAppointments.map((a, index) => {
@@ -1941,7 +1917,7 @@ export default function CalendarClient() {
                                 } catch (e: any) {
                                   setTimesError(
                                     e?.message ||
-                                      t("calendar.reschedule.failed"),
+                                    t("calendar.reschedule.failed"),
                                   );
                                 }
                               }}
@@ -2076,12 +2052,12 @@ export default function CalendarClient() {
                               <span className="text-xs text-muted-foreground whitespace-nowrap">
                                 {isCanceledStatus(a.status)
                                   ? String(
-                                      a.cancelledBy || "",
-                                    ).toUpperCase() === "BUSINESS"
+                                    a.cancelledBy || "",
+                                  ).toUpperCase() === "BUSINESS"
                                     ? t("calendar.cancelledBy.business")
                                     : String(
-                                          a.cancelledBy || "",
-                                        ).toUpperCase() === "CUSTOMER"
+                                      a.cancelledBy || "",
+                                    ).toUpperCase() === "CUSTOMER"
                                       ? t("calendar.cancelledBy.customer")
                                       : t("calendar.cancelledBy.unknown")
                                   : statusLabel(a.status)}
@@ -2144,7 +2120,7 @@ export default function CalendarClient() {
                           ) : null}
 
                           {!a.notes &&
-                          normalizeStatusKey(a.status) === "COMPLETED" ? (
+                            normalizeStatusKey(a.status) === "COMPLETED" ? (
                             <div className="mt-1 flex items-center justify-end gap-2">
                               <Switch
                                 checked={
