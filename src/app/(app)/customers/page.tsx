@@ -866,8 +866,10 @@ export default function CustomersPage() {
             </TabsContent>
 
             <TabsContent value="message" className="space-y-4">
-              <div className="space-y-2">
-                <Label>{t("customers.message.channelLabel")}</Label>
+              <div className="space-y-2 flex flex-col items-start rtl:items-end rtl:text-right">
+                <Label className="text-start rtl:text-right">
+                  {t("customers.message.channelLabel")}
+                </Label>
                 <Select
                   value={messageChannel}
                   onValueChange={(v) =>
@@ -893,13 +895,16 @@ export default function CustomersPage() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label>{t("customers.details.sendMessageTitle")}</Label>
+              <div className="space-y-2 flex flex-col items-start rtl:items-end rtl:text-right">
+                <Label className="text-start rtl:text-right">
+                  {t("customers.details.sendMessageTitle")}
+                </Label>
                 <Textarea
                   placeholder={t("customers.details.messagePlaceholder")}
                   value={messageText}
                   onChange={(e) => setMessageText(e.target.value)}
                   rows={5}
+                  className="text-start rtl:text-right"
                 />
               </div>
 
