@@ -1585,7 +1585,7 @@ function OnboardingContent() {
               />
 
               <div className="mt-4 space-y-3">
-                <div className="relative w-full h-[140px] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 bg-gradient-to-br from-neutral-950 via-zinc-900 to-zinc-800">
+                <div className="relative w-full h-[140px] rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 bg-gray-100 dark:bg-gray-800">
                   {data.branding?.banner?.url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -1594,11 +1594,9 @@ function OnboardingContent() {
                       className="absolute inset-0 w-full h-full object-cover"
                     />
                   ) : null}
-                  <div className="absolute inset-0 opacity-20 mix-blend-overlay" />
-
                   {!data.branding?.banner?.url ? (
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="text-xs font-medium text-white/80">
+                      <div className="text-xs font-medium text-gray-500 dark:text-gray-300">
                         {t("onboarding.noBanner")}
                       </div>
                     </div>
