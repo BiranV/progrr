@@ -729,7 +729,7 @@ export default function CustomersPage() {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="details" className="space-y-4">
+            <TabsContent value="details" className="space-y-4" dir={dir}>
               <div className="space-y-1 rtl:text-right">
                 <div className="text-xs text-muted-foreground flex items-center gap-2 rtl:flex-row-reverse rtl:justify-end">
                   {t("customers.drawer.phoneLabel")}
