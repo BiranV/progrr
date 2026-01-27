@@ -498,3 +498,32 @@ html[dir="rtl"] [data-radix-select-item] [data-slot="select-item-indicator"] {
     filter: blur(22px);
   }
 }
+
+.no-rtl-flip {
+  transform: none !important;
+}
+
+html[dir="rtl"] .no-rtl-flip {
+  transform: none !important;
+}
+
+.swipe-undo-progress {
+  transform-origin: left center;
+  animation-name: swipe-undo-shrink;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  background-color: rgb(59 130 246 / 0.85);
+}
+
+html.dark .swipe-undo-progress {
+  background-color: rgb(96 165 250 / 0.9);
+}
+
+@keyframes swipe-undo-shrink {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}

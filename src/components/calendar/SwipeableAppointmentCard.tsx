@@ -31,11 +31,13 @@ export default function SwipeableAppointmentCard({
   showHint = false,
   onHintDismiss,
 }: SwipeableAppointmentCardProps) {
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
   const x = useMotionValue(0);
   const [direction, setDirection] = React.useState<"left" | "right" | null>(
     null,
   );
   const [isTouch, setIsTouch] = React.useState(false);
+  const [containerWidth, setContainerWidth] = React.useState(0);
   const isDev = process.env.NODE_ENV !== "production";
   const allowSwipe = isTouch || isDev;
 
@@ -46,6 +48,16 @@ export default function SwipeableAppointmentCard({
     update();
     mq.addEventListener?.("change", update);
     return () => mq.removeEventListener?.("change", update);
+  }, []);
+
+  React.useEffect(() => {
+    const node = containerRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const update = () => setContainerWidth(node.clientWidth || 0);
+    update();
+    const observer = new ResizeObserver(() => update());
+    observer.observe(node);
+    return () => observer.disconnect();
   }, []);
 
   const reset = React.useCallback(() => {
@@ -65,16 +77,19 @@ export default function SwipeableAppointmentCard({
 
   const bind = useDrag(
     ({ active, movement: [mx], last, event }) => {
-      console.log("swipe drag", { active, mx, last });
       if (disabled || !allowSwipe) return;
       const pointerType = (event as PointerEvent)?.pointerType;
       if (pointerType && pointerType !== "touch" && !isDev) return;
+
       if (active) {
         x.set(mx);
         setDirection(mx > 0 ? "right" : mx < 0 ? "left" : null);
       }
-      if (last) {
-        if (Math.abs(mx) >= threshold) {
+      if (last && !active) {
+        const dynamicThreshold =
+          containerWidth > 0 ? Math.round(containerWidth * 0.4) : 0;
+        const commitThreshold = Math.max(threshold, dynamicThreshold);
+        if (Math.abs(mx) >= commitThreshold) {
           triggerSwipe(mx > 0 ? "right" : "left");
         } else {
           reset();
@@ -92,19 +107,19 @@ export default function SwipeableAppointmentCard({
         : "bg-transparent";
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <div
         className={`absolute inset-0 rounded-2xl transition-colors ${bgClass}`}
         aria-hidden="true"
       >
         <div className="absolute inset-0 flex items-center justify-between px-4">
           <Check
-            className={`h-8 w-8 text-emerald-600 transition-opacity ${
+            className={`h-8 w-8 text-emerald-600 transition-opacity no-rtl-flip ${
               direction === "right" ? "opacity-100" : "opacity-0"
             }`}
           />
           <X
-            className={`h-8 w-8 text-rose-600 transition-opacity ${
+            className={`h-8 w-8 text-rose-600 transition-opacity no-rtl-flip ${
               direction === "left" ? "opacity-100" : "opacity-0"
             }`}
           />

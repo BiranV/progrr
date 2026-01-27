@@ -1144,6 +1144,11 @@ const he = {
       markedCompleted: "סומן כהושלם",
       markedCanceled: "סומן כבוטל",
     },
+    inlineFeedback: {
+      completed: "התור הושלם",
+      canceled: "התור בוטל",
+      undo: "בטל",
+    },
     cancelModal: {
       title: "לבטל תור?",
       description: "התור יסומן כמבוטל.",

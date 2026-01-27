@@ -10,10 +10,12 @@ import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronsUpDown,
+  Check,
   Loader2,
   MoreVertical,
   RefreshCw,
   User,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useI18n } from "@/i18n/useI18n";
@@ -139,6 +141,16 @@ export default function CalendarClient() {
 
   type AppointmentStatus = "BOOKED" | "COMPLETED" | "CANCELED";
   type ManualStatus = "COMPLETED" | "CANCELED";
+  const SWIPE_FEEDBACK_MS = 3500;
+  type SwipeFeedback = {
+    message: string;
+    nextStatus: AppointmentStatus;
+    previous: {
+      status: AppointmentStatus;
+      cancelledBy?: string;
+      paymentStatus?: Appointment["paymentStatus"];
+    };
+  };
 
   const appointmentsQuery = useQuery({
     queryKey: ["appointments", date],
@@ -203,6 +215,11 @@ export default function CalendarClient() {
   const [cancelConfirmationsById, setCancelConfirmationsById] = React.useState<
     Record<string, { notifyCustomer: boolean }>
   >({});
+
+  const [swipeFeedbackById, setSwipeFeedbackById] = React.useState<
+    Record<string, SwipeFeedback>
+  >({});
+  const swipeFeedbackTimers = React.useRef<Record<string, number>>({});
 
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createServiceId, setCreateServiceId] = React.useState<string>("");
@@ -460,6 +477,254 @@ export default function CalendarClient() {
       }
     },
     [date, queryClient, t, translateCalendarError],
+  );
+
+  const updateAppointmentCache = React.useCallback(
+    (appointmentId: string, updater: (current: Appointment) => Appointment) => {
+      const key = ["appointments", date] as const;
+      const previous = queryClient.getQueryData<Appointment[]>(key);
+      queryClient.setQueryData(key, (oldData: unknown) => {
+        if (!Array.isArray(oldData)) return oldData;
+        return (oldData as Appointment[]).map((appt) =>
+          appt.id === appointmentId ? updater(appt) : appt,
+        );
+      });
+      return Array.isArray(previous) ? previous : null;
+    },
+    [date, queryClient],
+  );
+
+  const dismissSwipeFeedback = React.useCallback((appointmentId: string) => {
+    const timerId = swipeFeedbackTimers.current[appointmentId];
+    if (timerId) {
+      window.clearTimeout(timerId);
+      delete swipeFeedbackTimers.current[appointmentId];
+    }
+
+    setSwipeFeedbackById((prev) => {
+      if (!prev[appointmentId]) return prev;
+      const next = { ...prev };
+      delete next[appointmentId];
+      return next;
+    });
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      Object.values(swipeFeedbackTimers.current).forEach((id) => {
+        window.clearTimeout(id);
+      });
+      swipeFeedbackTimers.current = {};
+    };
+  }, []);
+
+  const showSwipeFeedback = React.useCallback(
+    (appointment: Appointment, nextStatus: AppointmentStatus) => {
+      const previousStatus = normalizeStatusKey(appointment.status);
+      const message =
+        nextStatus === "COMPLETED"
+          ? t("calendar.inlineFeedback.completed")
+          : t("calendar.inlineFeedback.canceled");
+
+      setSwipeFeedbackById((prev) => ({
+        ...prev,
+        [appointment.id]: {
+          message,
+          nextStatus,
+          previous: {
+            status: previousStatus,
+            cancelledBy: appointment.cancelledBy,
+            paymentStatus: appointment.paymentStatus,
+          },
+        },
+      }));
+
+      const existing = swipeFeedbackTimers.current[appointment.id];
+      if (existing) window.clearTimeout(existing);
+      swipeFeedbackTimers.current[appointment.id] = window.setTimeout(() => {
+        dismissSwipeFeedback(appointment.id);
+      }, SWIPE_FEEDBACK_MS);
+    },
+    [dismissSwipeFeedback, normalizeStatusKey, t],
+  );
+
+  const undoSwipeFeedback = React.useCallback(
+    async (appointmentId: string) => {
+      const feedback = swipeFeedbackById[appointmentId];
+      if (!feedback) return;
+
+      dismissSwipeFeedback(appointmentId);
+      setStatusUpdatingId(appointmentId);
+
+      updateAppointmentCache(appointmentId, (current) => ({
+        ...current,
+        status: feedback.previous.status,
+        cancelledBy: feedback.previous.cancelledBy,
+        paymentStatus: feedback.previous.paymentStatus,
+      }));
+
+      try {
+        const res = await fetch(
+          `/api/appointments/${encodeURIComponent(appointmentId)}/status`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: feedback.previous.status }),
+          },
+        );
+        const json = await res.json().catch(() => null);
+        if (!res.ok) {
+          throw new Error(
+            json?.error || t("errors.requestFailed", { status: res.status }),
+          );
+        }
+      } catch (e: any) {
+        const raw = String(e?.message || t("errors.failedToSave"));
+        const msg = translateCalendarError(raw);
+        toast.error(msg);
+      } finally {
+        setStatusUpdatingId(null);
+        await queryClient.invalidateQueries({
+          queryKey: ["appointments", date],
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["dashboardSummary"],
+        });
+        await queryClient.invalidateQueries({
+          queryKey: ["dashboardRevenueSeries"],
+        });
+      }
+    },
+    [
+      date,
+      dismissSwipeFeedback,
+      queryClient,
+      swipeFeedbackById,
+      t,
+      translateCalendarError,
+      updateAppointmentCache,
+    ],
+  );
+
+  const swipeUpdateStatus = React.useCallback(
+    async (appointment: Appointment, nextStatus: ManualStatus) => {
+      const from = normalizeStatusKey(appointment.status);
+      if (from === nextStatus) return;
+
+      setStatusUpdatingId(appointment.id);
+      const previous = updateAppointmentCache(appointment.id, (current) => ({
+        ...current,
+        status: nextStatus,
+        cancelledBy:
+          nextStatus === "CANCELED" ? "BUSINESS" : current.cancelledBy,
+      }));
+
+      try {
+        const res = await fetch(
+          `/api/appointments/${encodeURIComponent(appointment.id)}/status`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: nextStatus }),
+          },
+        );
+        const json = await res.json().catch(() => null);
+        if (!res.ok) {
+          throw new Error(
+            json?.error || t("errors.requestFailed", { status: res.status }),
+          );
+        }
+
+        await queryClient.invalidateQueries({
+          queryKey: ["appointments", date],
+        });
+        await queryClient.invalidateQueries({ queryKey: ["dashboardSummary"] });
+        await queryClient.invalidateQueries({
+          queryKey: ["dashboardRevenueSeries"],
+        });
+      } catch (e: any) {
+        if (previous) {
+          queryClient.setQueryData(["appointments", date], previous);
+        }
+        const raw = String(e?.message || t("errors.failedToSave"));
+        const msg = translateCalendarError(raw);
+        toast.error(msg);
+      } finally {
+        setStatusUpdatingId(null);
+      }
+    },
+    [
+      date,
+      normalizeStatusKey,
+      queryClient,
+      t,
+      translateCalendarError,
+      updateAppointmentCache,
+    ],
+  );
+
+  const swipeCancelAppointment = React.useCallback(
+    async (appointment: Appointment, notifyCustomer: boolean) => {
+      if (isCanceledStatus(appointment.status)) return;
+
+      setStatusUpdatingId(appointment.id);
+      const previous = updateAppointmentCache(appointment.id, (current) => ({
+        ...current,
+        status: "CANCELED",
+        cancelledBy: "BUSINESS",
+      }));
+
+      try {
+        const res = await fetch(
+          `/api/appointments/${encodeURIComponent(appointment.id)}/cancel`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ notifyCustomer }),
+          },
+        );
+        const json = await res.json().catch(() => null);
+        if (!res.ok) {
+          throw new Error(
+            json?.error || t("errors.requestFailed", { status: res.status }),
+          );
+        }
+
+        if (notifyCustomer && json?.email?.sent === false) {
+          toast.error(
+            String(
+              json?.email?.error ||
+                t("calendar.errors.failedToEmailCustomerCancel"),
+            ),
+          );
+        }
+
+        await queryClient.invalidateQueries({
+          queryKey: ["appointments", date],
+        });
+        await queryClient.invalidateQueries({ queryKey: ["dashboardSummary"] });
+        await queryClient.invalidateQueries({
+          queryKey: ["dashboardRevenueSeries"],
+        });
+      } catch (e: any) {
+        if (previous) {
+          queryClient.setQueryData(["appointments", date], previous);
+        }
+        const raw = String(e?.message || t("errors.failedToSave"));
+        const msg = translateCalendarError(raw);
+        toast.error(msg);
+      } finally {
+        setStatusUpdatingId(null);
+      }
+    },
+    [
+      date,
+      isCanceledStatus,
+      queryClient,
+      t,
+      translateCalendarError,
+      updateAppointmentCache,
+    ],
   );
 
   const updatePaymentStatus = React.useCallback(
@@ -1384,6 +1649,8 @@ export default function CalendarClient() {
                 : null;
             const isStatusConfirming = Boolean(confirmationMessage);
             const statusKey = normalizeStatusKey(a.status);
+            const swipeFeedback = swipeFeedbackById[a.id];
+            const isSwipeFeedbackVisible = Boolean(swipeFeedback);
 
             return (
               <SwipeableAppointmentCard
@@ -1391,331 +1658,395 @@ export default function CalendarClient() {
                 showHint={showSwipeHint && index === 0}
                 onHintDismiss={dismissSwipeHint}
                 onSwipeRight={() => {
-                  if (statusUpdatingId === a.id || isStatusConfirming) return;
+                  if (
+                    statusUpdatingId === a.id ||
+                    isStatusConfirming ||
+                    isSwipeFeedbackVisible
+                  )
+                    return;
                   if (statusKey !== "COMPLETED") {
-                    requestStatusChange(a, "COMPLETED");
+                    showSwipeFeedback(a, "COMPLETED");
+                    swipeUpdateStatus(a, "COMPLETED");
                   }
                 }}
                 onSwipeLeft={() => {
-                  if (statusUpdatingId === a.id || isStatusConfirming) return;
+                  if (
+                    statusUpdatingId === a.id ||
+                    isStatusConfirming ||
+                    isSwipeFeedbackVisible
+                  )
+                    return;
                   if (statusKey === "CANCELED") return;
                   const incoming = isIncomingAppointment({
                     date: a.date,
                     endTime: a.endTime,
                   });
-                  if (incoming && statusKey === "BOOKED") {
-                    setCancelConfirmationsById((prev) => ({
-                      ...prev,
-                      [a.id]: { notifyCustomer: true },
-                    }));
-                  } else {
-                    cancelAppointmentById(a.id, false);
-                  }
+                  const notifyCustomer = incoming && statusKey === "BOOKED";
+                  showSwipeFeedback(a, "CANCELED");
+                  swipeCancelAppointment(a, notifyCustomer);
                 }}
-                disabled={statusUpdatingId === a.id || isStatusConfirming}
+                disabled={
+                  statusUpdatingId === a.id ||
+                  isStatusConfirming ||
+                  isSwipeFeedbackVisible
+                }
               >
                 <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 shadow-sm overflow-hidden">
-                  <div className="flex items-center justify-between gap-3 px-3 py-1.5 bg-gray-100/80 dark:bg-gray-900/40 relative overflow-hidden">
-                    <div
-                      className={
-                        "absolute inset-0 z-10 flex items-center justify-between gap-3 px-3 py-2 bg-slate-100 text-slate-900 dark:bg-slate-900 dark:text-slate-100 transition-transform duration-200 " +
-                        (isStatusConfirming
-                          ? "translate-y-0 pointer-events-auto"
-                          : "-translate-y-full pointer-events-none")
-                      }
-                      aria-hidden={!isStatusConfirming}
-                    >
-                      <div className="text-sm font-semibold leading-snug min-w-0 flex-1 text-slate-700 dark:text-slate-300">
-                        {confirmationMessage}
+                  {isSwipeFeedbackVisible ? (
+                    <div className="relative flex items-center justify-between gap-3 px-4 py-3 overflow-hidden">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-gray-100 rtl:flex-row-reverse rtl:text-right">
+                        {swipeFeedback?.nextStatus === "COMPLETED" ? (
+                          <Check className="h-4 w-4 text-emerald-600 no-rtl-flip" />
+                        ) : (
+                          <X className="h-4 w-4 text-rose-600 no-rtl-flip" />
+                        )}
+                        <span>{swipeFeedback?.message}</span>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="rounded-md whitespace-nowrap h-7 px-2 text-xs font-semibold text-slate-900 dark:text-slate-100 hover:bg-transparent"
-                          onClick={() => {
-                            if (statusConfirmation) {
-                              confirmStatusChange(a);
-                            } else if (cancelConfirmation) {
-                              confirmCancelChange(
-                                a.id,
-                                cancelConfirmation.notifyCustomer,
-                              );
-                            }
-                          }}
-                          disabled={statusUpdatingId === a.id}
-                        >
-                          {t("calendar.statusConfirm.confirm")}
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="rounded-md whitespace-nowrap h-7 px-2 text-xs !text-slate-600 dark:!text-slate-400 hover:bg-transparent hover:!text-slate-700 dark:hover:!text-slate-300"
-                          onClick={() => cancelStatusChange(a.id)}
-                          disabled={statusUpdatingId === a.id}
-                        >
-                          {t("calendar.statusConfirm.cancel")}
-                        </Button>
-                      </div>
-                    </div>
-                    <div
-                      className={
-                        "absolute inset-0 z-10 flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-900 dark:bg-slate-900 dark:text-slate-100 transition-transform duration-200 " +
-                        (rescheduleId === a.id
-                          ? "translate-y-0 pointer-events-auto"
-                          : "-translate-y-full pointer-events-none")
-                      }
-                      aria-hidden={rescheduleId !== a.id}
-                    >
-                      <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 shrink-0">
-                        {t("calendar.reschedule.availableHours")}
-                      </div>
-                      <div className="flex-1 min-w-[140px]">
-                        <Select
-                          value={selectedStartTime}
-                          onValueChange={(v) => setSelectedStartTime(v)}
-                          disabled={timesLoading || availableTimes.length === 0}
-                        >
-                          <SelectTrigger className="h-7 rounded-md text-xs bg-white/80 dark:bg-slate-950/40 flex items-center gap-2">
-                            <SelectValue
-                              placeholder={t("calendar.reschedule.selectTime")}
-                            />
-                            {timesLoading ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500" />
-                            ) : null}
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableTimes.map((t) => (
-                              <SelectItem key={t.startTime} value={t.startTime}>
-                                <span dir="ltr">
-                                  {formatTimeRange(t.startTime, t.endTime)}
-                                </span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="rounded-md whitespace-nowrap h-7 px-2 text-xs"
-                          disabled={
-                            rescheduling ||
-                            timesLoading ||
-                            availableTimes.length === 0 ||
-                            !selectedStartTime
-                          }
-                          onClick={async () => {
-                            try {
-                              await submitReschedule();
-                            } catch (e: any) {
-                              setTimesError(
-                                e?.message || t("calendar.reschedule.failed"),
-                              );
-                            }
-                          }}
-                        >
-                          {rescheduling
-                            ? t("calendar.saving")
-                            : t("calendar.save")}
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          className="rounded-md whitespace-nowrap h-7 px-2 text-xs !text-slate-600 dark:!text-slate-400 hover:bg-transparent hover:!text-slate-700 dark:hover:!text-slate-300"
-                          disabled={rescheduling || timesLoading}
-                          onClick={resetReschedule}
-                        >
-                          {t("common.cancel")}
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="font-semibold text-gray-900 dark:text-white truncate">
-                      <span dir="ltr">
-                        {formatTimeRange(a.startTime, a.endTime)}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Badge
-                        className={
-                          "border backdrop-blur-sm " +
-                          (String(a.status) === "BOOKED"
-                            ? "bg-emerald-50/80 text-emerald-700 border-emerald-200/70"
-                            : String(a.status) === "COMPLETED"
-                              ? "bg-blue-50/80 text-blue-700 border-blue-200/70"
-                              : isCanceledStatus(a.status)
-                                ? "bg-gray-100/80 text-gray-600 border-gray-200/70 dark:bg-gray-800/60 dark:text-gray-200 dark:border-gray-700/60"
-                                : "bg-gray-100/80 text-gray-600 border-gray-200/70 dark:bg-gray-800/60 dark:text-gray-200 dark:border-gray-700/60")
-                        }
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 px-3 rounded-md text-xs font-semibold"
+                        onClick={() => undoSwipeFeedback(a.id)}
+                        disabled={statusUpdatingId === a.id}
                       >
-                        {statusLabel(a.status)}
-                      </Badge>
-
-                      {showAll || !isCanceledStatus(a.status) ? (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
+                        {t("calendar.inlineFeedback.undo")}
+                      </Button>
+                      <div className="absolute inset-x-0 bottom-0 h-1 bg-slate-200/70 dark:bg-slate-800/70">
+                        <div
+                          className="h-full bg-slate-500/70 dark:bg-slate-300/70 swipe-undo-progress"
+                          style={{
+                            animationDuration: `${SWIPE_FEEDBACK_MS}ms`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between gap-3 px-3 py-1.5 bg-gray-100/80 dark:bg-gray-900/40 relative overflow-hidden">
+                        <div
+                          className={
+                            "absolute inset-0 z-10 flex items-center justify-between gap-3 px-3 py-2 bg-slate-100 text-slate-900 dark:bg-slate-900 dark:text-slate-100 transition-transform duration-200 " +
+                            (isStatusConfirming
+                              ? "translate-y-0 pointer-events-auto"
+                              : "-translate-y-full pointer-events-none")
+                          }
+                          aria-hidden={!isStatusConfirming}
+                        >
+                          <div className="text-sm font-semibold leading-snug min-w-0 flex-1 text-slate-700 dark:text-slate-300">
+                            {confirmationMessage}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
                             <Button
                               type="button"
-                              size="icon"
+                              size="sm"
                               variant="ghost"
-                              className="h-8 w-8 rounded-xl"
-                              disabled={
-                                statusUpdatingId === a.id || isStatusConfirming
-                              }
-                              aria-label={t("calendar.actions.changeStatus")}
-                              title={t("calendar.actions.changeStatus")}
+                              className="rounded-md whitespace-nowrap h-7 px-2 text-xs font-semibold text-slate-900 dark:text-slate-100 hover:bg-transparent"
+                              onClick={() => {
+                                if (statusConfirmation) {
+                                  confirmStatusChange(a);
+                                } else if (cancelConfirmation) {
+                                  confirmCancelChange(
+                                    a.id,
+                                    cancelConfirmation.notifyCustomer,
+                                  );
+                                }
+                              }}
+                              disabled={statusUpdatingId === a.id}
                             >
-                              <MoreVertical className="h-4 w-4" />
+                              {t("calendar.statusConfirm.confirm")}
                             </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {(() => {
-                              const current = normalizeStatusKey(a.status);
-                              const isIncoming = isIncomingAppointment({
-                                date: String((a as any)?.date ?? ""),
-                                endTime: String((a as any)?.endTime ?? ""),
-                              });
-
-                              return (
-                                <>
-                                  {current === "BOOKED" && isIncoming ? (
-                                    <DropdownMenuItem
-                                      onClick={() => openReschedule(a)}
-                                      disabled={statusUpdatingId === a.id}
-                                    >
-                                      {t("calendar.actions.changeHour")}
-                                    </DropdownMenuItem>
-                                  ) : null}
-
-                                  {current !== "COMPLETED" ? (
-                                    <DropdownMenuItem
-                                      onClick={() =>
-                                        requestStatusChange(a, "COMPLETED")
-                                      }
-                                      disabled={statusUpdatingId === a.id}
-                                    >
-                                      {t("calendar.actions.setAsCompleted")}
-                                    </DropdownMenuItem>
-                                  ) : null}
-
-                                  {current !== "CANCELED" ? (
-                                    <DropdownMenuItem
-                                      onClick={() => {
-                                        const incoming = isIncomingAppointment({
-                                          date: a.date,
-                                          endTime: a.endTime,
-                                        });
-                                        if (incoming && current === "BOOKED") {
-                                          setCancelConfirmationsById(
-                                            (prev) => ({
-                                              ...prev,
-                                              [a.id]: { notifyCustomer: true },
-                                            }),
-                                          );
-                                        } else {
-                                          cancelAppointmentById(a.id, false);
-                                        }
-                                      }}
-                                      disabled={statusUpdatingId === a.id}
-                                    >
-                                      {t("calendar.actions.setAsCanceled")}
-                                    </DropdownMenuItem>
-                                  ) : null}
-                                </>
-                              );
-                            })()}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3 p-3">
-                    <div className="min-w-0 w-full">
-                      {rescheduleId === a.id && timesError ? (
-                        <div className="mb-2 text-xs text-red-600 dark:text-red-400">
-                          {timesError}
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="rounded-md whitespace-nowrap h-7 px-2 text-xs !text-slate-600 dark:!text-slate-400 hover:bg-transparent hover:!text-slate-700 dark:hover:!text-slate-300"
+                              onClick={() => cancelStatusChange(a.id)}
+                              disabled={statusUpdatingId === a.id}
+                            >
+                              {t("calendar.statusConfirm.cancel")}
+                            </Button>
+                          </div>
                         </div>
-                      ) : null}
-
-                      <div className="flex items-center justify-between gap-3 w-full">
-                        <div className="text-sm text-gray-700 dark:text-gray-200 truncate">
-                          {a.serviceName}
+                        <div
+                          className={
+                            "absolute inset-0 z-10 flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-900 dark:bg-slate-900 dark:text-slate-100 transition-transform duration-200 " +
+                            (rescheduleId === a.id
+                              ? "translate-y-0 pointer-events-auto"
+                              : "-translate-y-full pointer-events-none")
+                          }
+                          aria-hidden={rescheduleId !== a.id}
+                        >
+                          <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 shrink-0">
+                            {t("calendar.reschedule.availableHours")}
+                          </div>
+                          <div className="flex-1 min-w-[140px]">
+                            <Select
+                              value={selectedStartTime}
+                              onValueChange={(v) => setSelectedStartTime(v)}
+                              disabled={
+                                timesLoading || availableTimes.length === 0
+                              }
+                            >
+                              <SelectTrigger className="h-7 rounded-md text-xs bg-white/80 dark:bg-slate-950/40 flex items-center gap-2">
+                                <SelectValue
+                                  placeholder={t(
+                                    "calendar.reschedule.selectTime",
+                                  )}
+                                />
+                                {timesLoading ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-500" />
+                                ) : null}
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availableTimes.map((t) => (
+                                  <SelectItem
+                                    key={t.startTime}
+                                    value={t.startTime}
+                                  >
+                                    <span dir="ltr">
+                                      {formatTimeRange(t.startTime, t.endTime)}
+                                    </span>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="rounded-md whitespace-nowrap h-7 px-2 text-xs"
+                              disabled={
+                                rescheduling ||
+                                timesLoading ||
+                                availableTimes.length === 0 ||
+                                !selectedStartTime
+                              }
+                              onClick={async () => {
+                                try {
+                                  await submitReschedule();
+                                } catch (e: any) {
+                                  setTimesError(
+                                    e?.message ||
+                                      t("calendar.reschedule.failed"),
+                                  );
+                                }
+                              }}
+                            >
+                              {rescheduling
+                                ? t("calendar.saving")
+                                : t("calendar.save")}
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="rounded-md whitespace-nowrap h-7 px-2 text-xs !text-slate-600 dark:!text-slate-400 hover:bg-transparent hover:!text-slate-700 dark:hover:!text-slate-300"
+                              disabled={rescheduling || timesLoading}
+                              onClick={resetReschedule}
+                            >
+                              {t("common.cancel")}
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3 shrink-0 ms-auto">
-                          {isCanceledStatus(a.status) ? (
-                            <span className="text-xs text-muted-foreground">
-                              {String(a.cancelledBy || "").toUpperCase() ===
-                              "BUSINESS"
-                                ? t("calendar.cancelledBy.business")
-                                : String(a.cancelledBy || "").toUpperCase() ===
-                                    "CUSTOMER"
-                                  ? t("calendar.cancelledBy.customer")
-                                  : t("calendar.cancelledBy.unknown")}
-                            </span>
+                        <div className="font-semibold text-gray-900 dark:text-white truncate">
+                          <span dir="ltr">
+                            {formatTimeRange(a.startTime, a.endTime)}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Badge
+                            className={
+                              "border backdrop-blur-sm " +
+                              (String(a.status) === "BOOKED"
+                                ? "bg-emerald-50/80 text-emerald-700 border-emerald-200/70"
+                                : String(a.status) === "COMPLETED"
+                                  ? "bg-blue-50/80 text-blue-700 border-blue-200/70"
+                                  : isCanceledStatus(a.status)
+                                    ? "bg-gray-100/80 text-gray-600 border-gray-200/70 dark:bg-gray-800/60 dark:text-gray-200 dark:border-gray-700/60"
+                                    : "bg-gray-100/80 text-gray-600 border-gray-200/70 dark:bg-gray-800/60 dark:text-gray-200 dark:border-gray-700/60")
+                            }
+                          >
+                            {statusLabel(a.status)}
+                          </Badge>
+
+                          {showAll || !isCanceledStatus(a.status) ? (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8 rounded-xl"
+                                  disabled={
+                                    statusUpdatingId === a.id ||
+                                    isStatusConfirming
+                                  }
+                                  aria-label={t(
+                                    "calendar.actions.changeStatus",
+                                  )}
+                                  title={t("calendar.actions.changeStatus")}
+                                >
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {(() => {
+                                  const current = normalizeStatusKey(a.status);
+                                  const isIncoming = isIncomingAppointment({
+                                    date: String((a as any)?.date ?? ""),
+                                    endTime: String((a as any)?.endTime ?? ""),
+                                  });
+
+                                  return (
+                                    <>
+                                      {current === "BOOKED" && isIncoming ? (
+                                        <DropdownMenuItem
+                                          onClick={() => openReschedule(a)}
+                                          disabled={statusUpdatingId === a.id}
+                                        >
+                                          {t("calendar.actions.changeHour")}
+                                        </DropdownMenuItem>
+                                      ) : null}
+
+                                      {current !== "COMPLETED" ? (
+                                        <DropdownMenuItem
+                                          onClick={() =>
+                                            requestStatusChange(a, "COMPLETED")
+                                          }
+                                          disabled={statusUpdatingId === a.id}
+                                        >
+                                          {t("calendar.actions.setAsCompleted")}
+                                        </DropdownMenuItem>
+                                      ) : null}
+
+                                      {current !== "CANCELED" ? (
+                                        <DropdownMenuItem
+                                          onClick={() => {
+                                            const incoming =
+                                              isIncomingAppointment({
+                                                date: a.date,
+                                                endTime: a.endTime,
+                                              });
+                                            if (
+                                              incoming &&
+                                              current === "BOOKED"
+                                            ) {
+                                              setCancelConfirmationsById(
+                                                (prev) => ({
+                                                  ...prev,
+                                                  [a.id]: {
+                                                    notifyCustomer: true,
+                                                  },
+                                                }),
+                                              );
+                                            } else {
+                                              cancelAppointmentById(
+                                                a.id,
+                                                false,
+                                              );
+                                            }
+                                          }}
+                                          disabled={statusUpdatingId === a.id}
+                                        >
+                                          {t("calendar.actions.setAsCanceled")}
+                                        </DropdownMenuItem>
+                                      ) : null}
+                                    </>
+                                  );
+                                })()}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           ) : null}
-                          {normalizeStatusKey(a.status) === "COMPLETED" ? (
-                            <div className="flex items-center gap-2">
-                              <Switch
-                                checked={
-                                  String(
-                                    a.paymentStatus ?? "UNPAID",
-                                  ).toUpperCase() === "PAID"
-                                }
-                                onCheckedChange={(checked) =>
-                                  updatePaymentStatus(
-                                    a,
-                                    checked ? "PAID" : "UNPAID",
-                                  )
-                                }
-                                disabled={paymentUpdatingId === a.id}
-                                aria-label={t("calendar.paid")}
-                                className="scale-90"
-                              />
-                              <span className="text-xs text-gray-600 dark:text-gray-300 select-none">
-                                {t("calendar.paid")}
-                              </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-3 p-3">
+                        <div className="min-w-0 w-full">
+                          {rescheduleId === a.id && timesError ? (
+                            <div className="mb-2 text-xs text-red-600 dark:text-red-400">
+                              {timesError}
                             </div>
                           ) : null}
+
+                          <div className="flex items-center justify-between gap-3 w-full">
+                            <div className="text-sm text-gray-700 dark:text-gray-200 truncate">
+                              {a.serviceName}
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0 ms-auto">
+                              {isCanceledStatus(a.status) ? (
+                                <span className="text-xs text-muted-foreground">
+                                  {String(a.cancelledBy || "").toUpperCase() ===
+                                  "BUSINESS"
+                                    ? t("calendar.cancelledBy.business")
+                                    : String(
+                                          a.cancelledBy || "",
+                                        ).toUpperCase() === "CUSTOMER"
+                                      ? t("calendar.cancelledBy.customer")
+                                      : t("calendar.cancelledBy.unknown")}
+                                </span>
+                              ) : null}
+                              {normalizeStatusKey(a.status) === "COMPLETED" ? (
+                                <div className="flex items-center gap-2">
+                                  <Switch
+                                    checked={
+                                      String(
+                                        a.paymentStatus ?? "UNPAID",
+                                      ).toUpperCase() === "PAID"
+                                    }
+                                    onCheckedChange={(checked) =>
+                                      updatePaymentStatus(
+                                        a,
+                                        checked ? "PAID" : "UNPAID",
+                                      )
+                                    }
+                                    disabled={paymentUpdatingId === a.id}
+                                    aria-label={t("calendar.paid")}
+                                    className="scale-90"
+                                  />
+                                  <span className="text-xs text-gray-600 dark:text-gray-300 select-none">
+                                    {t("calendar.paid")}
+                                  </span>
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          {a.bookedByYou ? (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {t("calendar.bookedByYou")}
+                            </div>
+                          ) : null}
+
+                          <div className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-3 w-full">
+                            <span className="flex items-center gap-1 min-w-0 rtl:flex-row-reverse">
+                              <User className="h-3.5 w-3.5 text-gray-500" />
+                              <span className="truncate">
+                                {a.customer.fullName}
+                              </span>
+                            </span>
+                            {a.customer.phone ? (
+                              <PhoneLink
+                                phone={a.customer.phone}
+                                className="text-xs ms-auto"
+                              />
+                            ) : null}
+                          </div>
+                          {a.notes ? (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {a.notes}
+                            </div>
+                          ) : null}
+
+                          {String(a.status) === "BOOKED" ? (
+                            <div className="mt-2" />
+                          ) : null}
                         </div>
                       </div>
-
-                      {a.bookedByYou ? (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {t("calendar.bookedByYou")}
-                        </div>
-                      ) : null}
-
-                      <div className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-3 w-full">
-                        <span className="flex items-center gap-1 min-w-0 rtl:flex-row-reverse">
-                          <User className="h-3.5 w-3.5 text-gray-500" />
-                          <span className="truncate">
-                            {a.customer.fullName}
-                          </span>
-                        </span>
-                        {a.customer.phone ? (
-                          <PhoneLink
-                            phone={a.customer.phone}
-                            className="text-xs ms-auto"
-                          />
-                        ) : null}
-                      </div>
-                      {a.notes ? (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          {a.notes}
-                        </div>
-                      ) : null}
-
-                      {String(a.status) === "BOOKED" ? (
-                        <div className="mt-2" />
-                      ) : null}
-                    </div>
-                  </div>
+                    </>
+                  )}
                 </div>
               </SwipeableAppointmentCard>
             );

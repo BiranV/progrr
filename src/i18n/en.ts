@@ -1170,6 +1170,11 @@ const en = {
       markedCompleted: "Marked as completed",
       markedCanceled: "Marked as canceled",
     },
+    inlineFeedback: {
+      completed: "Appointment completed",
+      canceled: "Appointment canceled",
+      undo: "Undo",
+    },
     cancelModal: {
       title: "Cancel appointment?",
       description: "This will mark the appointment as canceled.",
