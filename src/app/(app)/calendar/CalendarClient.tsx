@@ -1700,7 +1700,7 @@ export default function CalendarClient() {
           {t("calendar.noAppointmentsForDay")}
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <div
             dir={isRtl ? "rtl" : "ltr"}
             className="flex flex-wrap items-center gap-6 text-xs text-muted-foreground"
@@ -1798,7 +1798,7 @@ export default function CalendarClient() {
                     <>
                       <div
                         className={
-                          "flex items-center justify-between gap-3 px-3 py-1.5 relative overflow-hidden " +
+                          "flex items-center justify-between gap-2 px-2 py-1 relative overflow-hidden " +
                           (statusKey === "BOOKED"
                             ? isRtl
                               ? "bg-gradient-to-l from-emerald-100 to-slate-50 dark:from-emerald-900/45 dark:to-slate-900/40"
@@ -1814,7 +1814,7 @@ export default function CalendarClient() {
                       >
                         <div
                           className={
-                            "absolute inset-0 z-10 flex items-center justify-between gap-3 px-3 py-2 bg-slate-100 text-slate-900 dark:bg-slate-900 dark:text-slate-100 transition-transform duration-200 " +
+                            "absolute inset-0 z-10 flex items-center justify-between gap-2 px-2 py-1.5 bg-slate-100 text-slate-900 dark:bg-slate-900 dark:text-slate-100 transition-transform duration-200 " +
                             (isStatusConfirming
                               ? "translate-y-0 pointer-events-auto"
                               : "-translate-y-full pointer-events-none")
@@ -1858,7 +1858,7 @@ export default function CalendarClient() {
                         </div>
                         <div
                           className={
-                            "absolute inset-0 z-10 flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-900 dark:bg-slate-900 dark:text-slate-100 transition-transform duration-200 " +
+                            "absolute inset-0 z-10 flex items-center gap-2 px-2 py-2 bg-slate-100 text-slate-900 dark:bg-slate-900 dark:text-slate-100 transition-transform duration-200 " +
                             (rescheduleId === a.id
                               ? "translate-y-0 pointer-events-auto"
                               : "-translate-y-full pointer-events-none")
@@ -1945,6 +1945,31 @@ export default function CalendarClient() {
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
+                          {normalizeStatusKey(a.status) === "COMPLETED" ? (
+                            <div className="flex items-center gap-1.5">
+                              <Switch
+                                checked={
+                                  String(a.paymentStatus ?? "UNPAID").toUpperCase() ===
+                                  "PAID"
+                                }
+                                onCheckedChange={(checked) =>
+                                  updatePaymentStatus(
+                                    a,
+                                    checked ? "PAID" : "UNPAID",
+                                  )
+                                }
+                                disabled={paymentUpdatingId === a.id}
+                                aria-label={t("calendar.paid")}
+                                className="scale-75"
+                              />
+                              <span className="text-xs text-gray-600 dark:text-gray-300 select-none">
+                                {t("calendar.paid")}
+                              </span>
+                              {paymentUpdatingId === a.id ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-500 dark:text-gray-300" />
+                              ) : null}
+                            </div>
+                          ) : null}
                           {showAll || !isCanceledStatus(a.status) ? (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -1952,7 +1977,7 @@ export default function CalendarClient() {
                                   type="button"
                                   size="icon"
                                   variant="ghost"
-                                  className="h-8 w-8 rounded-xl"
+                                  className="h-7 w-7 rounded-lg"
                                   disabled={
                                     statusUpdatingId === a.id ||
                                     isStatusConfirming
@@ -2036,7 +2061,7 @@ export default function CalendarClient() {
                         </div>
                       </div>
 
-                      <div className="flex items-start gap-3 p-3">
+                      <div className="flex items-start gap-1.5 p-1.5">
                         <div className="min-w-0 w-full">
                           {rescheduleId === a.id && timesError ? (
                             <div className="mb-2 text-xs text-red-600 dark:text-red-400">
@@ -2044,7 +2069,7 @@ export default function CalendarClient() {
                             </div>
                           ) : null}
 
-                          <div className="flex items-center justify-between gap-3 w-full">
+                          <div className="flex items-center justify-between gap-2 w-full">
                             <div className="text-sm text-gray-700 dark:text-gray-200 truncate">
                               {a.serviceName}
                             </div>
@@ -2066,12 +2091,12 @@ export default function CalendarClient() {
                           </div>
 
                           {a.bookedByYou ? (
-                            <div className="text-xs text-muted-foreground mt-1">
+                            <div className="text-xs text-muted-foreground mt-0.5">
                               {t("calendar.bookedByYou")}
                             </div>
                           ) : null}
 
-                          <div className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-3 w-full">
+                          <div className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-2 w-full">
                             <span className="flex items-center gap-1 min-w-0 rtl:flex-row-reverse">
                               <span className="truncate">
                                 {a.customer.fullName}
@@ -2085,70 +2110,8 @@ export default function CalendarClient() {
                               />
                             ) : null}
                           </div>
-                          {a.notes ? (
-                            <div className="mt-1 flex items-center justify-between gap-3">
-                              <div className="text-xs text-muted-foreground min-w-0 truncate">
-                                {a.notes}
-                              </div>
-                              {normalizeStatusKey(a.status) === "COMPLETED" ? (
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <Switch
-                                    checked={
-                                      String(
-                                        a.paymentStatus ?? "UNPAID",
-                                      ).toUpperCase() === "PAID"
-                                    }
-                                    onCheckedChange={(checked) =>
-                                      updatePaymentStatus(
-                                        a,
-                                        checked ? "PAID" : "UNPAID",
-                                      )
-                                    }
-                                    disabled={paymentUpdatingId === a.id}
-                                    aria-label={t("calendar.paid")}
-                                    className="scale-90"
-                                  />
-                                  <span className="text-xs text-gray-600 dark:text-gray-300 select-none">
-                                    {t("calendar.paid")}
-                                  </span>
-                                  {paymentUpdatingId === a.id ? (
-                                    <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-500 dark:text-gray-300" />
-                                  ) : null}
-                                </div>
-                              ) : null}
-                            </div>
-                          ) : null}
-
-                          {!a.notes &&
-                            normalizeStatusKey(a.status) === "COMPLETED" ? (
-                            <div className="mt-1 flex items-center justify-end gap-2">
-                              <Switch
-                                checked={
-                                  String(
-                                    a.paymentStatus ?? "UNPAID",
-                                  ).toUpperCase() === "PAID"
-                                }
-                                onCheckedChange={(checked) =>
-                                  updatePaymentStatus(
-                                    a,
-                                    checked ? "PAID" : "UNPAID",
-                                  )
-                                }
-                                disabled={paymentUpdatingId === a.id}
-                                aria-label={t("calendar.paid")}
-                                className="scale-90"
-                              />
-                              <span className="text-xs text-gray-600 dark:text-gray-300 select-none">
-                                {t("calendar.paid")}
-                              </span>
-                              {paymentUpdatingId === a.id ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-500 dark:text-gray-300" />
-                              ) : null}
-                            </div>
-                          ) : null}
-
                           {String(a.status) === "BOOKED" ? (
-                            <div className="mt-2" />
+                            <div className="mt-1" />
                           ) : null}
                         </div>
                       </div>
