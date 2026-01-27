@@ -113,9 +113,16 @@ const DEFAULT_TIMEZONE = "Asia/Jerusalem";
 
 const CURRENCIES: Array<{ code: string; label: string; symbol: string }> = [
   { code: "ILS", label: "ILS (₪)", symbol: "₪" },
+  { code: "USD", label: "USD ($)", symbol: "$" },
+  { code: "EUR", label: "EUR (€)", symbol: "€" },
 ];
 
-const ALLOWED_CURRENCY_CODES = new Set(["ILS"]);
+const ALLOWED_CURRENCY_CODES = new Set([
+  "ILS",
+  "USD",
+  "EUR",
+  OTHER_CURRENCY_CODE,
+]);
 const UI_TIMEZONES = [DEFAULT_TIMEZONE];
 
 function normalizeCurrency(v: unknown): string {
@@ -2046,6 +2053,116 @@ function OnboardingContent() {
               </p>
             </div>
 
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4 space-y-3">
+              <div className="space-y-1">
+                <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                  {t("onboarding.currency")}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  {t("onboarding.currencyHelp")}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="onboarding-currency" className="text-xs">
+                  {t("onboarding.selectCurrency")}
+                </Label>
+                <Select
+                  value={normalizeCurrency(data.currency)}
+                  onValueChange={(value) => {
+                    clearFieldError("currencyName");
+                    clearFieldError("currencySymbol");
+                    setData((prev) => ({
+                      ...prev,
+                      currency: value,
+                    }));
+                  }}
+                  disabled={loading || saving}
+                >
+                  <SelectTrigger id="onboarding-currency" className="w-full">
+                    <SelectValue placeholder={t("onboarding.selectCurrency")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CURRENCIES.map((c) => (
+                      <SelectItem key={c.code} value={c.code}>
+                        {c.label}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={OTHER_CURRENCY_CODE}>
+                      {t("onboarding.otherCurrency")}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {normalizeCurrency(data.currency) === OTHER_CURRENCY_CODE ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">
+                      {t("onboarding.currencyNameLabel")}
+                    </Label>
+                    <Input
+                      value={data.customCurrency?.name ?? ""}
+                      onChange={(e) => {
+                        clearFieldError("currencyName");
+                        setData((prev) => ({
+                          ...prev,
+                          customCurrency: {
+                            ...(prev.customCurrency || {}),
+                            name: e.target.value,
+                          },
+                        }));
+                      }}
+                      placeholder={t("onboarding.currencyNamePlaceholder")}
+                      className={
+                        fieldErrors.currencyName ? inputErrorClass : ""
+                      }
+                      aria-invalid={Boolean(fieldErrors.currencyName)}
+                      disabled={loading || saving}
+                    />
+                    {fieldErrors.currencyName ? (
+                      <p className="text-xs text-rose-500">
+                        {fieldErrors.currencyName}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">
+                      {t("onboarding.currencySymbolLabel")}
+                    </Label>
+                    <Input
+                      value={data.customCurrency?.symbol ?? ""}
+                      onChange={(e) => {
+                        clearFieldError("currencySymbol");
+                        setData((prev) => ({
+                          ...prev,
+                          customCurrency: {
+                            ...(prev.customCurrency || {}),
+                            symbol: e.target.value,
+                          },
+                        }));
+                      }}
+                      placeholder={t("onboarding.currencySymbolPlaceholder")}
+                      className={
+                        fieldErrors.currencySymbol ? inputErrorClass : ""
+                      }
+                      aria-invalid={Boolean(fieldErrors.currencySymbol)}
+                      disabled={loading || saving}
+                    />
+                    {fieldErrors.currencySymbol ? (
+                      <p className="text-xs text-rose-500">
+                        {fieldErrors.currencySymbol}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {t("onboarding.currencyWarning")}
+              </p>
+            </div>
+
             <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4">
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0">
@@ -2181,13 +2298,11 @@ function OnboardingContent() {
                                   day: getDayLabel(d.day),
                                 })}
                               >
-                                <Plus className="h-4 w-4 ms-4" />
+                                <Plus className="h-4 w-4 ms-4 text-gray-900 dark:text-white" />
                               </Button>
                             ) : (
-                              <Button
+                              <button
                                 type="button"
-                                variant="ghost"
-                                className={outlineButtonClass}
                                 onClick={() =>
                                   deleteAvailabilityRange(d.day, r.id)
                                 }
@@ -2200,9 +2315,10 @@ function OnboardingContent() {
                                 aria-label={t("onboarding.deleteTimeRange", {
                                   day: getDayLabel(d.day),
                                 })}
+                                className="ms-4 text-gray-900 dark:text-white"
                               >
-                                <Trash2 className="h-4 w-4 ms-4" />
-                              </Button>
+                                <Trash2 className="h-4 w-4" />
+                              </button>
                             )}
                           </div>
                         ))}

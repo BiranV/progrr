@@ -255,7 +255,9 @@ export default function BusinessDetailsPage() {
 
       <div className="space-y-5">
         <div className="space-y-2">
-          <Label htmlFor="business-name">{t("businessDetails.nameLabel")}</Label>
+          <Label htmlFor="business-name">
+            {t("businessDetails.nameLabel")}
+          </Label>
           <Input
             id="business-name"
             type="text"
@@ -327,7 +329,9 @@ export default function BusinessDetailsPage() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="instagram">{t("businessDetails.instagramLabel")}</Label>
+          <Label htmlFor="instagram">
+            {t("businessDetails.instagramLabel")}
+          </Label>
           <Input
             id="instagram"
             type="text"
@@ -363,6 +367,7 @@ export default function BusinessDetailsPage() {
             <Button
               type="button"
               variant="outline"
+              className="bg-transparent"
               onClick={onCopy}
               disabled={!bookingLink}
             >

@@ -411,6 +411,16 @@ const en = {
     finishSubtitle: "Review and complete onboarding.",
     currencyLabel: "Currency:",
     otherCurrency: "Other",
+    currency: "Currency",
+    currencyHelp:
+      "Prices are displayed in this currency. Changing currency will not convert existing numeric prices.",
+    currencyWarning:
+      "Changing currency will not convert existing service prices (numbers stay the same, symbol changes only).",
+    selectCurrency: "Select currency",
+    currencyNameLabel: "Currency name",
+    currencyNamePlaceholder: "e.g. Israeli shekel",
+    currencySymbolLabel: "Currency symbol",
+    currencySymbolPlaceholder: "e.g. ₪",
     durationLabel: "Duration:",
     minutesShort: "min",
     finishButton: "Finish Setup",
@@ -915,6 +925,10 @@ const en = {
       "Prices are displayed in this currency. Changing currency will not convert existing numeric prices.",
     currencyWarning:
       "Changing currency will not convert existing service prices (numbers stay the same, symbol changes only).",
+    currencyNameLabel: "Currency name",
+    currencyNamePlaceholder: "e.g. Israeli shekel",
+    currencySymbolLabel: "Currency symbol",
+    currencySymbolPlaceholder: "e.g. ₪",
     selectCurrency: "Select currency",
     serviceName: "Service name",
     servicePlaceholder: "Service",
