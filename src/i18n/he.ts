@@ -76,6 +76,7 @@ const he = {
       detailsTab: "פרטים",
       appointmentsTab: "תורים",
       messageTab: "הודעה",
+      searchPlaceholder: "חיפוש",
       nameLabel: "שם",
       phoneLabel: "טלפון",
       emailLabel: "אימייל",

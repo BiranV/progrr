@@ -76,6 +76,7 @@ const en = {
       detailsTab: "Details",
       appointmentsTab: "Appointments",
       messageTab: "Message",
+      searchPlaceholder: "Search",
       nameLabel: "Name",
       phoneLabel: "Phone",
       emailLabel: "Email",

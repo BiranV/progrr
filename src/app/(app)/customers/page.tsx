@@ -67,6 +67,12 @@ type CustomerAppointmentsResponse = {
   };
 };
 
+function formatDateForDisplay(date: string): string {
+  const match = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(String(date ?? ""));
+  if (!match) return date;
+  return `${match[3]}-${match[2]}-${match[1]}`;
+}
+
 export default function CustomersPage() {
   const { t } = useI18n();
   const { dir } = useLocale();
@@ -108,7 +114,13 @@ export default function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] =
     React.useState<Customer | null>(null);
   const [appointmentsPage, setAppointmentsPage] = React.useState(1);
-  const appointmentsPageSize = 10;
+  const [appointmentsPageSize, setAppointmentsPageSize] = React.useState(10);
+  const [appointmentsQueryText, setAppointmentsQueryText] = React.useState("");
+  const [appointmentsSortConfig, setAppointmentsSortConfig] =
+    React.useState<DataTableSortConfig>({
+      key: "details",
+      direction: "asc",
+    });
   const [updatingCustomerId, setUpdatingCustomerId] = React.useState<
     string | null
   >(null);
@@ -451,8 +463,113 @@ export default function CustomersPage() {
     () => appointmentsQuery.data?.bookings ?? [],
     [appointmentsQuery.data],
   );
+  const filteredAppointments = React.useMemo(() => {
+    const q = appointmentsQueryText.trim().toLowerCase();
+    if (!q) return appointments;
+    return appointments.filter((row) => {
+      const serviceName = String(row.serviceName ?? "").toLowerCase();
+      const date = String(row.date ?? "").toLowerCase();
+      const status = String(row.status ?? "").toLowerCase();
+      const cancelledBy = String(row.cancelledBy ?? "").toLowerCase();
+      return (
+        serviceName.includes(q) ||
+        date.includes(q) ||
+        status.includes(q) ||
+        cancelledBy.includes(q)
+      );
+    });
+  }, [appointments, appointmentsQueryText]);
+  const sortedAppointments = React.useMemo(() => {
+    const rows = [...filteredAppointments];
+    const dir = appointmentsSortConfig?.direction === "desc" ? -1 : 1;
+    const key = appointmentsSortConfig?.key ?? "details";
+
+    rows.sort((a, b) => {
+      if (key === "status") {
+        const av = String(a.status ?? "");
+        const bv = String(b.status ?? "");
+        return av.localeCompare(bv) * dir;
+      }
+
+      const an = String(a.serviceName ?? "").trim();
+      const bn = String(b.serviceName ?? "").trim();
+      return an.localeCompare(bn) * dir;
+    });
+
+    return rows;
+  }, [appointmentsSortConfig, filteredAppointments]);
 
   const appointmentsPagination = appointmentsQuery.data?.bookingsPagination;
+
+  React.useEffect(() => {
+    setAppointmentsPage(1);
+  }, [appointmentsPageSize, appointmentsQueryText, appointmentsSortConfig]);
+
+  const appointmentColumns = React.useMemo(() => {
+    const cols: Array<DataTableColumn<Booking>> = [
+      {
+        key: "details",
+        header: t("customers.table.serviceLabel"),
+        sortable: true,
+        headerClassName:
+          "rtl:text-right rtl:[&>div]:flex-row-reverse rtl:[&>div]:justify-start",
+        cellClassName: "rtl:text-right",
+        renderCell: (row) => (
+          <div className="min-w-0 rtl:text-right">
+            <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+              {row.serviceName || t("customers.drawer.appointmentFallback")}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {formatDateForDisplay(row.date) || t("common.emptyDash")}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              <span dir="ltr">
+                {formatTimeRange(row.startTime, row.endTime) ||
+                  t("common.emptyDash")}
+              </span>
+            </div>
+            {row.status === "CANCELED" ? (
+              <div className="text-xs text-muted-foreground mt-1">
+                {String(row.cancelledBy || "").toUpperCase() === "BUSINESS"
+                  ? t("customers.details.canceledBy.business")
+                  : String(row.cancelledBy || "").toUpperCase() === "CUSTOMER"
+                    ? t("customers.details.canceledBy.customer")
+                    : t("customers.details.canceledBy.unknown")}
+              </div>
+            ) : null}
+          </div>
+        ),
+      },
+      {
+        key: "status",
+        header: t("customers.table.status"),
+        sortable: true,
+        headerClassName:
+          "rtl:text-right rtl:[&>div]:flex-row-reverse rtl:[&>div]:justify-start",
+        cellClassName: "rtl:text-right",
+        renderCell: (row) => {
+          const badgeClass =
+            "border backdrop-blur-sm " +
+            (row.status === "BOOKED"
+              ? "bg-emerald-50/80 text-emerald-700 border-emerald-200/70"
+              : row.status === "COMPLETED"
+                ? "bg-blue-50/80 text-blue-700 border-blue-200/70"
+                : "bg-gray-100/80 text-gray-600 border-gray-200/70 dark:bg-gray-800/60 dark:text-gray-200 dark:border-gray-700/60");
+
+          const badgeLabel =
+            row.status === "BOOKED"
+              ? t("customers.details.status.booked")
+              : row.status === "COMPLETED"
+                ? t("customers.details.status.completed")
+                : t("customers.details.status.canceled");
+
+          return <Badge className={badgeClass}>{badgeLabel}</Badge>;
+        },
+      },
+    ];
+
+    return dir === "rtl" ? [...cols].reverse() : cols;
+  }, [dir, t]);
 
   return (
     <div className="space-y-6 pb-5">
@@ -652,6 +769,43 @@ export default function CustomersPage() {
             </TabsContent>
 
             <TabsContent value="appointments" className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                  <Input
+                    placeholder={t("customers.drawer.searchPlaceholder")}
+                    value={appointmentsQueryText}
+                    onChange={(e) => setAppointmentsQueryText(e.target.value)}
+                  />
+                </div>
+
+                <div className="shrink-0">
+                  <Select
+                    value={String(appointmentsPageSize)}
+                    onValueChange={(v) =>
+                      setAppointmentsPageSize(Number(v) || 10)
+                    }
+                  >
+                    <SelectTrigger size="sm" className="w-[128px]">
+                      <SelectValue placeholder={t("customers.table.rows")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">
+                        {t("customers.table.rowsCount", { count: 5 })}
+                      </SelectItem>
+                      <SelectItem value="10">
+                        {t("customers.table.rowsCount", { count: 10 })}
+                      </SelectItem>
+                      <SelectItem value="25">
+                        {t("customers.table.rowsCount", { count: 25 })}
+                      </SelectItem>
+                      <SelectItem value="50">
+                        {t("customers.table.rowsCount", { count: 50 })}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               {appointmentsQuery.isPending ? (
                 <CenteredSpinner size="sm" className="py-6" />
               ) : appointmentsQuery.isError ? (
@@ -661,66 +815,21 @@ export default function CustomersPage() {
                 </div>
               ) : (
                 <DataTable
-                  rows={appointments}
+                  rows={sortedAppointments}
                   getRowId={(row) => row.id}
+                  sortConfig={appointmentsSortConfig}
+                  onSort={(key) => {
+                    setAppointmentsSortConfig((prev) => {
+                      if (!prev || prev.key !== key)
+                        return { key, direction: "asc" };
+                      return {
+                        key,
+                        direction: prev.direction === "asc" ? "desc" : "asc",
+                      };
+                    });
+                  }}
                   emptyMessage={t("customers.drawer.emptyAppointments")}
-                  columns={[
-                    {
-                      key: "details",
-                      header: t("customers.table.serviceLabel"),
-                      renderCell: (row) => (
-                        <div className="min-w-0">
-                          <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                            {row.serviceName ||
-                              t("customers.drawer.appointmentFallback")}
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {row.date || t("common.emptyDash")} •{" "}
-                            <span dir="ltr">
-                              {formatTimeRange(row.startTime, row.endTime) ||
-                                t("common.emptyDash")}
-                            </span>
-                          </div>
-                          {row.status === "CANCELED" ? (
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {String(row.cancelledBy || "").toUpperCase() ===
-                              "BUSINESS"
-                                ? t("customers.details.canceledBy.business")
-                                : String(
-                                      row.cancelledBy || "",
-                                    ).toUpperCase() === "CUSTOMER"
-                                  ? t("customers.details.canceledBy.customer")
-                                  : t("customers.details.canceledBy.unknown")}
-                            </div>
-                          ) : null}
-                        </div>
-                      ),
-                    },
-                    {
-                      key: "status",
-                      header: t("customers.table.status"),
-                      renderCell: (row) => {
-                        const badgeClass =
-                          "border backdrop-blur-sm " +
-                          (row.status === "BOOKED"
-                            ? "bg-emerald-50/80 text-emerald-700 border-emerald-200/70"
-                            : row.status === "COMPLETED"
-                              ? "bg-blue-50/80 text-blue-700 border-blue-200/70"
-                              : "bg-gray-100/80 text-gray-600 border-gray-200/70 dark:bg-gray-800/60 dark:text-gray-200 dark:border-gray-700/60");
-
-                        const badgeLabel =
-                          row.status === "BOOKED"
-                            ? t("customers.details.status.booked")
-                            : row.status === "COMPLETED"
-                              ? t("customers.details.status.completed")
-                              : t("customers.details.status.canceled");
-
-                        return (
-                          <Badge className={badgeClass}>{badgeLabel}</Badge>
-                        );
-                      },
-                    },
-                  ]}
+                  columns={appointmentColumns}
                   pagination={
                     appointmentsPagination
                       ? {
