@@ -26,7 +26,6 @@ import { formatPhoneNumber } from "@/lib/phone-format";
 import { CenteredSpinner } from "@/components/CenteredSpinner";
 import { PhoneLink } from "@/components/PhoneLink";
 import SwipeableAppointmentCard from "@/components/calendar/SwipeableAppointmentCard";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -307,8 +306,7 @@ export default function CalendarClient() {
       c != null &&
       c.status !== "BLOCKED" &&
       Boolean(String(c.fullName || "").trim()) &&
-      Boolean(String(c.phone || "").trim()) &&
-      Boolean(normalizeEmail(c.email || ""));
+      Boolean(String(c.phone || "").trim());
     return serviceOk && startOk && customerOk;
   }, [createServiceId, createStartTime, selectedCustomerForPicker]);
 
@@ -1558,7 +1556,7 @@ export default function CalendarClient() {
                       {customersPickerQuery.isPending
                         ? t("calendar.customersLoading")
                         : selectedCustomerForPicker
-                          ? `${selectedCustomerForPicker.fullName || t("calendar.noName")} • ${formatPhoneNumber(selectedCustomerForPicker.phone, language) || selectedCustomerForPicker.phone}${selectedCustomerForPicker.email ? ` • ${selectedCustomerForPicker.email}` : ""}`
+                          ? `${selectedCustomerForPicker.fullName || t("calendar.noName")} • ${formatPhoneNumber(selectedCustomerForPicker.phone, language) || selectedCustomerForPicker.phone}`
                           : customersForPicker.length
                             ? t("calendar.customerChoose")
                             : t("calendar.customerNone")}
@@ -1583,8 +1581,7 @@ export default function CalendarClient() {
                           const disabled =
                             c.status === "BLOCKED" ||
                             !c.fullName.trim() ||
-                            !c.phone.trim() ||
-                            !c.email;
+                            !c.phone.trim();
                           const isSelected = c._id === createExistingCustomerId;
 
                           return (
@@ -1615,26 +1612,22 @@ export default function CalendarClient() {
                                 (isSelected ? " bg-muted" : "")
                               }
                             >
-                              <div className="truncate flex items-center gap-1">
-                                <span className="truncate">
+                              <div className="truncate">
+                                <div className="truncate">
                                   {c.fullName || t("calendar.noName")}
-                                </span>
-                                <span className="text-muted-foreground">•</span>
-                                <PhoneLink
-                                  phone={c.phone}
-                                  className="text-xs"
-                                  stopPropagation
-                                />
-                              </div>
-                              <div className="truncate text-xs text-muted-foreground">
-                                {c.email ? c.email : t("calendar.missingEmail")}
-                                {c.status === "BLOCKED"
-                                  ? ` • ${t("calendar.customerBlocked")}`
-                                  : !c.fullName.trim() ||
-                                      !c.phone.trim() ||
-                                      !c.email
-                                    ? ` • ${t("calendar.customerIncomplete")}`
-                                    : ""}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  <PhoneLink
+                                    phone={c.phone}
+                                    className="text-xs"
+                                    stopPropagation
+                                  />
+                                  {c.status === "BLOCKED"
+                                    ? ` • ${t("calendar.customerBlocked")}`
+                                    : !c.fullName.trim() || !c.phone.trim()
+                                      ? ` • ${t("calendar.customerIncomplete")}`
+                                      : ""}
+                                </div>
                               </div>
                             </div>
                           );
@@ -1694,6 +1687,47 @@ export default function CalendarClient() {
         </div>
       ) : (
         <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+            <div className="inline-flex items-center gap-2">
+              {isRtl ? (
+                <>
+                  <span>{t("calendar.status.booked")}</span>
+                  <span className="h-2 w-2 rounded-full bg-emerald-500/80" />
+                </>
+              ) : (
+                <>
+                  <span className="h-2 w-2 rounded-full bg-emerald-500/80" />
+                  <span>{t("calendar.status.booked")}</span>
+                </>
+              )}
+            </div>
+            <div className="inline-flex items-center gap-2">
+              {isRtl ? (
+                <>
+                  <span>{t("calendar.status.completed")}</span>
+                  <span className="h-2 w-2 rounded-full bg-blue-500/80" />
+                </>
+              ) : (
+                <>
+                  <span className="h-2 w-2 rounded-full bg-blue-500/80" />
+                  <span>{t("calendar.status.completed")}</span>
+                </>
+              )}
+            </div>
+            <div className="inline-flex items-center gap-2">
+              {isRtl ? (
+                <>
+                  <span>{t("calendar.status.canceled")}</span>
+                  <span className="h-2 w-2 rounded-full bg-gray-400/80 dark:bg-gray-500/80" />
+                </>
+              ) : (
+                <>
+                  <span className="h-2 w-2 rounded-full bg-gray-400/80 dark:bg-gray-500/80" />
+                  <span>{t("calendar.status.canceled")}</span>
+                </>
+              )}
+            </div>
+          </div>
           {visibleAppointments.map((a, index) => {
             const statusConfirmation = statusConfirmationsById[a.id];
             const cancelConfirmation = cancelConfirmationsById[a.id];
@@ -1777,7 +1811,16 @@ export default function CalendarClient() {
                     </div>
                   ) : (
                     <>
-                      <div className="flex items-center justify-between gap-3 px-3 py-1.5 bg-gray-100/80 dark:bg-gray-900/40 relative overflow-hidden">
+                      <div
+                        className={
+                          "flex items-center justify-between gap-3 px-3 py-1.5 relative overflow-hidden " +
+                          (statusKey === "BOOKED"
+                            ? "bg-emerald-100 dark:bg-emerald-900/45"
+                            : statusKey === "COMPLETED"
+                              ? "bg-blue-100 dark:bg-blue-900/45"
+                              : "bg-rose-100 dark:bg-rose-900/45")
+                        }
+                      >
                         <div
                           className={
                             "absolute inset-0 z-10 flex items-center justify-between gap-3 px-3 py-2 bg-slate-100 text-slate-900 dark:bg-slate-900 dark:text-slate-100 transition-transform duration-200 " +
@@ -1911,21 +1954,6 @@ export default function CalendarClient() {
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">
-                          <Badge
-                            className={
-                              "border backdrop-blur-sm " +
-                              (String(a.status) === "BOOKED"
-                                ? "bg-emerald-50/80 text-emerald-700 border-emerald-200/70"
-                                : String(a.status) === "COMPLETED"
-                                  ? "bg-blue-50/80 text-blue-700 border-blue-200/70"
-                                  : isCanceledStatus(a.status)
-                                    ? "bg-gray-100/80 text-gray-600 border-gray-200/70 dark:bg-gray-800/60 dark:text-gray-200 dark:border-gray-700/60"
-                                    : "bg-gray-100/80 text-gray-600 border-gray-200/70 dark:bg-gray-800/60 dark:text-gray-200 dark:border-gray-700/60")
-                            }
-                          >
-                            {statusLabel(a.status)}
-                          </Badge>
-
                           {showAll || !isCanceledStatus(a.status) ? (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
