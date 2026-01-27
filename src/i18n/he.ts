@@ -982,6 +982,10 @@ const he = {
     currencyHelp: "המחירים מוצגים במטבע זה. שינוי מטבע לא ימיר מחירים קיימים.",
     currencyWarning:
       "שינוי מטבע לא ימיר מחירים קיימים (המספרים נשארים זהים, הסמל משתנה בלבד).",
+    currencyNameLabel: "שם המטבע",
+    currencyNamePlaceholder: "לדוגמה: שקל ישראלי",
+    currencySymbolLabel: "סמל המטבע",
+    currencySymbolPlaceholder: "לדוגמה: ₪",
     selectCurrency: "בחר/י מטבע",
     serviceName: "שם השירות",
     servicePlaceholder: "שירות",
