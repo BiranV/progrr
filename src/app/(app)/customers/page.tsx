@@ -1,17 +1,7 @@
 "use client";
 
 import React from "react";
-import {
-  CalendarCheck,
-  Mail,
-  MessageSquare,
-  MoreVertical,
-  Phone,
-  ShieldCheck,
-  ShieldOff,
-  User,
-  Users,
-} from "lucide-react";
+import { Mail, MoreVertical, Phone, Users } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "@/i18n/useI18n";
 import { useLocale } from "@/context/LocaleContext";
@@ -279,7 +269,6 @@ export default function CustomersPage() {
                     setDrawerOpen(true);
                   }}
                 >
-                  <User className="h-4 w-4" />
                   {t("customers.menu.viewDetails")}
                 </DropdownMenuItem>
                 <DropdownMenuItem
@@ -295,7 +284,6 @@ export default function CustomersPage() {
                     setDrawerOpen(true);
                   }}
                 >
-                  <CalendarCheck className="h-4 w-4" />
                   {t("customers.menu.appointmentsHistory")}
                 </DropdownMenuItem>
                 <DropdownMenuItem
@@ -311,7 +299,6 @@ export default function CustomersPage() {
                     setDrawerOpen(true);
                   }}
                 >
-                  <MessageSquare className="h-4 w-4" />
                   {t("customers.menu.sendMessage")}
                 </DropdownMenuItem>
                 <DropdownMenuItem
@@ -403,11 +390,6 @@ export default function CustomersPage() {
                     }
                   }}
                 >
-                  {isBlocked ? (
-                    <ShieldCheck className="h-4 w-4" />
-                  ) : (
-                    <ShieldOff className="h-4 w-4 text-red-600" />
-                  )}
                   {isBlocked
                     ? t("customers.menu.unblockCustomer")
                     : t("customers.menu.blockCustomer")}
