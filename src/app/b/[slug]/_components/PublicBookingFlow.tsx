@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -37,7 +39,6 @@ import {
   ChevronLeft,
   Clock,
   Banknote,
-  LogIn,
   LogOut,
   Menu,
   Star,
@@ -91,6 +92,15 @@ type PublicReviewItem = {
   rating: number;
   comment: string;
   submittedAt: string | null;
+};
+
+type PublicReviewsResponse = {
+  ok: true;
+  reviews: PublicReviewItem[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
 };
 
 function normalizeOtpCode(value: string): string {
@@ -337,15 +347,34 @@ export default function PublicBookingFlow({
     return resolvedPublicId;
   }, [raw, resolvedPublicId]);
 
-  const reviewSectionEnabled = data?.reviewRequestsEnabled !== false;
+  const reviewSectionEnabled = true;
 
   const reviewToken = React.useMemo(() => {
     return String(searchParams.get("reviewToken") ?? "").trim();
   }, [searchParams]);
 
-  const [publicReviews, setPublicReviews] = React.useState<PublicReviewItem[]>(
-    [],
-  );
+  const [reviewsPage, setReviewsPage] = React.useState(1);
+  const reviewsPageSize = 10;
+  const reviewsQuery = useQuery({
+    queryKey: ["publicReviews", reviewsPage, reviewsPageSize],
+    enabled: Boolean(publicId),
+    queryFn: async (): Promise<PublicReviewsResponse> => {
+      const params = new URLSearchParams({
+        businessPublicId: String(publicId ?? ""),
+        page: String(reviewsPage),
+        limit: String(reviewsPageSize),
+      });
+      const res = await fetch(`/api/public/reviews?${params.toString()}`);
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || t("publicBooking.errors.failed"));
+      }
+      return json as PublicReviewsResponse;
+    },
+  });
+
+  const publicReviews = reviewsQuery.data?.reviews ?? [];
+  const reviewsTotalPages = reviewsQuery.data?.totalPages ?? 1;
   const [reviewValidation, setReviewValidation] = React.useState<{
     loading: boolean;
     valid: boolean;
@@ -414,17 +443,6 @@ export default function PublicBookingFlow({
   );
 
   React.useEffect(() => {
-    if (!reviewSectionEnabled) {
-      setPublicReviews([]);
-      return;
-    }
-    const list = Array.isArray((data as any)?.reviews)
-      ? ((data as any).reviews as PublicReviewItem[])
-      : [];
-    setPublicReviews(list);
-  }, [data, reviewSectionEnabled]);
-
-  React.useEffect(() => {
     if (!reviewToken) {
       setReviewValidation({
         loading: false,
@@ -489,15 +507,21 @@ export default function PublicBookingFlow({
     };
   }, [publicId, reviewToken]);
 
+  const shouldShowReviewForm =
+    reviewValidation.valid &&
+    reviewValidation.reviewAllowed &&
+    !reviewSubmitted &&
+    !reviewValidation.reviewSubmitted;
+
   React.useEffect(() => {
     if (!reviewSectionEnabled) return;
-    if (!reviewValidation.reviewAllowed) return;
+    if (!shouldShowReviewForm) return;
     if (!reviewSectionRef.current) return;
     reviewSectionRef.current.scrollIntoView({
       behavior: "smooth",
       block: "start",
     });
-  }, [reviewValidation.reviewAllowed, reviewSectionEnabled]);
+  }, [reviewSectionEnabled, shouldShowReviewForm]);
 
   // Cookie-based customer identification (server-side): load active appointment if present.
   React.useEffect(() => {
@@ -1007,9 +1031,21 @@ export default function PublicBookingFlow({
   const shellHeaderRight = React.useMemo<React.ReactNode>(() => {
     if (!data) return null;
 
-    const tz = String(data?.availability?.timezone ?? "").trim() || "UTC";
-    const todayStr = formatDateInTimeZone(new Date(), tz);
-    const dateForMy = date || result?.appointment?.date || todayStr;
+    if (!connected) {
+      return (
+        <div className="flex items-center">
+          <Button
+            asChild
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-6 rounded-none px-0 text-gray-900 dark:text-white hover:bg-transparent"
+          >
+            <Link href="/login">{t("publicBooking.header.login")}</Link>
+          </Button>
+        </div>
+      );
+    }
 
     return (
       <div className="flex items-center">
@@ -1030,80 +1066,67 @@ export default function PublicBookingFlow({
             align="start"
             className="flex flex-col w-52 rtl:items-start rtl:text-right ltr:items-start ltr:text-left"
           >
-            {connected ? (
-              <>
-                <DropdownMenuItem
-                  className="w-full flex items-center gap-2 rtl:flex-row-reverse rtl:justify-start rtl:text-right ltr:flex-row ltr:justify-start ltr:text-left"
-                  onClick={() => {
-                    setMyAppointmentsScope("all");
-                    setMyAppointmentsDate(dateForMy);
-                    setMyAppointmentsOpen(true);
-                  }}
-                >
-                  <CalendarDays className="h-4 w-4" />
-                  {t("publicBooking.header.myAppointments")}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="w-full flex items-center gap-2 rtl:flex-row-reverse rtl:justify-start rtl:text-right ltr:flex-row ltr:justify-start ltr:text-left"
-                  onClick={openProfileEditor}
-                >
-                  <User className="h-4 w-4" />
-                  {t("publicBooking.header.updateDetails")}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="w-full flex items-center gap-2 rtl:flex-row-reverse rtl:justify-start rtl:text-right ltr:flex-row ltr:justify-start ltr:text-left text-red-600 hover:text-red-600 focus:text-red-600 data-[highlighted]:text-red-600"
-                  onClick={async () => {
-                    setLoggingOut(true);
-                    try {
-                      await disconnectCustomer();
-                      setConnected(false);
-                      setMyAppointmentsOpen(false);
-                      setMyAppointments([]);
-                      resetFlow();
-                    } finally {
-                      setLoggingOut(false);
-                    }
-                  }}
-                >
-                  <LogOut className="h-4 w-4 rtl:rotate-180 text-red-600" />
-                  {loggingOut
-                    ? t("publicBooking.header.loggingOut")
-                    : t("publicBooking.header.logout")}
-                </DropdownMenuItem>
-              </>
-            ) : (
-              <DropdownMenuItem
-                className="w-full flex items-center gap-2 rtl:flex-row-reverse rtl:justify-start rtl:text-right ltr:flex-row ltr:justify-start ltr:text-left"
-                onClick={() => {
-                  setLoginEmail(normalizeEmail(customerEmail));
-                  setLoginStep("email");
-                  setLoginCode("");
-                  setLoginError(null);
-                  setLoginPurpose("appointments");
-                  setLoginRequiresDetails(false);
-                  setLoginOpen(true);
-                }}
-              >
-                <LogIn className="h-4 w-4" />
-                {t("publicBooking.header.login")}
-              </DropdownMenuItem>
-            )}
+            <DropdownMenuItem
+              className="w-full flex items-center gap-2 rtl:flex-row-reverse rtl:justify-start rtl:text-right ltr:flex-row ltr:justify-start ltr:text-left"
+              onClick={() => {
+                window.location.href = "/dashboard";
+              }}
+            >
+              <CalendarDays className="h-4 w-4" />
+              {t("nav.dashboard")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="w-full flex items-center gap-2 rtl:flex-row-reverse rtl:justify-start rtl:text-right ltr:flex-row ltr:justify-start ltr:text-left"
+              onClick={() => {
+                window.location.href = "/calendar";
+              }}
+            >
+              <CalendarDays className="h-4 w-4" />
+              {t("nav.calendar")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="w-full flex items-center gap-2 rtl:flex-row-reverse rtl:justify-start rtl:text-right ltr:flex-row ltr:justify-start ltr:text-left"
+              onClick={() => {
+                window.location.href = "/customers";
+              }}
+            >
+              <User className="h-4 w-4" />
+              {t("nav.customers")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="w-full flex items-center gap-2 rtl:flex-row-reverse rtl:justify-start rtl:text-right ltr:flex-row ltr:justify-start ltr:text-left"
+              onClick={() => {
+                window.location.href = "/settings";
+              }}
+            >
+              <ChevronLeft className="h-4 w-4 rtl:rotate-180" />
+              {t("nav.settings")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="w-full flex items-center gap-2 rtl:flex-row-reverse rtl:justify-start rtl:text-right ltr:flex-row ltr:justify-start ltr:text-left text-red-600 hover:text-red-600 focus:text-red-600 data-[highlighted]:text-red-600"
+              onClick={async () => {
+                setLoggingOut(true);
+                try {
+                  await disconnectCustomer();
+                  setConnected(false);
+                  setMyAppointmentsOpen(false);
+                  setMyAppointments([]);
+                  resetFlow();
+                } finally {
+                  setLoggingOut(false);
+                }
+              }}
+            >
+              <LogOut className="h-4 w-4 rtl:rotate-180 text-red-600" />
+              {loggingOut
+                ? t("publicBooking.header.loggingOut")
+                : t("publicBooking.header.logout")}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
     );
-  }, [
-    connected,
-    customerEmail,
-    data,
-    date,
-    disconnectCustomer,
-    loggingOut,
-    openProfileEditor,
-    resetFlow,
-    result?.appointment?.date,
-    t,
-  ]);
+  }, [connected, data, disconnectCustomer, loggingOut, resetFlow, t]);
 
   const selectedSlot = React.useMemo(() => {
     const list = Array.isArray((slots as any)?.slots)
@@ -1265,37 +1288,29 @@ export default function PublicBookingFlow({
         throw new Error(json?.error || t("errors.failedToSave"));
       }
 
-      const review = json?.review ?? null;
-      if (review) {
-        setPublicReviews((prev) => [
-          {
-            id: String(review.appointmentId || review.id || Date.now()),
-            serviceName: String(review.serviceName ?? "").trim(),
-            date: String(review.date ?? "").trim(),
-            startTime: String(review.startTime ?? "").trim(),
-            endTime: String(review.endTime ?? "").trim(),
-            customerName: String(review.customerName ?? "").trim(),
-            rating: Number(review.rating ?? reviewRating),
-            comment: String(review.comment ?? reviewComment).trim(),
-            submittedAt: new Date().toISOString(),
-          },
-          ...prev,
-        ]);
-      }
-
       setReviewSubmitted(true);
+      setReviewRating(0);
+      setReviewComment("");
       setReviewValidation((prev) => ({
         ...prev,
         valid: true,
         reviewAllowed: false,
         reviewSubmitted: true,
       }));
+      await reviewsQuery.refetch();
     } catch (err: any) {
       setReviewSubmitError(String(err?.message || t("errors.failedToSave")));
     } finally {
       setReviewSubmitting(false);
     }
-  }, [reviewComment, reviewRating, reviewSubmitting, reviewToken, t]);
+  }, [
+    reviewsQuery,
+    reviewComment,
+    reviewRating,
+    reviewSubmitting,
+    reviewToken,
+    t,
+  ]);
 
   const requestLoginOtp = async () => {
     if (!publicId)
@@ -2656,65 +2671,7 @@ export default function PublicBookingFlow({
 
       {reviewSectionEnabled ? (
         <div className="mt-10 space-y-5">
-          <div className="space-y-1">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-              {t("publicBooking.reviews.title")}
-            </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-300">
-              {t("publicBooking.reviews.subtitle")}
-            </p>
-          </div>
-
-          {publicReviews.length === 0 ? (
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              {t("publicBooking.reviews.empty")}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {publicReviews.map((review) => (
-                <div
-                  key={review.id}
-                  className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/10 p-4"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                      {review.customerName ||
-                        t("publicBooking.reviews.customerFallback")}
-                    </div>
-                    <div className="flex items-center gap-1 text-yellow-500">
-                      {Array.from({ length: 5 }).map((_, idx) => (
-                        <Star
-                          key={idx}
-                          className="h-4 w-4"
-                          fill={
-                            idx < Math.round(review.rating)
-                              ? "currentColor"
-                              : "none"
-                          }
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  {review.comment ? (
-                    <div className="mt-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">
-                      {review.comment}
-                    </div>
-                  ) : null}
-                  <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                    {review.serviceName ||
-                      t("publicBooking.reviews.serviceFallback")}
-                    {review.date
-                      ? ` • ${formatDateForDisplay(review.date)}`
-                      : ""}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {reviewValidation.valid &&
-          reviewValidation.reviewAllowed &&
-          !reviewSubmitted ? (
+          {shouldShowReviewForm ? (
             <div
               ref={reviewSectionRef}
               className="rounded-2xl border border-blue-200 dark:border-blue-900/40 bg-blue-50/60 dark:bg-blue-950/20 p-4 space-y-4"
@@ -2775,6 +2732,106 @@ export default function PublicBookingFlow({
           (reviewSubmitted || reviewValidation.reviewSubmitted) ? (
             <div className="rounded-2xl border border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/60 dark:bg-emerald-950/20 p-4 text-sm text-emerald-800 dark:text-emerald-200">
               {t("publicBooking.reviews.thanks")}
+            </div>
+          ) : null}
+
+          <div className="space-y-1">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              {t("publicBooking.reviews.title")}
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              {t("publicBooking.reviews.subtitle")}
+            </p>
+          </div>
+
+          {reviewsQuery.isPending ? (
+            <CenteredSpinner size="sm" className="py-6" />
+          ) : reviewsQuery.isError ? (
+            <div className="text-sm text-rose-500">
+              {(reviewsQuery.error as Error)?.message ||
+                t("publicBooking.errors.failed")}
+            </div>
+          ) : publicReviews.length === 0 ? (
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              {t("publicBooking.reviews.empty")}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {publicReviews.map((review) => (
+                <div
+                  key={review.id}
+                  className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/10 p-4"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {review.serviceName ||
+                        t("publicBooking.reviews.serviceFallback")}
+                    </div>
+                    <div className="flex items-center gap-1 text-yellow-500">
+                      {Array.from({ length: 5 }).map((_, idx) => (
+                        <Star
+                          key={idx}
+                          className="h-4 w-4"
+                          fill={
+                            idx < Math.round(review.rating)
+                              ? "currentColor"
+                              : "none"
+                          }
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  {review.comment ? (
+                    <div className="mt-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">
+                      {review.comment}
+                    </div>
+                  ) : null}
+                  {review.customerName ? (
+                    <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                      {review.customerName}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {reviewsTotalPages > 1 ? (
+            <div className="flex items-center justify-between gap-3 border-t border-gray-100 pt-3 text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
+              <div>
+                {t("publicBooking.reviews.paginationSummary", {
+                  page: reviewsPage,
+                  total: reviewsTotalPages,
+                })}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setReviewsPage((prev) => Math.max(1, prev - 1))
+                  }
+                  disabled={reviewsPage <= 1 || reviewsQuery.isFetching}
+                >
+                  {t("publicBooking.reviews.previous")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setReviewsPage((prev) =>
+                      Math.min(reviewsTotalPages, prev + 1),
+                    )
+                  }
+                  disabled={
+                    reviewsPage >= reviewsTotalPages || reviewsQuery.isFetching
+                  }
+                >
+                  {t("publicBooking.reviews.next")}
+                </Button>
+              </div>
             </div>
           ) : null}
         </div>
