@@ -2974,26 +2974,28 @@ export default function PublicBookingFlow({
                   key={review.id}
                   className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/10 p-4"
                 >
-                  <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                    {firstNameOnly(review.customerName) ||
-                      t("publicBooking.reviews.customerFallback")}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {firstNameOnly(review.customerName) ||
+                        t("publicBooking.reviews.customerFallback")}
+                    </div>
+                    <div className="flex items-center gap-1 text-yellow-500 shrink-0">
+                      {Array.from({ length: 5 }).map((_, idx) => (
+                        <Star
+                          key={idx}
+                          className="h-4 w-4"
+                          fill={
+                            idx < Math.round(review.rating)
+                              ? "currentColor"
+                              : "none"
+                          }
+                        />
+                      ))}
+                    </div>
                   </div>
                   <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                     {review.serviceName ||
                       t("publicBooking.reviews.serviceFallback")}
-                  </div>
-                  <div className="mt-2 flex items-center gap-1 text-yellow-500">
-                    {Array.from({ length: 5 }).map((_, idx) => (
-                      <Star
-                        key={idx}
-                        className="h-4 w-4"
-                        fill={
-                          idx < Math.round(review.rating)
-                            ? "currentColor"
-                            : "none"
-                        }
-                      />
-                    ))}
                   </div>
                   {review.comment ? (
                     <div className="mt-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">
