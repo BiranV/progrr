@@ -24,7 +24,7 @@ import {
   DataTable,
   type DataTableColumn,
 } from "@/components/ui/table/DataTable";
-import { Star } from "lucide-react";
+import { Star, Trash2 } from "lucide-react";
 
 type ReviewItem = {
   id: string;
@@ -334,24 +334,24 @@ export default function ReviewsSettingsPage() {
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
               {review.customerName || t("common.emptyDash")}
-              {review.customerEmail ? ` • ${review.customerEmail}` : ""}
             </div>
           </div>
         ),
       },
       {
         key: "actions",
-        header: t("customers.table.actions"),
+        header: "",
         headerClassName: "text-end",
         cellClassName: "w-[1%] whitespace-nowrap text-end",
         renderCell: (review) => (
           <Button
             type="button"
-            variant="outline"
-            size="sm"
+            variant="ghost"
+            size="icon"
             onClick={() => setDeleteTarget(review)}
+            aria-label={t("reviews.deleteAction")}
           >
-            {t("reviews.deleteAction")}
+            <Trash2 className="h-4 w-4" />
           </Button>
         ),
       },
