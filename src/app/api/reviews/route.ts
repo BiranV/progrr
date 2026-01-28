@@ -22,36 +22,51 @@ export async function GET(req: Request) {
         ? Math.min(50, Math.round(limitRaw))
         : 10;
     const skip = (page - 1) * limit;
+    const queryRaw = String(url.searchParams.get("q") ?? "").trim();
+    const range = String(url.searchParams.get("range") ?? "").trim();
 
     const c = await collections();
     const businessUserId = new ObjectId(user.id);
 
-    const total = await c.appointments.countDocuments({
+    const filters: Record<string, any> = {
       businessUserId,
       reviewSubmitted: true,
-    } as any);
+    };
+
+    if (queryRaw) {
+      const safe = queryRaw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(safe, "i");
+      filters.$or = [
+        { serviceName: { $regex: regex } },
+        { "customer.fullName": { $regex: regex } },
+        { "customer.email": { $regex: regex } },
+        { reviewComment: { $regex: regex } },
+      ];
+    }
+
+    if (range === "last7days") {
+      const since = new Date();
+      since.setDate(since.getDate() - 7);
+      filters.reviewSubmittedAt = { $gte: since };
+    }
+
+    const total = await c.appointments.countDocuments(filters as any);
 
     const reviews = await c.appointments
-      .find(
-        {
-          businessUserId,
-          reviewSubmitted: true,
-        } as any,
-        {
-          projection: {
-            _id: 1,
-            serviceName: 1,
-            date: 1,
-            startTime: 1,
-            endTime: 1,
-            "customer.fullName": 1,
-            "customer.email": 1,
-            reviewRating: 1,
-            reviewComment: 1,
-            reviewSubmittedAt: 1,
-          },
+      .find(filters as any, {
+        projection: {
+          _id: 1,
+          serviceName: 1,
+          date: 1,
+          startTime: 1,
+          endTime: 1,
+          "customer.fullName": 1,
+          "customer.email": 1,
+          reviewRating: 1,
+          reviewComment: 1,
+          reviewSubmittedAt: 1,
         },
-      )
+      })
       .sort({ reviewSubmittedAt: -1, createdAt: -1 })
       .skip(skip)
       .limit(limit)
