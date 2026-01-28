@@ -342,32 +342,34 @@ export function PhoneInput({
   }, [detectedDefault, placeholder, selectedCountry]);
 
   return (
-    <PhoneInputBase
-      international={false}
-      addInternationalOption={false}
-      countryCallingCodeEditable={false}
-      defaultCountry={detectedDefault}
-      onCountryChange={(next) =>
-        setSelectedCountry((next as Country) ?? detectedDefault)
-      }
-      value={currentE164 as any}
-      onChange={(v) => onChange(String(v ?? ""))}
-      disabled={disabled}
-      countrySelectComponent={CountrySelect as any}
-      labels={labelsEn as any}
-      inputComponent={Input as any}
-      className={cn("flex items-center gap-2 w-full", className)}
-      numberInputProps={{
-        id,
-        name,
-        placeholder: resolvedPlaceholder,
-        required,
-        disabled,
-        onBlur,
-        onFocus,
-        className: cn("flex-1", inputClassName, errorInputClass),
-        "aria-invalid": ariaInvalid ? true : undefined,
-      }}
-    />
+    <div dir="ltr" className={cn("w-full", className)}>
+      <PhoneInputBase
+        international={false}
+        addInternationalOption={false}
+        countryCallingCodeEditable={false}
+        defaultCountry={detectedDefault}
+        onCountryChange={(next) =>
+          setSelectedCountry((next as Country) ?? detectedDefault)
+        }
+        value={currentE164 as any}
+        onChange={(v) => onChange(String(v ?? ""))}
+        disabled={disabled}
+        countrySelectComponent={CountrySelect as any}
+        labels={labelsEn as any}
+        inputComponent={Input as any}
+        className="flex items-center gap-2 w-full"
+        numberInputProps={{
+          id,
+          name,
+          placeholder: resolvedPlaceholder,
+          required,
+          disabled,
+          onBlur,
+          onFocus,
+          className: cn("flex-1", inputClassName, errorInputClass),
+          "aria-invalid": ariaInvalid ? true : undefined,
+        }}
+      />
+    </div>
   );
 }

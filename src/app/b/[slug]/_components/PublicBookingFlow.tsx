@@ -1130,15 +1130,15 @@ export default function PublicBookingFlow({
 
     const displayName = customerFullName.trim() || customerEmail.trim();
     return (
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex w-full items-center justify-between gap-3">
         {displayName ? (
-          <div className="text-sm text-gray-900 dark:text-white truncate max-w-[140px]">
+          <div className="flex-1 text-sm text-gray-900 dark:text-white truncate">
             {displayName}
           </div>
         ) : (
-          <div />
+          <div className="flex-1" />
         )}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           <Button
             type="button"
             variant="ghost"
@@ -1945,7 +1945,6 @@ export default function PublicBookingFlow({
               </Label>
               <Input
                 id="loginEmail"
-                className="rounded-2xl"
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(normalizeEmail(e.target.value))}
                 onBlur={(e) => setLoginEmail(normalizeEmail(e.target.value))}
@@ -2045,7 +2044,6 @@ export default function PublicBookingFlow({
               </Label>
               <Input
                 id="loginFullName"
-                className="rounded-2xl"
                 value={customerFullName}
                 onChange={(e) => setCustomerFullName(e.target.value)}
               />
@@ -2057,8 +2055,6 @@ export default function PublicBookingFlow({
               </Label>
               <PhoneInput
                 id="loginPhone"
-                className="rounded-2xl"
-                inputClassName="rounded-2xl"
                 value={customerPhone}
                 onChange={(v) => setCustomerPhone(v)}
                 onValidityChange={setCustomerPhoneValid}
@@ -2264,7 +2260,6 @@ export default function PublicBookingFlow({
               </Label>
               <Input
                 id="profileFullName"
-                className="rounded-2xl"
                 value={profileFullName}
                 onChange={(e) => setProfileFullName(e.target.value)}
               />
@@ -2276,7 +2271,6 @@ export default function PublicBookingFlow({
               </Label>
               <Input
                 id="profileEmail"
-                className="rounded-2xl"
                 value={profileNewEmail}
                 onChange={(e) =>
                   setProfileNewEmail(normalizeEmail(e.target.value))
@@ -2294,8 +2288,6 @@ export default function PublicBookingFlow({
               </Label>
               <PhoneInput
                 id="profilePhone"
-                className="rounded-2xl"
-                inputClassName="rounded-2xl"
                 value={profilePhone}
                 onChange={(v) => setProfilePhone(v)}
                 onValidityChange={setProfilePhoneValid}
@@ -2719,7 +2711,6 @@ export default function PublicBookingFlow({
                 </Label>
                 <Input
                   id="confirmFullName"
-                  className="rounded-2xl"
                   value={customerFullName}
                   onChange={(e) => setCustomerFullName(e.target.value)}
                 />
@@ -2731,8 +2722,6 @@ export default function PublicBookingFlow({
                 </Label>
                 <PhoneInput
                   id="confirmPhone"
-                  className="rounded-2xl"
-                  inputClassName="rounded-2xl"
                   value={customerPhone}
                   onChange={(v) => setCustomerPhone(v)}
                   onValidityChange={setCustomerPhoneValid}
