@@ -155,7 +155,7 @@ function CountrySelect({
           type="button"
           variant="outline"
           disabled={disabled}
-          className="h-9 px-2 gap-2"
+          className="h-9 px-2 gap-2 bg-transparent shadow-none hover:bg-accent/50"
           aria-label="Select country"
         >
           {Flag ? <Flag className="h-4 w-5 rounded-sm" /> : null}
