@@ -81,12 +81,22 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Invalid code" }, { status: 401 });
         }
 
+        let businessUserId: any = undefined;
+        if (businessPublicId) {
+            const business = await c.users.findOne(
+                { "onboarding.business.publicId": businessPublicId } as any,
+                { projection: { _id: 1 } }
+            );
+            if (business?._id) businessUserId = business._id;
+        }
+
         let customer = await c.customers.findOne({ email } as any);
         if (!customer) {
             const insert = await c.customers.insertOne({
                 email,
                 fullName: fullName || email,
                 phone: phone || "",
+                ...(businessUserId ? { businessUserId } : {}),
                 createdAt: new Date(),
                 updatedAt: new Date(),
             } as any);
@@ -98,9 +108,16 @@ export async function POST(req: Request) {
                     $set: {
                         ...(fullName ? { fullName } : {}),
                         ...(phone ? { phone } : {}),
+                        ...(businessUserId ? { businessUserId } : {}),
                         updatedAt: new Date(),
                     },
                 } as any
+            );
+            customer = await c.customers.findOne({ _id: customer._id } as any);
+        } else if (businessUserId && !(customer as any)?.businessUserId) {
+            await c.customers.updateOne(
+                { _id: customer._id } as any,
+                { $set: { businessUserId, updatedAt: new Date() } } as any
             );
             customer = await c.customers.findOne({ _id: customer._id } as any);
         }
