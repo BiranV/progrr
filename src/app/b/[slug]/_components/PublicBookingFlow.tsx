@@ -1,17 +1,10 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import SidePanel from "@/components/ui/side-panel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,12 +28,9 @@ import { Hebrew } from "flatpickr/dist/l10n/he";
 import {
   Briefcase,
   Calendar,
-  CalendarDays,
   ChevronLeft,
   Clock,
   Banknote,
-  LogOut,
-  Menu,
   Star,
   Timer,
   User,
@@ -261,6 +251,39 @@ function formatDateForDisplay(date: string): string {
   return `${match[3]}-${match[2]}-${match[1]}`;
 }
 
+function formatTimeInTimeZone(date: Date, timeZone: string): string {
+  const tz = String(timeZone || "UTC").trim() || "UTC";
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: tz,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(date);
+  } catch {
+    parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "UTC",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(date);
+  }
+  const get = (type: string) => parts.find((p) => p.type === type)?.value;
+  const h = get("hour");
+  const m = get("minute");
+  if (!h || !m) return "";
+  return `${h}:${m}`;
+}
+
+function firstNameOnly(value: string): string {
+  const parts = String(value ?? "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  return parts[0] ?? "";
+}
+
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
@@ -395,6 +418,11 @@ export default function PublicBookingFlow({
   >(null);
   const [reviewSubmitted, setReviewSubmitted] = React.useState(false);
   const reviewSectionRef = React.useRef<HTMLDivElement | null>(null);
+
+  const [upcomingAppointments, setUpcomingAppointments] = React.useState<
+    MyAppointmentsItem[]
+  >([]);
+  const [upcomingLoading, setUpcomingLoading] = React.useState(false);
 
   const [step, setStep] = React.useState<Step>("service");
 
@@ -851,10 +879,53 @@ export default function PublicBookingFlow({
     startTime,
   ]);
 
+  React.useEffect(() => {
+    if (!connected || !publicId) {
+      setUpcomingAppointments([]);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      setUpcomingLoading(true);
+      try {
+        const res = await fetch(
+          `/api/public/booking/me?businessPublicId=${encodeURIComponent(
+            publicId,
+          )}&scope=future`,
+        );
+        const json = (await res
+          .json()
+          .catch(() => null)) as BookingMeResponse | null;
+        if (cancelled) return;
+        if (!res.ok || !json?.ok || !(json as any)?.loggedIn) {
+          setUpcomingAppointments([]);
+          return;
+        }
+        const list = Array.isArray((json as any)?.appointments)
+          ? ((json as any).appointments as MyAppointmentsItem[])
+          : [];
+        setUpcomingAppointments(list);
+      } catch {
+        if (!cancelled) setUpcomingAppointments([]);
+      } finally {
+        if (!cancelled) setUpcomingLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [connected, publicId]);
+
   const tz = String(data?.availability?.timezone ?? "").trim() || "UTC";
 
   const businessTodayYmd = React.useMemo(() => {
     return formatDateInTimeZone(new Date(), tz);
+  }, [tz]);
+
+  const businessNowTime = React.useMemo(() => {
+    return formatTimeInTimeZone(new Date(), tz);
   }, [tz]);
 
   const isRtl = React.useMemo(
@@ -1035,98 +1106,67 @@ export default function PublicBookingFlow({
       return (
         <div className="flex items-center">
           <Button
-            asChild
             type="button"
             variant="ghost"
             size="sm"
             className="h-6 rounded-none px-0 text-gray-900 dark:text-white hover:bg-transparent"
+            onClick={() => {
+              setLoginEmail(normalizeEmail(customerEmail));
+              setLoginStep("email");
+              setLoginCode("");
+              setLoginError(null);
+              setLoginPurpose("appointments");
+              setLoginRequiresDetails(false);
+              setLoginOpen(true);
+            }}
           >
-            <Link href="/login">{t("publicBooking.header.login")}</Link>
+            {t("publicBooking.header.login")}
           </Button>
         </div>
       );
     }
 
+    const displayName = firstNameOnly(customerFullName);
     return (
-      <div className="flex items-center">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              className="h-6 w-6 rounded-none p-0 m-0 bg-transparent text-gray-900 dark:text-white hover:bg-transparent hover:text-gray-900 dark:hover:text-white"
-              aria-label={t("publicBooking.header.menu")}
-              disabled={loggingOut}
-            >
-              <Menu className="h-6 w-6 pointer-events-auto" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="start"
-            className="flex flex-col w-52 rtl:items-start rtl:text-right ltr:items-start ltr:text-left"
-          >
-            <DropdownMenuItem
-              className="w-full flex items-center gap-2 rtl:flex-row-reverse rtl:justify-start rtl:text-right ltr:flex-row ltr:justify-start ltr:text-left"
-              onClick={() => {
-                window.location.href = "/dashboard";
-              }}
-            >
-              <CalendarDays className="h-4 w-4" />
-              {t("nav.dashboard")}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="w-full flex items-center gap-2 rtl:flex-row-reverse rtl:justify-start rtl:text-right ltr:flex-row ltr:justify-start ltr:text-left"
-              onClick={() => {
-                window.location.href = "/calendar";
-              }}
-            >
-              <CalendarDays className="h-4 w-4" />
-              {t("nav.calendar")}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="w-full flex items-center gap-2 rtl:flex-row-reverse rtl:justify-start rtl:text-right ltr:flex-row ltr:justify-start ltr:text-left"
-              onClick={() => {
-                window.location.href = "/customers";
-              }}
-            >
-              <User className="h-4 w-4" />
-              {t("nav.customers")}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="w-full flex items-center gap-2 rtl:flex-row-reverse rtl:justify-start rtl:text-right ltr:flex-row ltr:justify-start ltr:text-left"
-              onClick={() => {
-                window.location.href = "/settings";
-              }}
-            >
-              <ChevronLeft className="h-4 w-4 rtl:rotate-180" />
-              {t("nav.settings")}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="w-full flex items-center gap-2 rtl:flex-row-reverse rtl:justify-start rtl:text-right ltr:flex-row ltr:justify-start ltr:text-left text-red-600 hover:text-red-600 focus:text-red-600 data-[highlighted]:text-red-600"
-              onClick={async () => {
-                setLoggingOut(true);
-                try {
-                  await disconnectCustomer();
-                  setConnected(false);
-                  setMyAppointmentsOpen(false);
-                  setMyAppointments([]);
-                  resetFlow();
-                } finally {
-                  setLoggingOut(false);
-                }
-              }}
-            >
-              <LogOut className="h-4 w-4 rtl:rotate-180 text-red-600" />
-              {loggingOut
-                ? t("publicBooking.header.loggingOut")
-                : t("publicBooking.header.logout")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      <div className="flex items-center gap-3">
+        {displayName ? (
+          <div className="text-sm text-gray-900 dark:text-white truncate max-w-[140px]">
+            {displayName}
+          </div>
+        ) : null}
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-6 rounded-none px-0 text-gray-900 dark:text-white hover:bg-transparent"
+          disabled={loggingOut}
+          onClick={async () => {
+            setLoggingOut(true);
+            try {
+              await disconnectCustomer();
+              setConnected(false);
+              resetFlow();
+            } finally {
+              setLoggingOut(false);
+            }
+          }}
+        >
+          {loggingOut
+            ? t("publicBooking.header.loggingOut")
+            : t("publicBooking.header.logout")}
+        </Button>
       </div>
     );
-  }, [connected, data, disconnectCustomer, loggingOut, resetFlow, t]);
+  }, [
+    connected,
+    customerEmail,
+    customerFullName,
+    data,
+    disconnectCustomer,
+    loggingOut,
+    resetFlow,
+    t,
+  ]);
 
   const selectedSlot = React.useMemo(() => {
     const list = Array.isArray((slots as any)?.slots)
@@ -1194,6 +1234,32 @@ export default function PublicBookingFlow({
     }
     return combined;
   }, [result]);
+
+  const futureAppointments = React.useMemo(() => {
+    if (!bookedAppointments.length) return [] as MyAppointmentsItem[];
+    return bookedAppointments.filter((appt) => {
+      const dateStr = String(appt.date ?? "").trim();
+      if (!dateStr || !businessTodayYmd) return true;
+      if (dateStr > businessTodayYmd) return true;
+      if (dateStr < businessTodayYmd) return false;
+      const startTime = String(appt.startTime ?? "").trim();
+      if (!startTime || !businessNowTime) return true;
+      return startTime >= businessNowTime;
+    });
+  }, [bookedAppointments, businessNowTime, businessTodayYmd]);
+
+  const visibleUpcomingAppointments = React.useMemo(() => {
+    const combined = [...upcomingAppointments, ...futureAppointments];
+    const seen = new Set<string>();
+    const deduped: MyAppointmentsItem[] = [];
+    for (const item of combined) {
+      const key = String(item.id ?? "").trim();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      deduped.push(item);
+    }
+    return deduped;
+  }, [futureAppointments, upcomingAppointments]);
 
   const hasRequiredDetails = Boolean(
     customerFullName.trim() &&
@@ -1750,6 +1816,34 @@ export default function PublicBookingFlow({
       }
     },
     [cancelSameDayAppointment, t],
+  );
+
+  const handleCancelUpcoming = React.useCallback(
+    async (appointmentId: string) => {
+      setCancelError(null);
+      setCancellingSameDayId(appointmentId);
+      try {
+        await cancelSameDayAppointment(appointmentId);
+        setUpcomingAppointments((prev) =>
+          prev.filter((x) => String(x.id) !== String(appointmentId)),
+        );
+        setResult((prev) => {
+          if (!prev) return prev;
+          const list = Array.isArray(prev.sameDayAppointments)
+            ? prev.sameDayAppointments
+            : [];
+          return {
+            ...prev,
+            sameDayAppointments: list.filter((x) => x.id !== appointmentId),
+          };
+        });
+      } catch (e: any) {
+        setCancelError(getPublicBookingErrorKey(e));
+      } finally {
+        setCancellingSameDayId(null);
+      }
+    },
+    [cancelSameDayAppointment],
   );
 
   const handleAddToGoogle = React.useCallback(() => {
@@ -2603,69 +2697,125 @@ export default function PublicBookingFlow({
 
           {cancelError ? <ErrorAlert>{t(cancelError)}</ErrorAlert> : null}
 
-          <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4 shadow-sm">
-            <div className="divide-y divide-gray-200 dark:divide-gray-800">
-              {bookedAppointments.map((a) => (
-                <div key={a.id} className="py-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      {a.date ? (
-                        <div
-                          className="text-xs text-muted-foreground text-start"
-                          dir="ltr"
-                        >
-                          {formatDateForDisplay(a.date)}
+          {futureAppointments.length ? (
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4 shadow-sm">
+              <div className="divide-y divide-gray-200 dark:divide-gray-800">
+                {futureAppointments.map((a) => (
+                  <div key={a.id} className="py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        {a.date ? (
+                          <div className="text-xs text-muted-foreground text-start">
+                            <span dir="ltr">
+                              {formatDateForDisplay(a.date)}
+                            </span>
+                          </div>
+                        ) : null}
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                          <span dir="ltr">
+                            {formatTimeRange(a.startTime, a.endTime)}
+                          </span>
                         </div>
-                      ) : null}
-                      <div className="text-sm font-medium text-gray-900 dark:text-white">
-                        <span dir="ltr">
-                          {formatTimeRange(a.startTime, a.endTime)}
-                        </span>
+                        <div className="text-sm text-gray-700 dark:text-gray-200">
+                          {a.serviceName}
+                        </div>
                       </div>
-                      <div className="text-sm text-gray-700 dark:text-gray-200">
-                        {a.serviceName}
-                      </div>
+
+                      <button
+                        type="button"
+                        className="shrink-0 text-sm text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white cursor-pointer"
+                        disabled={cancellingSameDayId === a.id || cancelling}
+                        onClick={() => handleCancelSameDay(a.id)}
+                      >
+                        {cancellingSameDayId === a.id
+                          ? t("publicBooking.actions.cancelling")
+                          : t("publicBooking.actions.cancelAppointment")}
+                      </button>
                     </div>
-
-                    <button
-                      type="button"
-                      className="shrink-0 text-sm text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white cursor-pointer"
-                      disabled={cancellingSameDayId === a.id || cancelling}
-                      onClick={() => handleCancelSameDay(a.id)}
-                    >
-                      {cancellingSameDayId === a.id
-                        ? t("publicBooking.actions.cancelling")
-                        : t("publicBooking.actions.cancelAppointment")}
-                    </button>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          ) : null}
 
-          <div className="space-y-2">
-            <div className="flex flex-nowrap gap-3">
-              {!limitCustomerToOneUpcomingAppointment ? (
-                <Button className="rounded-2xl" onClick={resetBookingOnly}>
-                  {t("publicBooking.success.bookAnother")}
+          {futureAppointments.length ? (
+            <div className="space-y-2">
+              <div className="flex flex-col gap-3">
+                <Button
+                  variant="outline"
+                  className="rounded-2xl w-full bg-transparent"
+                  onClick={handleAddToGoogle}
+                >
+                  {t("publicBooking.success.addToGoogle")}
                 </Button>
-              ) : null}
 
-              <Button
-                variant="outline"
-                className="rounded-2xl w-full bg-transparent"
-                onClick={handleAddToGoogle}
-              >
-                {t("publicBooking.success.addToGoogle")}
-              </Button>
+                {!limitCustomerToOneUpcomingAppointment ? (
+                  <Button className="rounded-2xl" onClick={resetBookingOnly}>
+                    {t("publicBooking.success.bookAnother")}
+                  </Button>
+                ) : null}
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
       ) : null}
 
       {step === "success" && !result?.appointment ? (
         <div className="text-sm text-gray-600 dark:text-gray-300">
           {t("publicBooking.errors.noBookingFound")}
+        </div>
+      ) : null}
+
+      {connected ? (
+        <div className="mt-10 space-y-5">
+          <div className="space-y-1">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              {t("publicBooking.myAppointments.titleUpcoming")}
+            </h2>
+          </div>
+
+          {upcomingLoading ? (
+            <CenteredSpinner size="sm" className="py-6" />
+          ) : visibleUpcomingAppointments.length === 0 ? null : (
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/70 dark:bg-gray-950/20 p-4 shadow-sm">
+              <div className="divide-y divide-gray-200 dark:divide-gray-800">
+                {visibleUpcomingAppointments.map((a) => (
+                  <div key={a.id} className="py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        {a.date ? (
+                          <div className="text-xs text-muted-foreground text-start">
+                            <span dir="ltr">
+                              {formatDateForDisplay(a.date)}
+                            </span>
+                          </div>
+                        ) : null}
+                        <div className="text-sm font-medium text-gray-900 dark:text-white">
+                          <span dir="ltr">
+                            {formatTimeRange(a.startTime, a.endTime)}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-700 dark:text-gray-200">
+                          {a.serviceName}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="shrink-0 text-sm text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white cursor-pointer"
+                        disabled={cancellingSameDayId === a.id || cancelling}
+                        onClick={() => handleCancelUpcoming(a.id)}
+                      >
+                        {cancellingSameDayId === a.id
+                          ? t("publicBooking.actions.cancelling")
+                          : t("publicBooking.actions.cancelAppointment")}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ) : null}
 
@@ -2762,33 +2912,30 @@ export default function PublicBookingFlow({
                   key={review.id}
                   className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-950/10 p-4"
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                      {review.serviceName ||
-                        t("publicBooking.reviews.serviceFallback")}
-                    </div>
-                    <div className="flex items-center gap-1 text-yellow-500">
-                      {Array.from({ length: 5 }).map((_, idx) => (
-                        <Star
-                          key={idx}
-                          className="h-4 w-4"
-                          fill={
-                            idx < Math.round(review.rating)
-                              ? "currentColor"
-                              : "none"
-                          }
-                        />
-                      ))}
-                    </div>
+                  <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {firstNameOnly(review.customerName) ||
+                      t("publicBooking.reviews.customerFallback")}
+                  </div>
+                  <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    {review.serviceName ||
+                      t("publicBooking.reviews.serviceFallback")}
+                  </div>
+                  <div className="mt-2 flex items-center gap-1 text-yellow-500">
+                    {Array.from({ length: 5 }).map((_, idx) => (
+                      <Star
+                        key={idx}
+                        className="h-4 w-4"
+                        fill={
+                          idx < Math.round(review.rating)
+                            ? "currentColor"
+                            : "none"
+                        }
+                      />
+                    ))}
                   </div>
                   {review.comment ? (
                     <div className="mt-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">
                       {review.comment}
-                    </div>
-                  ) : null}
-                  {review.customerName ? (
-                    <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                      {review.customerName}
                     </div>
                   ) : null}
                 </div>
