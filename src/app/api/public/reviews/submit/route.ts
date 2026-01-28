@@ -5,6 +5,7 @@ import { collections, ensureIndexes } from "@/server/collections";
 import { verifyReviewAccessToken } from "@/server/jwt";
 import { isValidBusinessPublicId } from "@/server/business-public-id";
 import { normalizeEmail } from "@/lib/email";
+import { REVIEW_COMMENT_MAX } from "@/lib/reviews";
 
 function isValidObjectId(id: string): boolean {
   return ObjectId.isValid(id);
@@ -30,9 +31,9 @@ export async function POST(req: Request) {
       );
     }
 
-    if (comment.length > 1000) {
+    if (comment.length > REVIEW_COMMENT_MAX) {
       return NextResponse.json(
-        { error: "Comment is too long" },
+        { error: `Comment cannot exceed ${REVIEW_COMMENT_MAX} characters` },
         { status: 400 },
       );
     }

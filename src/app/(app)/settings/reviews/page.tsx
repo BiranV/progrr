@@ -24,7 +24,7 @@ import {
   DataTable,
   type DataTableColumn,
 } from "@/components/ui/table/DataTable";
-import { Star, Trash2 } from "lucide-react";
+import { Loader2, Star, Trash2 } from "lucide-react";
 
 type ReviewItem = {
   id: string;
@@ -102,8 +102,9 @@ export default function ReviewsSettingsPage() {
 
   const reviewsQuery = useQuery({
     queryKey: ["reviews"],
-    staleTime: Infinity,
+    staleTime: 0,
     refetchOnWindowFocus: false,
+    refetchOnMount: "always",
     queryFn: async (): Promise<ReviewsResponse> => {
       const params = new URLSearchParams({
         page: "1",
@@ -288,6 +289,18 @@ export default function ReviewsSettingsPage() {
       throw new Error(json?.error || t("errors.failedToSave"));
     }
     setAllReviews((prev) => prev.filter((r) => r.id !== review.id));
+    queryClient.setQueryData(["reviews"], (prev?: ReviewsResponse) => {
+      if (!prev) return prev;
+      const nextReviews = prev.reviews.filter((r) => r.id !== review.id);
+      const nextTotal = Math.max(0, (prev.total ?? 0) - 1);
+      const nextTotalPages = Math.max(1, Math.ceil(nextTotal / prev.pageSize));
+      return {
+        ...prev,
+        total: nextTotal,
+        totalPages: nextTotalPages,
+        reviews: nextReviews,
+      };
+    });
     toast.success(t("reviews.toastDeleted"));
   };
 
@@ -618,6 +631,7 @@ export default function ReviewsSettingsPage() {
         title={t("reviews.deleteConfirmTitle")}
         description={t("reviews.deleteConfirmDescription")}
         confirmText={t("reviews.deleteConfirmAction")}
+        loadingText={t("reviews.deleteLoading")}
         cancelText={t("common.cancel")}
         confirmVariant="destructive"
         onConfirm={async () => {

@@ -19,6 +19,7 @@ import { usePublicBusiness } from "./usePublicBusiness";
 import { formatDateInTimeZone, formatPrice } from "@/lib/public-booking";
 import { formatTimeRange } from "@/lib/utils";
 import { isValidEmail, normalizeEmail } from "@/lib/email";
+import { REVIEW_COMMENT_MAX } from "@/lib/reviews";
 import { useLocale } from "@/context/LocaleContext";
 import { useI18n } from "@/i18n/useI18n";
 import Flatpickr from "react-flatpickr";
@@ -1342,6 +1343,14 @@ export default function PublicBookingFlow({
       window.history.back();
     }
   }, [connected, resetBookingOnly, resetFlow, step]);
+
+  const reviewCommentCounterId = "review-comment-counter";
+  const reviewCommentWarningThreshold = REVIEW_COMMENT_MAX - 50;
+  const reviewCommentCount = reviewComment.length;
+
+  const handleReviewCommentChange = React.useCallback((nextValue: string) => {
+    setReviewComment(nextValue.slice(0, REVIEW_COMMENT_MAX));
+  }, []);
 
   const submitPublicReview = React.useCallback(async () => {
     if (!reviewToken) return;
@@ -2918,11 +2927,25 @@ export default function PublicBookingFlow({
                 <Label>{t("publicBooking.reviews.commentLabel")}</Label>
                 <Textarea
                   value={reviewComment}
-                  onChange={(e) => setReviewComment(e.target.value)}
+                  onChange={(e) => handleReviewCommentChange(e.target.value)}
                   rows={4}
                   placeholder={t("publicBooking.reviews.commentPlaceholder")}
                   disabled={reviewSubmitting}
+                  maxLength={REVIEW_COMMENT_MAX}
+                  aria-describedby={reviewCommentCounterId}
                 />
+                <div
+                  id={reviewCommentCounterId}
+                  className={
+                    "text-xs text-gray-500 dark:text-gray-400 text-end" +
+                    (reviewCommentCount >= reviewCommentWarningThreshold
+                      ? " text-amber-600 dark:text-amber-400"
+                      : "")
+                  }
+                  aria-live="polite"
+                >
+                  {reviewCommentCount} / {REVIEW_COMMENT_MAX}
+                </div>
               </div>
               {reviewSubmitError ? (
                 <div className="text-sm text-rose-500">{reviewSubmitError}</div>

@@ -1145,6 +1145,7 @@ const he = {
     deleteConfirmTitle: "להסיר ביקורת?",
     deleteConfirmDescription: "הביקורת תוסר מהדשבורד ומהרשומות הציבוריות.",
     deleteConfirmAction: "הסרת ביקורת",
+    deleteLoading: "מסיר...",
     toastDeleted: "הביקורת הוסרה",
     ratingLabel: "דירוג",
     commentLabel: "תגובה",

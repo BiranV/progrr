@@ -1177,6 +1177,7 @@ const en = {
     deleteConfirmDescription:
       "This will remove the review from your dashboard and public records.",
     deleteConfirmAction: "Remove review",
+    deleteLoading: "Removing...",
     toastDeleted: "Review removed",
     ratingLabel: "Rating",
     commentLabel: "Comment",
