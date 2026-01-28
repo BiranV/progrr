@@ -1165,6 +1165,8 @@ const en = {
     delayHelp: "Default is 15 minutes.",
     listTitle: "Submitted reviews",
     listEmpty: "No reviews submitted yet.",
+    adminNotice:
+      "Only reviews from the last 7 days are shown here. All reviews (including older ones) are always visible in the public reviews page. Disabling reviews does not hide existing reviews from admins.",
     paginationSummary: "Page {{page}} of {{total}}",
     deleteAction: "Remove",
     deleteConfirmTitle: "Remove review?",

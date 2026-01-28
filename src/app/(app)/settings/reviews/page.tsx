@@ -10,9 +10,20 @@ import { CenteredSpinner } from "@/components/CenteredSpinner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import ConfirmModal from "@/components/ui/confirm-modal";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "@/components/ui/table/DataTable";
 import { Star } from "lucide-react";
 
 type ReviewItem = {
@@ -78,16 +89,23 @@ export default function ReviewsSettingsPage() {
   const [deleteTarget, setDeleteTarget] = React.useState<ReviewItem | null>(
     null,
   );
-  const [reviewsPage, setReviewsPage] = React.useState(1);
-  const reviewsPageSize = 10;
+  const [page, setPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(5);
+  const [query, setQuery] = React.useState("");
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [pageSize, query]);
 
   const reviewsQuery = useQuery({
-    queryKey: ["reviews", reviewsPage],
+    queryKey: ["reviews", page, pageSize, query],
     staleTime: 30 * 1000,
     queryFn: async (): Promise<ReviewsResponse> => {
       const params = new URLSearchParams({
-        page: String(reviewsPage),
-        limit: String(reviewsPageSize),
+        page: String(page),
+        limit: String(pageSize),
+        q: query,
+        range: "last7days",
       });
       const res = await fetch(`/api/reviews?${params.toString()}`, {
         method: "GET",
@@ -263,9 +281,9 @@ export default function ReviewsSettingsPage() {
     }
     const currentTotal = reviewsQuery.data?.total ?? 0;
     const nextTotal = Math.max(0, currentTotal - 1);
-    const nextTotalPages = Math.max(1, Math.ceil(nextTotal / reviewsPageSize));
-    if (reviewsPage > nextTotalPages) {
-      setReviewsPage(nextTotalPages);
+    const nextTotalPages = Math.max(1, Math.ceil(nextTotal / pageSize));
+    if (page > nextTotalPages) {
+      setPage(nextTotalPages);
     }
     await queryClient.invalidateQueries({ queryKey: ["reviews"] });
     toast.success(t("reviews.toastDeleted"));
@@ -292,6 +310,55 @@ export default function ReviewsSettingsPage() {
       </div>
     );
   };
+
+  const reviewColumns = React.useMemo(() => {
+    const cols: Array<DataTableColumn<ReviewItem>> = [
+      {
+        key: "review",
+        header: t("reviews.listTitle"),
+        renderCell: (review) => (
+          <div className="min-w-0 space-y-2">
+            <div className="font-semibold text-gray-900 dark:text-white truncate">
+              {review.serviceName || t("reviews.serviceFallback")}
+            </div>
+            <div className="flex items-center gap-2">
+              {renderRatingStars(review.rating)}
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {Number.isFinite(review.rating)
+                  ? review.rating.toFixed(1)
+                  : t("common.emptyDash")}
+              </span>
+            </div>
+            <div className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">
+              {review.comment || t("common.emptyDash")}
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+              {review.customerName || t("common.emptyDash")}
+              {review.customerEmail ? ` • ${review.customerEmail}` : ""}
+            </div>
+          </div>
+        ),
+      },
+      {
+        key: "actions",
+        header: t("customers.table.actions"),
+        headerClassName: "text-end",
+        cellClassName: "w-[1%] whitespace-nowrap text-end",
+        renderCell: (review) => (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setDeleteTarget(review)}
+          >
+            {t("reviews.deleteAction")}
+          </Button>
+        ),
+      },
+    ];
+
+    return cols;
+  }, [t]);
 
   const showFullPageSpinner = isPending && !business && !initialRef.current;
   const showErrorState =
@@ -428,117 +495,81 @@ export default function ReviewsSettingsPage() {
           <CardTitle className="text-base">{t("reviews.listTitle")}</CardTitle>
         </CardHeader>
         <CardContent className="pt-0 space-y-4">
-          {reviewsQuery.isLoading ? (
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              {t("common.loading")}
+          <div className="rounded-lg border border-gray-200/70 bg-gray-50/70 px-3 py-2 text-xs text-gray-600 dark:border-gray-800 dark:bg-gray-800/40 dark:text-gray-300">
+            {t("reviews.adminNotice")}
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex-1 min-w-0">
+              <Input
+                placeholder={t("customers.drawer.searchPlaceholder")}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="text-start"
+              />
             </div>
+            <div className="shrink-0">
+              <Select
+                value={String(pageSize)}
+                onValueChange={(v) => setPageSize(Number(v) || 5)}
+              >
+                <SelectTrigger size="sm" className="w-[128px] text-start">
+                  <SelectValue placeholder={t("customers.table.rows")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">
+                    {t("customers.table.rowsCount", { count: 5 })}
+                  </SelectItem>
+                  <SelectItem value="10">
+                    {t("customers.table.rowsCount", { count: 10 })}
+                  </SelectItem>
+                  <SelectItem value="25">
+                    {t("customers.table.rowsCount", { count: 25 })}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {reviewsQuery.isLoading ? (
+            <CenteredSpinner size="sm" className="py-6" />
           ) : reviewsQuery.isError ? (
             <div className="text-sm text-rose-500">
               {(reviewsQuery.error as Error)?.message ||
                 t("errors.failedToLoad")}
             </div>
-          ) : (reviewsQuery.data?.reviews?.length ?? 0) === 0 ? (
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              {t("reviews.listEmpty")}
-            </div>
           ) : (
-            <div className="space-y-4">
-              {reviewsQuery.data?.reviews?.map((review) => (
-                <div
-                  key={review.id}
-                  className="rounded-xl border border-gray-200/70 p-4 dark:border-gray-800"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                        {review.serviceName || t("reviews.serviceFallback")}
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {review.date}
-                        {review.startTime && review.endTime
-                          ? ` • ${review.startTime}–${review.endTime}`
-                          : ""}
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setDeleteTarget(review)}
-                    >
-                      {t("reviews.deleteAction")}
-                    </Button>
-                  </div>
-                  <div className="mt-3 text-sm text-gray-700 dark:text-gray-300">
-                    <div>
-                      <span className="font-medium">
-                        {t("reviews.ratingLabel")}:
-                      </span>{" "}
-                      <div className="mt-1 flex items-center gap-2">
-                        {renderRatingStars(review.rating)}
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {Number.isFinite(review.rating)
-                            ? review.rating.toFixed(1)
-                            : "—"}
-                        </span>
-                      </div>
-                    </div>
-                    {review.comment ? (
-                      <div className="mt-2 whitespace-pre-line">
-                        <span className="font-medium">
-                          {t("reviews.commentLabel")}:
-                        </span>{" "}
-                        {review.comment}
-                      </div>
-                    ) : null}
-                    <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                      {t("reviews.customerLabel")}: {review.customerName || "—"}
-                      {review.customerEmail ? ` • ${review.customerEmail}` : ""}
-                    </div>
-                  </div>
+            <DataTable
+              rows={reviewsQuery.data?.reviews ?? []}
+              columns={reviewColumns}
+              getRowId={(row) => row.id}
+              emptyMessage={
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  {t("reviews.listEmpty")}
                 </div>
-              ))}
-            </div>
+              }
+              pagination={
+                reviewsQuery.data
+                  ? {
+                      page,
+                      totalPages: reviewsQuery.data.totalPages,
+                      onPageChange: setPage,
+                    }
+                  : undefined
+              }
+              paginationLabels={
+                reviewsQuery.data
+                  ? {
+                      summary: (pageValue, totalPagesValue) =>
+                        t("customers.table.paginationSummary", {
+                          page: pageValue,
+                          total: totalPagesValue,
+                        }),
+                      previous: t("customers.table.previous"),
+                      next: t("customers.table.next"),
+                    }
+                  : undefined
+              }
+            />
           )}
-          {reviewsQuery.data && reviewsQuery.data.totalPages > 1 ? (
-            <div className="flex items-center justify-between gap-3 border-t border-gray-100 pt-3 text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
-              <div>
-                {t("reviews.paginationSummary", {
-                  page: reviewsQuery.data.page,
-                  total: reviewsQuery.data.totalPages,
-                })}
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setReviewsPage((prev) => Math.max(1, prev - 1))
-                  }
-                  disabled={reviewsPage <= 1 || reviewsQuery.isFetching}
-                >
-                  {t("common.previous")}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setReviewsPage((prev) =>
-                      Math.min(reviewsQuery.data?.totalPages ?? prev, prev + 1),
-                    )
-                  }
-                  disabled={
-                    reviewsPage >= (reviewsQuery.data?.totalPages ?? 1) ||
-                    reviewsQuery.isFetching
-                  }
-                >
-                  {t("common.next")}
-                </Button>
-              </div>
-            </div>
-          ) : null}
         </CardContent>
       </Card>
 
