@@ -22,6 +22,7 @@ const en = {
     done: "Done",
     yes: "Yes",
     no: "No",
+    all: "All",
     emptyDash: "—",
     languageSwitcher: "Language switcher",
     languageHebrew: "Hebrew",

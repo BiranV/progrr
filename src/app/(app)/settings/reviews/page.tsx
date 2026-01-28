@@ -91,20 +91,23 @@ export default function ReviewsSettingsPage() {
   );
   const [page, setPage] = React.useState(1);
   const [pageSize, setPageSize] = React.useState(5);
-  const [query, setQuery] = React.useState("");
+  const [selectedRating, setSelectedRating] = React.useState<number | null>(
+    null,
+  );
+  const [allReviews, setAllReviews] = React.useState<ReviewItem[]>([]);
 
   React.useEffect(() => {
     setPage(1);
-  }, [pageSize, query]);
+  }, [pageSize, selectedRating]);
 
   const reviewsQuery = useQuery({
-    queryKey: ["reviews", page, pageSize, query],
-    staleTime: 30 * 1000,
+    queryKey: ["reviews"],
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
     queryFn: async (): Promise<ReviewsResponse> => {
       const params = new URLSearchParams({
-        page: String(page),
-        limit: String(pageSize),
-        q: query,
+        page: "1",
+        limit: "50",
         range: "last7days",
       });
       const res = await fetch(`/api/reviews?${params.toString()}`, {
@@ -118,6 +121,11 @@ export default function ReviewsSettingsPage() {
       return json as ReviewsResponse;
     },
   });
+
+  React.useEffect(() => {
+    if (!reviewsQuery.data?.reviews) return;
+    setAllReviews(reviewsQuery.data.reviews);
+  }, [reviewsQuery.data]);
 
   React.useEffect(() => {
     if (!business) return;
@@ -279,13 +287,7 @@ export default function ReviewsSettingsPage() {
     if (!res.ok) {
       throw new Error(json?.error || t("errors.failedToSave"));
     }
-    const currentTotal = reviewsQuery.data?.total ?? 0;
-    const nextTotal = Math.max(0, currentTotal - 1);
-    const nextTotalPages = Math.max(1, Math.ceil(nextTotal / pageSize));
-    if (page > nextTotalPages) {
-      setPage(nextTotalPages);
-    }
-    await queryClient.invalidateQueries({ queryKey: ["reviews"] });
+    setAllReviews((prev) => prev.filter((r) => r.id !== review.id));
     toast.success(t("reviews.toastDeleted"));
   };
 
@@ -351,7 +353,7 @@ export default function ReviewsSettingsPage() {
             onClick={() => setDeleteTarget(review)}
             aria-label={t("reviews.deleteAction")}
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-4 w-4 text-gray-900 dark:text-white" />
           </Button>
         ),
       },
@@ -363,6 +365,26 @@ export default function ReviewsSettingsPage() {
   const showFullPageSpinner = isPending && !business && !initialRef.current;
   const showErrorState =
     !business && !initialRef.current && isError && !isPending && !isFetching;
+
+  const filteredReviews = React.useMemo(() => {
+    return allReviews.filter((review) => {
+      if (selectedRating && Math.round(review.rating) !== selectedRating) {
+        return false;
+      }
+      return true;
+    });
+  }, [allReviews, selectedRating]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredReviews.length / pageSize));
+
+  React.useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const pagedReviews = React.useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredReviews.slice(start, start + pageSize);
+  }, [filteredReviews, page, pageSize]);
 
   if (showFullPageSpinner) {
     return <CenteredSpinner fullPage />;
@@ -500,19 +522,31 @@ export default function ReviewsSettingsPage() {
           </div>
           <div className="flex items-center gap-2">
             <div className="flex-1 min-w-0">
-              <Input
-                placeholder={t("customers.drawer.searchPlaceholder")}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="text-start"
-              />
+              <Select
+                value={selectedRating ? String(selectedRating) : "all"}
+                onValueChange={(value) =>
+                  setSelectedRating(value === "all" ? null : Number(value))
+                }
+              >
+                <SelectTrigger size="sm" className="w-full text-start">
+                  <SelectValue placeholder={t("reviews.ratingLabel")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t("common.all")}</SelectItem>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="4">4</SelectItem>
+                  <SelectItem value="3">3</SelectItem>
+                  <SelectItem value="2">2</SelectItem>
+                  <SelectItem value="1">1</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div className="shrink-0">
+            <div className="flex-1 min-w-0">
               <Select
                 value={String(pageSize)}
                 onValueChange={(v) => setPageSize(Number(v) || 5)}
               >
-                <SelectTrigger size="sm" className="w-[128px] text-start">
+                <SelectTrigger size="sm" className="w-full text-start">
                   <SelectValue placeholder={t("customers.table.rows")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -538,7 +572,7 @@ export default function ReviewsSettingsPage() {
             </div>
           ) : (
             <DataTable
-              rows={reviewsQuery.data?.reviews ?? []}
+              rows={pagedReviews}
               columns={reviewColumns}
               getRowId={(row) => row.id}
               emptyMessage={
@@ -546,28 +580,20 @@ export default function ReviewsSettingsPage() {
                   {t("reviews.listEmpty")}
                 </div>
               }
-              pagination={
-                reviewsQuery.data
-                  ? {
-                      page,
-                      totalPages: reviewsQuery.data.totalPages,
-                      onPageChange: setPage,
-                    }
-                  : undefined
-              }
-              paginationLabels={
-                reviewsQuery.data
-                  ? {
-                      summary: (pageValue, totalPagesValue) =>
-                        t("customers.table.paginationSummary", {
-                          page: pageValue,
-                          total: totalPagesValue,
-                        }),
-                      previous: t("customers.table.previous"),
-                      next: t("customers.table.next"),
-                    }
-                  : undefined
-              }
+              pagination={{
+                page,
+                totalPages,
+                onPageChange: setPage,
+              }}
+              paginationLabels={{
+                summary: (pageValue, totalPagesValue) =>
+                  t("customers.table.paginationSummary", {
+                    page: pageValue,
+                    total: totalPagesValue,
+                  }),
+                previous: t("customers.table.previous"),
+                next: t("customers.table.next"),
+              }}
             />
           )}
         </CardContent>

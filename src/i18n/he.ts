@@ -22,6 +22,7 @@ const he = {
     done: "סיום",
     yes: "כן",
     no: "לא",
+    all: "הכל",
     emptyDash: "—",
     languageSwitcher: "בחירת שפה",
     languageHebrew: "עברית",
