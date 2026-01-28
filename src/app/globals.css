@@ -160,6 +160,15 @@
   }
 }
 
+/* Ensure native text selection works in fields globally */
+:where(input, textarea, [contenteditable="true"]) {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default;
+  pointer-events: auto;
+  cursor: text;
+}
+
 /* Fix date picker icon in dark mode */
 
 /* Hide scrollbars (used for horizontal carousels). */
@@ -516,4 +525,17 @@ html.dark .swipe-undo-progress {
   to {
     transform: scaleX(0);
   }
+}
+
+/* ================================
+   Visible text selection (global)
+   ================================ */
+::selection {
+  background-color: oklch(0.63 0.24 258);
+  color: white;
+}
+
+::-moz-selection {
+  background-color: oklch(0.63 0.24 258);
+  color: white;
 }
