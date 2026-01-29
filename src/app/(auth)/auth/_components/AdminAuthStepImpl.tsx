@@ -256,7 +256,7 @@ export default function AdminAuthStep({
     }, [t, termsModal.type]);
 
     return (
-        <div className="flex flex-col min-h-screen p-4">
+        <div className="flex flex-col min-h-screen py-4 px-6">
             <div className="fixed top-4 z-40 w-full flex justify-center">
                 <LanguageSwitcher variant="light" />
             </div>
