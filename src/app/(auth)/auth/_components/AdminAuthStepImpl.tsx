@@ -446,15 +446,12 @@ export default function AdminAuthStep({
                                 {t("auth.login.button")}
                             </Button>
 
-                            <div className="relative my-4">
-                                <div className="absolute inset-0 flex items-center">
-                                    <div className="w-full border-t border-gray-200" />
-                                </div>
-                                <div className="relative flex justify-center">
-                                    <span className="ps-4 pe-4 bg-gradient-to-b from-teal-50 to-white text-gray-500 text-sm">
-                                        {t("auth.login.divider")}
-                                    </span>
-                                </div>
+                            <div className="my-4 flex items-center gap-3">
+                                <div className="flex-1 border-t border-gray-200" />
+                                <span className="text-gray-500 text-sm">
+                                    {t("auth.login.divider")}
+                                </span>
+                                <div className="flex-1 border-t border-gray-200" />
                             </div>
 
                             <div className="flex gap-4">
@@ -717,15 +714,12 @@ export default function AdminAuthStep({
                                 {t("auth.signup.button")}
                             </Button>
 
-                            <div className="relative my-4">
-                                <div className="absolute inset-0 flex items-center">
-                                    <div className="w-full border-t border-gray-200" />
-                                </div>
-                                <div className="relative flex justify-center">
-                                    <span className="ps-4 pe-4 bg-gradient-to-b from-teal-50 to-white text-gray-500 text-sm">
-                                        {t("auth.signup.divider")}
-                                    </span>
-                                </div>
+                            <div className="my-4 flex items-center gap-3">
+                                <div className="flex-1 border-t border-gray-200" />
+                                <span className="text-gray-500 text-sm">
+                                    {t("auth.signup.divider")}
+                                </span>
+                                <div className="flex-1 border-t border-gray-200" />
                             </div>
 
                             <div className="flex gap-4">
