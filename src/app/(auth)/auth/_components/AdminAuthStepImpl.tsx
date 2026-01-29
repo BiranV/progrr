@@ -624,8 +624,8 @@ export default function AdminAuthStep({
                                 )}
                             </div>
 
-                            <div className="space-y-1.5 pt-1">
-                                <div className="flex items-start gap-2 w-full auth-terms-row">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
                                     <Checkbox
                                         id="terms"
                                         checked={signupAgreeTerms}
@@ -635,18 +635,18 @@ export default function AdminAuthStep({
                                                 setSignupErrors((prev) => ({ ...prev, terms: null }));
                                             }
                                         }}
-                                        className={`border-gray-300 data-[state=checked]:bg-teal-500 data-[state=checked]:border-teal-500 mt-0.5 ${signupErrors.terms ? "border-red-500" : ""
+                                        className={`border-gray-300 data-[state=checked]:bg-teal-500 data-[state=checked]:border-teal-500 mt-0.5 shrink-0 ${signupErrors.terms ? "border-red-500" : ""
                                             }`}
                                     />
                                     <Label
                                         htmlFor="terms"
-                                        className="text-xs text-gray-600 cursor-pointer leading-snug flex-1 auth-terms-text"
+                                        className="text-xs text-gray-600 cursor-pointer leading-snug flex-1 auth-terms-text text-start"
                                     >
                                         {t("auth.signup.termsPrefix")}
                                         <button
                                             type="button"
                                             onClick={() => setTermsModal({ isOpen: true, type: "terms" })}
-                                            className="text-teal-600 hover:text-teal-700 font-medium mx-1 underline"
+                                            className="text-teal-600 hover:text-teal-700 font-medium ms-1 me-1 underline"
                                         >
                                             {t("auth.signup.termsLink")}
                                         </button>
@@ -654,15 +654,15 @@ export default function AdminAuthStep({
                                         <button
                                             type="button"
                                             onClick={() => setTermsModal({ isOpen: true, type: "privacy" })}
-                                            className="text-teal-600 hover:text-teal-700 font-medium mx-1 underline"
+                                            className="text-teal-600 hover:text-teal-700 font-medium ms-1 me-1 underline"
                                         >
                                             {t("auth.signup.privacyLink")}
                                         </button>
-                                        <span className="text-red-500 mr-1">*</span>
+                                        <span className="text-red-500 ms-1">*</span>
                                     </Label>
                                 </div>
                                 {signupErrors.terms && (
-                                    <p className="text-sm text-red-500 mt-1 mr-8">{signupErrors.terms}</p>
+                                    <p className="text-sm text-red-500 mt-1 ms-8">{signupErrors.terms}</p>
                                 )}
                             </div>
 
