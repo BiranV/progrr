@@ -6,6 +6,7 @@ import { persistQueryClient } from "@tanstack/react-query-persist-client";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import { AuthProvider } from "@/context/AuthContext";
 import { LocaleProvider } from "@/context/LocaleContext";
+import { AppBootstrapProvider } from "@/context/AppBootstrapContext";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -29,12 +30,6 @@ export default function Providers({
     try {
       window.localStorage.removeItem("progrr_dark_mode");
       window.localStorage.removeItem("progrr:rq-cache:v1");
-    } catch {
-      // ignore
-    }
-
-    try {
-      document.cookie = "progrr_lang=; Max-Age=0; path=/";
     } catch {
       // ignore
     }
@@ -63,7 +58,7 @@ export default function Providers({
       <AuthProvider>
         <LocaleProvider>
           <QueryClientProvider client={queryClient}>
-            {children}
+            <AppBootstrapProvider>{children}</AppBootstrapProvider>
           </QueryClientProvider>
         </LocaleProvider>
       </AuthProvider>

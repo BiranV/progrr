@@ -169,6 +169,16 @@
   cursor: text;
 }
 
+/* Ensure tel placeholders follow document direction */
+input[type="tel"] {
+  direction: inherit;
+  text-align: start;
+}
+
+input[type="tel"]::placeholder {
+  text-align: start;
+}
+
 /* Fix date picker icon in dark mode */
 
 /* Hide scrollbars (used for horizontal carousels). */
@@ -247,6 +257,35 @@ html[dir="rtl"] ol {
   list-style-position: inside;
   padding-inline-start: 0;
   margin-inline-start: 0;
+}
+
+/* Auth input logical utilities */
+.auth-icon-start {
+  inset-inline-start: 1rem;
+}
+
+.auth-icon-end {
+  inset-inline-end: 1rem;
+}
+
+.auth-input-start {
+  padding-inline-start: 3rem;
+}
+
+.auth-input-end {
+  padding-inline-end: 3rem;
+}
+
+.auth-terms-row {
+  flex-direction: row;
+}
+
+html[dir="rtl"] .auth-terms-row {
+  flex-direction: row-reverse;
+}
+
+.auth-terms-text {
+  text-align: start;
 }
 
 /* Flatpickr (public booking): keep default UI, light theming only */
@@ -522,6 +561,7 @@ html.dark .swipe-undo-progress {
   from {
     transform: scaleX(1);
   }
+
   to {
     transform: scaleX(0);
   }

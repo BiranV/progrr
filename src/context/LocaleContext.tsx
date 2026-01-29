@@ -9,6 +9,7 @@ type LocaleContextValue = {
     locale: "he-IL" | "en-US";
     dir: "rtl" | "ltr";
     updateUserLanguage: (lang: Language) => void;
+    isLocaleReady: boolean;
 };
 
 const DEFAULT_LANGUAGE: Language = "he";
@@ -80,10 +81,10 @@ export function LocaleProvider({
             locale: meta.locale,
             dir: meta.dir,
             updateUserLanguage,
+            isLocaleReady: mounted,
         };
-    }, [language, updateUserLanguage]);
+    }, [language, mounted, updateUserLanguage]);
 
-    if (!mounted) return null;
     return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
 }
 
@@ -95,6 +96,7 @@ export function useLocale() {
             locale: LANG_META[DEFAULT_LANGUAGE].locale,
             dir: LANG_META[DEFAULT_LANGUAGE].dir,
             updateUserLanguage: () => undefined,
+            isLocaleReady: false,
         } as LocaleContextValue;
     }
     return ctx;

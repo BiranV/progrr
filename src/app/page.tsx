@@ -33,7 +33,7 @@ export default async function Home({
     const authedDest = next && isSafeNextPath(next) ? next : "/dashboard";
     redirect(authedDest);
   } catch {
-    const dest = qs.toString() ? `/auth?${qs.toString()}` : "/auth";
+    const dest = qs.toString() ? `/welcome?${qs.toString()}` : "/welcome";
     redirect(dest);
   }
 }

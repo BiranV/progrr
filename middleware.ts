@@ -140,7 +140,7 @@ export async function middleware(request: NextRequest) {
 
   if (!isPublicPath(pathname) && !isAuthed) {
     const url = request.nextUrl.clone();
-    url.pathname = "/auth";
+    url.pathname = "/welcome";
     url.searchParams.set(
       "next",
       request.nextUrl.pathname + request.nextUrl.search

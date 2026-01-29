@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { User } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
+import { useAppBootstrap } from "@/context/AppBootstrapContext";
 import BottomNav from "./BottomNav";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ function isPublicPath(pathname: string) {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoadingAuth: loading, updateUser, logout } = useAuth();
+  const { isAppReady } = useAppBootstrap();
   const pathname = usePathname();
   const router = useRouter();
   const mainRef = React.useRef<HTMLElement | null>(null);
@@ -108,7 +110,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const shouldShowExpiredGate =
     !shouldBlockChildren && isSubscriptionExpired && !isAllowedWhenExpired;
 
-  const blockingFallback = (
+  const blockingFallback = isAppReady ? (
     <div className="space-y-4">
       <CenteredSpinner className="min-h-[120px] items-center" />
       <div className="grid grid-cols-2 gap-3">
@@ -117,7 +119,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
       <Skeleton className="h-48 w-full" />
     </div>
-  );
+  ) : null;
 
   const expiredFallback = (
     <div className="space-y-4">

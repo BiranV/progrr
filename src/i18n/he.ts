@@ -321,21 +321,134 @@ const he = {
     },
   },
   auth: {
-    welcomeBack: "ברוכים השבים",
-    verifyLogin: "אימות התחברות",
-    createAccount: "יצירת חשבון",
-    verifyEmail: "אימות אימייל",
-    emailAddress: "כתובת אימייל",
-    fullName: "שם מלא",
-    enterCode: "הזנת קוד",
-    emailPlaceholder: "name@company.com",
-    fullNamePlaceholder: "שם מלא",
+    login: {
+      title: "התחברות לחשבון",
+      subtitle: "ברוכים השבים. נא להזין את פרטי ההתחברות",
+      emailLabel: "אימייל",
+      passwordLabel: "סיסמה",
+      emailPlaceholder: "example@email.com",
+      passwordPlaceholder: "••••••••",
+      rememberMe: "זכור אותי",
+      forgotPassword: "שכחת סיסמה?",
+      button: "התחבר",
+      divider: "או התחבר באמצעות",
+      noAccountPrefix: "אין לך חשבון?",
+      noAccountCta: "הירשם עכשיו",
+      forgotPasswordTitle: "שכחת סיסמה?",
+      forgotPasswordSubtitle:
+        "הזן את כתובת האימייל שלך ונשלח לך קישור לאיפוס סיסמה",
+      resetEmailLabel: "אימייל",
+      forgotPasswordCancel: "ביטול",
+      forgotPasswordSend: "שלח קישור",
+      forgotPasswordSent: "נשלח אימייל לאיפוס סיסמה לכתובת: {{email}}",
+      validation: {
+        emailRequired: "נא להזין כתובת אימייל",
+        emailInvalid: "כתובת אימייל לא תקינה",
+        passwordRequired: "נא להזין סיסמה",
+        passwordLength: "הסיסמה חייבת להכיל לפחות 6 תווים",
+        emailRequiredFirst: "נא להזין כתובת אימייל תחילה",
+        emailInvalidFirst: "נא להזין כתובת אימייל תקינה",
+      },
+    },
+    signup: {
+      title: "יצירת חשבון חדש",
+      subtitle: "הצטרפו אלינו ותתחילו ליהנות מכל היתרונות",
+      fullNameLabel: "שם מלא",
+      fullNamePlaceholder: "ישראל ישראלי",
+      emailLabel: "אימייל",
+      emailPlaceholder: "example@email.com",
+      phoneLabel: "טלפון",
+      phonePlaceholder: "050-1234567",
+      passwordLabel: "סיסמה",
+      passwordPlaceholder: "לפחות 8 תווים, אותיות ומספרים",
+      termsPrefix: "אני מסכים/ה ל",
+      termsLink: "תנאי השימוש",
+      termsConnector: "ול",
+      privacyLink: "מדיניות הפרטיות",
+      button: "צור חשבון",
+      divider: "או הירשם באמצעות",
+      haveAccountPrefix: "כבר יש לך חשבון?",
+      haveAccountCta: "התחבר",
+      validation: {
+        fullNameRequired: "נא להזין שם מלא",
+        fullNameLength: "שם חייב להכיל לפחות 2 תווים",
+        fullNameChars: "שם יכול להכיל רק אותיות ורווחים",
+        emailRequired: "נא להזין כתובת אימייל",
+        emailInvalid: "כתובת אימייל לא תקינה",
+        phoneRequired: "נא להזין מספר טלפון",
+        phoneInvalid: "מספר טלפון לא תקין (נדרש: 05X-XXXXXXX)",
+        passwordRequired: "נא להזין סיסמה",
+        passwordLength: "הסיסמה חייבת להכיל לפחות 8 תווים",
+        passwordComplexity:
+          "הסיסמה חייבת להכיל אותיות גדולות, קטנות ומספרים",
+        termsRequired: "יש להסכים לתנאי השימוש",
+      },
+    },
+    modalLastUpdatedLabel: "עדכון אחרון:",
+    modalLastUpdatedDate: "ינואר 2026",
+    modalFooterNote:
+      "נא לקרוא בעיון את התנאים והמדיניות. המשך השימוש באפליקציה מהווה הסכמה לתנאים אלה.",
+    modalAcknowledge: "הבנתי",
+    termsModal: {
+      title: "תנאי שימוש",
+      sections: {
+        acceptance: {
+          title: "1. קבלת התנאים",
+          body:
+            "בגישה לאפליקציה זו ושימוש בה, אתה מסכים להיות מחויב לתנאי שימוש אלה, לכל החוקים והתקנות הרלוונטיים, ומסכים שאתה אחראי לציות לכל חוק מקומי החל.",
+        },
+        usage: {
+          title: "2. שימוש באפליקציה",
+          body:
+            "האפליקציה מיועדת לניהול תורים ופגישות עסקיות. אסור להשתמש באפליקציה למטרות בלתי חוקיות או בדרך שעלולה לפגוע בזכויות אחרים.",
+        },
+        account: {
+          title: "3. חשבון משתמש",
+          body:
+            "אתה אחראי לשמור על סודיות פרטי החשבון שלך ולכל הפעילויות המתרחשות תחת החשבון שלך. עליך להודיע לנו מיד על כל שימוש בלתי מורשה.",
+        },
+        changes: {
+          title: "4. שינויים בשירות",
+          body:
+            "אנו שומרים לעצמנו את הזכות לשנות או להפסיק את השירות באופן זמני או קבוע, בכל עת וללא הודעה מוקדמת.",
+        },
+      },
+    },
+    privacyModal: {
+      title: "מדיניות פרטיות",
+      sections: {
+        collection: {
+          title: "1. איסוף מידע",
+          body:
+            "אנו אוספים מידע שאתה מספק לנו ישירות, כגון שם, אימייל, מספר טלפון, ופרטי העסק שלך. המידע משמש אותנו לספק ולשפר את השירות.",
+        },
+        usage: {
+          title: "2. שימוש במידע",
+          body:
+            "אנו משתמשים במידע שנאסף כדי: לספק ולתחזק את השירות, לשפר את חווית המשתמש, לשלוח עדכונים והודעות רלוונטיות, ולספק תמיכה טכנית.",
+        },
+        security: {
+          title: "3. אבטחת מידע",
+          body:
+            "אנו נוקטים באמצעים סבירים כדי להגן על המידע האישי שלך מפני גישה לא מורשית, שינוי, גילוי או השמדה. עם זאת, אף שיטת העברה באינטרנט אינה בטוחה ב-100%.",
+        },
+        sharing: {
+          title: "4. שיתוף מידע",
+          body:
+            "אנו לא מוכרים או משכירים את המידע האישי שלך לצדדים שלישיים. אנו עשויים לשתף מידע רק במקרים הנדרשים על פי חוק או כדי להגן על זכויותינו.",
+        },
+        cookies: {
+          title: "5. עוגיות",
+          body:
+            "האפליקציה משתמשת בעוגיות (cookies) לשיפור חווית השימוש ולניתוח תנועה באתר. אתה יכול לבחור לדחות עוגיות דרך הגדרות הדפדפן שלך.",
+        },
+      },
+    },
     toggleLogoLight: "הדלקת לוגו",
     codeSentToEmail: "הקוד נשלח אל {{email}}",
     codeSentToEmailShort: "הקוד נשלח לאימייל",
     resendCode: "שליחה מחדש של קוד",
     resendCodeIn: "שליחה מחדש בעוד {{seconds}} ש׳",
-    login: "התחברות",
     logout: "התנתקות",
     signOut: "התנתקות",
     signIn: "כניסה",
@@ -361,6 +474,40 @@ const he = {
     accountNotFound: "לא נמצא חשבון עם האימייל הזה",
     invalidCode: "קוד לא תקין",
     tooManyAttempts: "יותר מדי ניסיונות. נסה/י שוב מאוחר יותר.",
+  },
+  welcomeScreen: {
+    skip: "דלג",
+    step: "{{current}}/{{total}}",
+    title: "ניהול תורים פשוט ויעיל",
+    subtitle:
+      "פלטפורמה מלאה לניהול הזמנות, לקוחות ותובנות - הכול במקום אחד.",
+    cta: "בואו נתחיל",
+    imageAlt: "איש מקצוע {{index}}",
+  },
+  onboardingIntro: {
+    skip: "דלג",
+    next: "הבא",
+    previous: "הקודם",
+    start: "התחל עכשיו",
+    step: "{{current}}/{{total}}",
+    dotAria: "מעבר לשקופית {{index}}",
+    slides: {
+      smartScheduling: {
+        title: "ניהול תורים חכם",
+        description:
+          "נהלו את כל התורים שלכם במקום אחד, עם יומן דיגיטלי מתקדם וקל לשימוש",
+      },
+      insights: {
+        title: "סטטיסטיקות מפורטות",
+        description:
+          "קבלו תובנות על הביצועים שלכם - הכנסות, תורים שהושלמו, ביקורות ועוד",
+      },
+      bookingLink: {
+        title: "לינק ציבורי ללקוחות",
+        description:
+          "שתפו לינק אישי מותאם עם הלקוחות שלכם שיוכלו לקבוע תורים בעצמם",
+      },
+    },
   },
   onboarding: {
     businessTypeTitle: "סוג עסק",

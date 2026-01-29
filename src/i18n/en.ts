@@ -327,21 +327,134 @@ const en = {
     },
   },
   auth: {
-    welcomeBack: "Welcome Back",
-    verifyLogin: "Verify Login",
-    createAccount: "Create Account",
-    verifyEmail: "Verify Email",
-    emailAddress: "Email Address",
-    fullName: "Full Name",
-    enterCode: "Enter Code",
-    emailPlaceholder: "name@company.com",
-    fullNamePlaceholder: "Jane Doe",
+    login: {
+      title: "Log in to your account",
+      subtitle: "Welcome back. Please enter your login details",
+      emailLabel: "Email",
+      passwordLabel: "Password",
+      emailPlaceholder: "example@email.com",
+      passwordPlaceholder: "••••••••",
+      rememberMe: "Remember me",
+      forgotPassword: "Forgot password?",
+      button: "Log in",
+      divider: "Or log in with",
+      noAccountPrefix: "Don't have an account?",
+      noAccountCta: "Sign up now",
+      forgotPasswordTitle: "Forgot your password?",
+      forgotPasswordSubtitle:
+        "Enter your email address and we will send you a password reset link",
+      resetEmailLabel: "Email",
+      forgotPasswordCancel: "Cancel",
+      forgotPasswordSend: "Send link",
+      forgotPasswordSent: "Password reset email sent to: {{email}}",
+      validation: {
+        emailRequired: "Please enter an email address",
+        emailInvalid: "Invalid email address",
+        passwordRequired: "Please enter a password",
+        passwordLength: "Password must be at least 6 characters",
+        emailRequiredFirst: "Please enter an email address first",
+        emailInvalidFirst: "Please enter a valid email address",
+      },
+    },
+    signup: {
+      title: "Create a new account",
+      subtitle: "Join us and start enjoying all the benefits",
+      fullNameLabel: "Full name",
+      fullNamePlaceholder: "Full name",
+      emailLabel: "Email",
+      emailPlaceholder: "example@email.com",
+      phoneLabel: "Phone",
+      phonePlaceholder: "050-1234567",
+      passwordLabel: "Password",
+      passwordPlaceholder: "At least 8 characters, letters and numbers",
+      termsPrefix: "I agree to",
+      termsLink: "Terms of Use",
+      termsConnector: "and",
+      privacyLink: "Privacy Policy",
+      button: "Create account",
+      divider: "Or sign up with",
+      haveAccountPrefix: "Already have an account?",
+      haveAccountCta: "Log in",
+      validation: {
+        fullNameRequired: "Please enter a full name",
+        fullNameLength: "Name must contain at least 2 characters",
+        fullNameChars: "Name can contain only letters and spaces",
+        emailRequired: "Please enter an email address",
+        emailInvalid: "Invalid email address",
+        phoneRequired: "Please enter a phone number",
+        phoneInvalid: "Invalid phone number (required: 05X-XXXXXXX)",
+        passwordRequired: "Please enter a password",
+        passwordLength: "Password must be at least 8 characters",
+        passwordComplexity:
+          "Password must include uppercase, lowercase letters and numbers",
+        termsRequired: "You must agree to the Terms of Use",
+      },
+    },
+    modalLastUpdatedLabel: "Last updated:",
+    modalLastUpdatedDate: "January 2026",
+    modalFooterNote:
+      "Please read the terms and policy carefully. Continued use of the app constitutes acceptance.",
+    modalAcknowledge: "Got it",
+    termsModal: {
+      title: "Terms of Use",
+      sections: {
+        acceptance: {
+          title: "1. Acceptance of terms",
+          body:
+            "By accessing and using this app, you agree to be bound by these Terms of Use, all applicable laws and regulations, and agree that you are responsible for compliance with any applicable local laws.",
+        },
+        usage: {
+          title: "2. App usage",
+          body:
+            "The app is intended for managing business appointments and bookings. You may not use the app for unlawful purposes or in a way that could harm the rights of others.",
+        },
+        account: {
+          title: "3. User account",
+          body:
+            "You are responsible for maintaining the confidentiality of your account credentials and all activities that occur under your account. You must notify us immediately of any unauthorized use.",
+        },
+        changes: {
+          title: "4. Service changes",
+          body:
+            "We reserve the right to modify or discontinue the service, temporarily or permanently, at any time and without prior notice.",
+        },
+      },
+    },
+    privacyModal: {
+      title: "Privacy Policy",
+      sections: {
+        collection: {
+          title: "1. Information collection",
+          body:
+            "We collect information you provide directly, such as name, email, phone number, and your business details. This information is used to provide and improve the service.",
+        },
+        usage: {
+          title: "2. Use of information",
+          body:
+            "We use the information collected to: provide and maintain the service, improve the user experience, send relevant updates and notifications, and provide technical support.",
+        },
+        security: {
+          title: "3. Information security",
+          body:
+            "We take reasonable measures to protect your personal information from unauthorized access, alteration, disclosure, or destruction. However, no method of transmission over the Internet is 100% secure.",
+        },
+        sharing: {
+          title: "4. Information sharing",
+          body:
+            "We do not sell or rent your personal information to third parties. We may share information only when required by law or to protect our rights.",
+        },
+        cookies: {
+          title: "5. Cookies",
+          body:
+            "The app uses cookies to improve the user experience and analyze site traffic. You can choose to decline cookies in your browser settings.",
+        },
+      },
+    },
     toggleLogoLight: "Toggle logo light",
     codeSentToEmail: "Code sent to {{email}}",
     codeSentToEmailShort: "Code sent to email",
     resendCode: "Resend code",
     resendCodeIn: "Resend in {{seconds}}s",
-    login: "Login",
     logout: "Log out",
     signOut: "Sign out",
     signIn: "Sign in",
@@ -367,6 +480,40 @@ const en = {
     accountNotFound: "No account found with this email",
     invalidCode: "Invalid code",
     tooManyAttempts: "Too many attempts. Try again later.",
+  },
+  welcomeScreen: {
+    skip: "Skip",
+    step: "{{current}}/{{total}}",
+    title: "Run your appointments with ease",
+    subtitle:
+      "A complete platform to manage bookings, clients, and insights—all in one place.",
+    cta: "Let’s get started",
+    imageAlt: "Professional {{index}}",
+  },
+  onboardingIntro: {
+    skip: "Skip",
+    next: "Next",
+    previous: "Previous",
+    start: "Start now",
+    step: "{{current}}/{{total}}",
+    dotAria: "Go to slide {{index}}",
+    slides: {
+      smartScheduling: {
+        title: "Smart appointment management",
+        description:
+          "Manage all your appointments in one place with a modern, easy-to-use calendar.",
+      },
+      insights: {
+        title: "Detailed insights",
+        description:
+          "Track performance with revenue, completed appointments, reviews, and more.",
+      },
+      bookingLink: {
+        title: "Share a public booking link",
+        description:
+          "Send a personalized link so clients can book on their own.",
+      },
+    },
   },
   onboarding: {
     businessTypeTitle: "Business type",

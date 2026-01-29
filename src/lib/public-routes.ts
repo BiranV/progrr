@@ -5,9 +5,11 @@ export function isPublicBookingPathname(pathname: string) {
 export function isPublicPagePathname(pathname: string) {
   return (
     pathname === "/" ||
+    pathname === "/welcome" ||
+    pathname.startsWith("/onboarding-intro") ||
     pathname.startsWith("/auth") ||
     pathname.startsWith("/login") ||
-    pathname.startsWith("/review") ||
+    // pathname.startsWith("/review") ||
     isPublicBookingPathname(pathname)
   );
 }
