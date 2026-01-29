@@ -368,6 +368,7 @@ const en = {
       passwordLabel: "Password",
       passwordPlaceholder: "At least 8 characters, letters and numbers",
       termsPrefix: "I agree to",
+      termsText: "I agree to the {{terms}} and {{privacy}}",
       termsLink: "Terms of Use",
       termsConnector: "and",
       privacyLink: "Privacy Policy",

@@ -203,6 +203,45 @@ export default function AdminAuthStep({
         setForgotSent(t("auth.login.forgotPasswordSent", { email: forgotEmail }));
     };
 
+    const renderSignupTermsText = () => {
+        const rawTemplate = t("auth.signup.termsText");
+        const template =
+            rawTemplate === "auth.signup.termsText"
+                ? "I agree to the {{terms}} and {{privacy}}"
+                : rawTemplate;
+        return template
+            .split(/(\{\{terms\}\}|\{\{privacy\}\})/g)
+            .map((part, index) => {
+                if (part === "{{terms}}") {
+                    return (
+                        <button
+                            key={`terms-${index}`}
+                            type="button"
+                            onClick={() => setTermsModal({ isOpen: true, type: "terms" })}
+                            className="text-teal-600 hover:text-teal-700 font-medium ms-1 me-1 underline"
+                        >
+                            {t("auth.signup.termsLink")}
+                        </button>
+                    );
+                }
+
+                if (part === "{{privacy}}") {
+                    return (
+                        <button
+                            key={`privacy-${index}`}
+                            type="button"
+                            onClick={() => setTermsModal({ isOpen: true, type: "privacy" })}
+                            className="text-teal-600 hover:text-teal-700 font-medium ms-1 me-1 underline"
+                        >
+                            {t("auth.signup.privacyLink")}
+                        </button>
+                    );
+                }
+
+                return <React.Fragment key={`text-${index}`}>{part}</React.Fragment>;
+            });
+    };
+
     const modalContent = useMemo(() => {
         if (termsModal.type === "terms") {
             return {
@@ -638,28 +677,32 @@ export default function AdminAuthStep({
                                         className={`border-gray-300 data-[state=checked]:bg-teal-500 data-[state=checked]:border-teal-500 mt-0.5 shrink-0 ${signupErrors.terms ? "border-red-500" : ""
                                             }`}
                                     />
-                                    <Label
+                                    <label
                                         htmlFor="terms"
-                                        className="text-xs text-gray-600 cursor-pointer leading-snug flex-1 auth-terms-text text-start"
+                                        className="text-xs text-gray-600 cursor-pointer leading-snug auth-terms-text text-start"
                                     >
                                         {t("auth.signup.termsPrefix")}
+                                        {" "}
                                         <button
                                             type="button"
                                             onClick={() => setTermsModal({ isOpen: true, type: "terms" })}
-                                            className="text-teal-600 hover:text-teal-700 font-medium ms-1 me-1 underline"
+                                            className="text-teal-600 hover:text-teal-700 font-medium underline"
                                         >
                                             {t("auth.signup.termsLink")}
                                         </button>
+                                        {" "}
                                         {t("auth.signup.termsConnector")}
+                                        {" "}
                                         <button
                                             type="button"
                                             onClick={() => setTermsModal({ isOpen: true, type: "privacy" })}
-                                            className="text-teal-600 hover:text-teal-700 font-medium ms-1 me-1 underline"
+                                            className="text-teal-600 hover:text-teal-700 font-medium underline"
                                         >
                                             {t("auth.signup.privacyLink")}
                                         </button>
-                                        <span className="text-red-500 ms-1">*</span>
-                                    </Label>
+                                        <span className="text-red-500 ms-2">*</span>
+                                    </label>
+
                                 </div>
                                 {signupErrors.terms && (
                                     <p className="text-sm text-red-500 mt-1 ms-8">{signupErrors.terms}</p>

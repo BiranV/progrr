@@ -362,6 +362,7 @@ const he = {
       passwordLabel: "סיסמה",
       passwordPlaceholder: "לפחות 8 תווים, אותיות ומספרים",
       termsPrefix: "אני מסכים/ה ל",
+      termsText: "אני מסכים/ה ל{{terms}} ול{{privacy}}",
       termsLink: "תנאי השימוש",
       termsConnector: "ול",
       privacyLink: "מדיניות הפרטיות",
